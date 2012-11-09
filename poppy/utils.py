@@ -22,6 +22,37 @@ _Strehl_perfect_cache = {} # dict for caching perfect images used in Strehl calc
 #
 #    Display functions 
 #
+def imshow_with_mouseover(image, ax=None,  *args, **kwargs):
+    """ Wrapper for pyplot.imshow that sets up a custom mouseover display formatter
+    so that mouse motions over the image are labeled in the status bar with
+    pixel numerical value as well as X and Y coords.
+
+    Why this behavior isn't the matplotlib default, I have no idea...
+    """
+    if ax is None: ax = plt.gca()
+    myax = ax.imshow(image, *args, **kwargs)
+    aximage = ax.images[0].properties()['array']
+    # need to account for half pixel offset of array coordinates for mouseover relative to pixel center,
+    # so that the whole pixel from e.g. ( 1.5, 1.5) to (2.5, 2.5) is labeled with the coordinates of pixel (2,2)
+
+
+    # We use the extent and implementation to map back from the data coord to pixel coord
+    # There is probably an easier way to do this...
+    imext = ax.images[0].get_extent()  # returns [-X, X, -Y, Y]
+    imsize = ax.images[0].get_size()   # returns [sY, sX]g
+    # map data coords back to pixel coords:
+    #pixx = (x - imext[0])/(imext[1]-imext[0])*imsize[1]
+    #pixy = (y - imext[2])/(imext[3]-imext[2])*imsize[0]
+    # and be sure to clip appropriatedly to avoid array bounds errors
+    report_pixel = lambda x, y : "(%6.3f, %6.3f)     %g" % \
+        (x,y,   aximage[np.floor( (y - imext[2])/(imext[3]-imext[2])*imsize[0]  ).clip(0,imsize[0]-1),\
+                        np.floor( (x - imext[0])/(imext[1]-imext[0])*imsize[1]  ).clip(0,imsize[1]-1)])
+
+        #(x,y, aximage[np.floor(y+0.5),np.floor(x+0.5)])   # this works for regular pixels w/out an explicit extent= call
+    ax.format_coord = report_pixel
+
+    return ax
+
 def display_PSF(HDUlist_or_filename=None, ext=0,
     vmin=1e-8,vmax=1e-1, scale='log', cmap = matplotlib.cm.jet, 
         title=None, imagecrop=None, adjust_for_oversampling=False, normalize='None', crosshairs=False, markcentroid=False, colorbar=True, colorbar_orientation='vertical',
@@ -83,7 +114,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
             poppy._log.error("Could not determine oversampling scale factor; therefore NOT rescaling fluxes.")
             scalefactor=1
         im = HDUlist[ext].data *scalefactor
-    else: im = HDUlist[ext].data
+    else: im = HDUlist[ext].data.copy() # don't change normalization of actual input array, work with a copy!
 
     if normalize.lower() == 'peak':
         poppy._log.debug("Displaying image normalized to peak = 1")
@@ -110,7 +141,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
     extent = [-halffov, halffov, -halffov, halffov]
 
 
-    ax = poppy.imshow_with_mouseover( im   ,extent=extent,cmap=cmap, norm=norm, ax=ax)
+    ax = imshow_with_mouseover( im   ,extent=extent,cmap=cmap, norm=norm, ax=ax)
     if imagecrop is not None:
         halffov = min( (imagecrop/2, halffov))
     ax.set_xbound(-halffov, halffov)
@@ -224,7 +255,7 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
     extent = [-halffov, halffov, -halffov, halffov]
 
 
-    ax = poppy.imshow_with_mouseover( diff_im   ,extent=extent,cmap=cmap, norm=norm, ax=ax)
+    ax = imshow_with_mouseover( diff_im   ,extent=extent,cmap=cmap, norm=norm, ax=ax)
     if imagecrop is not None:
         halffov = min( (imagecrop/2, halffov))
     ax.set_xbound(-halffov, halffov)

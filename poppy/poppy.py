@@ -69,6 +69,7 @@ from matplotlib.colors import LogNorm  # for log scaling of images, with automat
 import matrixDFT
 
 from _version import __version__
+import utils
 
 try:
     from IPython.Debugger import Tracer; stop = Tracer()
@@ -163,36 +164,6 @@ def _wrap_propagate_for_multiprocessing(args):
 
     return args[0].propagate_mono(wavelength, poly_weight=weight, save_intermediates=False, **kwargs)
 
-def imshow_with_mouseover(image, ax=None,  *args, **kwargs):
-    """ Wrapper for pyplot.imshow that sets up a custom mouseover display formatter
-    so that mouse motions over the image are labeled in the status bar with
-    pixel numerical value as well as X and Y coords.
-
-    Why this behavior isn't the matplotlib default, I have no idea...
-    """
-    if ax is None: ax = plt.gca()
-    myax = ax.imshow(image, *args, **kwargs)
-    aximage = ax.images[0].properties()['array']
-    # need to account for half pixel offset of array coordinates for mouseover relative to pixel center,
-    # so that the whole pixel from e.g. ( 1.5, 1.5) to (2.5, 2.5) is labeled with the coordinates of pixel (2,2)
-
-
-    # We use the extent and implementation to map back from the data coord to pixel coord
-    # There is probably an easier way to do this...
-    imext = ax.images[0].get_extent()  # returns [-X, X, -Y, Y]
-    imsize = ax.images[0].get_size()   # returns [sY, sX]g
-    # map data coords back to pixel coords:
-    #pixx = (x - imext[0])/(imext[1]-imext[0])*imsize[1]
-    #pixy = (y - imext[2])/(imext[3]-imext[2])*imsize[0]
-    # and be sure to clip appropriatedly to avoid array bounds errors
-    report_pixel = lambda x, y : "(%6.3f, %6.3f)     %g" % \
-        (x,y,   aximage[np.floor( (y - imext[2])/(imext[3]-imext[2])*imsize[0]  ).clip(0,imsize[0]-1),\
-                        np.floor( (x - imext[0])/(imext[1]-imext[0])*imsize[1]  ).clip(0,imsize[1]-1)])
-
-        #(x,y, aximage[np.floor(y+0.5),np.floor(x+0.5)])   # this works for regular pixels w/out an explicit extent= call
-    ax.format_coord = report_pixel
-
-    return ax
 
 
 #------
@@ -536,7 +507,8 @@ class Wavefront(object):
 
             if ax is None:
                 ax = plt.subplot(nr,nc,int(row))
-            imshow_with_mouseover(intens, ax=ax, extent=extent, norm=norm, cmap=cmap)
+            #pl.imshow(intens, ax=ax, extent=extent, norm=norm, cmap=cmap)
+            utils.imshow_with_mouseover(intens, ax=ax, extent=extent, norm=norm, cmap=cmap)
             if title is None:
                 title = "Intensity "+self.location
                 title = title.replace('after', 'after\n')
@@ -559,7 +531,7 @@ class Wavefront(object):
             norm=matplotlib.colors.Normalize(vmin=-0.25,vmax=0.25)
             if ax is None:
                 ax = plt.subplot(nr,nc,int(row))
-            imshow_with_mouseover(phase/(np.pi*2), ax=ax, extent=extent, norm=norm, cmap=cmap)
+            utils.imshow_with_mouseover(phase/(np.pi*2), ax=ax, extent=extent, norm=norm, cmap=cmap)
             plt.title("Phase "+self.location)
             plt.xlabel(unit)
             if colorbar: plt.colorbar(ax2.images[0], orientation='vertical', shrink=0.8)
@@ -1100,7 +1072,7 @@ class OpticalElement():
             # so we have to square the amplitude here.
             if ax is None:
                 ax = plt.subplot(nrows, 2, row*2-1)
-            imshow_with_mouseover(ampl**2, ax=ax, extent=extent, cmap=cmap, norm=norm_amp)
+            utils.imshow_with_mouseover(ampl**2, ax=ax, extent=extent, cmap=cmap, norm=norm_amp)
             if nrows == 1:
                 plt.title("Transmissivity for "+self.name)
             plt.ylabel(units)
@@ -1121,7 +1093,7 @@ class OpticalElement():
                 ax2 = ax
     
             ax2 = plt.subplot(nrows, 2, row*2)
-            imshow_with_mouseover(opd, ax=ax2, extent=extent, cmap=cmap_opd, norm=norm_opd)
+            utils.imshow_with_mouseover(opd, ax=ax2, extent=extent, cmap=cmap_opd, norm=norm_opd)
             plt.ylabel(units)
             ax2.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
             ax2.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
@@ -1551,6 +1523,13 @@ class InverseTransmission(OpticalElement):
 class ThinLens(AnalyticOpticalElement):
     """ An idealized thin lens, implemented as a Zernike defocus term.
 
+    Parameters:
+    -------------
+    nwaves : float
+        The number of waves of defocus, peak to valley. May be positive or negative.
+    reference_wavelength : float
+        Wavelength, in meters, at which that number of waves of defocus is specified. 
+
     """
     def __init__(self, name='Thin lens', nwaves=4.0, reference_wavelength=2e-6, **kwargs):
         AnalyticOpticalElement.__init__(self,name=name, **kwargs)
@@ -1572,7 +1551,9 @@ class ThinLens(AnalyticOpticalElement):
         r_norm = r / max_r 
         #r_norm = r / (wave.shape[0]/2.*wave.pixelscale)
 
-        defocus_zernike = np.sqrt(3)* (2* r_norm**2 - 1)  *  (self.nwaves *self.reference_wavelength/wave.wavelength)
+        #defocus_zernike = np.sqrt(3)* (2* r_norm**2 - 1)  *  (self.nwaves *self.reference_wavelength/wave.wavelength)
+        # don't forget the factor of 0.5 to make the scaling factor apply as peak-to-valley rather than center-to-peak
+        defocus_zernike = (2* r_norm**2 - 1)  *  (0.5 * self.nwaves *self.reference_wavelength/wave.wavelength)
         lens_phasor = np.exp(1.j * 2* np.pi * defocus_zernike)
         #stop()
         return lens_phasor
@@ -2684,7 +2665,7 @@ class OpticalSystem():
         if oversample is None:
             oversample = self.oversample
         self.planes.append(Detector(pixelscale, oversample=oversample, **kwargs))
-        if self.verbose: _log.info("Added detector: "+self.planes[-1].name)
+        if self.verbose: _log.info("Added detector: %s, with pixelscale=%f arcsec/pixel and oversampling=%d" % (self.planes[-1].name,pixelscale,oversample) )
 
 
         #return "Optical system '%s' containing %d optics" % (self.name, len(self.planes))
@@ -3044,7 +3025,7 @@ class OpticalSystem():
             norm=LogNorm(vmin=1e-8,vmax=1e-1)
             plt.xlabel(unit)
 
-            imshow_with_mouseover(outFITS[0].data, extent=extent, norm=norm, cmap=cmap)
+            utils.imshow_with_mouseover(outFITS[0].data, extent=extent, norm=norm, cmap=cmap)
 
 
         # TODO update FITS header for oversampling here if detector is different from regular?

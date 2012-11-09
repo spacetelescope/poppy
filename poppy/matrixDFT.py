@@ -1,4 +1,4 @@
-#! /usr/bin/env  python 
+﻿#! /usr/bin/env  python 
 """
     Matrix DFT  
 
@@ -18,7 +18,6 @@
         - SFT1: 'FFTSTYLE' centered on one pixel
         - SFT2: 'SYMMETRIC' centerd on crosshairs between middle pixel
         - SFT3: 'ADJUSTIBLE', always centered in output array depending on whether it is even/odd
-        - SFT4: 'ROTATABLE'; not properly implemented do not use
 
     There are also SFT1rect and SFT3rect versions which support non-square arrays for both
     forward and inverse transformations.
@@ -39,6 +38,7 @@
         with Soummer et al. 2007. Updated documentation.  -- M. Perrin
     2011-2012: Various enhancements, detailed history not kept, sorry.
     2012-05-18: module renamed SFT.py -> matrixDFT.py
+    2012-09-26: minor big fixes
 
 """
 from __future__ import division # always floating point
@@ -59,7 +59,7 @@ except:
 
 
 # FFTSTYLE
-def SFT1(pupil, nlamD, npix, **kwargs):
+def SFT1(pupil, nlamD, npix, inverse=False, **kwargs):
     """
 
     Compute an "FFTSTYLE" matrix fourier transform.
@@ -410,92 +410,9 @@ def SFT3rect(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **kwargs):
 
 
 
-# ROTATABLE 
-def SFT4(pupil, nlamD, npix, offset=(0.0,0.0), angle=0.0, **kwargs):
-    """
-    Compute an adjustible-center, rotatable matrix fourier transform. 
-
-    For an output array with ODD size n,
-    the PSF center will be at the center of pixel (n-1)/2
-    
-    For an output array with EVEN size n, 
-    the PSF center will be in the corner between pixel (n/2-1,n/2-1) and (n/2,n/2)
-
-    Those coordinates all assume IDL or Python style pixel coordinates running from
-    (0,0) up to (n-1, n-1). 
-
-    Parameters
-    ----------
-    pupil
-        pupil array (n by n)
-    nlamD
-        size of focal plane array, in units of lam/D
-        (corresponds to 'm' in Soummer et al. 2007 4.2)
-    npix
-        number of pixels per side side of focal plane array
-        (corresponds to 'N_B' in Soummer et al. 2007 4.2)
-    offset
-        an offset in pixels relative to the above
-
-    """
-
-    rotation = 45.0
-    cosr = np.cos( np.radians(rotation))
-    sinr = np.sin( np.radians(rotation))
 
 
-    npup = pupil.shape[0]
-
-    du = nlamD / float(npix)
-    dv = nlamD / float(npix)
-
-    dx = 1.0/float(npup)
-    dy = 1.0/float(npup)
-
-    # Xs and Ys are, unsurprisingly, the X and Y coordinates for the pupil array.
-    # I think? Though then why does it make it work properly to shift them here like this?
-    # Actually it should make NO difference. A shift in the pupil plane just induces a phase tilt
-    # in the image plane, which we don't care about for PSFs since we just measure total intensity.
-      #Yep, confirmed numerically with some tests. Applying shifts here is unnecessary!
-        #Xs = (np.arange(npup) - float(npup)/2.0 - offset[1] + 0.5) * dx
-        #Ys = (np.arange(npup) - float(npup)/2.0 - offset[0] + 0.5) * dy
-
-    Xs = (np.arange(npup) - float(npup)/2.0 ) * dx
-    Ys = (np.arange(npup) - float(npup)/2.0 ) * dy
-
-
-
-    # OK, a 2D FFT can be computed as a the result of two separate 1D transforms...
-
-
-    # Aaaargh this is not going to work.
-    #
-    Us = (np.arange(npix) - float(npix)/2.0 - offset[1] + 0.5) * du
-    Vs = (np.arange(npix) - float(npix)/2.0 - offset[0] + 0.5) * dv
-    Us.shape = (1,npix)
-    Vs.shape = (npix,1)
-
-    UsR =  cosr*Us + sinr*Vs
-    VsR = -sinr*Us + cosr*Vs
-
-
-    XU = np.outer(Xs, Us)
-    YV = np.outer(Ys, Vs)
-
-
-    expXU = np.exp(-2.0 * np.pi * 1j * XU)
-    expYV = np.exp(-2.0 * np.pi * 1j * YV)
-    expXU = expXU.T.copy()
-
-    t1 = np.dot(expXU, pupil)
-    t2 = np.dot(t1, expYV)
-
-    #return t2 * dx * dy
-    return  float(nlamD)/(npup*npix) *   t2 
-
-
-
-class SlowFourierTransform:
+class MatrixFourierTransform:
     """Implements a discrete matrix Fourier transform for optical 
     propagation, following the algorithms discussed in 
     Soummer et al. 2007 JOSA 15 24
@@ -506,13 +423,14 @@ class SlowFourierTransform:
         Either 'SYMMETRIC', 'FFTSTYLE', or 'ADJUSTIBLE'. 
         Sets whether the DFT result is centered at pixel n/2+1 (FFTSTYLE) 
         or on the crosshairs between the central pixels (SYMMETRIC),
-        or exactly centered in the array no matter what (ADJUSTIBLE). Default is FFTSTYLE. 
+        or exactly centered in the array no matter what (ADJUSTIBLE). 
+        Default is FFTSTYLE. 
 
 
     Example
     -------
-    sft = SlowFourierTransform()
-    sft.perform(pupilArray, focalplane_size, focalplane_npix)
+    mft = MatrixFourierTransform()
+    mft.perform(pupilArray, focalplane_size, focalplane_npix)
 
 
     History
@@ -558,6 +476,7 @@ class SlowFourierTransform:
 
         return newHDUlist
 
+SlowFourierTransform = MatrixFourierTransform  # back compatible name
 
 #---------------------------------------------------------------------
 #  Test functions 
