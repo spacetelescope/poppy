@@ -1,11 +1,11 @@
-from .poppy import (Wavefront, OpticalElement, FITSOpticalElement, Rotation, AnalyticOpticalElement, 
+from .poppy_core import (Wavefront, OpticalElement, FITSOpticalElement, Rotation, AnalyticOpticalElement, 
 	ScalarTransmission, InverseTransmission, ThinLens, BandLimitedCoron, 
 	FQPM_FFT_aligner, IdealFQPM, IdealFieldStop, IdealCircularOcculter, 
 	IdealBarOcculter, ParityTestAperture, CircularAperture, HexagonAperture, 
 	MultiHexagonAperture, NgonAperture, SquareAperture, CompoundAnalyticOptic, 
 	Detector, OpticalSystem, SemiAnalyticCoronagraph)
 
-from .poppy import (_USE_FFTW3, _USE_MULTIPROC, _MULTIPROC_NPROCESS, _TIMETESTS, _FLUXCHECK, _IMAGECROP)
+from .poppy_core import (_USE_FFTW3, _USE_MULTIPROC, _MULTIPROC_NPROCESS, _TIMETESTS, _FLUXCHECK, _IMAGECROP)
 
 from .utils import (display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
         measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid, measure_strehl,

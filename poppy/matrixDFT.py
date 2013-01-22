@@ -45,14 +45,17 @@ from __future__ import division # always floating point
 
 
 import numpy as np
-import pyfits
-
 try:
-    __IPYTHON__
-    from IPython.Debugger import Tracer; stop = Tracer()
+    import astropy.io.fits as fits
 except:
-    def stop(): 
-        pass
+    import pyfits as fits
+
+#try:
+    #__IPYTHON__
+    #from IPython.Debugger import Tracer; stop = Tracer()
+#except:
+    #def stop(): 
+        #pass
 
 
 #import SimpleFits as SF
@@ -467,7 +470,7 @@ class MatrixFourierTransform:
 
 
     def performFITS(hdulist, focalplane_size, focalplane_npix):
-        """ Perform an MFT, and return the result as a pyfits.HDUlist """
+        """ Perform an MFT, and return the result as a fits.HDUlist """
         newHDUlist = hdulist.copy()
         newim = self.perform(hdulist[0].data, focalplane_size, focalplane_npix)
 
@@ -533,7 +536,7 @@ def test_SFT(choice='FFTSTYLE', outdir='.', outname='SFT1'):
 
     pupil /= np.sqrt(pupil.sum())
 
-    pyfits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
+    fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
 
     a = sft1.perform(pupil, u, npix)
 
@@ -551,12 +554,11 @@ def test_SFT(choice='FFTSTYLE', outdir='.', outname='SFT1'):
     complexinfo(a, str="sft1 asf")
     #print 
     asf = a.real.copy()
-    #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"asf.fits", data=asf.astype(np.float32), clobber='y')
-    pyfits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
+    fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
     cpsf = a * a.conjugate()
     psf = cpsf.real.copy()
     #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), clobber='y')
-    pyfits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
+    fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
 
 
 def test_SFT_rect(choice='FFTRECT', outdir='.', outname='SFT1R_', npix=None, sampling=10., nlamd=None):
@@ -626,7 +628,7 @@ def test_SFT_rect(choice='FFTRECT', outdir='.', outname='SFT1R_', npix=None, sam
     P.imshow(pupil, vmin=0, vmax=pmx*1.5)
 
 
-    pyfits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
+    fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
 
     a = sft1.perform(pupil, u, npix)
 
@@ -645,11 +647,11 @@ def test_SFT_rect(choice='FFTRECT', outdir='.', outname='SFT1R_', npix=None, sam
     #print 
     asf = a.real.copy()
     #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"asf.fits", data=asf.astype(np.float32), clobber='y')
-    pyfits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
+    fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
     cpsf = a * a.conjugate()
     psf = cpsf.real.copy()
     #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), clobber='y')
-    pyfits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
+    fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
 
     ax=P.subplot(142)
     P.imshow(asf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
@@ -669,7 +671,6 @@ def test_SFT_rect(choice='FFTRECT', outdir='.', outname='SFT1R_', npix=None, sam
     print "Post-inverse FFT total: "+str( abs(pupil2r).sum() )
     print "Post-inverse pupil max: "+str(pupil2r.max())
 
-    stop()
 
 
 def test_SFT_center( npix=100, outdir='.', outname='SFT1'):
@@ -692,7 +693,7 @@ def test_SFT_center( npix=100, outdir='.', outname='SFT1'):
 
     pupil /= np.sqrt(pupil.sum())
 
-    pyfits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
+    fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
 
     a = sft1.perform(pupil, u, npix)
 
@@ -711,11 +712,11 @@ def test_SFT_center( npix=100, outdir='.', outname='SFT1'):
     #print 
     asf = a.real.copy()
     #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"asf.fits", data=asf.astype(np.float32), clobber='y')
-    pyfits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
+    fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
     cpsf = a * a.conjugate()
     psf = cpsf.real.copy()
     #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), clobber='y')
-    pyfits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
+    fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
 
 
 

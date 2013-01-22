@@ -1,4 +1,4 @@
-﻿"""
+"""
 
  Classes for wavefront errors in POPPY
 
@@ -8,10 +8,17 @@
  * PowerSpectrumWFE
  * KolmogorovWFE
 
+
+.. warning::
+
+  DEVELOPMENT CODE, NOT YET SUPPORTED
+
+
+
 """
 
 
-from .poppy import *
+from .poppy_core import *
 
 
 class ZernikeWFE(AnalyticOpticalElement):

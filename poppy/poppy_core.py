@@ -60,16 +60,21 @@ import multiprocessing
 import copy
 import numpy as np
 import matplotlib.pyplot as plt
-import pyfits
 import scipy.special
 import scipy.ndimage.interpolation
 import matplotlib
 import time
 from matplotlib.colors import LogNorm  # for log scaling of images, with automatic colorbar support
-import matrixDFT
 
-from _version import __version__
-import utils
+try:
+    import astropy.io.fits as fits
+except:
+    import pyfits as fits
+
+
+from ._version import __version__
+from . import utils
+from . import matrixDFT
 
 try:
     from IPython.Debugger import Tracer; stop = Tracer()
@@ -352,7 +357,7 @@ class Wavefront(object):
             outarr[0,:,:] = intens
             outarr[1,:,:] = amp
             outarr[2,:,:] = phase
-            outFITS = pyfits.HDUList(pyfits.PrimaryHDU(outarr))
+            outFITS = fits.HDUList(fits.PrimaryHDU(outarr))
             outFITS[0].header.update('PLANE1', 'Wavefront Intensity')
             outFITS[0].header.update('PLANE2', 'Wavefront Amplitude')
             outFITS[0].header.update('PLANE3', 'Wavefront Phase')
@@ -360,17 +365,17 @@ class Wavefront(object):
             outarr = np.zeros((2,amp.shape[0], amp.shape[1]))
             outarr[0,:,:] = amp
             outarr[1,:,:] = phase
-            outFITS = pyfits.HDUList(pyfits.PrimaryHDU(outarr))
+            outFITS = fits.HDUList(fits.PrimaryHDU(outarr))
             outFITS[0].header.update('PLANE1', 'Wavefront Amplitude')
             outFITS[0].header.update('PLANE2', 'Wavefront Phase')
         elif what.lower() =='intensity':
-            outFITS = pyfits.HDUList(pyfits.PrimaryHDU(intens))
+            outFITS = fits.HDUList(fits.PrimaryHDU(intens))
             outFITS[0].header.update('PLANE1', 'Wavefront Intensity')
         elif what.lower() =='phase':
-            outFITS = pyfits.HDUList(pyfits.PrimaryHDU(phase))
+            outFITS = fits.HDUList(fits.PrimaryHDU(phase))
             outFITS[0].header.update('PLANE1', 'Phase')
         elif what.lower()  == 'complex':
-            outFITS = pyfits.HDUList(pyfits.PrimaryHDU(wave))
+            outFITS = fits.HDUList(fits.PrimaryHDU(wave))
             outFITS[0].header.update('PLANE1', 'Wavefront Complex Phasor ')
 
 
@@ -1139,8 +1144,8 @@ class FITSOpticalElement(OpticalElement):
     ----------
     name : string
         descriptive name for optic
-    transmission, opd : string or pyfits HDUList
-        Either FITS filenames *or* actual pyfits.HDUList objects for the transmission (from 0-1) and opd (in meters)
+    transmission, opd : string or fits HDUList
+        Either FITS filenames *or* actual fits.HDUList objects for the transmission (from 0-1) and opd (in meters)
     opdunits : string
         units for the OPD file. Default is 'meters'. can be 'meter', 'meters', 'micron(s)', 'nanometer(s)', or their SI abbreviations
     verbose : bool
@@ -1191,19 +1196,19 @@ class FITSOpticalElement(OpticalElement):
             # load transmission file.
             if transmission is None:
                 # else if only OPD set, create an array of 1s with same size.
-                opd_shape = pyfits.getdata(opd).shape
+                opd_shape = fits.getdata(opd).shape
                 self.amplitude = np.ones(opd_shape)
             elif isinstance(transmission,str):
                 self.amplitude_file = transmission
-                self.amplitude, self.amplitude_header = pyfits.getdata(self.amplitude_file, header=True)
+                self.amplitude, self.amplitude_header = fits.getdata(self.amplitude_file, header=True)
                 if self.name=='unnamed optic': self.name='Optic from '+self.amplitude_file
                 _log.info(self.name+": Loaded amplitude from "+self.amplitude_file)
-            elif isinstance(transmission,pyfits.HDUList):
-                self.amplitude_file='supplied as pyfits.HDUList object'
+            elif isinstance(transmission,fits.HDUList):
+                self.amplitude_file='supplied as fits.HDUList object'
                 self.amplitude = transmission[0].data
                 self.amplitude_header = transmission[0].header
-                if self.name=='unnamed optic': self.name='Optic from pyfits.HDUList object'
-                _log.info(self.name+": Loaded amplitude from supplied pyfits.HDUList object")
+                if self.name=='unnamed optic': self.name='Optic from fits.HDUList object'
+                _log.info(self.name+": Loaded amplitude from supplied fits.HDUList object")
             else:
                 raise TypeError('Not sure how to use a transmission parameter of type '+str(type(transmission)))
 
@@ -1219,17 +1224,17 @@ class FITSOpticalElement(OpticalElement):
                 self.opd = np.zeros(self.amplitude.shape)
                 opdunits = 'meter' # doesn't matter, it's all zeros, but no need to rescale below.
 
-            elif isinstance(opd, pyfits.HDUList):
-                # load from pyfits HDUList
-                self.opd_file='supplied as pyfits.HDUList object'
+            elif isinstance(opd, fits.HDUList):
+                # load from fits HDUList
+                self.opd_file='supplied as fits.HDUList object'
                 self.opd = opd[0].data
                 self.opd_header = opd[0].header
-                if self.name=='unnamed optic': self.name='OPD from supplied pyfits.HDUList object'
-                _log.info(self.name+": Loaded OPD from supplied pyfits.HDUList object")
+                if self.name=='unnamed optic': self.name='OPD from supplied fits.HDUList object'
+                _log.info(self.name+": Loaded OPD from supplied fits.HDUList object")
             elif isinstance(opd, basestring):
                 # load from regular FITS filename
                 self.opd_file=opd
-                self.opd, self.opd_header = pyfits.getdata(self.opd_file, header=True)
+                self.opd, self.opd_header = fits.getdata(self.opd_file, header=True)
                 if self.name=='unnamed optic': self.name='OPD from '+self.opd_file
                 _log.info(self.name+": Loaded OPD from "+self.opd_file)
 
@@ -1237,7 +1242,7 @@ class FITSOpticalElement(OpticalElement):
                 # if OPD is specified as a 2-element iterable, treat the first element as the filename and 2nd as the slice of a cube.
                 self.opd_file = opd[0]
                 self.opd_slice = opd[1]
-                self.opd, self.opd_header = pyfits.getdata(self.opd_file, header=True)
+                self.opd, self.opd_header = fits.getdata(self.opd_file, header=True)
                 self.opd = self.opd[self.opd_slice, :,:]
                 if self.name=='unnamed optic': self.name='OPD from %s, plane %d' % (self.opd_file, self.opd_slice)
                 _log.info(self.name+": Loaded OPD from  %s, plane %d" % (self.opd_file, self.opd_slice) )
@@ -1298,8 +1303,8 @@ class FITSOpticalElement(OpticalElement):
                 self.amplitude[wnoise] = 0
                 self.opd       = scipy.ndimage.interpolation.rotate(self.opd,       rotation, reshape=False)
                 _log.info("  Rotated optic by %f degrees counter clockwise." % rotation)
-                #pyfits.PrimaryHDU(self.amplitude).writeto("test_rotated_amp.fits", clobber=True)
-                #pyfits.PrimaryHDU(self.opd).writeto("test_rotated_opt.fits", clobber=True)
+                #fits.PrimaryHDU(self.amplitude).writeto("test_rotated_amp.fits", clobber=True)
+                #fits.PrimaryHDU(self.opd).writeto("test_rotated_opt.fits", clobber=True)
                 self._rotation = rotation
 
 
@@ -1482,7 +1487,7 @@ class AnalyticOpticalElement(OpticalElement):
         self.opd = phase *wavelength
 
 
-        pyfits.writeto(outname, self.amplitude, clobber=True)
+        fits.writeto(outname, self.amplitude, clobber=True)
 
 
         self.pixelscale = None
@@ -1790,7 +1795,7 @@ class IdealFQPM(AnalyticOpticalElement):
 
         retardance = phase*self.central_wavelength/wave.wavelength
 
-        #outFITS = pyfits.HDUList(pyfits.PrimaryHDU(retardance))
+        #outFITS = fits.HDUList(fits.PrimaryHDU(retardance))
         #outFITS.writeto('retardance_fqpm.fits', clobber=True)
         #_log.info("Retardance is %f waves" % retardance.max())
         FQPM_phasor = np.exp(1.j * 2* np.pi * retardance)
@@ -2716,7 +2721,7 @@ class OpticalSystem():
 
     def propagate_mono(self, wavelength=2e-6, normalize='first', save_intermediates=False, display_intermediates=False, intermediate_fn='wave_step_%03d.fits', poly_weight=None):
         """ Propagate a wavefront through some number of optics.
-        Returns a pyfits.HDUList object.
+        Returns a fits.HDUList object.
 
         Parameters
         ----------
@@ -2839,7 +2844,7 @@ class OpticalSystem():
         Returns
         -------
         outfits :
-            a pyfits.HDUList
+            a fits.HDUList
         """
 
         if _USE_FFTW3:
@@ -2922,7 +2927,7 @@ class OpticalSystem():
         Returns
         -------
         outfits :
-            a pyfits.HDUList
+            a fits.HDUList
         """
 
         #if source is None and wavelength is None:

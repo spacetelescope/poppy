@@ -1,11 +1,17 @@
-import numpy as np
+﻿import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
-import pyfits
 import matplotlib
+import logging
+_log = logging.getLogger('poppy')
+#
+try:
+    import astropy.io.fits as fits
+except:
+    import pyfits as fits
 
-import poppy
-import fwcentroid
+
+#from . import fwcentroid
 
 __doc__="""
 
@@ -65,7 +71,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
     
     Parameters
     ----------
-    HDUlist_or_filename : pyfits.HDUlist or string
+    HDUlist_or_filename : fits.HDUlist or string
         FITS file containing image to display.
     ext : int
         FITS extension. default = 0
@@ -101,8 +107,8 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
 
     """
     if isinstance(HDUlist_or_filename, str):
-        HDUlist = pyfits.open(HDUlist_or_filename)
-    elif isinstance(HDUlist_or_filename, pyfits.HDUList):
+        HDUlist = fits.open(HDUlist_or_filename)
+    elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
     else: raise ValueError("input must be a filename or HDUlist")
 
@@ -111,16 +117,16 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
         try:
             scalefactor = HDUlist[ext].header['OVERSAMP']**2
         except:
-            poppy._log.error("Could not determine oversampling scale factor; therefore NOT rescaling fluxes.")
+            _log.error("Could not determine oversampling scale factor; therefore NOT rescaling fluxes.")
             scalefactor=1
         im = HDUlist[ext].data *scalefactor
     else: im = HDUlist[ext].data.copy() # don't change normalization of actual input array, work with a copy!
 
     if normalize.lower() == 'peak':
-        poppy._log.debug("Displaying image normalized to peak = 1")
+        _log.debug("Displaying image normalized to peak = 1")
         im /= im.max()
     elif normalize.lower() =='total':
-        poppy._log.debug("Displaying image normalized to PSF total = 1")
+        _log.debug("Displaying image normalized to PSF total = 1")
         im /= im.sum()
 
     if scale == 'linear':
@@ -134,7 +140,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
         try: 
             pixelscale = float(pixelscale)
         except:
-            poppy._log.warning("Provided pixelscale is neither float nor str; cannot use it. Using default=1 instead.")
+            _log.warning("Provided pixelscale is neither float nor str; cannot use it. Using default=1 instead.")
             pixelscale = 1.0
         halffov = pixelscale*HDUlist[ext].data.shape[0]/2
     unit="arcsec"
@@ -172,10 +178,10 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
             cb.set_label('Fractional intensity per pixel')
 
     if markcentroid:
-        poppy._log.info("measuring centroid to mark on plot...")
+        _log.info("measuring centroid to mark on plot...")
         ceny, cenx = measure_centroid(HDUlist, ext=ext, units='arcsec', relativeto='center', boxsize=20, threshhold=0.1)
         ax.plot(cenx, ceny, 'k+', markersize=15, markeredgewidth=1)
-        poppy._log.info("centroid: (%f, %f) " % (cenx, ceny))
+        _log.info("centroid: (%f, %f) " % (cenx, ceny))
         plt.draw()
 
     if return_ax:
@@ -189,7 +195,7 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
     
     Parameters
     ----------
-    HDUlist_or_filename1,2 : pyfits.HDUlist or string
+    HDUlist_or_filename1,2 : fits.HDUlist or string
         FITS files containing image to difference
     ext1, ext2 : int
         FITS extension. default = 0
@@ -206,13 +212,13 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
         default is False, to conserve total flux.
     """
     if isinstance(HDUlist_or_filename1, str):
-        HDUlist1 = pyfits.open(HDUlist_or_filename1)
-    elif isinstance(HDUlist_or_filename1, pyfits.HDUList):
+        HDUlist1 = fits.open(HDUlist_or_filename1)
+    elif isinstance(HDUlist_or_filename1, fits.HDUList):
         HDUlist1 = HDUlist_or_filename1
     else: raise ValueError("input must be a filename or HDUlist")
     if isinstance(HDUlist_or_filename2, str):
-        HDUlist2 = pyfits.open(HDUlist_or_filename2)
-    elif isinstance(HDUlist_or_filename2, pyfits.HDUList):
+        HDUlist2 = fits.open(HDUlist_or_filename2)
+    elif isinstance(HDUlist_or_filename2, fits.HDUList):
         HDUlist2 = HDUlist_or_filename2
     else: raise ValueError("input must be a filename or HDUlist")
 
@@ -282,7 +288,6 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
         #ticks = [vmin, -0.5*vmax, 0, 0.5*vmax, vmax]
         #cb.set_ticks(ticks)
         #cb.set_ticklabels(ticks)
-        #stop()
         cb.set_label(cbtitle)
     if return_ax:
         if colorbar: return (ax, cb)
@@ -295,8 +300,8 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
 
     """
     if isinstance(HDUlist_or_filename, str):
-        HDUlist = pyfits.open(HDUlist_or_filename,ext=ext)
-    elif isinstance(HDUlist_or_filename, pyfits.HDUList):
+        HDUlist = fits.open(HDUlist_or_filename,ext=ext)
+    elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
     else: raise ValueError("input must be a filename or HDUlist")
 
@@ -323,8 +328,8 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
 
 def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False ):
     if isinstance(HDUlist_or_filename, str):
-        HDUlist = pyfits.open(HDUlist_or_filename,ext=ext)
-    elif isinstance(HDUlist_or_filename, pyfits.HDUList):
+        HDUlist = fits.open(HDUlist_or_filename,ext=ext)
+    elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
     else: raise ValueError("input must be a filename or HDUlist")
 
@@ -388,8 +393,8 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
         as precise as possible.
     """
     if isinstance(HDUlist_or_filename, str):
-        HDUlist = pyfits.open(HDUlist_or_filename)
-    elif isinstance(HDUlist_or_filename, pyfits.HDUList):
+        HDUlist = fits.open(HDUlist_or_filename)
+    elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
     else: raise ValueError("input must be a filename or HDUlist")
 
@@ -399,7 +404,6 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
 
     if maxradius is not None:
         raise NotImplemented("add max radius")
-        stop()
 
 
     if binsize is None:
@@ -444,7 +448,6 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
                 #print radius-binsize/2, radius+binsize/2, len(wg[0])
                 #wg = np.where( (r >= rr[i-1]) &  (r <rr[i] )))
             stddevs[i] = image[wg].std()
-        #stop()
         return (rr, stddevs)
 
     if not EE:
@@ -584,8 +587,8 @@ def measure_sharpness(HDUlist_or_filename=None, ext=0):
  
     """
     if isinstance(HDUlist_or_filename, str):
-        HDUlist = pyfits.open(HDUlist_or_filename)
-    elif isinstance(HDUlist_or_filename, pyfits.HDUList):
+        HDUlist = fits.open(HDUlist_or_filename)
+    elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
     else: raise ValueError("input must be a filename or HDUlist")
 
@@ -622,9 +625,11 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, print
         [Y, X] coordinates of center of mass.
 
     """
+    from .fwcentroid import fwcentroid
+
     if isinstance(HDUlist_or_filename, str):
-        HDUlist = pyfits.open(HDUlist_or_filename)
-    elif isinstance(HDUlist_or_filename, pyfits.HDUList):
+        HDUlist = fits.open(HDUlist_or_filename)
+    elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
     else: raise ValueError("input must be a filename or HDUlist")
 
@@ -645,7 +650,7 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, print
         cent_of_mass_cutout = np.asarray(scipy.ndimage.center_of_mass(cutout))
         cent_of_mass =  cent_of_mass_cutout + np.array([cy-boxsize, cx-boxsize])
     else:
-        cent_of_mass = fwcentroid.fwcentroid(image, halfwidth=boxsize, **kwargs)
+        cent_of_mass = fwcentroid(image, halfwidth=boxsize, **kwargs)
 
     if print_: print("Center of mass: (%.4f, %.4f)" % (cent_of_mass[1], cent_of_mass[0]))
 
@@ -695,8 +700,8 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True, p
   
     """
     if isinstance(HDUlist_or_filename, str):
-        HDUlist = pyfits.open(HDUlist_or_filename)
-    elif isinstance(HDUlist_or_filename, pyfits.HDUList):
+        HDUlist = fits.open(HDUlist_or_filename)
+    elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
     else: raise ValueError("input must be a filename or HDUlist")
 
@@ -711,7 +716,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True, p
 
 
     # Compute a comparison image
-    poppy._log.info("Now computing image with zero OPD for comparison...")
+    _log.info("Now computing image with zero OPD for comparison...")
     inst = Instrument(header['INSTRUME'])
     inst.filter = header['FILTER']
     inst.pupilopd = None # perfect image
@@ -806,18 +811,32 @@ def rebin_array(a = None, rc=(2,2), verbose=False):
 	return b
 
 
-def specFromSpectralType(sptype, return_list=False, catalog='phoenix'):
+def specFromSpectralType(sptype, return_list=False, catalog=None):
     """Get Pysynphot Spectrum object from a user-friendly spectral type string.
 
 
     Parameters
     -----------
     catalog: str
-        'ck04' for Castelli & Kurucz 2004, 'phoenix' for Phoenix models
+        'ck04' for Castelli & Kurucz 2004, 'phoenix' for Phoenix models.
+        If not set explicitly, the code will check if the phoenix models are
+        present inside the $PYSYN_CDBS directory. If so, those are the default;
+        otherwise, it's CK04.
 
     """
-
     import pysynphot
+
+
+    if catalog is None: 
+        import os
+        cdbs = os.getenv('PYSYN_CDBS')
+        if os.path.exists( os.path.join(os.getenv('PYSYN_CDBS'), 'grid', 'phoenix')):
+            catalog='phoenix'
+        elif os.path.exists( os.path.join(os.getenv('PYSYN_CDBS'), 'grid', 'ck04models')):
+            catalog='ck04'
+        else:
+            raise IOError("Could not find either phoenix or ck04models subdirectories of $PYSYN_CDBS/grid")
+
     if catalog.lower()  =='ck04':
         catname='ck04models'
 
@@ -968,6 +987,6 @@ def specFromSpectralType(sptype, return_list=False, catalog='phoenix'):
         except:
             print "catalog: "+catname
             print "keys: ", keys
-            raise LookupError("Error creating Spectrum object for spectral type %s. Check that is a valid name in the lookup table, and/or that pysynphot is installed properly." % sptype)
+            raise LookupError("Error loading Spectrum object from %s catalog for spectral type %s. Check that is a valid name in the lookup table, and/or that pysynphot is installed properly." % (catname,sptype))
 
 

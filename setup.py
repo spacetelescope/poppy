@@ -1,5 +1,7 @@
-# See http://packages.python.org/distribute/setuptools.html
-from setuptools import setup, find_packages
+from distribute_setup import use_setuptools
+use_setuptools()
+from setuptools import setup
+
 
 setupargs = {
     'name'          :       'poppy',
@@ -11,8 +13,9 @@ setupargs = {
     'url'           :  		"http://www.stsci.edu/~mperrin/software/webbpsf",
     'download_url'           :  		"http://www.stsci.edu/~mperrin/software/webbpsf/poppy-0.0.0.tar.gz",  # will be replaced below
     'platforms'     :      	["Linux","Mac OS X", "Win"],
-    'requires'      :       ['pyfits','numpy', 'matplotlib', 'scipy', 'atpy','asciitable'],
+    'requires'      :       ['pyfits','numpy', 'matplotlib', 'scipy', 'asciitable'],
     'packages'      :       ['poppy'],
+    'test_suite'    :       'poppy.tests',
     'classifiers'   :   [
         "Programming Language :: Python",
         "License :: OSI Approved :: BSD License",
