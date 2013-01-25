@@ -73,14 +73,9 @@ except:
 
 
 from ._version import __version__
-from . import utils
-from . import matrixDFT
+from .utils import imshow_with_mouseover
+from .matrixDFT import MatrixFourierTransform
 
-try:
-    from IPython.Debugger import Tracer; stop = Tracer()
-except:
-    def stop():
-        pass
 
 import logging
 _log = logging.getLogger('poppy')
@@ -513,7 +508,7 @@ class Wavefront(object):
             if ax is None:
                 ax = plt.subplot(nr,nc,int(row))
             #pl.imshow(intens, ax=ax, extent=extent, norm=norm, cmap=cmap)
-            utils.imshow_with_mouseover(intens, ax=ax, extent=extent, norm=norm, cmap=cmap)
+            imshow_with_mouseover(intens, ax=ax, extent=extent, norm=norm, cmap=cmap)
             if title is None:
                 title = "Intensity "+self.location
                 title = title.replace('after', 'after\n')
@@ -536,7 +531,7 @@ class Wavefront(object):
             norm=matplotlib.colors.Normalize(vmin=-0.25,vmax=0.25)
             if ax is None:
                 ax = plt.subplot(nr,nc,int(row))
-            utils.imshow_with_mouseover(phase/(np.pi*2), ax=ax, extent=extent, norm=norm, cmap=cmap)
+            imshow_with_mouseover(phase/(np.pi*2), ax=ax, extent=extent, norm=norm, cmap=cmap)
             plt.title("Phase "+self.location)
             plt.xlabel(unit)
             if colorbar: plt.colorbar(ax2.images[0], orientation='vertical', shrink=0.8)
@@ -723,7 +718,7 @@ class Wavefront(object):
         det_fov_lamD = det.fov_arcsec / lamD
         det_calc_size_pixels = det.fov_pixels * det.oversample
 
-        mft = matrixDFT.SlowFourierTransform(choice='ADJUSTIBLE', verbose=False)
+        mft = MatrixFourierTransform(choice='ADJUSTIBLE', verbose=False)
         if not np.isscalar(det_fov_lamD): #hasattr(det_fov_lamD,'__len__'):
             msg= '    Propagating w/ MFT: %.4f"/pix     fov=[%.3f,%.3f] lam/D    npix=%d x %d' %  (det.pixelscale/det.oversample, det_fov_lamD[0], det_fov_lamD[1], det_calc_size_pixels[0], det_calc_size_pixels[1])
         else:
@@ -775,7 +770,7 @@ class Wavefront(object):
             else:
                 pupil_npix = self._preMFT_pupil_shape[0]
 
-        mft = matrixDFT.SlowFourierTransform(choice='ADJUSTIBLE', verbose=False)
+        mft = MatrixFourierTransform(choice='ADJUSTIBLE', verbose=False)
         if not np.isscalar(det_fov_lamD): #hasattr(det_fov_lamD,'__len__'):
             msg= '    Propagating w/ MFT: %.4f"/pix     fov=[%.3f,%.3f] lam/D    npix=%d x %d' %  (self.pixelscale[0], det_fov_lamD[0], det_fov_lamD[1], pupil_npix, pupil_npix)
         else:
@@ -803,7 +798,7 @@ class Wavefront(object):
         So we calculate the U and V arrays (corresponding to r for the pupil, in meters from the center)
         and then multiply by the appropriate trig factors for the angle.
 
-        The sign convention is chosen such that positive Yangle tilts move the star upwards in theg
+        The sign convention is chosen such that positive Yangle tilts move the star upwards in the
         array at the focal plane. (This is sort of an inverse of what physically happens in the propagation
         to or through focus, but we're ignoring that here and trying to just work in sky coords)
 
@@ -1077,7 +1072,7 @@ class OpticalElement():
             # so we have to square the amplitude here.
             if ax is None:
                 ax = plt.subplot(nrows, 2, row*2-1)
-            utils.imshow_with_mouseover(ampl**2, ax=ax, extent=extent, cmap=cmap, norm=norm_amp)
+            imshow_with_mouseover(ampl**2, ax=ax, extent=extent, cmap=cmap, norm=norm_amp)
             if nrows == 1:
                 plt.title("Transmissivity for "+self.name)
             plt.ylabel(units)
@@ -1098,7 +1093,7 @@ class OpticalElement():
                 ax2 = ax
     
             ax2 = plt.subplot(nrows, 2, row*2)
-            utils.imshow_with_mouseover(opd, ax=ax2, extent=extent, cmap=cmap_opd, norm=norm_opd)
+            imshow_with_mouseover(opd, ax=ax2, extent=extent, cmap=cmap_opd, norm=norm_opd)
             plt.ylabel(units)
             ax2.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
             ax2.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
@@ -1140,14 +1135,33 @@ class FITSOpticalElement(OpticalElement):
     The FITSOpticalElement class follows the behavior of the Wavefront class, using units
     of meters/pixel in pupil space and arcsec/pixel in image space.
 
+    The interface is **very** flexible.  You can define a FITSOpticalElement either from 
+
+    * a single FITS file giving the amplitude transmission (in which case phase is zero)
+    * a single FITS file giving the OPD (in which case transmission is 1 everywhere)
+    * two FITS files specifying both transmission and OPD.
+
+    The FITS file argument(s) can be supplied either as 
+
+        1. a string giving the path to a file on disk, 
+        2. a FITS HDUlist object, or 
+        3. in the case of OPDs, a tuple consisting of a path to a datacube and an integer index of a slice in that datacube. 
+
+    A better interface for slice selection in datacubes is the transmission_index and opd_index keyword parameters listed below, 
+    but the tuple interface is retained for back compatibility with existing code. 
+
+
     Parameters
     ----------
     name : string
         descriptive name for optic
     transmission, opd : string or fits HDUList
         Either FITS filenames *or* actual fits.HDUList objects for the transmission (from 0-1) and opd (in meters)
+    transmission_slice, opd_slice : integers, optional
+        If either transmission or OPD files are datacubes, you can specify the slice index using this argument.
     opdunits : string
-        units for the OPD file. Default is 'meters'. can be 'meter', 'meters', 'micron(s)', 'nanometer(s)', or their SI abbreviations
+        units for the OPD file. Default is 'meters'. can be 'meter', 'meters', 'micron(s)', 'nanometer(s)', or their SI abbreviations.
+        If this keyword is not set explicitly, the BUNIT keyword in the FITS header will be checked. 
     verbose : bool
         whether to print stuff while computing
     planetype : int
@@ -1155,22 +1169,38 @@ class FITSOpticalElement(OpticalElement):
     oversample : int
         how much to oversample beyond Nyquist.
     shift : tuple of floats, optional
-        2-tuple containing X and Y fractional shifts for the pupil.
+        2-tuple containing X and Y fractional shifts for the pupil. These shifts are implemented by rounding them
+        to the nearest integer pixel, and doing integer pixel shifts on the data array, without interpolation.
     rotation : float
-        Rotation for that optic, in degrees
+        Rotation for that optic, in degrees counterclockwise. This is implemented using spline interpolation via
+        the scipy.ndimage.interpolation.rotate function. 
     pixelscale : optical str or float
         By default, poppy will attempt to determine the appropriate pixel scale by examining the FITS header, 
         checking keywords "PUPLSCAL" and 'PIXSCALE' for pupil and image planes respectively. If you would like to
         override and use a different keyword, provide that as a string here. Alternatively, you can just set a 
         floating point value directly too (in meters/pixel or arcsec/pixel, respectively, for pupil or image planes).
+    transmission_index, opd_index : ints, optional
+        If the input transmission or OPD files are datacubes, provide a scalar index here for which cube 
+        slice should be used. 
 
 
 
     *NOTE:* All mask files must be *squares*.
 
+    Also, please note that the adopted convention is for the spectral throughput (transmission) to be given
+    in appropriate units for acting on the *amplitude* of the electric field. Thus for example an optic with
+    a uniform transmission of 0.5 will reduce the electric field amplitude to 0.5 relative to the input, 
+    and thus reduce the total power to 0.25. This distinction only matters in the case of semitransparent
+    (grayscale) masks. 
+
+
+
     """
  
-    def __init__(self, name="unnamed optic", transmission=None, opd= None, opdunits="meters", shift=None, rotation=None, pixelscale=None, planetype=None,  **kwargs):
+    def __init__(self, name="unnamed optic", transmission=None, opd= None, opdunits="meters", 
+            shift=None, rotation=None, pixelscale=None, planetype=None, 
+            transmission_index=None, opd_index=None,
+            **kwargs):
 
         OpticalElement.__init__(self,name=name, **kwargs)
         self.opd_file = None
@@ -1184,7 +1214,7 @@ class FITSOpticalElement(OpticalElement):
         _log.debug("Trans: "+str(transmission))
         _log.debug("OPD: "+str(opd))
 
-        # Read amplitude and/or OPD from disk
+        #---- Load amplitude transmission file. ---
         if opd is None and transmission is None:   # no input files, so just make a scalar
             _log.warn("No input files specified. You should set transmission=filename or opd=filename.")
             _log.warn("Creating a null optical element. Are you sure that's what you want to do?")
@@ -1194,35 +1224,40 @@ class FITSOpticalElement(OpticalElement):
             self.name = "-empty-"
         else:
             # load transmission file.
-            if transmission is None:
-                # else if only OPD set, create an array of 1s with same size.
-                opd_shape = fits.getdata(opd).shape
-                self.amplitude = np.ones(opd_shape)
-            elif isinstance(transmission,str):
-                self.amplitude_file = transmission
-                self.amplitude, self.amplitude_header = fits.getdata(self.amplitude_file, header=True)
-                if self.name=='unnamed optic': self.name='Optic from '+self.amplitude_file
-                _log.info(self.name+": Loaded amplitude from "+self.amplitude_file)
-            elif isinstance(transmission,fits.HDUList):
-                self.amplitude_file='supplied as fits.HDUList object'
-                self.amplitude = transmission[0].data
-                self.amplitude_header = transmission[0].header
-                if self.name=='unnamed optic': self.name='Optic from fits.HDUList object'
-                _log.info(self.name+": Loaded amplitude from supplied fits.HDUList object")
+            if transmission is not None:
+                if isinstance(transmission,str):
+                    self.amplitude_file = transmission
+                    self.amplitude, self.amplitude_header = fits.getdata(self.amplitude_file, header=True)
+                    if self.name=='unnamed optic': self.name='Optic from '+self.amplitude_file
+                    _log.info(self.name+": Loaded amplitude transmission from "+self.amplitude_file)
+                elif isinstance(transmission,fits.HDUList):
+                    self.amplitude_file='supplied as fits.HDUList object'
+                    self.amplitude = transmission[0].data
+                    self.amplitude_header = transmission[0].header
+                    if self.name=='unnamed optic': self.name='Optic from fits.HDUList object'
+                    _log.info(self.name+": Loaded amplitude transmission from supplied fits.HDUList object")
+                else:
+                    raise TypeError('Not sure how to use a transmission parameter of type '+str(type(transmission)))
+
+                # check for datacube? 
+                if len(self.amplitude.shape) > 2:
+                    if transmission_index is None:
+                        _log.info("The supplied pupil amplitude is a datacube but no slice was specified. Defaulting to use slice 0.")
+                        transmission_index=0
+                    self.amplitude_slice_index = transmission_index
+                    self.amplitude = self.amplitude[self.amplitude_slice_index, :,:]
+                    _log.debug(" Datacube detected, using slice ={0}".format(self.amplitude_slice_index))
             else:
-                raise TypeError('Not sure how to use a transmission parameter of type '+str(type(transmission)))
-
-            if len(self.amplitude.shape) > 2:
-                self.amplitude_slice =0
-                self.amplitude = self.amplitude[self.amplitude_slice, :,:]
-                _log.info("The supplied pupil amplitude is a datacube but no slice was specified. Defaulting to use slice 0.")
+                _log.debug("No transmission supplied - will assume uniform throughput = 1 ")
+                # if transmission is none, wait until after OPD is loaded, below, and then create a matching
+                # amplitude array uniformly filled with 1s. 
 
 
-            # Load OPD file.
+            #---- Load OPD file. ---
             if opd is None:
-                #else if only amplitude set, create an array of 0s with same size.
+                # if only amplitude set, create an array of 0s with same size.
                 self.opd = np.zeros(self.amplitude.shape)
-                opdunits = 'meter' # doesn't matter, it's all zeros, but no need to rescale below.
+                opdunits = 'meter' # doesn't matter, it's all zeros, but this will indicate no need to rescale below.
 
             elif isinstance(opd, fits.HDUList):
                 # load from fits HDUList
@@ -1246,15 +1281,33 @@ class FITSOpticalElement(OpticalElement):
                 self.opd = self.opd[self.opd_slice, :,:]
                 if self.name=='unnamed optic': self.name='OPD from %s, plane %d' % (self.opd_file, self.opd_slice)
                 _log.info(self.name+": Loaded OPD from  %s, plane %d" % (self.opd_file, self.opd_slice) )
+            else:
+                raise TypeError('Not sure how to use an OPD parameter of type '+str(type(transmission)))
 
             # check for datacube? 
             if len(self.opd.shape) > 2:
-                self.opd_slice =0
-                self.opd = self.opd[self.opd_slice, :,:]
-                _log.info("The supplied OPD is a datacube but no slice was specified. Defaulting to use slice 0.")
+                if opd_index is None:
+                    _log.info("The supplied pupil OPD is a datacube but no slice was specified. Defaulting to use slice 0.")
+                    transmission_index=0
+                self.opd_slice_index = transmission_index
+                self.opd = self.opd[self.opd_slice_index, :,:]
+                _log.debug(" Datacube detected, using slice ={0}".format(self.amplitude_slice_index))
 
+
+            if transmission is None:
+                _log.info("No info supplied on amplitude transmission; assuming uniform throughput = 1")
+                self.amplitude = np.ones(self.opd)
 
             # convert OPD into meters
+
+            if opdunits is None:
+                try:
+                    opdunits = self.opd_header['BUNIT']
+                except:
+                    _log.error("No opdunit keyword supplied, and BUNIT keyword not found in header. Cannot determine OPD units")
+                    raise StandardError("No opdunit keyword supplied, and BUNIT keyword not found in header. Cannot determine OPD units.")
+
+
             if opdunits.lower().endswith('s'): opdunits = opdunits[:-1] # drop trailing s if present
             if opdunits.lower() == 'meter' or opdunits.lower() == 'm':
                 pass # no need to rescale
@@ -1275,6 +1328,7 @@ class FITSOpticalElement(OpticalElement):
 
             assert self.amplitude.shape == self.opd.shape
             assert self.amplitude.shape[0] == self.amplitude.shape[1]
+
 
             # if a shift is specified and we're NOT a null (scalar) optic, then do the shift:
             if shift is not None and len(self.amplitude.shape) ==2:
@@ -2587,7 +2641,9 @@ class OpticalSystem():
         if self.verbose: _log.info("Added pupil plane: "+self.planes[-1].name)
 
     def addImage(self, optic=None, function=None, **kwargs):
-        """ Add an image plane optic, either
+        """ Add an image plane optic to the optical system
+
+        That image plane optic can be specified either
 
           1) from file(s) giving transmission or OPD
                 [set arguments `transmission=filename` and/or `opd=filename`]
@@ -2645,6 +2701,8 @@ class OpticalSystem():
         if self.verbose: _log.info("Added image plane: "+self.planes[-1].name)
 
     def addRotation(self, *args, **kwargs):
+        """ Add a clockwise or counterclockwise rotation around the optical axis """
+
         self.planes.append(Rotation(*args, **kwargs))
         if self.verbose: _log.info("Added rotation plane: "+self.planes[-1].name)
 
@@ -2675,7 +2733,8 @@ class OpticalSystem():
 
         #return "Optical system '%s' containing %d optics" % (self.name, len(self.planes))
 
-    def list(self):
+    def describe(self):
+        """ Print out a string table describing all planes in an optical system"""
         print str(self)+"\n\t"+ "\n\t".join([str(p) for p in self.planes])
 
     def __getitem__(self, num):
@@ -2720,7 +2779,7 @@ class OpticalSystem():
         return inwave
 
     def propagate_mono(self, wavelength=2e-6, normalize='first', save_intermediates=False, display_intermediates=False, intermediate_fn='wave_step_%03d.fits', poly_weight=None):
-        """ Propagate a wavefront through some number of optics.
+        """ Propagate a monochromatic wavefront through the optical system. Called from within calcPSF.
         Returns a fits.HDUList object.
 
         Parameters
@@ -2810,8 +2869,7 @@ class OpticalSystem():
         return wavefront.asFITS()  # this returns the intensity, by default. 
 
     def calcPSFmultiproc(self, source, nprocesses=4, save_intermediates=False, **kwargs):
-        """Calculate a multi-wavelength PSF over some weighted
-        sum of wavelengths, across multiple processors
+        """Calculate a multi-wavelength PSF with computation spread across multiple processors
 
         This version uses Python's `multiprocessing` package to span tasks across
         available processor cores.
@@ -2901,7 +2959,9 @@ class OpticalSystem():
 
     def calcPSF(self, wavelength=1e-6, weight=None,
         save_intermediates=False, save_intermediates_what='all', display= False, return_intermediates=False, source=None, **kwargs):
-        """Calculate a PSF, either
+        """Calculate a PSF, either multi-wavelength or monochromatic.
+
+        The wavelength coverage computed will be:
         - multi-wavelength PSF over some weighted sum of wavelengths (if you provide a source parameter)
         - monochromatic (if you provide just a wavelen= parameter)
 
@@ -3030,7 +3090,7 @@ class OpticalSystem():
             norm=LogNorm(vmin=1e-8,vmax=1e-1)
             plt.xlabel(unit)
 
-            utils.imshow_with_mouseover(outFITS[0].data, extent=extent, norm=norm, cmap=cmap)
+            imshow_with_mouseover(outFITS[0].data, extent=extent, norm=norm, cmap=cmap)
 
 
         # TODO update FITS header for oversampling here if detector is different from regular?
@@ -3143,8 +3203,9 @@ class SemiAnalyticCoronagraph(OpticalSystem):
             Wavelength in meters
         normalize : string, {'first', 'last'}
             how to normalize the wavefront?
-            * 'first' = set total flux = 1 after the first optic, presumably a pupil
-            * 'last' = set total flux = 1 after the entire optical system.
+
+            * 'first' : set total flux = 1 after the first optic, presumably a pupil
+            * 'last' : set total flux = 1 after the entire optical system.
 
 
         save_intermediates, display_intermediates, intermediate_fn, poly_weight : bools
