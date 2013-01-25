@@ -1,4 +1,4 @@
-﻿import numpy as np
+import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
 import matplotlib
@@ -50,7 +50,7 @@ def imshow_with_mouseover(image, ax=None,  *args, **kwargs):
     #pixx = (x - imext[0])/(imext[1]-imext[0])*imsize[1]
     #pixy = (y - imext[2])/(imext[3]-imext[2])*imsize[0]
     # and be sure to clip appropriatedly to avoid array bounds errors
-    report_pixel = lambda x, y : "(%6.3f, %6.3f)     %g" % \
+    report_pixel = lambda x, y : "(%6.3f, %6.3f)     %-12.6g" % \
         (x,y,   aximage[np.floor( (y - imext[2])/(imext[3]-imext[2])*imsize[0]  ).clip(0,imsize[0]-1),\
                         np.floor( (x - imext[0])/(imext[1]-imext[0])*imsize[1]  ).clip(0,imsize[1]-1)])
 
