@@ -135,23 +135,26 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
         norm=matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
     if type(pixelscale) is str:
-        halffov = HDUlist[ext].header[pixelscale]*HDUlist[ext].data.shape[0]/2
+        halffov_x = HDUlist[ext].header[pixelscale]*HDUlist[ext].data.shape[1]/2
+        halffov_y = HDUlist[ext].header[pixelscale]*HDUlist[ext].data.shape[0]/2
     else:
         try: 
             pixelscale = float(pixelscale)
         except:
             _log.warning("Provided pixelscale is neither float nor str; cannot use it. Using default=1 instead.")
             pixelscale = 1.0
-        halffov = pixelscale*HDUlist[ext].data.shape[0]/2
+        halffov_x = pixelscale*HDUlist[ext].data.shape[1]/2
+        halffov_y = pixelscale*HDUlist[ext].data.shape[0]/2
     unit="arcsec"
-    extent = [-halffov, halffov, -halffov, halffov]
+    extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
 
 
     ax = imshow_with_mouseover( im   ,extent=extent,cmap=cmap, norm=norm, ax=ax)
     if imagecrop is not None:
-        halffov = min( (imagecrop/2, halffov))
-    ax.set_xbound(-halffov, halffov)
-    ax.set_ybound(-halffov, halffov)
+        halffov_x = min( (imagecrop/2, halffov_x))
+        halffov_y = min( (imagecrop/2, halffov_y))
+    ax.set_xbound(-halffov_x, halffov_x)
+    ax.set_ybound(-halffov_y, halffov_y)
     if crosshairs: 
         ax.axhline(0,ls=":", color='k')
         ax.axvline(0,ls=":", color='k')
@@ -298,6 +301,20 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
 def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_levels=True ):
     """ Display Encircled Energy curve for a PSF
 
+    Parameters
+    ----------
+    HDUlist_or_filename1,2 : fits.HDUlist or string
+        FITS files containing image to difference
+    ext : bool
+        FITS extension to use. Default is 0
+    overplot : bool
+        whether to overplot or clear and produce an new plot. Default false
+    ax : matplotlib Axes instance
+        axis to plot into. If not provided, current axis will be used. 
+    mark_levels : bool
+        If set, mark and label on the plots the radii for 50%, 80%, 95% encircled energy.
+        Default is True
+ 
     """
     if isinstance(HDUlist_or_filename, str):
         HDUlist = fits.open(HDUlist_or_filename,ext=ext)
@@ -327,6 +344,19 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
 
 
 def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False ):
+    """ Produce two plots of PSF radial profile and encircled energy
+
+
+    Parameters
+    ----------
+    HDUlist_or_filename1,2 : fits.HDUlist or string
+        FITS files containing image to difference
+    ext : bool
+        FITS extension to use. Default is 0
+    overplot : bool
+        whether to overplot or clear and produce an new plot. Default false
+ 
+    """
     if isinstance(HDUlist_or_filename, str):
         HDUlist = fits.open(HDUlist_or_filename,ext=ext)
     elif isinstance(HDUlist_or_filename, fits.HDUList):

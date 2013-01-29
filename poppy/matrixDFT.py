@@ -50,19 +50,127 @@ try:
 except:
     import pyfits as fits
 
-#try:
-    #__IPYTHON__
-    #from IPython.Debugger import Tracer; stop = Tracer()
-#except:
-    #def stop(): 
-        #pass
+import logging
+_log = logging.getLogger('poppy')
 
 
-#import SimpleFits as SF
+
+# master routine combining all centering types
+def DFT_combined(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, centering='FFTSTYLE', **kwargs):
+    """
+
+    This function attempts to merge and unify the behaviors of:
+        DFT_fftstyle
+        DFT_fftstyle_rect
+        DFT_adjustible
 
 
-# FFTSTYLE
-def SFT1(pupil, nlamD, npix, inverse=False, **kwargs):
+    Parameters
+    ----------
+    pupil : 2d ndarray
+        pupil array (n by m). This can also be an image array if you're computing an
+        inverse transformation.
+    nlamD : float
+        size of focal plane array, in units of lam/D
+        (corresponds to 'm' in Soummer et al. 2007 4.2)
+    npix : int
+        number of pixels per side side of destination plane array
+        (corresponds to 'N_B' in Soummer et al. 2007 4.2)
+        This will be the # of pixels in the image plane for a forward
+        transformation, in the pupil plane for an inverse. 
+
+    inverse : bool
+        Is this a forward or inverse transformation?
+    centering : string
+        What type of centering convention should be used for this FFT? 
+        'FFTYSTYLE', 'SYMMETRIC', 'ADJUSTIBLE'
+
+
+
+    """
+
+    npupY, npupX = pupil.shape[0:2]
+
+    if np.isscalar(npix): 
+        npixY, npixX = npix, npix
+    else:
+        npixY, npixX = npix[0:2]   
+
+    if not np.isscalar(nlamD):  
+        nlamDY, nlamDX = nlamD[0:2]
+    else:
+        nlamDY, nlamDX = nlamD, nlamD
+
+    if inverse:
+        dX = nlamDX / float(npupX)
+        dY = nlamDY / float(npupY)
+        dU = 1.0/float(npixY)
+        dV = 1.0/float(npixX)
+    else:
+        dU = nlamDX / float(npixX)
+        dV = nlamDX / float(npixX)
+        dX = 1.0/float(npupX)
+        dY = 1.0/float(npupY)
+
+#
+#    du = nlamD / float(npix)
+#    dv = nlamD / float(npix)
+#
+#    dx = 1.0/float(npup)
+#    dy = 1.0/float(npup)
+#
+    if centering.upper() == 'FFTSTYLE':
+        Xs = (np.arange(npupX) - (npupX/2)) * dX
+        Ys = (np.arange(npupY) - (npupY/2)) * dY
+
+        Us = (np.arange(npixY) - npixX/2) * dU
+        Vs = (np.arange(npixX) - npixY/2) * dV
+    elif centering.upper() == 'ADJUSTIBLE':
+        Xs = (np.arange(npupX) - float(npupX)/2.0 - offset[1] + 0.5) * dX
+        Ys = (np.arange(npupY) - float(npupY)/2.0 - offset[0] + 0.5) * dY
+
+        Us = (np.arange(npixY) - float(npixX)/2.0 - offset[1] + 0.5) * dU
+        Vs = (np.arange(npixX) - float(npixY)/2.0 - offset[0] + 0.5) * dV
+    elif centering.upper() == 'SYMMETRIC':
+        Xs = (np.arange(npupX) - float(npupX)/2.0 + 0.5) * dX
+        Ys = (np.arange(npupY) - float(npupY)/2.0 + 0.5) * dY
+
+        Us = (np.arange(npixY) - float(npixX)/2.0 + 0.5) * dU
+        Vs = (np.arange(npixX) - float(npixY)/2.0 + 0.5) * dV
+
+
+
+
+
+    XU = np.outer(Xs, Us)
+    YV = np.outer(Ys, Vs)
+
+
+    expXU = np.exp(-2.0 * np.pi * 1j * XU)
+    expYV = np.exp(-2.0 * np.pi * 1j * YV)
+
+    #print ""
+    #print dx, dy, du, dv
+    #print ""
+
+    if inverse:
+        expYV = expYV.T.copy()
+        t1 = np.dot(expYV, pupil)
+        t2 = np.dot(t1, expXU)
+    else:
+        expXU = expXU.T.copy()
+        t1 = np.dot(expXU, pupil)
+        t2 = np.dot(t1, expYV)
+
+    #return  nlamD/(npup*npix) *   t2 * dx * dy
+    norm_coeff = np.sqrt(  ( nlamDY* nlamDX) / (npupY*npupX*npixY*npixX))
+    #return  float(nlamD)/(npup*npix) *   t2 
+    return  norm_coeff *   t2 
+
+
+
+# FFTSTYLE centering
+def DFT_fftstyle(pupil, nlamD, npix, inverse=False, **kwargs):
     """
 
     Compute an "FFTSTYLE" matrix fourier transform.
@@ -120,8 +228,9 @@ def SFT1(pupil, nlamD, npix, inverse=False, **kwargs):
     #return  nlamD/(npup*npix) *   t2 * dx * dy
     return  float(nlamD)/(npup*npix) *   t2 
 
-# FFTSTYLE
-def SFT1rect(pupil, nlamD, npix, inverse=False):
+
+# FFTSTYLE centering, rectangular pupils supported
+def DFT_fftstyle_rect(pupil, nlamD, npix, inverse=False):
     """
 
     Compute an "FFTSTYLE" matrix fourier transform.
@@ -148,15 +257,15 @@ def SFT1rect(pupil, nlamD, npix, inverse=False):
 
     npupY, npupX = pupil.shape[0:2]
 
-    if hasattr(npix, '__getitem__'):
-        npixY, npixX = npix[0:2]   
-    else:
+    if np.isscalar(npix): #hasattr(npix, '__getitem__'):
         npixY, npixX = npix, npix
-
-    if hasattr(nlamD, '__getitem__'):
-        nlamDY, nlamDX = nlamD[0:2]
     else:
+        npixY, npixX = npix[0:2]   
+
+    if np.isscalar(nlamD): # hasattr(nlamD, '__getitem__'):
         nlamDY, nlamDX = nlamD, nlamD
+    else:
+        nlamDY, nlamDX = nlamD[0:2]
 
 
     if inverse:
@@ -164,7 +273,6 @@ def SFT1rect(pupil, nlamD, npix, inverse=False):
         dY = nlamDY / float(npupY)
         dU = 1.0/float(npixY)
         dV = 1.0/float(npixX)
-
     else:
         dU = nlamDX / float(npixX)
         dV = nlamDX / float(npixX)
@@ -183,10 +291,6 @@ def SFT1rect(pupil, nlamD, npix, inverse=False):
     expYV = np.exp(-2.0 * np.pi * 1j * YV)  
     expXU = np.exp(-2.0 * np.pi * 1j * XU)
 
-    #print ""
-    #print dX, dY, dU, dV
-    #print (npupY, npupX, nlamDY, nlamDX, npixY, npixY)
-    #print YV.shape, XU.shape
     expYV = expYV.T.copy()
     t1 = np.dot(expYV, pupil)
     t2 = np.dot(t1, expXU)
@@ -210,8 +314,8 @@ def SFT1rect(pupil, nlamD, npix, inverse=False):
     return  norm_coeff *   t2 
 
 
-# SYMMETRIC
-def SFT2(pupil, nlamD, npix, **kwargs):
+# SYMMETRIC centering : PSF centered between 4 pixels
+def DFT_symmetric(pupil, nlamD, npix, **kwargs):
     """
     Compute a "SYMMETRIC" matrix fourier transform. 
     This means that the zero-order term is spread evenly
@@ -266,8 +370,8 @@ def SFT2(pupil, nlamD, npix, **kwargs):
     return  float(nlamD)/(npup*npix) *   t2 
 
 
-# ADJUSTIBLE
-def SFT3(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **kwargs):
+# ADJUSTIBLE centering: PSF centered on array regardless of parity
+def DFT_adjustible(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **kwargs):
     """
     Compute an adjustible-center matrix fourier transform. 
 
@@ -325,8 +429,8 @@ def SFT3(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **kwargs):
     return  float(nlamD)/(npup*npix) *   t2 
 
 
-# ADJUSTIBLE
-def SFT3rect(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **kwargs):
+# ADJUSTIBLE centering, with rectangular pupils allowed
+def DFT_adjustible_rect(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **kwargs):
     """
     Compute an adjustible-center matrix fourier transform. 
 
@@ -364,15 +468,15 @@ def SFT3rect(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **kwargs):
 
     npupY, npupX = pupil.shape[0:2]
 
-    if np.isscalar(npix): #hasattr(npix, '__len__'):
+    if np.isscalar(npix): 
         npixY, npixX = npix, npix
     else:
         npixY, npixX = npix[0:2]   
 
-    if not np.isscalar(nlamD):  #hasattr(nlamD, '__getitem__'):
-        nlamDY, nlamDX = nlamD[0:2]
-    else:
+    if np.isscalar(nlamD):  
         nlamDY, nlamDX = nlamD, nlamD
+    else:
+        nlamDY, nlamDX = nlamD[0:2]
 
 
     if inverse:
@@ -380,7 +484,6 @@ def SFT3rect(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **kwargs):
         dY = nlamDY / float(npupY)
         dU = 1.0/float(npixY)
         dV = 1.0/float(npixX)
-
     else:
         dU = nlamDX / float(npixX)
         dV = nlamDX / float(npixX)
@@ -391,10 +494,10 @@ def SFT3rect(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **kwargs):
     Ys = (np.arange(npupY) - float(npupY)/2.0 - offset[0] + 0.5) * dY
 
     Us = (np.arange(npixX) - float(npixX)/2.0 - offset[1] + 0.5) * dU
-    Vs = (np.arange(npixX) - float(npixY)/2.0 - offset[0] + 0.5) * dV
+    Vs = (np.arange(npixY) - float(npixY)/2.0 - offset[0] + 0.5) * dV
 
-    XU = np.outer(Xs, Us)
     YV = np.outer(Ys, Vs)
+    XU = np.outer(Xs, Us)
 
 
     expXU = np.exp(-2.0 * np.pi * 1j * XU)
@@ -411,7 +514,12 @@ def SFT3rect(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **kwargs):
     norm_coeff = np.sqrt(  ( nlamDY* nlamDX) / (npupY*npupX*npixY*npixX))
     return  norm_coeff *   t2 
 
-
+# back compatibility aliases for older/more confusing terminology: 
+SFT1 = DFT_fftstyle 
+SFT1rect = DFT_fftstyle_rect 
+SFT2 = DFT_symmetric
+SFT3 = DFT_adjustible
+SFT3rect = DFT_adjustible_rect
 
 
 
@@ -422,7 +530,7 @@ class MatrixFourierTransform:
 
     Parameters
     ----------
-    choice : string
+    centering : string
         Either 'SYMMETRIC', 'FFTSTYLE', or 'ADJUSTIBLE'. 
         Sets whether the DFT result is centered at pixel n/2+1 (FFTSTYLE) 
         or on the crosshairs between the central pixels (SYMMETRIC),
@@ -440,29 +548,46 @@ class MatrixFourierTransform:
     -------
     Code by Sivaramakrishnan based on Soummer et al.
     2010-01 Documentation updated by Perrin
+    2013-01 'choice' keyword renamed to 'centering' for clarity. 'choice' is retained
+        as an option for back compatibility, however it is deprecated.
 
     """
 
-    def __init__(self, choice="FFTSTYLE", verbose=False):
+    def __init__(self, centering="FFTSTYLE", choice=None, verbose=False):
 
         self.verbose=verbose
 
-        self.choices = ("FFTSTYLE", "SYMMETRIC", "ADJUSTIBLE", 'FFTRECT')
-        self.correctoffset = {self.choices[0]: 0.5, self.choices[1]: 0.0, self.choices[2]:-1, self.choices[3]: 0.5 }
-        if choice not in self.choices:
-            raise ValueError("Error: choice must be one of [%s]" % ', '.join(self.choices))
-        self.choice = choice
+        if choice is not None:
+            centering=choice
 
-        fns = {'FFTSTYLE':SFT1, "SYMMETRIC":SFT2, "ADJUSTIBLE":SFT3rect, 'FFTRECT': SFT1rect}
+        self.centering_methods= ("FFTSTYLE", "SYMMETRIC", "ADJUSTIBLE", 'FFTRECT')
+        #self.correctoffset = {self.centering_methods[0]: 0.5, self.centering_methods[1]: 0.0, self.centering_methods[2]:-1, self.centering_methods[3]: 0.5 }
+        centering = centering.upper()
+        if centering not in self.centering_methods:
+            raise ValueError("Error: centering method must be one of [%s]" % ', '.join(self.centering_methods))
+        self.centering = centering
+
 
         if self.verbose:
-            #print choice
+            #print centering 
             #print "Announcement  - This instance of SlowFourierTransform uses SFT2"
-            print "This instance of SFT is a(n) %s  set-up calling %s " % (choice, fns[choice])
-        self.perform = fns[choice]
+            print "This instance of SFT is a(n) %s  set-up calling %s " % (centering, fns[centering])
+        _log.debug("MatrixDFT initialized using centering type = {0}".format(centering))
 
-    def offset(self):
-        return self.correctoffset[self.choice]
+    def perform(self, pupil, nlamD, npix, **kwargs):
+
+        fns = {'FFTSTYLE':DFT_fftstyle, "SYMMETRIC":DFT_symmetric, "ADJUSTIBLE":DFT_adjustible_rect, 'FFTRECT': DFT_fftstyle_rect}
+        real_fn = fns[self.centering]
+        _log.debug("MatrixDFT mode {0} calling {1}".format( self.centering, str(real_fn)))
+
+        if not np.isscalar(nlamD) or not np.isscalar(npix):
+            if self.centering == 'FFTSTYLE' or self.centering=='SYMMETRIC':
+                raise RuntimeError('The selected MatrixDFT centering mode, {0}, does not support rectangular arrays.'.format(self.centering))
+    
+        return real_fn(pupil, nlamD, npix, **kwargs)
+
+    #def offset(self):
+        #return self.correctoffset[self.centering]
 
 
     def inverse(self, image, nlamD, npix):
@@ -481,311 +606,10 @@ class MatrixFourierTransform:
 
 SlowFourierTransform = MatrixFourierTransform  # back compatible name
 
-#---------------------------------------------------------------------
-#  Test functions 
-
-def euclid2(s, c=None):
-
-	if c is None:
-		c = (0.5*float(s[0]),  0.5*float(s[1]))
-
-	y, x = np.indices(s)
-	r2 = (x - c[0])**2 + (y - c[1])**2
-
-	return r2
-
-def makedisk(s=None, c=None, r=None, inside=1.0, outside=0.0, grey=None, t=None):
-	
-	# fft style or sft asymmetric style - center = nx/2, ny/2
-	# see ellipseDriver.py for details on symm...
-
-	disk = np.where(euclid2(s, c=c) <= r*r, inside, outside)
-	return disk
-
-
-
-def test_SFT(choice='FFTSTYLE', outdir='.', outname='SFT1'):
-    import os
-
-    print "Testing SFT, style = "+choice
-
-    def complexinfo(a, str=None):
-
-        if str:
-            print 
-            print "\t", str
-        re = a.real.copy()
-        im = a.imag.copy()
-        print "\t%.2e  %.2g  =  re.sum im.sum" % (re.sum(), im.sum())
-        print "\t%.2e  %.2g  =  abs(re).sum abs(im).sum" % (abs(re).sum(), abs(im).sum())
-
-
-    npupil = 156
-    pctr = int(npupil/2)
-    npix = 1024
-    u = 100    # of lam/D
-    s = (npupil,npupil)
-
-
-    # FFT style
-    sft1 = SlowFourierTransform(choice=choice)
-
-    ctr = (float(npupil)/2.0 + sft1.offset(), float(npupil)/2.0 + sft1.offset())
-    #print ctr
-    pupil = makedisk(s=s, c=ctr, r=float(npupil)/2.0001, t=np.float64, grey=0)
-
-    pupil /= np.sqrt(pupil.sum())
-
-    fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
-
-    a = sft1.perform(pupil, u, npix)
-
-    pre = (abs(pupil)**2).sum() 
-    post = (abs(a)**2).sum() 
-    ratio = post / pre
-    calcr = 1./(u**2 *npix**2)     # multiply post by this to make them equal
-    print "Pre-FFT  total: "+str( pre)
-    print "Post-FFT total: "+str( post )
-    print "Ratio:          "+str( ratio)
-    #print "Calc ratio  :   "+str( calcr)
-    #print "uncorrected:    "+str( ratio/calcr)
-
-
-    complexinfo(a, str="sft1 asf")
-    #print 
-    asf = a.real.copy()
-    fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
-    cpsf = a * a.conjugate()
-    psf = cpsf.real.copy()
-    #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), clobber='y')
-    fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
-
-
-def test_SFT_rect(choice='FFTRECT', outdir='.', outname='SFT1R_', npix=None, sampling=10., nlamd=None):
-    """
-    Test matrix DFT, including non-square arrays, in both the
-    forward and inverse directions.
-
-    This is an exact equivalent (in Python) of test_matrix_DFT in matrix_dft.pro (in IDL)
-    They should give identical results.
-
-    """
-    import os
-    import matplotlib
-    import matplotlib.pyplot as P
-
-
-
-    print "Testing SFT, style = "+choice
-
-    def complexinfo(a, str=None):
-
-        if str:
-            print 
-            print "\t", str
-        re = a.real.copy()
-        im = a.imag.copy()
-        print "\t%.2e  %.2g  =  re.sum im.sum" % (re.sum(), im.sum())
-        print "\t%.2e  %.2g  =  abs(re).sum abs(im).sum" % (abs(re).sum(), abs(im).sum())
-
-
-    npupil = 156
-    pctr = int(npupil/2)
-    s = (npupil,npupil)
-
-
-    # make things rectangular:
-    if nlamd is None and npix is None:
-        nlamd = (10,20)
-        npix = [val*sampling for val in nlamd] #(100, 200) 
-    elif npix is None:
-        npix = [val*sampling for val in nlamd] #(100, 200) 
-    elif nlamd is None:
-        nlamd = [val/sampling for val in npix]
-    u = nlamd
-    print u
-    #(u, float(u)/npix[0]*npix[1])
-    #npix = (npix, 2*npix)
-
-
-    # FFT style
-    sft1 = SlowFourierTransform(choice=choice)
-
-    ctr = (float(npupil)/2.0 + sft1.offset(), float(npupil)/2.0 + sft1.offset())
-    #print ctr
-    pupil = makedisk(s=s, c=ctr, r=float(npupil)/2.0001, t=np.float64, grey=0)
-
-    pupil[0:60, 0:60] = 0
-    pupil[0:10] = 0
-
-    pupil /= np.sqrt(pupil.sum())
-
-    P.clf()
-    P.subplots_adjust(left=0.02, right=0.98)
-    P.subplot(141)
-
-    pmx = pupil.max()
-    P.imshow(pupil, vmin=0, vmax=pmx*1.5)
-
-
-    fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
-
-    a = sft1.perform(pupil, u, npix)
-
-    pre = (abs(pupil)**2).sum() 
-    post = (abs(a)**2).sum() 
-    ratio = post / pre
-    calcr = 1./(1.0*u[0]*u[1] *npix[0]*npix[1])     # multiply post by this to make them equal
-    print "Pre-FFT  total: "+str( pre)
-    print "Post-FFT total: "+str( post )
-    print "Ratio:          "+str( ratio)
-    #print "Calc ratio  :   "+str( calcr)
-    #print "uncorrected:    "+str( ratio/calcr)
-
-
-    complexinfo(a, str="sft1 asf")
-    #print 
-    asf = a.real.copy()
-    #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"asf.fits", data=asf.astype(np.float32), clobber='y')
-    fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
-    cpsf = a * a.conjugate()
-    psf = cpsf.real.copy()
-    #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), clobber='y')
-    fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
-
-    ax=P.subplot(142)
-    P.imshow(asf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
-    ax.set_title='ASF'
-
-    ax=P.subplot(143)
-    P.imshow(psf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
-    ax.set_title='PSF'
-
-    P.subplot(144)
-
-    pupil2 = sft1.inverse(a, u, npupil)
-    pupil2r = (pupil2 * pupil2.conjugate()).real
-    P.imshow( pupil2r, vmin=0,vmax=pmx*1.5*0.01) # FIXME flux normalization is not right?? I think this has to do with squaring the pupil here, that's all.
-    P.gca().set_title='back to pupil'
-    P.draw()
-    print "Post-inverse FFT total: "+str( abs(pupil2r).sum() )
-    print "Post-inverse pupil max: "+str(pupil2r.max())
-
-
-
-def test_SFT_center( npix=100, outdir='.', outname='SFT1'):
-    choice='ADJUSTIBLE'
-    import os
-
-    npupil = 156
-    pctr = int(npupil/2)
-    npix = 1024
-    u = 100    # of lam/D
-    s = (npupil,npupil)
-
-
-    # FFT style
-    sft1 = SlowFourierTransform(choice=choice)
-
-    ctr = (float(npupil)/2.0 + sft1.offset(), float(npupil)/2.0 + sft1.offset())
-    #print ctr
-    pupil = makedisk(s=s, c=ctr, r=float(npupil)/2.0001, t=np.float64, grey=0)
-
-    pupil /= np.sqrt(pupil.sum())
-
-    fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
-
-    a = sft1.perform(pupil, u, npix)
-
-    pre = (abs(pupil)**2).sum() 
-    post = (abs(a)**2).sum() 
-    ratio = post / pre
-    calcr = 1./(u**2 *npix**2)     # multiply post by this to make them equal
-    print "Pre-FFT  total: "+str( pre)
-    print "Post-FFT total: "+str( post )
-    print "Ratio:          "+str( ratio)
-    #print "Calc ratio  :   "+str( calcr)
-    #print "uncorrected:    "+str( ratio/calcr)
-
-
-    complexinfo(a, str="sft1 asf")
-    #print 
-    asf = a.real.copy()
-    #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"asf.fits", data=asf.astype(np.float32), clobber='y')
-    fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
-    cpsf = a * a.conjugate()
-    psf = cpsf.real.copy()
-    #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), clobber='y')
-    fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
-
-
-
-def test_inverse():
-    import matplotlib
-    import matplotlib.pyplot as P
-
-    choice='ADJUSTIBLE'
-    choice='SYMMETRIC'
-    import os
-
-    npupil = 300 #156
-    pctr = int(npupil/2)
-    npix = 100 #1024
-    u = 20 #100    # of lam/D
-
-    npix, u = 2000, 200
-    s = (npupil,npupil)
-
-
-
-
-    # FFT style
-    sft1 = SlowFourierTransform(choice=choice)
-
-    ctr = (float(npupil)/2.0 + sft1.offset(), float(npupil)/2.0 + sft1.offset())
-    #print ctr
-    pupil = makedisk(s=s, c=ctr, r=float(npupil)/2.0001, t=np.float64, grey=0)
-    pupil /= np.sqrt(pupil.sum())
-
-    pupil[100:200, 30:50] = 0
-    pupil[0:50, 140:160] = 0
-
-    P.subplot(141)
-    P.imshow(pupil)
-
-    print "Pupil 1 total:", pupil.sum() 
-
-    a = sft1.perform(pupil, u, npix)
-
-    asf = a.real.copy()
-    cpsf = a * a.conjugate()
-    psf = cpsf.real.copy()
-    print "PSF total", psf.sum()
- 
-    P.subplot(142)
-    P.imshow(psf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
-
-    P.subplot(143)
-
-    pupil2 = sft1.inverse(a, u, npupil)
-    pupil2r = (pupil2 * pupil2.conjugate()).real
-    P.imshow( pupil2r)
-
-    print "Pupil 2 total:", pupil2r.sum() 
-
-
-
-    a2 = sft1.perform(pupil2r, u, npix)
-    psf2 = (a2*a2.conjugate()).real.copy()
-    print "PSF total", psf2.sum()
-    P.subplot(144)
-    P.imshow(psf2, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
-
-
-
 
 if __name__ == "__main__":
+    #---------------------------------------------------------------------
+    #  Test functions 
+    #  are now in ../tests/test_matrixDFT.py
 
-    #test_SFT('FFTSTYLE', outname='SFT1')
-    #test_SFT('SYMMETRIC', outname='SFT2')
     pass

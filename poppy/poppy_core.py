@@ -81,6 +81,11 @@ import logging
 _log = logging.getLogger('poppy')
 #_log.addHandler(logging.NullHandler())
 
+try:
+    from IPython.core.debugger import Tracer; stop = Tracer()
+except:
+    pass
+
 
 try:
     import fftw3
@@ -148,19 +153,22 @@ def removePadding(array,oversample):
 
 def _wrap_propagate_for_multiprocessing(args):
     """ This is an internal helper routine for parallelizing computations across multiple processors.
-   g
+
     Python's multiprocessing module allows easy execution of tasks acrossg
     many CPUs or even distinct machines. It relies on Python's pickle mechanism to
     serialize and pass objects between processes. One annoying side effect of this is
-    that object instance methods cannot easily be pickled, and thus cannot be easilyg
-    invoked in other processes.g
+    that object instance methods cannot easily be pickled, and thus cannot be easily
+    invoked in other processes.
 
     Here, we work around that by pickling the entire object and argument list, packed
-    as a tuple, transmitting that to the new process, and then unpickling that,g
-    unpacking the results, and *then* at last making our instance method call.g
+    as a tuple, transmitting that to the new process, and then unpickling that,
+    unpacking the results, and *then* at last making our instance method call.
     """
     self, wavelength, weight, kwargs, usefftw3flag = args
     _USE_FFTW3 = usefftw3flag
+    
+    # not implemented yet? 
+
 
     return args[0].propagate_mono(wavelength, poly_weight=weight, save_intermediates=False, **kwargs)
 
@@ -382,7 +390,11 @@ class Wavefront(object):
         outFITS[0].header.update('DET_SAMP', self.oversample, 'Oversampling factor for MFT to detector plane')
         if self.planetype ==_IMAGE:
             outFITS[0].header.update('PIXELSCL', self.pixelscale, 'Scale in arcsec/pix (after oversampling)')
-            outFITS[0].header.update('FOV', self.fov, 'Field of view in arcsec (full array)')
+            if np.isscalar(self.fov):
+                outFITS[0].header.update('FOV', self.fov, 'Field of view in arcsec (full array)')
+            else:
+                outFITS[0].header.update('FOV_X', self.fov[1], 'Field of view in arcsec (full array), X direction')
+                outFITS[0].header.update('FOV_Y', self.fov[0], 'Field of view in arcsec (full array), Y direction')
         else:
             outFITS[0].header.update('PIXELSCL', self.pixelscale, 'Pixel scale in meters/pixel')
             outFITS[0].header.update('DIAM', self.diam, 'Pupil diameter in meters (not incl padding)')
@@ -445,12 +457,10 @@ class Wavefront(object):
         """
         if imagecrop is None: imagecrop = _IMAGECROP
 
-        #intens = np.ma.masked_array(self.intensity, mask=(self.intensity==0))
         intens = self.intensity.copy()
-        phase = self.phase.copy()
+        phase  = self.phase.copy()
         phase[np.where(intens ==0)] = np.nan
-        #phase = np.ma.masked_array(self.phase, mask=(intens==0))
-        amp = self.amplitude
+        amp    = self.amplitude
 
         if self.planetype==_PUPIL and self.ispadded and not showpadding :
             intens = removePadding(intens,self.oversample)
@@ -459,26 +469,33 @@ class Wavefront(object):
 
 
         # extent specifications need to include the *full* data region, including the half pixel on either
-        # side outside of the pixel center coordinates.  And remember to swap Y and X
-        extent = np.array([-0.5,intens.shape[1]-1+0.5, -0.5,intens.shape[0]-1+0.5]) * self.pixelscale
+        # side outside of the pixel center coordinates.  And remember to swap Y and X.  Recall that for matplotlib,
+        #    extent = [xmin, xmax, ymin, ymax]
+        # in this case those are coordinates in units of pixels. Recall that we define pixel coordinates to be
+        # at the *center* of the pixel, so we compute here the coordinates at the outside of those pixels. 
+        # This is needed to get the coordinates right when displaying very small arrays
+
+        extent = np.array([-0.5 ,intens.shape[1]-1+0.5, -0.5,intens.shape[0]-1+0.5]) * self.pixelscale
         if self.planetype == _PUPIL:
+            # For pupils, we just let the 0 point be that of the array, off to the side of the actual clear aperture
             unit = "m"
         else:
-            # make coordinates relative to center.
-            # image plane coordinates depend on whether theg
+            # for image planes, we make coordinates relative to center.
+            # image plane coordinates depend slightly on whether the optical center is at a 
+            # pixel-center or the corner between 4 pixels...
             if self._image_centered == 'array_center' or self._image_centered=='corner':
-                cenx = (intens.shape[0]-1)/2.
+                cenx = (intens.shape[1]-1)/2.
+                ceny = (intens.shape[0]-1)/2.
             elif self._image_centered == 'pixel':
-                cenx = (intens.shape[0])/2.
+                cenx = (intens.shape[1])/2.
+                ceny = (intens.shape[0])/2.
 
-            extent -= cenx*self.pixelscale
-            halffov = intens.shape[0]/2.*self.pixelscale #for use later
-            #(np.array([-0.5,intens.shape[1]-1+0.5, -0.5,intens.shape[0]-1+0.5])-cenx) * self.pixelscale
-            #halffov = self.pixelscale*intens.shape[0]/2
-            #extent = [-halffov, halffov, -halffov, halffov]
+            extent -= np.asarray([cenx, cenx, ceny, ceny])*self.pixelscale
+            halffov_x = intens.shape[1]/2.*self.pixelscale #for use later
+            halffov_y = intens.shape[0]/2.*self.pixelscale #for use later
             unit="arcsec"
 
-        # implement semi-intellegent selection of what to display
+        # implement semi-intellegent selection of what to display, if the user wants
         if what =='best':
             if self.planetype ==_IMAGE:
                 what = 'intensity' # always show intensity for image planes
@@ -487,7 +504,7 @@ class Wavefront(object):
             elif int(row) > 1: what='intensity'  # show intensity for coronagraphic downstream propagation.
             else: what='phase' # for aberrated pupils
 
-        # compute plot parameters
+        # compute plot parameters for the subplot grid
         nc = int(np.ceil(np.sqrt(nrows)))
         nr = int(np.ceil(float(nrows)/nc))
         if nrows - nc*(nc-1) == 1: # avoid just one alone on a row by itself...
@@ -507,7 +524,7 @@ class Wavefront(object):
 
             if ax is None:
                 ax = plt.subplot(nr,nc,int(row))
-            #pl.imshow(intens, ax=ax, extent=extent, norm=norm, cmap=cmap)
+
             imshow_with_mouseover(intens, ax=ax, extent=extent, norm=norm, cmap=cmap)
             if title is None:
                 title = "Intensity "+self.location
@@ -521,9 +538,10 @@ class Wavefront(object):
                 if crosshairs:
                     plt.axhline(0,ls=":", color='k')
                     plt.axvline(0,ls=":", color='k')
-                imsize = min( (imagecrop, halffov))
-                ax.set_xbound(-imsize, imsize)
-                ax.set_ybound(-imsize, imsize)
+                imsize_x = min( (imagecrop, halffov_x))
+                imsize_y = min( (imagecrop, halffov_y))
+                ax.set_xbound(-imsize_x, imsize_x)
+                ax.set_ybound(-imsize_y, imsize_y)
         elif what =='phase':
             # Display phase in waves.
             cmap = matplotlib.cm.jet
@@ -707,18 +725,17 @@ class Wavefront(object):
         self._preMFT_pupil_pixelscale = self.pixelscale #save for possible inverseMFT
 
 
-        # the arguments for the SFT are
+        # the arguments for the matrixDFT are
         # - wavefront (assumed to fill the input array)
         # - focal plane size in lambda/D units
         # - number of pixels on a side in focal plane array.
 
         lamD = self.wavelength / self.diam * _RADIANStoARCSEC
-        #print "lam/D = %f arcsec" % lamD
 
         det_fov_lamD = det.fov_arcsec / lamD
         det_calc_size_pixels = det.fov_pixels * det.oversample
 
-        mft = MatrixFourierTransform(choice='ADJUSTIBLE', verbose=False)
+        mft = MatrixFourierTransform(centering='ADJUSTIBLE', verbose=False)
         if not np.isscalar(det_fov_lamD): #hasattr(det_fov_lamD,'__len__'):
             msg= '    Propagating w/ MFT: %.4f"/pix     fov=[%.3f,%.3f] lam/D    npix=%d x %d' %  (det.pixelscale/det.oversample, det_fov_lamD[0], det_fov_lamD[1], det_calc_size_pixels[0], det_calc_size_pixels[1])
         else:
@@ -727,17 +744,28 @@ class Wavefront(object):
         self.history.append(msg)
         det_offset = det.det_offset if hasattr(det, 'det_offset') else (0,0)
 
+
+        _log.debug('      MFT method = '+mft.centering)
+
         # det_offset controls how to shift the PSF.
         # it gives the coordinates (X, Y) relative to the exact center of the array
         # for the location of the phase center of a converging perfect spherical wavefront.
         # This is where a perfect PSF would be centered. Of course any tilts, comas, etc, from the OPD
         # will probably shift it off elsewhere for an entirely different reason, too.
         self.wavefront = mft.perform(self.wavefront, det_fov_lamD, det_calc_size_pixels, offset=det_offset)
+        _log.debug("     Result wavefront: at={0} shape={1} intensity={2:.3g}".format(self.location, str(self.shape), self.totalIntensity))
         self._last_transform_type = 'MFT'
 
         self.planetype=_IMAGE
         self.fov = det.fov_arcsec
         self.pixelscale = det.fov_arcsec / det_calc_size_pixels
+
+        if not np.isscalar(self.pixelscale):
+            # check for rectangular arrays
+            if self.pixelscale[0] == self.pixelscale[1]: 
+                self.pixelscale = self.pixelscale[0]  # we're in a rectangular array with same pixel scale in both directions, so treat pixelscale as a scalar
+            else:
+                raise NotImplementedError('Different pixel scales in X and Y directions (i.e. non-square pixels) not yet supported.') 
 
     def _propagateMFTinverse(self, pupil, pupil_npix=None):
         """ Compute from an image to a pupil using the Soummer et al. 2007 MFT algorithm
@@ -750,7 +778,7 @@ class Wavefront(object):
         assert self.planetype == _IMAGE
         assert pupil.planetype == _PUPIL
 
-        # the arguments for the SFT are
+        # the arguments for the matrixDFT are
         # - wavefront (assumed to fill the input array)
         # - focal plane size in lambda/D units
         # - number of pixels on a side in focal plane array.
@@ -770,9 +798,9 @@ class Wavefront(object):
             else:
                 pupil_npix = self._preMFT_pupil_shape[0]
 
-        mft = MatrixFourierTransform(choice='ADJUSTIBLE', verbose=False)
+        mft = MatrixFourierTransform(centering='ADJUSTIBLE', verbose=False)
         if not np.isscalar(det_fov_lamD): #hasattr(det_fov_lamD,'__len__'):
-            msg= '    Propagating w/ MFT: %.4f"/pix     fov=[%.3f,%.3f] lam/D    npix=%d x %d' %  (self.pixelscale[0], det_fov_lamD[0], det_fov_lamD[1], pupil_npix, pupil_npix)
+            msg= '    Propagating w/ InvMFT: %.4f"/pix     fov=[%.3f,%.3f] lam/D    npix=%d x %d' %  (self.pixelscale[0], det_fov_lamD[0], det_fov_lamD[1], pupil_npix, pupil_npix)
         else:
             msg= '    Propagating w/ InvMFT: %.4f"/pix     fov=%.3f lam/D    pupil npix=%d' %  (self.pixelscale, det_fov_lamD, pupil_npix)
         _log.debug(msg)
@@ -2497,6 +2525,7 @@ class Detector(OpticalElement):
     fov_pixels, fov_arcsec : float
         The field of view may be specified either in arcseconds or by a number of pixels. Either is acceptable
         and the pixel scale is used to convert as needed. You may specify a non-square FOV by providing two elements in an iterable.
+        Note that this follows the usual Python convention of ordering axes (Y,X), so put your desired Y axis size first. 
     oversample : int
         Oversampling factor beyond the detector pixel scale
     offset : tuple (X,Y)
@@ -2514,7 +2543,7 @@ class Detector(OpticalElement):
         if fov_pixels is None and fov_arcsec is None:
             raise ValueError("Either fov_pixels or fov_arcsec must be specified!")
         elif fov_pixels is not None:
-            self.fov_pixels = int(fov_pixels)
+            self.fov_pixels = np.round(fov_pixels)
             self.fov_arcsec = self.fov_pixels * self.pixelscale
         else:
             # set field of view to closest value possible to requested,
@@ -2665,8 +2694,13 @@ class OpticalSystem():
             Filenames of FITS files describing the desired optic.
 
 
-        Note: Now you can use the optic arguement for either an OpticalElement or a string function name,
-        and it will do the right thing depending on type.  Both existing arguments are left for back compatibility for now.
+
+        Notes
+        ------
+
+        Now you can use the optic argument for either an OpticalElement or a
+        string function name, and it will do the right thing depending on type.
+        Both existing arguments are left for back compatibility for now.
 
 
 
@@ -2995,6 +3029,7 @@ class OpticalSystem():
         #if source is None and wavelength is not None:
             #source = {'weights': [1], 'wavelengths': [wavelength]}
 
+        tstart = time.time() 
         if source is not None:
             wavelength = source['wavelengths']
             weight=source['weights']
@@ -3061,7 +3096,6 @@ class OpticalSystem():
 
 
 
-
         else:  ########## single-threaded computations (may still use multi cores if FFTW3 enabled ######
 
 
@@ -3079,6 +3113,13 @@ class OpticalSystem():
             if save_intermediates:
                 for i in range(len(self.intermediate_wfs)):
                     self.intermediate_wfs[i].writeto('wavefront_plane_%03d.fits' % i, what=save_intermediates_what )
+
+        tstop = time.time()
+        tdelta = tstop-tstart
+        _log.info("  Calculation completed in {0:.3f} s".format(tdelta))
+        outFITS[0].header.add_history("Calculation completed in {0:.3f} seconds".format(tdelta))
+
+
 
         if display:
             cmap = matplotlib.cm.jet
