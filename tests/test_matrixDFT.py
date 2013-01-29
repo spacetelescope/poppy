@@ -77,7 +77,7 @@ def test_DFT(centering='FFTSTYLE', outdir='.', outname='DFT1'):
     # FFT style
     sft1 = MatrixFourierTransform(centering=centering)
 
-    ctr = (float(npupil)/2.0 + sft1.offset(), float(npupil)/2.0 + sft1.offset())
+    ctr = (float(npupil)/2.0, float(npupil)/2.0 )
     #print ctr
     pupil = makedisk(s=s, c=ctr, r=float(npupil)/2.0001, t=np.float64, grey=0)
 
@@ -234,7 +234,7 @@ def test_DFT_center( npix=100, outdir='.', outname='DFT1'):
     # FFT style
     sft1 = MatrixFourierTransform(centering=centering)
 
-    ctr = (float(npupil)/2.0 + sft1.offset(), float(npupil)/2.0 + sft1.offset())
+    ctr = (float(npupil)/2.0, float(npupil)/2.0 )
     #print ctr
     pupil = makedisk(s=s, c=ctr, r=float(npupil)/2.0001, t=np.float64, grey=0)
 
@@ -286,7 +286,7 @@ def test_inverse():
     # FFT style
     sft1 = MatrixFourierTransform(centering=centering)
 
-    ctr = (float(npupil)/2.0 + sft1.offset(), float(npupil)/2.0 + sft1.offset())
+    ctr = (float(npupil)/2.0, float(npupil)/2.0 )
     #print ctr
     pupil = makedisk(s=s, c=ctr, r=float(npupil)/2.0001, t=np.float64, grey=0)
     pupil /= np.sqrt(pupil.sum())
@@ -339,7 +339,6 @@ def test_DFT_combined(outdir='.', outname='DFT1'):
     # FFT style
     #sft1 = MatrixFourierTransform(centering=centering)
 
-    #ctr = (float(npupil)/2.0 + sft1.offset(), float(npupil)/2.0 + sft1.offset())
 
     # make a pupil
     ctr = (float(npupil)/2.0 , float(npupil)/2.0)  # in middle of array (though this should make no difference)

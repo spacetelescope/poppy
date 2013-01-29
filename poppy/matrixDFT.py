@@ -59,11 +59,16 @@ _log = logging.getLogger('poppy')
 def DFT_combined(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, centering='FFTSTYLE', **kwargs):
     """
 
-    This function attempts to merge and unify the behaviors of:
+    This function attempts to merge and unify the behaviors of all the other DFT routines
+    into one master, flexible routines. It thus should subsume:
         DFT_fftstyle
         DFT_fftstyle_rect
         DFT_adjustible
+        DFT_symmetric
 
+    As of Jan 2013, this works OK for even-sized arrays, but for odd-sized arrays it
+    appears to get the sense of fftstyle and symmetry flipped. Some debugging still needed?
+    See the code in tests/test_matrixDFT.py. -MP
 
     Parameters
     ----------

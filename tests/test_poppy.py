@@ -6,6 +6,7 @@ import unittest
 import matplotlib.pyplot as plt
 import matplotlib
 import time
+import scipy
 
 
 import poppy
@@ -302,7 +303,7 @@ class TestPupils(TestPoppy):
                 cut /= cut.max() # normalize to peak=1
                 plt.semilogy(r, cut, label='$\\theta = %d^o$' % ang )
                 if i == 0:
-                    radius, airyfn = optics.airy_1d(diam, self.wavelength, pixelscale=self.pixelscale)
+                    radius, airyfn = airy_1d(diam, self.wavelength, pixelscale=self.pixelscale)
                     plt.plot(radius, airyfn, "k--", label='analytic')
             plt.gca().set_xbound(0,3)
             plt.gca().set_ybound(1e-13,1.5)

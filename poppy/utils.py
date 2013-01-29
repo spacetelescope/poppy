@@ -11,7 +11,10 @@ except:
     import pyfits as fits
 
 
-#from . import fwcentroid
+try:
+    from IPython.core.debugger import Tracer; stop = Tracer()
+except:
+    pass
 
 __doc__="""
 
@@ -259,16 +262,18 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
     norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
     #print "Display range: ", vmin, vmax
     cmap = matplotlib.cm.gray
-    halffov = HDUlist1[ext1].header['PIXELSCL']*HDUlist1[ext1].data.shape[0]/2
+    halffov_x = HDUlist1[ext1].header['PIXELSCL']*HDUlist1[ext1].data.shape[1]/2
+    halffov_y = HDUlist1[ext1].header['PIXELSCL']*HDUlist1[ext1].data.shape[0]/2
     unit="arcsec"
-    extent = [-halffov, halffov, -halffov, halffov]
+    extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
 
 
     ax = imshow_with_mouseover( diff_im   ,extent=extent,cmap=cmap, norm=norm, ax=ax)
     if imagecrop is not None:
-        halffov = min( (imagecrop/2, halffov))
-    ax.set_xbound(-halffov, halffov)
-    ax.set_ybound(-halffov, halffov)
+        halffov_x = min( (imagecrop/2, halffov_x))
+        halffov_y = min( (imagecrop/2, halffov_y))
+    ax.set_xbound(-halffov_x, halffov_x)
+    ax.set_ybound(-halffov_y, halffov_y)
     if crosshairs: 
         ax.axhline(0,ls=":", color='k')
         ax.axvline(0,ls=":", color='k')

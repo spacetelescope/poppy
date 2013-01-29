@@ -296,7 +296,6 @@ class Wavefront(object):
 
         if not np.isscalar(phasor) and phasor.size>1:  # actually isscalar() does not handle the case of a 1-element array properly
             #print self.wavefront.shape, phasor.shape
-            #stop()
             assert self.wavefront.shape == phasor.shape
 
         self.wavefront *= phasor
@@ -694,7 +693,6 @@ class Wavefront(object):
             self.wavefront = numpy_fft(self.wavefront)
 
         #wave1 = self.copy()
-        #stop()
         if FFT_direction == 'forward':
             self.wavefront = numpy_fftshift(self.wavefront)
             # FFT produces pixel-centered images by default, unless the _image_centered param has already been set by an FQPM_FFT_aligner class
@@ -708,7 +706,6 @@ class Wavefront(object):
 
         if _FLUXCHECK: _log.debug("\tPost-FFT total intensity: "+str(self.totalIntensity))
 
-        #stop()
 
 
     def _propagateMFT(self, det):
@@ -856,7 +853,6 @@ class Wavefront(object):
             _log.warn("Wavefront.tilt() called, but requested tilt was zero. No change.")
             tiltphasor = 1.
 
-        #stop()
         #Compute the tilt of the wavefront required to shift it by some amount in the image plane.
 
 
@@ -1319,7 +1315,7 @@ class FITSOpticalElement(OpticalElement):
                     transmission_index=0
                 self.opd_slice_index = transmission_index
                 self.opd = self.opd[self.opd_slice_index, :,:]
-                _log.debug(" Datacube detected, using slice ={0}".format(self.amplitude_slice_index))
+                _log.debug(" Datacube detected, using slice ={0}".format(self.opd_slice_index))
 
 
             if transmission is None:
@@ -1509,7 +1505,8 @@ class AnalyticOpticalElement(OpticalElement):
             unit="meters"
             if hasattr(self, 'pupil_diam'): self.diam = self.pupil_diam
             else : self.diam = 6.5
-            halffov = self.diam/2
+            halffov_x = self.diam/2
+            halffov_y = self.diam/2
             w = Wavefront(wavelength=wavelength, npix=npix,  diam = self.diam)
             self.pupil_scale = self.diam/npix
             self.pixelscale = self.pupil_scale
@@ -1517,10 +1514,12 @@ class AnalyticOpticalElement(OpticalElement):
         else:
             unit="arcsec"
             if hasattr(self, '_default_display_size'):
-                halffov = self._default_display_size/2
+                halffov_x = self._default_display_size/2
+                halffov_y = self._default_display_size/2
             else:
-                halffov = 2.0
-            self.pixelscale = 2.*halffov/npix
+                halffov_x = 2.0
+                halffov_y = 2.0
+            self.pixelscale = 2.*halffov_x/npix
             w = Wavefront(wavelength=wavelength, npix=npix,  pixelscale = self.pixelscale)
 
 
@@ -3122,11 +3121,13 @@ class OpticalSystem():
 
 
         if display:
+            # This display may be redundant if display_intermediates is not already set...
             cmap = matplotlib.cm.jet
             cmap.set_bad('0.3')
             #cmap.set_bad('k', 0.8)
-            halffov =outFITS[0].header['PIXELSCL']*outFITS[0].data.shape[0]/2
-            extent = [-halffov, halffov, -halffov, halffov]
+            halffov_x =outFITS[0].header['PIXELSCL']*outFITS[0].data.shape[1]/2
+            halffov_y =outFITS[0].header['PIXELSCL']*outFITS[0].data.shape[0]/2
+            extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
             unit="arcsec"
             norm=LogNorm(vmin=1e-8,vmax=1e-1)
             plt.xlabel(unit)
