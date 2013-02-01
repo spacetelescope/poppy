@@ -500,7 +500,7 @@ class Wavefront(object):
                 what = 'intensity' # always show intensity for image planes
             elif phase[np.where(np.isfinite(phase))].sum() == 0:
                 what = 'intensity' # for perfect pupils
-            elif int(row) > 1: what='intensity'  # show intensity for coronagraphic downstream propagation.
+            elif int(row) > 2: what='intensity'  # show intensity for coronagraphic downstream propagation.
             else: what='phase' # for aberrated pupils
 
         # compute plot parameters for the subplot grid
