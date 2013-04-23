@@ -804,9 +804,9 @@ def measure_anisotropy(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50):
 #
 
 def rebin_array(a = None, rc=(2,2), verbose=False):
-	"""  
-	Perform simple-minded flux-conserving binning... clip trailing
-	size mismatch: eg a 10x3 array binned by 3 results in a 3x1 array
+    """  
+    Perform simple-minded flux-conserving binning... clip trailing
+    size mismatch: eg a 10x3 array binned by 3 results in a 3x1 array
 
     Parameters
     ----------
@@ -818,32 +818,56 @@ def rebin_array(a = None, rc=(2,2), verbose=False):
         print additional status text?
 
 
-	anand@stsci.edu
+    anand@stsci.edu
 
-	"""
+    """
 
-	r, c = rc
+    r, c = rc
 
-	R = a.shape[0]
-	C = a.shape[1]
+    R = a.shape[0]
+    C = a.shape[1]
 
-	nr = int(R / r)
-	nc = int(C / c)
+    nr = int(R / r)
+    nc = int(C / c)
 
-	b = a[0:nr, 0:nc].copy()
-	b = b * 0
+    b = a[0:nr, 0:nc].copy()
+    b = b * 0
 
-	for ri in range(0, nr):
-		Rlo = ri * r
-		if verbose:
-			print "row loop"
-		for ci in range(0, nc):
-			Clo = ci * c
-			b[ri, ci] = np.add.reduce(a[Rlo:Rlo+r, Clo:Clo+c].copy().flat)
-			if verbose:
-				print "    [%d:%d, %d:%d]" % (Rlo,Rlo+r, Clo,Clo+c),
-				print "%4.0f"  %   np.add.reduce(a[Rlo:Rlo+r, Clo:Clo+c].copy().flat)
-	return b
+    for ri in range(0, nr):
+        Rlo = ri * r
+        if verbose:
+            print "row loop"
+        for ci in range(0, nc):
+            Clo = ci * c
+            b[ri, ci] = np.add.reduce(a[Rlo:Rlo+r, Clo:Clo+c].copy().flat)
+            if verbose:
+                print "    [%d:%d, %d:%d]" % (Rlo,Rlo+r, Clo,Clo+c),
+                print "%4.0f"  %   np.add.reduce(a[Rlo:Rlo+r, Clo:Clo+c].copy().flat)
+    return b
+
+
+def krebin(a, shape):
+    """
+    Fast Rebinning
+
+    New shape must be an integer divisor of the current shape.
+
+    This algorithm is much faster than rebin_array
+
+    Parameters
+    ----------
+    a : array_like
+        input array
+    shape : two-element tuple 
+        (nrows, ncolumns) desired for rebinned array
+
+
+    """
+    # Klaus P's fastrebin from web
+    sh = shape[0],a.shape[0]//shape[0],shape[1],a.shape[1]//shape[1]
+    print "sh", sh
+    return a.reshape(sh).sum(-1).sum(1)
+
 
 
 def specFromSpectralType(sptype, return_list=False, catalog=None):
