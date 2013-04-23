@@ -1020,7 +1020,7 @@ class OpticalElement():
         else:
             return self.phasor
 
-    def display(self, nrows=1, row=1, what='intensity', phase=False, wavelength=None, crosshairs=True, ax=None, colorbar=True, colorbar_orientation=None, title=None):
+    def display(self, nrows=1, row=1, what='intensity', crosshairs=True, ax=None, colorbar=True, colorbar_orientation=None, title=None, opd_vmax=0.5e-6):
         """Display plots showing an optic's transmission and OPD
 
         Parameters
@@ -1029,6 +1029,20 @@ class OpticalElement():
             What do display: 'intensity', 'phase', or 'both'
         ax : matplotlib.Axes
             Axes to display into
+        nrows, row : integers
+            # of rows and row index for subplot display
+        crosshairs : bool
+            Display crosshairs indicating the center?
+        colorbar : bool
+            Show colorbar?
+        colorbar_orientation : bool
+            Desired orientation, horizontal or vertical?
+            Default is horizontal if only 1 row of plots, else vertical
+        opd_vmax : float
+            Max value for OPD image display, in meters.
+        title : string
+            Plot label
+
 
         """
         if colorbar_orientation is None:
@@ -1038,51 +1052,17 @@ class OpticalElement():
         cmap_opd = matplotlib.cm.jet
         cmap_opd.set_bad('0.3')
         norm_amp=matplotlib.colors.Normalize(vmin=0, vmax=1)
-        norm_opd=matplotlib.colors.Normalize(vmin=-0.5e-6, vmax=0.5e-6)
+        norm_opd=matplotlib.colors.Normalize(vmin=-opd_vmax, vmax=opd_vmax)
 
-#
-#        if self.amplitude.shape is () or self.amplitude.size == 1:
-#            # can't really display a null or scalar optical element?
-#            # really the best way to do this would be to create a subclass for a
-#            # scalar optical element...
-#
-#            #--this code is probably now obsoleted by ScalarElement?? --
-#            tmp = np.ones((10,10))
-#            tmp2 = np.ones((10,10))
-#            ax = plt.subplot(nrows, 2, row*2-1)
-#            tmp[:,:] = self.amplitude
-#
-#            imshow_with_mouseover(tmp, ax=ax, cmap=cmap, norm=norm_amp )
-#            ax.set_xticklabels([""]*10)
-#            ax.set_yticklabels([""]*10)
-#            plt.ylabel(self.name+"\n")
-#
-#            cb = plt.colorbar(ax.images[0], orientation=colorbar_orientation, ticks=[0,0.25, 0.5, 0.75, 1.0])
-#
-#            ax2 = plt.subplot(nrows, 2, row*2)
-#            tmp2[:,:] = self.opd
-#            imshow_with_mouseover(tmp2, ax=ax2, cmap=cmap_opd, norm=norm_opd )
-#            ax2.set_xticklabels([""]*10)
-#            ax2.set_yticklabels([""]*10)
-#            cb = plt.colorbar(ax2.images[0], orientation=colorbar_orientation, ticks=np.array([-0.5, -0.25, 0, 0.25, 0.5])*1e-6)
-#            if crosshairs:
-#                for a in [ax, ax2]:
-#                    a.axhline(0,ls=":", color='k')
-#                    a.axvline(0,ls=":", color='k')
-#
-#            return
-#
-
-        pixelscale = self.pixelscale
         units = "[meters]" if self.planetype == _PUPIL else "[arcsec]"
         if nrows > 1: units = self.name+"\n"+units
 
 
-        halfsize = pixelscale*self.amplitude.shape[0]/2
+        halfsize = self.pixelscale*self.amplitude.shape[0]/2
         #extent = [0,pixelscale*self.amplitude.shape[0], 0,pixelscale*self.amplitude.shape[1]]
         extent = [-halfsize, halfsize, -halfsize, halfsize]
 
-        _log.debug("Display pixel scale = %.3f " % pixelscale)
+        _log.debug("Display pixel scale = %.3f " % self.pixelscale)
 
         #ampl = np.ma.masked_equal(self.amplitude, 0)
         ampl = self.amplitude
@@ -1124,7 +1104,7 @@ class OpticalElement():
             if nrows == 1:
                 plt.title("OPD for "+self.name)
             if colorbar:
-                cb = plt.colorbar(ax2.images[0], orientation=colorbar_orientation, ticks=np.array([-0.5, -0.25, 0, 0.25, 0.5])*1e-6)
+                cb = plt.colorbar(ax2.images[0], orientation=colorbar_orientation, ticks=np.array([-1, -0.5, 0, 0.5, 1])*opd_vmax)
                 cb.set_label('meters')
             if crosshairs:
                 ax2.axhline(0,ls=":", color='k')
