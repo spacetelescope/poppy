@@ -5,11 +5,7 @@ import matplotlib
 import logging
 _log = logging.getLogger('poppy')
 #
-try:
-    import astropy.io.fits as fits
-except:
-    import pyfits as fits
-
+import astropy.io.fits as fits
 
 try:
     from IPython.core.debugger import Tracer; stop = Tracer()

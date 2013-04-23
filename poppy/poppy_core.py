@@ -66,10 +66,7 @@ import matplotlib
 import time
 from matplotlib.colors import LogNorm  # for log scaling of images, with automatic colorbar support
 
-try:
-    import astropy.io.fits as fits
-except:
-    import pyfits as fits
+import astropy.io.fits as fits
 
 
 from ._version import __version__

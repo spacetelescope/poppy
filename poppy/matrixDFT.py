@@ -45,10 +45,7 @@ from __future__ import division # always floating point
 
 
 import numpy as np
-try:
-    import astropy.io.fits as fits
-except:
-    import pyfits as fits
+import astropy.io.fits as fits
 
 import logging
 _log = logging.getLogger('poppy')

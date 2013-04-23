@@ -5,11 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
 import matplotlib
-try:
-    import astropy.io.fits as fits
-except:
-    import pyfits as fits
-
+import astropy.io.fits as fits
 
 from . import poppy_core
 from . import utils
