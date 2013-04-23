@@ -22,19 +22,24 @@ except:
  
 
 class Instrument(object):
-    """ A generic astronomical instrument, composed of (1) an optical system implemented using POPPY, 
-    and (2) some defined spectral bandpass(es), implemented using pysynphot. This provides the capability to
-    model both the optical and spectral responses of a given system. PSFs may be calculated for given source
+    """ A generic astronomical instrument, composed of 
+        (1) an optical system implemented using POPPY, optionally with several configurations such as
+            selectable image plane or pupil plane stops, and
+        (2) some defined spectral bandpass(es) such as selectable filters, implemented using pysynphot. 
+
+    This provides the capability to model both the optical and spectral responses of a given system. 
+    PSFs may be calculated for given source
     spectral energy distributions and output as FITS files, with substantial flexibility.
 
     It also provides capabilities for modeling some PSF effects not due to wavefront aberrations, for instance
     blurring caused by pointing jitter.
 
 
-    This is a base class for Instrument functionality - you will likely not want to use this directly, but
+    This is a base class for Instrument functionality - you cannot easily use this directly, but
     rather should subclass it for your particular instrument of interest.   Some of the complexity of this class 
     is due to splitting up functionality into many separate routines to allow users to subclass just the relevant
-    portions for a given task.
+    portions for a given task. There's a fair amount of functionality here but the learning curve is steeper than
+    elsewhere in POPPY.
 
     You will at a minimum want to override the following class methods:
 
@@ -79,7 +84,7 @@ class Instrument(object):
             For output files, write an additional FITS extension including a version of the output array 
             rebinned down to the actual detector pixel scale?
         jitter : string
-            Type of jitter model to apply. Currently not implemented
+            Type of jitter model to apply. Currently the only
         parity : string "even" or "odd"
             You may wish to ensure that the output PSF grid has either an odd or even number of pixels.
             Setting this option will force that to be the case by increasing npix by one if necessary.
@@ -167,12 +172,10 @@ class Instrument(object):
             If set, the output file will contain a FITS image extension containing the PSF rebinned
             onto the actual detector pixel scale. Thus, setting oversample=<N> and rebin=True is
             the proper way to obtain high-fidelity PSFs computed on the detector scale. Default is True.
-
         clobber : bool
             overwrite output FITS file if it already exists?
         display : bool
             Whether to display the PSF when done or not.
-
         save_intermediates, return_intermediates : bool
             Options for saving to disk or returning to the calling function the intermediate optical planes during the propagation. 
             This is useful if you want to e.g. examine the intensity in the Lyot plane for a coronagraphic propagation.
@@ -238,8 +241,7 @@ class Instrument(object):
         if return_intermediates: # this implies we got handed back a tuple, so split it apart
             result, intermediates = result
 
-        if 'jitter' in local_options.keys():
-            self._applyJitter(result, local_options)
+        self._applyJitter(result, local_options)  # will immediately return if there is no jitter parameter in local_options
 
 
         self._getFITSHeader(result, local_options) 
@@ -481,12 +483,22 @@ class Instrument(object):
         The image in the 'result' HDUlist will be modified by this function.
         """
         if local_options is None: local_options = self.options
+        if 'jitter' not in local_options.keys(): return
 
-        import scipy.ndimage
+        poppy_core._log.info("Calculating jitter using "+str(local_options['jitter']) )
+
+
         if local_options['jitter'] is None:
             return
         elif 'gauss' in local_options['jitter'].lower():
-            sigma = local_options['jitter_sigma']
+            import scipy.ndimage
+
+            try:
+                sigma = local_options['jitter_sigma']
+            except:
+                poppy_core._log.warn("Gaussian jitter model requested, but no width for jitter distribution specified. Assuming jitter_sigma = 0.007 arcsec by default")
+                sigma = 0.007
+
             # that will be in arcseconds, we need to convert to pixels:
             
             poppy_core._log.info("Jitter: Convolving with Gaussian with sigma=%.2f arcsec" % sigma)
@@ -497,7 +509,7 @@ class Instrument(object):
 
             poppy_core._log.info("        resulting image peak drops to %.3f of its previous value" % strehl)
             result[0].header.update('JITRTYPE', 'Gaussian convolution', 'Type of jitter applied')
-            result[0].header.update('JITRSIGM', sigma, 'Gaussian sigma for jitter')
+            result[0].header.update('JITRSIGM', sigma, 'Gaussian sigma for jitter [arcsec]')
             result[0].header.update('JITRSTRL', strehl, 'Image peak reduction due to jitter')
 
             result[0].data = out
@@ -681,7 +693,7 @@ class Instrument(object):
             poppy_core._log.warning("Pysynphot unavailable (or invalid source supplied)!   Assuming flat # of counts versus wavelength.")
             # compute a source spectrum weighted by the desired filter curves.
             # TBD this will eventually use pysynphot, so don't write anything fancy for now!
-            wf = np.where(self.filter == np.asarray(self.filter_list))[0]
+            wf = np.where(np.asarray(self.filter_list) == self.filter)[0]
             # The existing FITS files all have wavelength in ANGSTROMS since that is the pysynphot convention...
             #filterdata = atpy.Table(self._filter_files[wf], type='fits')
             filterfits = fits.open(self._filter_files[wf])
@@ -691,7 +703,12 @@ class Instrument(object):
                 d2 = filterdata.THROUGHPUT
             except:
                 raise ValueError("The supplied file, %s, does not appear to be a FITS table with WAVELENGTH and THROUGHPUT columns." % self._filter_files[wf] )
-            if filterfits[1].header['WAVEUNIT'] != 'Angstrom': raise ValueError("The supplied file, %s, does not have WAVEUNIT = Angstrom as expected." % self._filter_files[wf] )
+            if 'WAVEUNIT' in  filterfits[1].header.keys():
+                waveunit  = filterfits[1].header['WAVEUNIT']
+            else:
+                poppy_core._log.warn("CAUTION: no WAVEUNIT keyword found in filter file {0}. Assuming = Angstroms by default".format(filterfits.filename()))
+                waveunit = 'Angstrom'
+            if waveunit != 'Angstrom': raise ValueError("The supplied file, %s, does not have WAVEUNIT = Angstrom as expected." % self._filter_files[wf] )
             poppy_core._log.warn("CAUTION: Just interpolating rather than integrating filter profile, over %d steps" % nlambda)
             wtrans = np.where(filterdata.THROUGHPUT > 0.4)
             if self.filter == 'FND':  # special case MIRI's ND filter since it is < 0.1% everywhere...
