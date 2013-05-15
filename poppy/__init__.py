@@ -1,6 +1,6 @@
 from .poppy_core import (Wavefront, OpticalElement, FITSOpticalElement, Rotation, AnalyticOpticalElement, 
 	ScalarTransmission, InverseTransmission, ThinLens, BandLimitedCoron, 
-	FQPM_FFT_aligner, IdealFQPM, IdealFieldStop, IdealCircularOcculter, 
+	FQPM_FFT_aligner, IdealFQPM, IdealFieldStop, IdealRectangularFieldStop, IdealCircularOcculter, 
 	IdealBarOcculter, ParityTestAperture, CircularAperture, HexagonAperture, 
 	MultiHexagonAperture, NgonAperture, SquareAperture, CompoundAnalyticOptic, 
 	Detector, OpticalSystem, SemiAnalyticCoronagraph)
