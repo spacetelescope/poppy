@@ -1859,6 +1859,50 @@ class IdealFQPM(AnalyticOpticalElement):
         FQPM_phasor = np.exp(1.j * 2* np.pi * retardance)
         return FQPM_phasor
 
+class IdealRectangularFieldStop(AnalyticOpticalElement):
+    """ Defines an ideal rectangular field stop
+
+    Parameters
+    ----------
+    name : string
+        Descriptive name
+    width, height: float
+        Size of the field stop, in arcseconds. Default 0.5 width, height 5.
+    angle : float
+        Position angle of the field stop sides relative to the detector +Y direction, in degrees.
+
+    """
+
+    def __init__(self, name="unnamed field stop",  width=0.5, height=5.0, angle=0, **kwargs):
+        AnalyticOpticalElement.__init__(self,**kwargs)
+        self.name = name
+        self.width = float(width)            # width of square stop in arcseconds.
+        self.height = float(height)            # height of square stop in arcseconds.
+        self.angle = float(angle)
+        self._default_display_size = max(height, width)*1.2
+
+    def getPhasor(self,wave):
+        """ Compute the transmission inside/outside of the field stop.
+        """
+        if not isinstance(wave, Wavefront):
+            raise ValueError("IdealFieldStop getPhasor must be called with a Wavefront to define the spacing")
+        assert (wave.planetype == _IMAGE)
+
+        y, x= wave.coordinates()
+        xnew =  x*np.cos(np.deg2rad(self.angle)) + y*np.sin(np.deg2rad(self.angle))
+        ynew = -x*np.sin(np.deg2rad(self.angle)) + y*np.cos(np.deg2rad(self.angle))
+        x,y = xnew, ynew
+
+
+        w_outside = np.where( (abs(y) > (self.height/2))  | (abs(x) > (self.width/2)))
+        del x # for large arrays, cleanup very promptly, before allocating self.transmission
+        del y
+        self.transmission = np.ones(wave.shape)
+        self.transmission[w_outside] = 0
+
+        return self.transmission
+
+
 class IdealFieldStop(AnalyticOpticalElement):
     """ Defines an ideal square field stop
 
@@ -2454,7 +2498,9 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
         self.opticslist = []
         self._default_display_size = 3
         for optic in opticslist:
-            if not isinstance(optic, AnalyticOpticalElement):
+
+            if not (isinstance(optic, AnalyticOpticalElement) 
+                or (isinstance(optic,InverseTransmission) and isinstance(optic.optic,AnalyticOpticalElement))):  #an inverted analytic element is also OK here
                 raise ValueError("Supplied optics list to CompoundAnalyticOptic can only contain AnalyticOptics")
             else:
                 if hasattr(optic, '_default_display_size'):
