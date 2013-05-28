@@ -120,3 +120,11 @@ man_pages = [('index', project.lower(), project + u' Documentation',
 #
 #edit_on_github_source_root = ""
 #edit_on_github_doc_root = "docs"
+
+
+
+# -- Options for inheritance diagram  ------------------------------------------------
+# See http://sphinx-doc.org/ext/inheritance.html
+# and http://stackoverflow.com/questions/2151711/how-can-i-make-sphinxs-inheritance-diagram-readable
+inheritance_graph_attrs = dict(rankdir="LR", size='"12.0, 5.0"',
+                                fontsize=36, ratio='compress')

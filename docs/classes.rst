@@ -15,8 +15,7 @@ need to instantiate that directly. Results are returned as FITS HDUList arrays.
 The Instrument class provides a framework for developing high-level models of astronomical instruments; it should not be used directly but rather is subclassed to implement the details of your particular instrument. See its class documentation for more details.
 
 
-.. inheritance-diagram:: poppy.Detector poppy.Wavefront poppy.OpticalSystem poppy.Rotation poppy.CircularAperture poppy.HexagonAperture poppy.SquareAperture poppy.IdealFieldStop poppy.IdealCircularOcculter poppy.IdealBarOcculter poppy.BandLimitedCoron poppy.IdealFQPM poppy.FQPM_FFT_aligner poppy.CompoundAnalyticOptic poppy.FITSOpticalElement poppy.Instrument
-
+.. inheritance-diagram:: poppy.Detector poppy.Wavefront poppy.OpticalSystem poppy.Rotation poppy.CircularAperture poppy.HexagonAperture poppy.SquareAperture poppy.IdealFieldStop poppy.IdealCircularOcculter poppy.IdealBarOcculter poppy.BandLimitedCoron poppy.IdealFQPM poppy.FQPM_FFT_aligner poppy.CompoundAnalyticOptic poppy.FITSOpticalElement poppy.Instrument poppy.SecondaryObscuration poppy.InverseTransmission
 
 
 .. _Wavefront:
@@ -43,19 +42,42 @@ Optical Elements
 .. autoclass:: poppy.OpticalElement
    :members:
 
-------
+
+General Optical Elements
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: poppy.FITSOpticalElement
    :members:
 
 .. autoclass:: poppy.AnalyticOpticalElement
    :show-inheritance:
-.. autoclass:: poppy.CircularAperture
+.. autoclass:: poppy.CompoundAnalyticOptic
    :show-inheritance:
-.. autoclass:: poppy.HexagonAperture
+.. autoclass:: poppy.InverseTransmission
+   :show-inheritance:
+.. autoclass:: poppy.Rotation
+   :show-inheritance:
+
+
+Pupil Plane Optical Elements
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: poppy.CircularAperture
    :show-inheritance:
 .. autoclass:: poppy.SquareAperture
    :show-inheritance:
+.. autoclass:: poppy.RectangleAperture
+   :show-inheritance:
+.. autoclass:: poppy.HexagonAperture
+   :show-inheritance:
+.. autoclass:: poppy.SecondaryObscuration
+   :show-inheritance:
+
+
+
+Image Plane Optical Elements
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 .. autoclass:: poppy.IdealFieldStop
    :show-inheritance:
 .. autoclass:: poppy.IdealCircularOcculter
@@ -68,12 +90,8 @@ Optical Elements
    :show-inheritance:
 .. autoclass:: poppy.FQPM_FFT_aligner
    :show-inheritance:
-.. autoclass:: poppy.CompoundAnalyticOptic
-   :show-inheritance:
 
 
-.. autoclass:: poppy.Rotation
-   :show-inheritance:
 
 
 ------

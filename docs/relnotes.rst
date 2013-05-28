@@ -15,4 +15,6 @@ Release Notes
 
    Those two elements give the desired field size as (Y,X) following the usual Python axis order convention.
  * InverseTransmission of an AnalyticElement is now allowed inside a CompoundAnalyticOptic
+ * Added SecondaryObscuration optic to conveniently model an opaque secondary mirror and adjustible support spiders.
+ * Improved configuration settings system, using astropy.config framework.
 

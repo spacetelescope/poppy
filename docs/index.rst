@@ -18,6 +18,7 @@ code additions always welcome.
 
 
 
+
 **What this software does:**
 
 * Allows users to define an optical system consisting of multiple image and pupil planes
@@ -26,6 +27,10 @@ code additions always welcome.
 * Provides an extensible framework for defining models of astronomical instruments, including
   selection of broad- and narrow-band filters, selectable optical components such as pupil stops, etc.
 
+**What this software does not do:**
+
+* Fresnel, Talbot, or Huygens propagation.
+* Any kind of detector noise or imperfections modeling. 
 
 
 Requirements
@@ -47,6 +52,9 @@ Installation
 POPPY may be installed from PyPI in the usual manner for Python packages::
 
   % pip install poppy --upgrade
+
+
+The source code is hosted in `this repository on GitHub <https://github.com/mperrin/poppy>`_.
 
 
 Contents

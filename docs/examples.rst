@@ -31,6 +31,35 @@ This is very simple, as it should be::
    :align: center
    :alt: Sample calculation result
 
+Multiple defocused PSFs
+---------------------------
+
+Defocus can be added using a lens::
+
+        wavelen=1e-6
+        nsteps = 4
+        psfs = []
+        for nwaves in range(nsteps):
+
+            osys = poppy.OpticalSystem("test", oversample=2)
+            osys.addPupil('Circle', radius=3)
+            osys.addPupil(optic=poppy.ThinLens(nwaves=nwaves, reference_wavelength=wavelen))
+            osys.addDetector(pixelscale=0.01, fov_arcsec=4.0)
+
+            psf = osys.calcPSF(wavelength=wavelen)
+            psfs.append(psf)
+
+            pl.subplot(1,nsteps, nwaves+1)
+            poppy.display_PSF(psf, title='Defocused by {0} waves'.format(nwaves),
+                colorbar_orientation='horizontal')
+
+        
+.. image:: ./example_defocus.png
+   :scale: 50%
+   :align: center
+   :alt: Sample calculation result
+
+
 
 
 Band Limited Coronagraph with Off-Axis Source
@@ -116,35 +145,6 @@ opaque circular obscuration. The latter we can make using the InverseTransmissio
    :alt: Sample calculation result
 
 
-
-
-Multiple defocused PSFs
----------------------------
-
-Defocus can be added using a lens::
-
-        wavelen=1e-6
-        nsteps = 4
-        psfs = []
-        for nwaves in range(nsteps):
-
-            osys = poppy.OpticalSystem("test", oversample=2)
-            osys.addPupil('Circle', radius=3)
-            osys.addPupil(optic=poppy.ThinLens(nwaves=nwaves, reference_wavelength=wavelen))
-            osys.addDetector(pixelscale=0.01, fov_arcsec=4.0)
-
-            psf = osys.calcPSF(wavelength=wavelen)
-            psfs.append(psf)
-
-            pl.subplot(1,nsteps, nwaves+1)
-            poppy.display_PSF(psf, title='Defocused by {0} waves'.format(nwaves),
-                colorbar_orientation='horizontal')
-
-        
-.. image:: ./example_defocus.png
-   :scale: 50%
-   :align: center
-   :alt: Sample calculation result
 
 
 
