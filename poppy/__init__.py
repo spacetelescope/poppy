@@ -2,15 +2,17 @@ from .poppy_core import (Wavefront, OpticalElement, FITSOpticalElement, Rotation
 	ScalarTransmission, InverseTransmission, ThinLens, BandLimitedCoron, 
 	FQPM_FFT_aligner, IdealFQPM, IdealFieldStop, IdealRectangularFieldStop, IdealCircularOcculter, 
 	IdealBarOcculter, ParityTestAperture, CircularAperture, HexagonAperture, 
-	MultiHexagonAperture, NgonAperture, SquareAperture, CompoundAnalyticOptic, 
+	MultiHexagonAperture, NgonAperture, SquareAperture, RectangleAperture, SecondaryObscuration, CompoundAnalyticOptic, 
 	Detector, OpticalSystem, SemiAnalyticCoronagraph)
 
-from .poppy_core import (_USE_FFTW3, _USE_MULTIPROC, _MULTIPROC_NPROCESS, _TIMETESTS, _FLUXCHECK, _IMAGECROP)
+#from .poppy_core import (_USE_FFTW3, _USE_MULTIPROC, _MULTIPROC_NPROCESS, _TIMETESTS, _FLUXCHECK, _IMAGECROP)
+from . import settings
 
 from .utils import (display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
         measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid, measure_strehl,
         measure_anisotropy, specFromSpectralType, rebin_array)
 
+from .settings import save_config
 
 
 from .instrument import Instrument
