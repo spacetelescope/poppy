@@ -15,7 +15,7 @@ need to instantiate that directly. Results are returned as FITS HDUList arrays.
 The Instrument class provides a framework for developing high-level models of astronomical instruments; it should not be used directly but rather is subclassed to implement the details of your particular instrument. See its class documentation for more details.
 
 
-.. inheritance-diagram:: poppy.Detector poppy.Wavefront poppy.OpticalSystem poppy.Rotation poppy.CircularAperture poppy.HexagonAperture poppy.SquareAperture poppy.IdealFieldStop poppy.IdealCircularOcculter poppy.IdealBarOcculter poppy.BandLimitedCoron poppy.IdealFQPM poppy.FQPM_FFT_aligner poppy.CompoundAnalyticOptic poppy.FITSOpticalElement poppy.Instrument poppy.SecondaryObscuration poppy.InverseTransmission
+.. inheritance-diagram:: poppy.Detector poppy.Wavefront poppy.OpticalSystem poppy.Rotation poppy.CircularAperture poppy.HexagonAperture poppy.SquareAperture poppy.IdealFieldStop poppy.IdealCircularOcculter poppy.IdealBarOcculter poppy.BandLimitedCoron poppy.IdealFQPM poppy.FQPM_FFT_aligner poppy.CompoundAnalyticOptic poppy.FITSOpticalElement poppy.Instrument poppy.SecondaryObscuration poppy.InverseTransmission poppy.NgonAperture poppy.MultiHexagonAperture
 
 
 .. _Wavefront:
@@ -33,6 +33,12 @@ Optical System
 
 .. autoclass:: poppy.OpticalSystem
     :members:
+
+.. autoclass:: poppy.SemiAnalyticCoronagraph
+    :members:
+
+
+
 
 .. OpticalElement:
 
@@ -69,8 +75,21 @@ Pupil Plane Optical Elements
    :show-inheritance:
 .. autoclass:: poppy.HexagonAperture
    :show-inheritance:
+.. autoclass:: poppy.MultiHexagonAperture
+   :show-inheritance:
+.. autoclass:: poppy.NgonAperture
+   :show-inheritance:
 .. autoclass:: poppy.SecondaryObscuration
    :show-inheritance:
+
+.. autoclass:: poppy.ThinLens
+   :show-inheritance:
+
+
+
+.. autoclass:: poppy.FQPM_FFT_aligner
+   :show-inheritance:
+
 
 
 
@@ -88,16 +107,17 @@ Image Plane Optical Elements
    :show-inheritance:
 .. autoclass:: poppy.IdealFQPM
    :show-inheritance:
-.. autoclass:: poppy.FQPM_FFT_aligner
-   :show-inheritance:
 
 
 
-
-------
+The Detector Optical Element
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: poppy.Detector
    :show-inheritance:
+
+
+
 
 .. Instrument:
 
