@@ -19,6 +19,7 @@ enable_speed_tests =  astropy.config.ConfigurationItem('enable_speed_tests', Fal
 enable_flux_tests =  astropy.config.ConfigurationItem('enable_flux_tests', False, 'Enable additional verbose printout of fluxes and flux conservation during calculations. Useful for testing.')
 default_image_display_fov =  astropy.config.ConfigurationItem('default_image_display_fov', 5.0, 'Default image display field of view, in arcseconds. Adjust this to display only a subregion of a larger output array.')
 
+autosave_fftw_wisdom=  astropy.config.ConfigurationItem('autosave_fftw_wisdom', True, 'Should POPPY automatically save and reload FFTW "wisdom" for improved speed?')
 
 def save_config():
     """ Save package configuration variables using the Astropy.config system """
