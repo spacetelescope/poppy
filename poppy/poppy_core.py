@@ -297,7 +297,7 @@ class Wavefront(object):
         new += wave
         return new
 
-    def asFITS(self, what='intensity', includepadding=False):
+    def asFITS(self, what='intensity', includepadding=False, **kwargs):
         """ Return a wavefront as a pyFITS HDUList object
 
         Parameters
@@ -305,6 +305,8 @@ class Wavefront(object):
         what : string
             what kind of data to write. Must be one of 'parts', 'intensity', 'complex'.
             The default is to write a file containing intensity.
+        includepadding : bool
+            include any "padding" region, if present, in the returned FITS file?
 
         """
         # make copies in case we need to unpad - don't want to mess up actual wavefront data in memory
@@ -397,7 +399,7 @@ class Wavefront(object):
         ----------
         what : string
            What to display. Must be one of {intensity, phase, best}.
-           'Best' implies 'display the phase if there is OPD, or else
+           'Best' implies to display the phase if there is nonzero OPD, or else
            display the intensity for a perfect pupil.
 
         nrows : int
@@ -1096,11 +1098,6 @@ class OpticalElement():
         if hasattr(self, 'amplitude'):
             return self.amplitude.shape
         else: return None
-
-    def apply(self, wavefront):
-        phasor = self.getPhasor(wavefront.wavelength)
-        if not np.isscalar(phasor):
-            assert wavefront.shape == phasor.shape
 
 
 class FITSOpticalElement(OpticalElement):
@@ -2926,7 +2923,7 @@ class OpticalSystem():
             _log.debug("Tilted input wavefront by theta_X=%f, theta_Y=%f arcsec" % (offset_x, offset_y))
         return inwave
 
-    def propagate_mono(self, wavelength=2e-6, normalize='first', save_intermediates=False, display_intermediates=False, intermediate_fn='wave_step_%03d.fits', poly_weight=None):
+    def propagate_mono(self, wavelength=2e-6, normalize='first', save_intermediates=False, display_intermediates=False, intermediate_fn='wave_step_%03d.fits', poly_weight=None, **kwargs):
         """ Propagate a monochromatic wavefront through the optical system. Called from within calcPSF.
         Returns a fits.HDUList object.
 
@@ -3226,7 +3223,7 @@ class OpticalSystem():
 
             if save_intermediates:
                 for i in range(len(self.intermediate_wfs)):
-                    self.intermediate_wfs[i].writeto('wavefront_plane_%03d.fits' % i, what=save_intermediates_what )
+                    self.intermediate_wfs[i].writeto('wavefront_plane_%03d.fits' % i, what=save_intermediates_what, **kwargs )
 
         tstop = time.time()
         tdelta = tstop-tstart
@@ -3249,6 +3246,10 @@ class OpticalSystem():
 
             imshow_with_mouseover(outFITS[0].data, extent=extent, norm=norm, cmap=cmap)
 
+
+        if settings.autosave_fftw_wisdom():
+            from .utils import fftw_save_wisdom
+            fftw_save_wisdom()
 
         # TODO update FITS header for oversampling here if detector is different from regular?
         waves = np.asarray(wavelength)
