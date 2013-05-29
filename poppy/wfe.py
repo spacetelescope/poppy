@@ -21,7 +21,21 @@
 from .poppy_core import *
 
 
-class ZernikeWFE(AnalyticOpticalElement):
+class WavefrontError(AnalyticOpticalElement):
+    def __init__(self, name=None,  **kwargs):
+        raise NotImplementedError('Not implemented yet')
+
+    def rms(self):
+        """ RMS wavefront error induced by this surface """
+        raise NotImplementedError('Not implemented yet')
+
+    def peaktovalley(self):
+        """ Peak-to-valley wavefront error induced by this surface """
+        raise NotImplementedError('Not implemented yet')
+
+   
+
+class ZernikeWFE(WavefrontError):
     """ Defines wavefront error over a pupil in terms of Zernike coefficients. 
 
     Parameters
@@ -76,7 +90,7 @@ class ZernikeWFE(AnalyticOpticalElement):
         retardance = phase*self.reference_wavelength/wave.wavelength
 
 
-class StatisticalOpticalElement(OpticalElement):
+class StatisticalOpticalElement(WavefrontError):
     """
     A statistical realization of some wavefront error, computed on a fixed grid. 
 
@@ -87,6 +101,7 @@ class StatisticalOpticalElement(OpticalElement):
     def __init__(self, name=None,  seed=None, r0=15, L_inner=0.001, L_outer=10,  **kwargs):
         if name is None: name = "Zernikes over a circle of radius= %.1f m" % size
         OpticalElement.__init__(self,name=name,**kwargs)
+        raise NotImplementedError('Not implemented yet')
  
 
 class KolmogorovWFE(StatisticalOpticalElement):
