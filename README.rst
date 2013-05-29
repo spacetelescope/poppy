@@ -7,6 +7,6 @@ This module implements an object-oriented system for modeling physical optics pr
 It was developed originally as part of WebbPSF, but is a stand-alone system capable of being used for
 modeling of optical systems other than JWST.
 
-For documentation, see http://www.stsci.edu/~mperrin/software/webbpsf/poppy.html
+For documentation, see http://www.stsci.edu/~mperrin/software/poppy/
 
 Most code by Marshall Perrin, with some contributions from Anand Sivaramakrishnan, Remi Soummer, and others.
