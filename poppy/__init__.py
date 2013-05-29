@@ -20,6 +20,12 @@ from .wfe import ZernikeWFE, PowerSpectralDensityWFE, KolmogorovWFE
 
 from ._version import __version__
 
+
+if settings.autosave_fftw_wisdom():
+   from . import utils
+   utils.fftw_load_wisdom()
+
+
 __doc__ = """
 =============================================
 Physical Optics Propagation in PYthon (POPPY)
