@@ -1045,3 +1045,178 @@ def specFromSpectralType(sptype, return_list=False, catalog=None):
             raise LookupError("Error loading Spectrum object from %s catalog for spectral type %s. Check that is a valid name in the lookup table, and/or that pysynphot is installed properly." % (catname,sptype))
 
 
+###################################################################33
+
+
+
+def fft_comparison_tests(size=2048, dtype=np.complex128):
+    """ Compare speed and test the API of pyFFTW3 and PyFFTW
+    which are, somewhat surprisingly, completely different independent modules"""
+    import fftw3
+    import pyfftw
+    import multiprocessing
+    import matplotlib.pyplot as pl
+    import time
+
+    
+
+    test_array = np.ones( (size,size), dtype=dtype)
+    test_array[size*3/8:size*5/8, size*3/8:size*5/8] = 1 # square aperture oversampling 2...
+
+    ncores = multiprocessing.cpu_count()
+
+    pl.clf()
+    for FFT_direction in ['forward']: #,'backward']:
+
+        print "Array size: {1} x {1}\nDirection: {2}\ndtype: {3}\nncores: {4}".format(0, size, FFT_direction, dtype, ncores)
+        print ""
+        # Let's first deal with some planning to make sure wisdom is generated ahead of time.
+        for i, fft_type in enumerate(['numpy','pyfftw3','pyfftw']):
+                # planning using PyFFTW3
+                p0 = time.time()
+                print "Now planning "+fft_type+" in the "+FFT_direction+" direction"
+                #if (test_array.shape, FFT_direction) not in _FFTW3_INIT.keys():
+                if fft_type=='numpy':
+                    print "\tno planning required"
+                elif fft_type=='pyfftw3':
+                    fftplan = fftw3.Plan(test_array.copy(), None, nthreads = ncores,direction=FFT_direction, flags=['measure'])
+                else:
+                    pyfftw.interfaces.cache.enable()
+                    pyfftw.interfaces.cache.set_keepalive_time(30)
+
+                    test_array = pyfftw.n_byte_align_empty( (size,size), 16, dtype=dtype)
+                    test_array = pyfftw.interfaces.numpy_fft.fft2(test_array, overwrite_input=True, planner_effort='FFTW_MEASURE', threads=ncores)
+
+                p1 = time.time()
+                print "\tTime elapsed planning: {0:.4f} s".format(p1-p0)
+
+        print ""
+
+        # Now let's run some FFTs
+        for i, fft_type in enumerate(['numpy','pyfftw3','pyfftw']):
+            
+            # display
+            if fft_type == 'pyfftw':
+                test_array = pyfftw.n_byte_align_empty( (size,size), 16, dtype=dtype)
+                output_array = pyfftw.n_byte_align_empty( (size,size), 16, dtype=dtype)
+                test_array[:,:] = 0
+
+            else:
+                test_array = np.zeros( (size,size), dtype=np.complex128)
+            test_array[size*3/8:size*5/8, size*3/8:size*5/8] = 1 # square aperture oversampling 2...
+            pl.subplot(2,3, 1 + i)
+            pl.imshow(np.abs(test_array), vmin=0, vmax=1)
+            pl.title( "FFT type: {0:10s} input array".format(fft_type))
+            pl.draw()
+
+
+            # actual timed FFT section starts here:
+            t0 = time.time()
+
+            if fft_type=='numpy':
+                test_array = np.fft.fft2(test_array)
+            elif fft_type=='pyfftw3':
+
+                fftplan = fftw3.Plan(test_array, None, nthreads = multiprocessing.cpu_count(),direction=FFT_direction, flags=['measure'])
+                fftplan.execute() # execute the plan
+            elif fft_type=='pyfftw':
+                test_array = pyfftw.interfaces.numpy_fft.fft2(test_array, overwrite_input=True, planner_effort='FFTW_MEASURE', threads=ncores)
+ 
+    
+            t1 = time.time()
+
+            if FFT_direction=='forward': test_array = np.fft.fftshift(test_array)
+
+            # display
+            t_elapsed = t1-t0
+            summarytext = "FFT type: {0:10s}\tTime Elapsed: {3:.4f} s".format(fft_type, size, FFT_direction, t_elapsed)
+            print summarytext
+
+            pl.subplot(2,3, 1+i+3)
+
+
+
+            psf = np.real( test_array * np.conjugate(test_array))
+            norm=matplotlib.colors.LogNorm(vmin=psf.max()*1e-6, vmax=psf.max())
+
+            cmap = matplotlib.cm.jet
+            cmap.set_bad((0,0,0.5))
+
+            pl.imshow(psf[size*3/8:size*5/8, size*3/8:size*5/8], norm=norm)
+            pl.title(summarytext)
+
+            #stop()
+
+def fftw_save_wisdom(filename=None):
+    """ Save accumulated FFTW wisdom to a file 
+    By default this file will be in the user's astropy configuration directory.
+    
+    (Another location could be chosen - this is simple and works easily cross-platform.)
+    
+    Parameters
+    ------------
+    filename : string, optional
+        Filename to use (instead of the default, poppy_fftw_wisdom.txt)
+    """
+    import os
+    import astropy.config
+    import pyfftw
+    #from astropy import config
+
+    if filename is None:
+        filename=os.path.join( astropy.config.get_config_dir(), "poppy_fftw_wisdom.txt")
+
+
+    double, single, longdouble = pyfftw.export_wisdom()
+    f = open(filename, 'w')
+    f.write("# FFTW wisdom information saved by POPPY\n")
+    f.write("#   Do not edit this file by hand; that will likely break it.\n")
+    f.write("# See http://hgomersall.github.io/pyFFTW/pyfftw/pyfftw.html?#wisdom-functions for more information\n")
+    f.write('# the following three lines are the double, single, and longdouble wisdoms\n')
+    f.write(double.replace('\n','\\n')+'\n')
+    f.write(single.replace('\n','\\n')+'\n')
+    f.write(longdouble.replace('\n','\\n')+'\n')
+    _log.debug("FFTW wisdom saved to "+filename)
+
+
+def fftw_load_wisdom(filename=None):
+    """ Read accumulated FFTW wisdom from a file 
+    By default this file will be in the user's astropy configuration directory.
+    
+    (Another location could be chosen - this is simple and works easily cross-platform.)
+    
+    Parameters
+    ------------
+    filename : string, optional
+        Filename to use (instead of the default, poppy_fftw_wisdom.txt)
+    """
+ 
+    import os
+    from astropy import config
+    import pyfftw
+
+    if filename is None:
+        filename=os.path.join( config.get_config_dir(), "poppy_fftw_wisdom.txt")
+ 
+    if not os.path.exists(filename): return # gracefully ignore the case of lacking wisdom yet.
+
+    _log.debug("Trying to reload wisdom from file "+filename)
+    try:
+        lines = open(filename,'r').readlines()
+        # the first four lines are comments and should be ignored.
+        wisdom = [lines[i].replace(r'\n', '\n') for i in [4,5,6]]
+        wisdom = tuple(wisdom)
+    except:
+        _log.debug("ERROR - wisdom tuple could not be loaded from file :"+filename)
+        return False
+
+    success = pyfftw.import_wisdom(wisdom)
+    _log.debug("Reloaded double precision wisdom: "+str(success[0]))
+    _log.debug("Reloaded single precision wisdom: "+str(success[1]))
+    _log.debug("Reloaded longdouble precision wisdom: "+str(success[2]))
+    
+    return True
+
+
+
+
