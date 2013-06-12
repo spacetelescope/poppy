@@ -985,7 +985,12 @@ class OpticalElement():
         # check whether we need to pad before returning or not.
         # note: do not pad the phasor if it's just a scalar!
         if self.planetype == _PUPIL and wave.ispadded and self.phasor.size !=1:
-            return padToOversample(self.phasor, wave.oversample)
+            # old version: pad to a fixed oversampling. All FITS arrays in an OpticalSystem must be the same size
+            #return padToOversample(self.phasor, wave.oversample)
+
+            # new version: pad to match the wavefront sampling, from whatever sized array we started with. Allows more
+            # flexibility for differently sized FITS arrays, so long as they all have the same pixel scale as checked above!
+            return padToSize(self.phasor, wave.shape)
         else:
             return self.phasor
 
