@@ -392,7 +392,7 @@ class Wavefront(object):
         self.asFITS(**kwargs).writeto(filename, clobber=clobber)
         _log.info("  Wavefront saved to %s" % filename)
 
-    def display(self,what='intensity', nrows=1,row=1,showpadding=False,imagecrop=None, colorbar=False, crosshairs=True, ax=None, title=None):
+    def display(self,what='intensity', nrows=1,row=1,showpadding=False,imagecrop=None, colorbar=False, crosshairs=True, ax=None, title=None,vmin=1e-8,vmax=1e0):
         """Display wavefront on screen
 
         Parameters
@@ -486,7 +486,7 @@ class Wavefront(object):
                 cmap = matplotlib.cm.gray
                 cmap.set_bad('0.0')
             else:
-                norm=LogNorm(vmin=1e-8,vmax=1e-1)
+                norm=LogNorm(vmin=vmin,vmax=vmax)
                 cmap = matplotlib.cm.jet
                 cmap.set_bad(cmap(0))
 
