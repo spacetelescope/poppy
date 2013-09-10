@@ -1276,7 +1276,7 @@ class FITSOpticalElement(OpticalElement):
 
             if transmission is None:
                 _log.info("No info supplied on amplitude transmission; assuming uniform throughput = 1")
-                self.amplitude = np.ones(self.opd)
+                self.amplitude = np.ones(self.opd.shape)
 
             # convert OPD into meters
 
