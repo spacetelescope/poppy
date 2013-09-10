@@ -524,6 +524,9 @@ class Wavefront(object):
 
 
         else:
+            if ax is None:
+                ax = plt.subplot(nr,nc,int(row))
+            cmap = matplotlib.cm.gray
             plt.subplot(nrows,2,(row*2)-1)
             plt.imshow(amp,extent=extent,cmap=cmap)
             plt.title("Wavefront amplitude")
