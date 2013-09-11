@@ -1,7 +1,7 @@
 Documentation for POPPY
 =========================
 
-POPPY (Physical Optics Propagation in PYthon) is, unsurprisingly, 
+POPPY (Physical Optics Propagation in PYthon) is 
 a Python package that simulates physical optical propagation including diffraction. 
 It implements a flexible framework for modeling Fraunhofer (far-field) diffraction
 and point spread function formation, particularly in the context of astronomical telescopes.
@@ -68,5 +68,3 @@ Contents
   examples.rst
   classes.rst
 
-.. note:: Do not edit this page - instead, place all documentation for the
-          affiliated package inside ``packagename/``

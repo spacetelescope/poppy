@@ -1,6 +1,24 @@
-from distribute_setup import use_setuptools
-use_setuptools()
+#!/usr/bin/env python
+
+import sys
+import imp
+try:
+    # This incantation forces distribute to be used (over setuptools) if it is
+    # available on the path; otherwise distribute will be downloaded.
+    import pkg_resources
+    distribute = pkg_resources.get_distribution('distribute')
+    if pkg_resources.get_distribution('setuptools') != distribute:
+        sys.path.insert(1, distribute.location)
+        distribute.activate()
+        imp.reload(pkg_resources)
+except:  # There are several types of exceptions that can occur here
+    from distribute_setup import use_setuptools
+    use_setuptools()
+
+import glob
+import os
 from setuptools import setup
+
 
 
 setupargs = {

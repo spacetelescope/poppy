@@ -44,14 +44,14 @@ html:
 
 htmlstsci:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
-	rsync -av $(BUILDDIR)/html/ nemesis.stsci.edu:web/software/poppy/
+	rsync -av $(BUILDDIR)/html/ science1.stsci.edu:web/software/poppy/
 	@echo "Software built and copied to STScI"
 	@echo "try :"
 	@echo "   open http://www.stsci.edu/~mperrin/software/poppy/"
 
 htmlprerelease:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
-	rsync -av $(BUILDDIR)/html/ nemesis.stsci.edu:web/software/poppy_prerelease/
+	rsync -av $(BUILDDIR)/html/ science1.stsci.edu:web/software/poppy_prerelease/
 	@echo "Software built and copied to STScI prerelease"
 	@echo "try :"
 	@echo "   open http://www.stsci.edu/~mperrin/software/poppy_prerelease/"
