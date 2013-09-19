@@ -9,6 +9,7 @@ import astropy.io.fits as fits
 
 from . import poppy_core
 from . import utils
+from .version import version
 
 try: 
     import pysynphot
@@ -351,7 +352,7 @@ class Instrument(object):
         result[0].header.update('INSTRUME', self.name, 'Instrument')
         result[0].header.update('FILTER', self.filter, 'Filter name')
         result[0].header.update('EXTNAME', 'OVERSAMP')
-        result[0].header.add_history('Created by POPPY version '+poppy_core.__version__)
+        result[0].header.add_history('Created by POPPY version '+version)
 
         if 'fft_oversample' in options.keys():
             result[0].header.update('OVERSAMP', options['fft_oversample'], 'Oversampling factor for FFTs in computation')
