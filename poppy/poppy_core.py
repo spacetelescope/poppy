@@ -19,7 +19,7 @@ import astropy.io.fits as fits
 
 
 from ._version import __version__
-from .utils import imshow_with_mouseover
+from .utils import imshow_with_mouseover, estimate_optimal_nprocesses
 from .matrixDFT import MatrixFourierTransform
 from . import settings
 
@@ -132,8 +132,8 @@ def _wrap_propagate_for_multiprocessing(args):
 
     Python's multiprocessing module allows easy execution of tasks acrossg
     many CPUs or even distinct machines. It relies on Python's pickle mechanism to
-    serialize and pass objects between processes. One annoying side effect of this is
-    that object instance methods cannot easily be pickled, and thus cannot be easily
+    serialize and pass objects between processes. One side effect of this is
+    that object instance methods cannot be pickled on their own, and thus cannot be easily
     invoked in other processes.
 
     Here, we work around that by pickling the entire object and argument list, packed
@@ -1112,7 +1112,7 @@ class OpticalElement():
         if ax is None:
             if nrows > 1:
                 ax = plt.subplot(nrows, 2, row*2-1)
-            else: ax = plt.subplot()
+            else: ax = plt.subplot(111)
         imshow_with_mouseover(plot_array, ax=ax, extent=extent, cmap=cmap, norm=norm)
         if nrows == 1:
             plt.title(title+" for "+self.name)
@@ -2862,10 +2862,13 @@ class Detector(OpticalElement):
         #else:
             #self.shape = (self.fov_pixels, self.fov_pixels) # square
 
-        self.shape = (self.fov_pixels, self.fov_pixels) if np.isscalar(self.fov_pixels) else self.fov_pixels[0:2]
 
         self.amplitude = 1
         self.opd = 0
+
+    @property
+    def shape(self):
+        return (self.fov_pixels, self.fov_pixels) if np.isscalar(self.fov_pixels) else self.fov_pixels[0:2]
 
     def __str__(self):
         return "Detector plane: %s (%dx%d, %f arcsec/pixel)" % (self.name, self.shape[1], self.shape[0], self.pixelscale)
@@ -2979,7 +2982,9 @@ class OpticalSystem():
 
             except:
                 raise ValueError("Unknown pupil function type: %s. Perhaps you meant to set transmission= or opd= instead?" % optic)
-            optic = fn(planetype=_PUPIL, oversample=self.oversample, **kwargs)
+            optic = fn(oversample=self.oversample, **kwargs)
+            optic.planetype = _PUPIL
+
         elif optic is None: 
             # create image from files specified in kwargs
             optic = FITSOpticalElement(planetype=_PUPIL, oversample=self.oversample, **kwargs)
@@ -3046,7 +3051,8 @@ class OpticalSystem():
             else: # create image from files specified in kwargs
                 fn = FITSOpticalElement
 
-            optic = fn(planetype=_IMAGE, oversample=self.oversample, **kwargs)
+            optic = fn(oversample=self.oversample, **kwargs)
+            optic.planetype=_IMAGE
         else:
             optic.planetype = _IMAGE
             optic.oversample = self.oversample # these need to match...
@@ -3222,95 +3228,100 @@ class OpticalSystem():
 
         return wavefront.asFITS()  # this returns the intensity, by default. 
 
-    def calcPSFmultiproc(self, source, nprocesses=4, save_intermediates=False, **kwargs):
-        """Calculate a multi-wavelength PSF with computation spread across multiple processors
-
-        This version uses Python's `multiprocessing` package to span tasks across
-        available processor cores.
-
-        Any additional `kwargs` will be passed on to `propagate_mono()`
-
-
-        Notes
-        -----
-
-        Don't set the number of processes too high, or your machine will exhaust its memory and grind to a halt.
-        Figure about 600 MB per process, due to the large arrays used in the FFTing, and multiple copies etc.
-        Yes, this is surprisingly high overhead - but the raw wavefront array is typically 2048^2 * 16
-        (since it's type dcomplex) = 67 MB, so this is just ~ 8-10 copies of the array floating arround.
-        TODO: be more clever and efficient with all this somehow?
-        TODO: write an auto tool to optimize the number of processes automatically?
-
-        Parameters
-        ----------
-        source : dict
-            a dict containing 'wavelengths' and 'weights' list.
-            *TBD - replace w/ pysynphot observation object*
-        nprocesses : int
-            Number of processes. Don't make this too large, or you will overfill your memory and
-            things will grind painfully to a half as everything swaps to disk and back.
-        save_intermediates : bool
-            whether to output intermediate optical planes to disk. Default is False
-
-
-        Returns
-        -------
-        outfits :
-            a fits.HDUList
-        """
-
-        if _USE_FFTW3:
-            _log.warn('IMPORTANT WARNING: Python multiprocessing and fftw3 do not appear to play well together. This is likely to crash intermittently')
-            _log.warn('   We suggest you set   poppy._USE_FFTW3 = False   if you want to use calcPSFmultiproc().')
-
-
-        if save_intermediates:
-            raise NotImplementedError("Can't save intermediate steps if using parallelized code")
-        self.intermediate_wfs = []
-            #print 'reset intermediates in calcPSF'
-
-        # loop over wavelengths
-        if self.verbose: _log.info("Calculating PSF with %d wavelengths, using multiprocessing across %d processes" % (len(source['wavelengths']), settings.n_processes()))
-        outFITS = None
-
-        normwts =  np.asarray(source['weights'], dtype=float)
-        normwts /= normwts.sum()
-
-        if len(tuple(source['wavelengths'])) != len(tuple(source['weights'])):
-            raise ValueError("Input source has different number of weights and wavelengths...")
-        # do *NOT* just blindly try to create as many processes as one has CPUs, or one per wavelength either
-        # This is a memory-intensive task so that can end up swapping to disk and thrashing IO
-        pool = multiprocessing.Pool(nprocesses )
-
-        # build a single iterable containing the required function arguments
-        _log.info("Beginning multiprocessor job")
-        iterable = [(self, wavelen, weight, kwargs, _USE_FFTW3) for wavelen, weight in zip(source['wavelengths'], normwts)]
-        results = pool.map(_wrap_propagate_for_multiprocessing, iterable)
-        _log.info("Finished multiprocessor job")
-        pool.close()
-
-        # Sum all the results up into one array, using the weights
-        outFITS = results[0]
-        outFITS[0].data *= normwts[0]
-        _log.info("got results for wavelength channel %d / %d" % (0, len(tuple(source['wavelengths']))) )
-        for i in range(1, len(normwts)):
-            _log.info("got results for wavelength channel %d / %d" % (i, len(tuple(source['wavelengths']))) )
-            outFITS[0].data += results[i][0].data * normwts[i]
-
-        # build output FITS header
-        waves = np.asarray(source['wavelengths'])
-        wts = np.asarray(source['weights'])
-        mnwave = (waves*wts).sum() / wts.sum()
-        outFITS[0].header.update('WAVELEN', mnwave, 'Weighted mean wavelength in meters')
-        outFITS[0].header.update('NWAVES',waves.size, 'Number of wavelengths used in calculation')
-        for i in range(waves.size):
-            outFITS[0].header.update('WAVE'+str(i), waves[i], "Wavelength "+str(i))
-            outFITS[0].header.update('WGHT'+str(i), wts[i], "Wavelength weight "+str(i))
-        outFITS[0].header.add_history("Multiwavelength PSF calc on %d processors completed." % nprocesses)
-
-        if self.verbose: _log.info(" PSF Calculation completed.")
-        return outFITS
-
+#    def calcPSFmultiproc(self, source,  save_intermediates=False, **kwargs):
+#        """Calculate a multi-wavelength PSF with computation spread across multiple processors
+#
+#        This version uses Python's `multiprocessing` package to span tasks across
+#        available processor cores.
+#
+#        Any additional `kwargs` will be passed on to `propagate_mono()`
+#
+#        The number of processes to be used is controlled by the configuration value in poppy.settings.n_processes
+#        To change this, use the set() function:  poppy.settings.n_processes.set(10)
+#
+#        Notes
+#        -----
+#
+#        Don't set the number of processes too high, or your machine will exhaust its memory and grind to a halt.
+#        Figure about 600 MB per process, due to the large arrays used in the FFTing, and multiple copies etc.
+#        Yes, this is surprisingly high overhead - but the raw wavefront array is, for a 4x oversampled PSF,
+#        typically 4096^2 * 16 (since it's type dcomplex) = 256 MB, so this is just ~ 2-3 copies of the array floating arround.
+#
+#        TODO: be more clever and efficient with all this somehow?
+#        TODO: write an auto tool to optimize the number of processes automatically?
+#
+#        Parameters
+#        ----------
+#        source : dict
+#            a dict containing 'wavelengths' and 'weights' list.
+#            *TBD - replace w/ pysynphot observation object*
+#        save_intermediates : bool
+#            whether to output intermediate optical planes to disk. Default is False
+#
+#
+#        Returns
+#        -------
+#        outfits :
+#            a fits.HDUList
+#        """
+#
+#        if _USE_FFTW3:
+#            _log.warn('IMPORTANT WARNING: Python multiprocessing and fftw3 do not appear to play well together. This is likely to crash intermittently')
+#            _log.warn('   We suggest you set   poppy._USE_FFTW3 = False   if you want to use calcPSFmultiproc().')
+#
+#
+#        if save_intermediates:
+#            raise NotImplementedError("Can't save intermediate steps if using parallelized code")
+#        self.intermediate_wfs = []
+#            #print 'reset intermediates in calcPSF'
+#
+#        # loop over wavelengths
+#        if self.verbose: _log.info("Calculating PSF with %d wavelengths, using multiprocessing across %d processes" % (len(source['wavelengths']), settings.n_processes()))
+#        outFITS = None
+#
+#        normwts =  np.asarray(source['weights'], dtype=float)
+#        normwts /= normwts.sum()
+#
+#        if len(tuple(source['wavelengths'])) != len(tuple(source['weights'])):
+#            raise ValueError("Input source has different number of weights and wavelengths...")
+#        # do *NOT* just blindly try to create as many processes as one has CPUs, or one per wavelength either
+#        # This is a memory-intensive task so that can end up swapping to disk and thrashing IO
+#
+#        if settings.n_processes() < 1:
+#            nproc = estimate_optimal_nprocesses(self, nwavelengths=len(source['weights']))
+#        else:
+#            nproc = settings.n_processes()
+#        pool = multiprocessing.Pool(nproc )
+#
+#        # build a single iterable containing the required function arguments
+#        _log.info("Beginning multiprocessor job using {0} processes".format(nproc))
+#        iterable = [(self, wavelen, weight, kwargs, _USE_FFTW3) for wavelen, weight in zip(source['wavelengths'], normwts)]
+#        results = pool.map(_wrap_propagate_for_multiprocessing, iterable)
+#        _log.info("Finished multiprocessor job")
+#        pool.close()
+#
+#        # Sum all the results up into one array, using the weights
+#        outFITS = results[0]
+#        outFITS[0].data *= normwts[0]
+#        _log.info("got results for wavelength channel %d / %d" % (0, len(tuple(source['wavelengths']))) )
+#        for i in range(1, len(normwts)):
+#            _log.info("got results for wavelength channel %d / %d" % (i, len(tuple(source['wavelengths']))) )
+#            outFITS[0].data += results[i][0].data * normwts[i]
+#
+#        # build output FITS header
+#        waves = np.asarray(source['wavelengths'])
+#        wts = np.asarray(source['weights'])
+#        mnwave = (waves*wts).sum() / wts.sum()
+#        outFITS[0].header.update('WAVELEN', mnwave, 'Weighted mean wavelength in meters')
+#        outFITS[0].header.update('NWAVES',waves.size, 'Number of wavelengths used in calculation')
+#        for i in range(waves.size):
+#            outFITS[0].header.update('WAVE'+str(i), waves[i], "Wavelength "+str(i))
+#            outFITS[0].header.update('WGHT'+str(i), wts[i], "Wavelength weight "+str(i))
+#        outFITS[0].header.add_history("Multiwavelength PSF calc on %d processors completed." % settings.n_processes())
+#
+#        if self.verbose: _log.info(" PSF Calculation completed.")
+#        return outFITS
+#
     def calcPSF(self, wavelength=1e-6, weight=None,
         save_intermediates=False, save_intermediates_what='all', display= False, return_intermediates=False, source=None, **kwargs):
         """Calculate a PSF, either multi-wavelength or monochromatic.
@@ -3380,7 +3391,7 @@ class OpticalSystem():
         normwts /= normwts.sum()
 
         if settings.use_multiprocessing() and len(wavelength) > 1 : ######### Parallellized computation ############
-            if settings.use_FFTW(): #_USE_FFTW3():
+            if _USE_FFTW3: #_USE_FFTW3():
                 _log.warn('IMPORTANT WARNING: Python multiprocessing and fftw3 do not appear to play well together. This is likely to crash intermittently')
                 _log.warn('   We suggest you set   poppy._USE_FFTW3 = False   if you want to use calcPSFmultiproc().')
             if display:
@@ -3395,10 +3406,16 @@ class OpticalSystem():
 
             # do *NOT* just blindly try to create as many processes as one has CPUs, or one per wavelength either
             # This is a memory-intensive task so that can end up swapping to disk and thrashing IO
-            pool = multiprocessing.Pool(settings.n_processes())
+
+            if settings.n_processes() < 1:
+                nproc = estimate_optimal_nprocesses(self, nwavelengths=len(wavelength))
+            else:
+                nproc = settings.n_processes()
+            pool = multiprocessing.Pool( int(nproc) )  # be sure to cast to int, will fail if given a float even if of integer value
+
 
             # build a single iterable containing the required function arguments
-            _log.info("Beginning multiprocessor job")
+            _log.info("Beginning multiprocessor job using {0} processes".format(nproc))
             iterable = [(self, wavelen, wt, kwargs, _USE_FFTW3) for wavelen, wt in zip(wavelength, normwts)]
             results = pool.map(_wrap_propagate_for_multiprocessing, iterable)
             _log.info("Finished multiprocessor job")
@@ -3495,6 +3512,34 @@ class OpticalSystem():
             _log.info("Displaying plane %s in row %d" % (plane.name, i))
             plane.display(nrows=nplanes, row=i+1, **kwargs)
 
+
+    def _propagation_info(self):
+        """ Provide some summary information on the optical propagation calculations that
+        would be done for a given optical system 
+
+        Right now this mostly is checking whether a given propagation makes use of FFTs or not,
+        since the padding for oversampled FFTS majorly affects the max memory used for multiprocessing
+        estimation """
+
+        steps = []
+        for i, p in enumerate(self.planes):
+            if i == 0: continue # no propagation needed for first plane
+            if p.planetype == _ROTATION:  steps.append('rotation')
+            elif self.planes[i-1].planetype==_PUPIL and p.planetype ==_DETECTOR: steps.append('MFT')
+            elif self.planes[i-1].planetype==_PUPIL and p.planetype ==_IMAGE:
+                  if i > 1 and steps[-1] =='MFT': steps.append('invMFT')
+                  else: steps.append('FFT')
+            elif self.planes[i-1].planetype==_IMAGE and p.planetype == _DETECTOR: steps.append('resample')
+            else: steps.append('FFT')
+
+        
+        output_shape = [a * self.planes[-1].oversample for a in self.planes[-1].shape]
+        output_size = output_shape[0]*output_shape[1]
+
+        return {'steps': steps, 'output_shape': output_shape, 'output_size':output_size}
+
+
+        
 
 
 class SemiAnalyticCoronagraph(OpticalSystem):

@@ -1,54 +1,10 @@
-from .poppy_core import (Wavefront, OpticalElement, FITSOpticalElement, Rotation, AnalyticOpticalElement, 
-	ScalarTransmission, InverseTransmission, ThinLens, BandLimitedCoron, 
-	FQPM_FFT_aligner, IdealFQPM, IdealFieldStop, IdealRectangularFieldStop, IdealCircularOcculter, 
-	IdealBarOcculter, ParityTestAperture, CircularAperture, HexagonAperture, 
-	MultiHexagonAperture, NgonAperture, SquareAperture, RectangleAperture, SecondaryObscuration, CompoundAnalyticOptic, 
-	Detector, OpticalSystem, SemiAnalyticCoronagraph)
-
-#from .poppy_core import (_USE_FFTW3, _USE_MULTIPROC, _MULTIPROC_NPROCESS, _TIMETESTS, _FLUXCHECK, _IMAGECROP)
-from . import settings
-
-from .utils import (display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
-        measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid, measure_strehl,
-        measure_anisotropy, specFromSpectralType, rebin_array)
-
-from .settings import save_config
-
-
-from .instrument import Instrument
-from .wfe import ZernikeWFE, PowerSpectralDensityWFE, KolmogorovWFE
-
-from ._version import __version__
-
-
-if settings.autosave_fftw_wisdom():
-   from . import utils
-   utils.fftw_load_wisdom()
-
-
-__doc__ = """
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
+"""Physical Optics Propagation in PYthon (POPPY)
 =============================================
-Physical Optics Propagation in PYthon (POPPY)
-=============================================
-
-
 This package implements an object-oriented system for modeling physical optics
 propagation with diffraction, particularly for telescopic and coronagraphic
 imaging. Right now only Fraunhoffer diffraction is supported, providing image and pupil planes; 
 intermediate planes are a future goal.
-
-Classes:
---------
- * Wavefront
- * OpticalElement
-   * AnalyticOpticalElement
-     * BandLimitedCoron
-     * IdealMonoFQPM
-     * IdealFieldStop
-     * IdealCircularOcculter
-   * Detector
- * OpticalSystem
-
 
 POPPY makes use of python's ``logging`` facility for log messages, using
 the logger name "poppy".
@@ -81,5 +37,47 @@ _IMAGECROP : float
 
 
 """
+
+
+try:
+    from .version import version as __version__
+except ImportError:
+    # TODO: Issue a warning using the logging framework
+    __version__ = ''
+try:
+    from .version import githash as __githash__
+except ImportError:
+    # TODO: Issue a warning using the logging framework
+    __githash__ = ''
+
+ 
+
+from .poppy_core import (Wavefront, OpticalElement, FITSOpticalElement, Rotation, AnalyticOpticalElement, 
+	ScalarTransmission, InverseTransmission, ThinLens, BandLimitedCoron, 
+	FQPM_FFT_aligner, IdealFQPM, IdealFieldStop, IdealRectangularFieldStop, IdealCircularOcculter, 
+	IdealBarOcculter, ParityTestAperture, CircularAperture, HexagonAperture, 
+	MultiHexagonAperture, NgonAperture, SquareAperture, RectangleAperture, SecondaryObscuration, CompoundAnalyticOptic, 
+	Detector, OpticalSystem, SemiAnalyticCoronagraph)
+
+#from .poppy_core import (_USE_FFTW3, _USE_MULTIPROC, _MULTIPROC_NPROCESS, _TIMETESTS, _FLUXCHECK, _IMAGECROP)
+from . import settings
+
+from .utils import (display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
+        measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid, measure_strehl,
+        measure_anisotropy, specFromSpectralType, rebin_array)
+
+from .settings import save_config
+
+
+from .instrument import Instrument
+from .wfe import ZernikeWFE, PowerSpectralDensityWFE, KolmogorovWFE
+
+#from ._version import __version__
+
+
+if settings.autosave_fftw_wisdom():
+   from . import utils
+   utils.fftw_load_wisdom()
+
 
 

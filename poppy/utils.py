@@ -1048,104 +1048,60 @@ def specFromSpectralType(sptype, return_list=False, catalog=None):
 ###################################################################33
 
 
+def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, memory_fraction=0.5):
+    """ Attempt to estimate a reasonable number of processes to use for a multi-wavelength calculation.
+    This is not entirely obvious because this can be either CPU- or memory-limited, and you don't want
+    to just spawn nwavelengths processes necessarily. Here we attempt to estimate how many such
+    calculations can happen in parallel without swapping to disk.
 
-def fft_comparison_tests(size=2048, dtype=np.complex128):
-    """ Compare speed and test the API of pyFFTW3 and PyFFTW
-    which are, somewhat surprisingly, completely different independent modules"""
-    import fftw3
-    import pyfftw
-    import multiprocessing
-    import matplotlib.pyplot as pl
-    import time
+    NOTE: Requires psutil package. Otherwise defaults to just 4?
 
-    
+    Parameters
+    -----------
+    osys : OpticalSystem instance
+        The optical system that we will be calculating for. 
+    nwavelengths : int
+        Number of wavelengths. Sets maximum # of processes.
+    padding_factor : int
+        How many copies of the wavefront array per calculation
+    memory_fraction : float
+        What fraction of total system physical RAM should webbPSF make use of?
+        This is in attempt to make it play nicely with whatever else you're running...
+    """
 
-    test_array = np.ones( (size,size), dtype=dtype)
-    test_array[size*3/8:size*5/8, size*3/8:size*5/8] = 1 # square aperture oversampling 2...
+    try:
+        import psutil
+    except:
+        _log.debug("No psutil package available, cannot estimate optimal nprocesses.")
+        return 4
 
-    ncores = multiprocessing.cpu_count()
-
-    pl.clf()
-    for FFT_direction in ['forward']: #,'backward']:
-
-        print "Array size: {1} x {1}\nDirection: {2}\ndtype: {3}\nncores: {4}".format(0, size, FFT_direction, dtype, ncores)
-        print ""
-        # Let's first deal with some planning to make sure wisdom is generated ahead of time.
-        for i, fft_type in enumerate(['numpy','pyfftw3','pyfftw']):
-                # planning using PyFFTW3
-                p0 = time.time()
-                print "Now planning "+fft_type+" in the "+FFT_direction+" direction"
-                #if (test_array.shape, FFT_direction) not in _FFTW3_INIT.keys():
-                if fft_type=='numpy':
-                    print "\tno planning required"
-                elif fft_type=='pyfftw3':
-                    fftplan = fftw3.Plan(test_array.copy(), None, nthreads = ncores,direction=FFT_direction, flags=['measure'])
-                else:
-                    pyfftw.interfaces.cache.enable()
-                    pyfftw.interfaces.cache.set_keepalive_time(30)
-
-                    test_array = pyfftw.n_byte_align_empty( (size,size), 16, dtype=dtype)
-                    test_array = pyfftw.interfaces.numpy_fft.fft2(test_array, overwrite_input=True, planner_effort='FFTW_MEASURE', threads=ncores)
-
-                p1 = time.time()
-                print "\tTime elapsed planning: {0:.4f} s".format(p1-p0)
-
-        print ""
-
-        # Now let's run some FFTs
-        for i, fft_type in enumerate(['numpy','pyfftw3','pyfftw']):
-            
-            # display
-            if fft_type == 'pyfftw':
-                test_array = pyfftw.n_byte_align_empty( (size,size), 16, dtype=dtype)
-                output_array = pyfftw.n_byte_align_empty( (size,size), 16, dtype=dtype)
-                test_array[:,:] = 0
-
-            else:
-                test_array = np.zeros( (size,size), dtype=np.complex128)
-            test_array[size*3/8:size*5/8, size*3/8:size*5/8] = 1 # square aperture oversampling 2...
-            pl.subplot(2,3, 1 + i)
-            pl.imshow(np.abs(test_array), vmin=0, vmax=1)
-            pl.title( "FFT type: {0:10s} input array".format(fft_type))
-            pl.draw()
-
-
-            # actual timed FFT section starts here:
-            t0 = time.time()
-
-            if fft_type=='numpy':
-                test_array = np.fft.fft2(test_array)
-            elif fft_type=='pyfftw3':
-
-                fftplan = fftw3.Plan(test_array, None, nthreads = multiprocessing.cpu_count(),direction=FFT_direction, flags=['measure'])
-                fftplan.execute() # execute the plan
-            elif fft_type=='pyfftw':
-                test_array = pyfftw.interfaces.numpy_fft.fft2(test_array, overwrite_input=True, planner_effort='FFTW_MEASURE', threads=ncores)
+    wfshape = osys.inputWavefront().shape
+    # will we do an FFT or not?
+    propinfo = osys._propagation_info()
+    if 'FFT' in propinfo['steps']:
+        wavefrontsize = wfshape[0]*wfshape[1]*osys.oversample**2 *  16 # 16 bytes = complex double size 
+        _log.debug('FFT propagation with array={0}, oversample = {1} uses {2} bytes'.format(wfshape[0], osys.oversample, wavefrontsize))
+        padding_factor = 3  # guess!
+    else:
+        # oversampling not relevant for memory size in MFT mode
+        wavefrontsize = wfshape[0]*wfshape[1] *  16 # 16 bytes = complex double size 
+        _log.debug('MFT propagation with array={0} uses {2} bytes'.format(wfshape[0], osys.oversample, wavefrontsize))
+        padding_factor = 1
  
-    
-            t1 = time.time()
+    mem_per_prop = wavefrontsize * padding_factor
+    mem_per_output = propinfo['output_size']*8
 
-            if FFT_direction=='forward': test_array = np.fft.fftshift(test_array)
+    # total memory needed is the sum of memory for the propagation plus memory to hold the results
+    avail_ram = psutil.phymem_usage().total * memory_fraction
+    recommendation = int(np.round(float(avail_ram) / (mem_per_prop+mem_per_output)))
+       
+    if recommendation > psutil.NUM_CPUS: recommendation = psutil.NUM_CPUS
+    if nwavelengths is not None:
+        if recommendation > nwavelengths: recommendation = nwavelengths
 
-            # display
-            t_elapsed = t1-t0
-            summarytext = "FFT type: {0:10s}\tTime Elapsed: {3:.4f} s".format(fft_type, size, FFT_direction, t_elapsed)
-            print summarytext
+    _log.info("estimated optimal # of processes is {0}".format(recommendation))
+    return recommendation
 
-            pl.subplot(2,3, 1+i+3)
-
-
-
-            psf = np.real( test_array * np.conjugate(test_array))
-            norm=matplotlib.colors.LogNorm(vmin=psf.max()*1e-6, vmax=psf.max())
-
-            cmap = matplotlib.cm.jet
-            cmap.set_bad((0,0,0.5))
-
-            pl.imshow(psf[size*3/8:size*5/8, size*3/8:size*5/8], norm=norm)
-            pl.title(summarytext)
-
-            #stop()
 
 def fftw_save_wisdom(filename=None):
     """ Save accumulated FFTW wisdom to a file 
