@@ -7,6 +7,8 @@ _log = logging.getLogger('poppy')
 #
 import astropy.io.fits as fits
 
+from . import settings
+
 try:
     from IPython.core.debugger import Tracer; stop = Tracer()
 except:
@@ -1051,8 +1053,11 @@ def specFromSpectralType(sptype, return_list=False, catalog=None):
 def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, memory_fraction=0.5):
     """ Attempt to estimate a reasonable number of processes to use for a multi-wavelength calculation.
     This is not entirely obvious because this can be either CPU- or memory-limited, and you don't want
-    to just spawn nwavelengths processes necessarily. Here we attempt to estimate how many such
-    calculations can happen in parallel without swapping to disk.
+    to just spawn nwavelengths processes necessarily. 
+    
+    Here we attempt to estimate how many such calculations can happen in
+    parallel without swapping to disk, with a mixture of empiricism and conservatism.
+    One really does not want to end up swapping to disk with huge arrays.
 
     NOTE: Requires psutil package. Otherwise defaults to just 4?
 
@@ -1081,7 +1086,12 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
     if 'FFT' in propinfo['steps']:
         wavefrontsize = wfshape[0]*wfshape[1]*osys.oversample**2 *  16 # 16 bytes = complex double size 
         _log.debug('FFT propagation with array={0}, oversample = {1} uses {2} bytes'.format(wfshape[0], osys.oversample, wavefrontsize))
-        padding_factor = 3  # guess!
+        padding_factor = 4  if settings.use_fftw() else 5
+        # The following is a very rough estimate
+
+        # empirical tests show that an 8192x8192 propagation results in Python sessions with ~4 GB memory allocation. using FFTW
+        # usingg mumpy FFT, the memory usage per process can exceed 5 GGB for an 8192x8192 propagation.
+
     else:
         # oversampling not relevant for memory size in MFT mode
         wavefrontsize = wfshape[0]*wfshape[1] *  16 # 16 bytes = complex double size 
@@ -1092,8 +1102,10 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
     mem_per_output = propinfo['output_size']*8
 
     # total memory needed is the sum of memory for the propagation plus memory to hold the results
-    avail_ram = psutil.phymem_usage().total * memory_fraction
-    recommendation = int(np.round(float(avail_ram) / (mem_per_prop+mem_per_output)))
+    #avail_ram = psutil.phymem_usage().total * memory_fraction
+    avail_ram = psutil.virtual_memory().available
+    avail_ram -= 2* 1024.**3   # always leave at least 2 GB extra padding - let's be cautious to make sure we don't swap.
+    recommendation = int(np.floor(float(avail_ram) / (mem_per_prop+mem_per_output)))
        
     if recommendation > psutil.NUM_CPUS: recommendation = psutil.NUM_CPUS
     if nwavelengths is not None:

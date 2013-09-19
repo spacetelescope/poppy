@@ -72,7 +72,6 @@ from .settings import save_config
 from .instrument import Instrument
 from .wfe import ZernikeWFE, PowerSpectralDensityWFE, KolmogorovWFE
 
-#from ._version import __version__
 
 
 if settings.autosave_fftw_wisdom():
