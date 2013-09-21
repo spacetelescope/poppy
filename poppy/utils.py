@@ -30,7 +30,9 @@ _Strehl_perfect_cache = {} # dict for caching perfect images used in Strehl calc
 #    Display functions 
 #
 def imshow_with_mouseover(image, ax=None,  *args, **kwargs):
-    """ Wrapper for pyplot.imshow that sets up a custom mouseover display formatter
+    """ wrapper for matplotlib imshow that displays the value under the cursor position
+    
+    Wrapper for pyplot.imshow that sets up a custom mouseover display formatter
     so that mouse motions over the image are labeled in the status bar with
     pixel numerical value as well as X and Y coords.
 
@@ -196,6 +198,9 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
 def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None, ext1=0, ext2=0, vmax=1e-4, title=None, imagecrop=None, adjust_for_oversampling=False, crosshairs=False, colorbar=True, colorbar_orientation='vertical', print_=False, ax=None, return_ax=False, vmin=None,
         normalize=False, normalize_to_second=False):
     """Display nicely the difference of two PSFs from given files 
+
+    The two files may be FITS files on disk or FITS HDUList objects in memory. The two must have the same 
+    shape and size.
     
     Parameters
     ----------
@@ -304,6 +309,8 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
 def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_levels=True ):
     """ Display Encircled Energy curve for a PSF
 
+    The azimuthally averaged encircled energy is plotted as a function of radius.
+
     Parameters
     ----------
     HDUlist_or_filename1,2 : fits.HDUlist or string
@@ -349,6 +356,7 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
 def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False ):
     """ Produce two plots of PSF radial profile and encircled energy
 
+    See also the display_EE function.
 
     Parameters
     ----------
@@ -497,7 +505,10 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
 #
 
 def measure_EE(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
-    """ Returns a function object which when called returns the Encircled Energy inside a given radius.
+    """ measure encircled energy vs radius and return as an interpolator
+    
+    Returns a function object which when called returns the Encircled Energy inside a given radius, 
+    for any arbitrary desired radius smaller than the image size.
 
 
 
@@ -540,7 +551,9 @@ def measure_EE(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     
 
 def measure_radial(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
-    """ Returns a function object which when called returns the mean value at a given radius.
+    """ measure azimuthally averaged radial profile of a PSF.
+    
+    Returns a function object which when called returns the mean value at a given radius.
 
     Parameters
     ----------
@@ -575,8 +588,10 @@ def measure_radial(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     
 
 def measure_fwhm(HDUlist_or_filename=None, ext=0, center=None, level=0.5):
-    """ Measure FWHM* by interpolation of the radial profile 
-    (* or full width at some other fraction of max.)
+    """ Measure FWHM by interpolation of the radial profile 
+
+    This measures the full width at half maximum for the supplied PSF, 
+    or optionally the full width at some other fraction of max.
 
     Parameters
     ----------
@@ -637,6 +652,11 @@ def measure_sharpness(HDUlist_or_filename=None, ext=0):
 
 def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, print_=False, units='pixels', relativeto='origin', **kwargs):
     """ Measure the center of an image via center-of-mass
+
+    The centroid method used is the floating-box center of mass algorithm by
+    Jeff Valenti et al., which has been adopted for JWST target acquisition 
+    measurements on orbit.
+    See JWST technical reports JWST-STScI-001117 and JWST-STScI-001134 for details.
 
     Parameters
     ----------
@@ -802,7 +822,8 @@ def measure_anisotropy(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50):
 #
 
 def rebin_array(a = None, rc=(2,2), verbose=False):
-    """  
+    """ Rebin array by an integer factor while conserving flux
+
     Perform simple-minded flux-conserving binning... clip trailing
     size mismatch: eg a 10x3 array binned by 3 results in a 3x1 array
 
@@ -845,8 +866,7 @@ def rebin_array(a = None, rc=(2,2), verbose=False):
 
 
 def krebin(a, shape):
-    """
-    Fast Rebinning
+    """ Fast Rebinning with flux conservation
 
     New shape must be an integer divisor of the current shape.
 
@@ -871,6 +891,10 @@ def krebin(a, shape):
 def specFromSpectralType(sptype, return_list=False, catalog=None):
     """Get Pysynphot Spectrum object from a user-friendly spectral type string.
 
+    Given a spectral type such as 'A0IV' or 'G2V', this uses a fixed lookup table
+    to determine an appropriate spectral model from Castelli & Kurucz 2004 or 
+    the Phoenix model grids. Depends on pysynphot and CDBS. This is just a
+    convenient access function.
 
     Parameters
     -----------
@@ -1052,6 +1076,7 @@ def specFromSpectralType(sptype, return_list=False, catalog=None):
 
 def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, memory_fraction=0.5):
     """ Attempt to estimate a reasonable number of processes to use for a multi-wavelength calculation.
+
     This is not entirely obvious because this can be either CPU- or memory-limited, and you don't want
     to just spawn nwavelengths processes necessarily. 
     
@@ -1117,8 +1142,8 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
 
 def fftw_save_wisdom(filename=None):
     """ Save accumulated FFTW wisdom to a file 
+
     By default this file will be in the user's astropy configuration directory.
-    
     (Another location could be chosen - this is simple and works easily cross-platform.)
     
     Parameters
@@ -1148,9 +1173,9 @@ def fftw_save_wisdom(filename=None):
 
 
 def fftw_load_wisdom(filename=None):
-    """ Read accumulated FFTW wisdom from a file 
+    """ Read accumulated FFTW wisdom previously saved in previously saved in a file 
+
     By default this file will be in the user's astropy configuration directory.
-    
     (Another location could be chosen - this is simple and works easily cross-platform.)
     
     Parameters
