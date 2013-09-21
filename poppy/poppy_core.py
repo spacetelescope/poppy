@@ -156,9 +156,12 @@ class Wavefront(object):
     pupil and image planes (but not to intermediate planes, yet).
 
     In a pupil plane, a wavefront object `wf` has
+
         * `wf.diam`,         a diameter in meters
         * `wf.pixelscale`,   a scale in meters/pixel
+
     In an image plane, it has
+
         * `wf.fov`,          a field of view in arcseconds
         * `wf.pixelscale`,   a  scale in arcsec/pixel
 
@@ -828,7 +831,8 @@ class Wavefront(object):
 
         Recall from Fourier optics (although this is straightforwardly rederivable by drawing triangles)
         that for a wavefront tilted by some angle theta in radians, that a point r meters from the center of
-        the pupil has
+        the pupil has:
+
             extra_pathlength = sin(theta) * r
             extra_waves = extra_pathlength/ wavelength = r * sin(theta) / wavelength
 
@@ -1771,6 +1775,7 @@ class ScalarTransmission(AnalyticOpticalElement):
 class BandLimitedCoron(AnalyticOpticalElement):
     """ Defines an ideal band limited coronagraph occulting mask.
 
+
         Parameters
         ----------
         name : string
@@ -1802,12 +1807,12 @@ class BandLimitedCoron(AnalyticOpticalElement):
         """ Compute the amplitude transmission appropriate for a BLC for some given pixel spacing
         corresponding to the supplied Wavefront.
 
-        Based on  Krist et al. SPIE paper.
+        Based on the Krist et al. SPIE paper on NIRCam coronagraph design
 
         Note that the equations in Krist et al specify the intensity transmission of the occulter,
         but what we want to return here is the amplitude transmittance. That is the square root of the
         intensity, of course, so the equations as implemented here all differ from those written in
-        Krist's SPIE paper by lacking a factor of **2. Thanks to John Krist for pointing this out.
+        Krist's SPIE paper by lacking an exponential factor of 2. Thanks to John Krist for pointing this out.
 
         """
         if not isinstance(wave, Wavefront):
@@ -1909,55 +1914,6 @@ class BandLimitedCoron(AnalyticOpticalElement):
             _log.debug("There are NaNs in the BLC mask - correcting to zero. (DEBUG LATER?)")
             self.transmission[np.where(np.isfinite(self.transmission) == False)] = 0
         return self.transmission
-
-
-class FQPM_FFT_aligner(AnalyticOpticalElement):
-    """  Helper class for modeling FQPMs accurately
-
-    Adds (or removes) a slight wavelength- and pixel-scale-dependent tilt
-    to a pupil wavefront, to ensure the correct alignment of the image plane
-    FFT'ed PSF with the desired quad pixel alignment for the FQPM.
-
-    This is purely a computational convenience tool to work around the
-    pixel coordinate restrictions imposed by the FFT algorithm,
-    not a representation of any physical optic.
-
-    Parameters
-    ----------
-    direction : string
-        'forward' or 'backward'
-
-    """
-    def __init__(self, name="FQPM FFT aligner", direction='forward', **kwargs):
-        AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
-        direction = direction.lower()
-        if direction != 'forward' and direction !='backward': raise ValueError("Invalid direction %s, must be either forward or backward." % direction)
-        self.direction = direction
-        self._suppress_display=True
-        #self.displayable = False
-
-    def getPhasor(self,wave):
-        """ Compute the required tilt needed to get the PSF centered on the corner between
-        the 4 central pixels, not on the central pixel itself.
-        """
-
-        if not isinstance(wave, Wavefront):
-            raise ValueError("FQPM getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL )
-
-
-        fft_im_pixelscale = wave.wavelength/ wave.diam / wave.oversample * _RADIANStoARCSEC
-        required_offset = -fft_im_pixelscale *0.5
-        if self.direction == 'backward':
-            required_offset *= -1
-            wave._image_centered='pixel'
-        else:
-            wave._image_centered='corner'
-        wave.tilt(required_offset, required_offset)
-
-        # gotta return something... so return a value that will not affect the wave any more.
-        align_phasor = 1.0
-        return align_phasor
 
 
 class IdealFQPM(AnalyticOpticalElement):
@@ -2189,6 +2145,55 @@ class IdealBarOcculter(AnalyticOpticalElement):
 
 
 #------ Analytic Pupil Plane elements -----
+
+class FQPM_FFT_aligner(AnalyticOpticalElement):
+    """  Helper class for modeling FQPMs accurately
+
+    Adds (or removes) a slight wavelength- and pixel-scale-dependent tilt
+    to a pupil wavefront, to ensure the correct alignment of the image plane
+    FFT'ed PSF with the desired quad pixel alignment for the FQPM.
+
+    This is purely a computational convenience tool to work around the
+    pixel coordinate restrictions imposed by the FFT algorithm,
+    not a representation of any physical optic.
+
+    Parameters
+    ----------
+    direction : string
+        'forward' or 'backward'
+
+    """
+    def __init__(self, name="FQPM FFT aligner", direction='forward', **kwargs):
+        AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
+        direction = direction.lower()
+        if direction != 'forward' and direction !='backward': raise ValueError("Invalid direction %s, must be either forward or backward." % direction)
+        self.direction = direction
+        self._suppress_display=True
+        #self.displayable = False
+
+    def getPhasor(self,wave):
+        """ Compute the required tilt needed to get the PSF centered on the corner between
+        the 4 central pixels, not on the central pixel itself.
+        """
+
+        if not isinstance(wave, Wavefront):
+            raise ValueError("FQPM getPhasor must be called with a Wavefront to define the spacing")
+        assert (wave.planetype == _PUPIL )
+
+
+        fft_im_pixelscale = wave.wavelength/ wave.diam / wave.oversample * _RADIANStoARCSEC
+        required_offset = -fft_im_pixelscale *0.5
+        if self.direction == 'backward':
+            required_offset *= -1
+            wave._image_centered='pixel'
+        else:
+            wave._image_centered='corner'
+        wave.tilt(required_offset, required_offset)
+
+        # gotta return something... so return a value that will not affect the wave any more.
+        align_phasor = 1.0
+        return align_phasor
+
 
 class ParityTestAperture(AnalyticOpticalElement):
     """ Defines a circular pupil aperture with boxes cut out.
@@ -2730,10 +2735,62 @@ class SecondaryObscuration(AnalyticOpticalElement):
         return self.transmission
 
 
+class AsymmetricSecondaryObscuration(SecondaryObscuration):
+    """ Defines a central obscuration with one or more supports which can be oriented at
+    arbitrary angles around the primary mirror, a la the three supports of JWST
+
+    Parameters
+    ----------
+    secondary_radius : float
+        Radius of the circular secondary obscuration. Default 0.5 m
+    support_angle : ndarray or list of floats
+        The angle measured counterclockwise from +Y for each support
+    support_width : float, or list of floats
+        if scalar, gives the width for all support struts
+        if a list, gives separately the width for each support strut independently.
+        Widths in meters. Default is 0.01 m = 1 cm.
+    """
+    def __init__(self, support_angle=[0, 90, 240], support_width=0.01, **kwargs):
+        SecondaryObscuration.__init__(self, n_supports = len(support_angle), **kwargs)
+
+        self.support_angle = np.asarray(support_angle)
+        if np.isscalar(support_width): support_width = np.zeros(len(support_angle)) + support_width
+        self.support_width  = support_width
+
+    def getPhasor(self,wave):
+        """ Compute the transmission inside/outside of the obscuration
+        """
+        if not isinstance(wave, Wavefront):
+            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
+        assert (wave.planetype == _PUPIL)
+
+        self.transmission = np.ones(wave.shape)
+
+        y, x = wave.coordinates()
+        r = np.sqrt(x**2+y**2) #* wave.pixelscale
+
+        self.transmission[r < self.secondary_radius] = 0
+
+        for angle_deg, width in zip(self.support_angle, self.support_width):
+            angle = np.deg2rad(angle_deg + 90)  # 90 deg offset is to start from the +Y direction
+
+            # calculate rotated x' and y' coordinates after rotation by that angle.
+            xp =  np.cos(angle) * x + np.sin(angle) * y
+            yp = -np.sin(angle) * x + np.cos(angle) * y
+
+            self.transmission[ (xp > 0) & (np.abs(yp) < width/2)] = 0
+
+            # TODO check here for if there are no pixels marked because the spider is too thin. In that case use a grey scale approximation
+
+        return self.transmission
+
+
+
+
 class ThinLens(AnalyticOpticalElement):
     """ An idealized thin lens, implemented as a Zernike defocus term.
 
-    Parameters:
+    Parameters
     -------------
     nwaves : float
         The number of waves of defocus, peak to valley. May be positive or negative.
