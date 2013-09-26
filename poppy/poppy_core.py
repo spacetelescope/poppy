@@ -520,7 +520,7 @@ class Wavefront(object):
             imshow_with_mouseover(phase/(np.pi*2), ax=ax, extent=extent, norm=norm, cmap=cmap)
             plt.title("Phase "+self.location)
             plt.xlabel(unit)
-            if colorbar: plt.colorbar(ax2.images[0], orientation='vertical', shrink=0.8)
+            if colorbar: plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
 
 
         else:
