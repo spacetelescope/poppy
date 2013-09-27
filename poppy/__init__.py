@@ -71,6 +71,7 @@ from .wfe import ZernikeWFE, PowerSpectralDensityWFE, KolmogorovWFE
 
 if settings.autosave_fftw_wisdom():
    from . import utils
+   # the following will just return if FFTW not present
    utils.fftw_load_wisdom()
 
 

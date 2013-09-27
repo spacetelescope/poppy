@@ -1,6 +1,7 @@
 include README.rst
 
 include distribute_setup.py
+include setuptools_bootstrap.py
 recursive-include poppy *.pyx *.c
 
 recursive-include docs *

@@ -1081,6 +1081,8 @@ class OpticalElement():
         """
         if colorbar_orientation is None:
             colorbar_orientation= "horizontal" if nrows == 1 else 'vertical'
+
+        _log.debug('colorbar_orientation = '+colorbar_orientation)
         cmap_amp = matplotlib.cm.gray
         cmap_amp.set_bad('0.0')
         cmap_opd = matplotlib.cm.jet
@@ -1112,9 +1114,9 @@ class OpticalElement():
             # recursion!
             if ax is None:
                 ax = plt.subplot(nrows, 2, row*2-1)
-            self.display(what='intensity', ax=ax, crosshairs=crosshairs, colorbar=colorbar, colorbar_orientation='horizontal')
+            self.display(what='intensity', ax=ax, crosshairs=crosshairs, colorbar=colorbar, nrows=nrows)
             ax2 = plt.subplot(nrows, 2, row*2)
-            self.display(what='phase', ax=ax2, crosshairs=crosshairs, colorbar=colorbar, colorbar_orientation='horizontal')
+            self.display(what='phase', ax=ax2, crosshairs=crosshairs, colorbar=colorbar, nrows=nrows)
             return
         elif what=='amplitude':
             plot_array = ampl
@@ -3492,7 +3494,7 @@ class OpticalSystem():
         planes_to_display = [p for p in self.planes if (not isinstance(p, Detector) and not p._suppress_display)]
         nplanes = len(planes_to_display)
         for i, plane in enumerate(planes_to_display):
-            _log.info("Displaying plane %s in row %d" % (plane.name, i))
+            _log.info("Displaying plane %sin row %d of %d" % (plane.name, i+1, nplanes))
             plane.display(nrows=nplanes, row=i+1, **kwargs)
 
 

@@ -1153,8 +1153,10 @@ def fftw_save_wisdom(filename=None):
     """
     import os
     import astropy.config
-    import pyfftw
-    #from astropy import config
+    try:
+        import pyfftw
+    except:
+        return # FFTW is not present, therefore this is a null op
 
     if filename is None:
         filename=os.path.join( astropy.config.get_config_dir(), "poppy_fftw_wisdom.txt")
@@ -1186,7 +1188,10 @@ def fftw_load_wisdom(filename=None):
  
     import os
     from astropy import config
-    import pyfftw
+    try:
+        import pyfftw
+    except:
+        return # FFTW is not present, therefore this is a null op
 
     if filename is None:
         filename=os.path.join( config.get_config_dir(), "poppy_fftw_wisdom.txt")
