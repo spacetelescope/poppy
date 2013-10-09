@@ -9,13 +9,14 @@ import astropy.io.fits as fits
 
 from . import poppy_core
 from . import utils
+from .version import version
 
-try: 
+try:
     import pysynphot
     _HAS_PYSYNPHOT = True
 except:
     _HAS_PYSYNPHOT = False
- 
+
 
 class Instrument(object):
     """ A generic astronomical instrument, composed of 
@@ -351,7 +352,7 @@ class Instrument(object):
         result[0].header.update('INSTRUME', self.name, 'Instrument')
         result[0].header.update('FILTER', self.filter, 'Filter name')
         result[0].header.update('EXTNAME', 'OVERSAMP')
-        result[0].header.add_history('Created by POPPY version '+poppy_core.__version__)
+        result[0].header.add_history('Created by POPPY version '+version)
 
         if 'fft_oversample' in options.keys():
             result[0].header.update('OVERSAMP', options['fft_oversample'], 'Oversampling factor for FFTs in computation')
@@ -584,8 +585,8 @@ class Instrument(object):
         """ Returns a list of allowable filters, and the corresponding pysynphot ObsBandpass strings
         for each. 
 
-        If you need to define bandpasses that are not available in pysynphot, consider subclassing
-        _getSynphotBandpass instead
+        If you need to define bandpasses that are not already available in pysynphot, consider subclassing
+        _getSynphotBandpass instead to create a pysynphot spectrum based on data read from disk, etc.
 
         Returns
         --------
@@ -650,19 +651,19 @@ class Instrument(object):
             maxwave = band.wave[w_above10].max()
             poppy_core._log.debug("Min, max wavelengths = %f, %f" % (minwave/1e4, maxwave/1e4))
             # special case: ignore red leak for MIRI F560W, which has a negligible effect in practice
+            # this is lousy test data rather than a bad filter?
             if self.filter == 'F560W':
                 poppy_core._log.debug("Special case: setting max wavelength to 6.38 um to ignore red leak")
                 maxwave = 63800.0
             elif self.filter == 'F1280W':
                 poppy_core._log.debug("Special case: setting max wavelength to 14.32 um to ignore red leak")
                 maxwave = 143200.0
- 
+
             wave_bin_edges =  np.linspace(minwave,maxwave,nlambda+1)
             wavesteps = (wave_bin_edges[:-1] +  wave_bin_edges[1:])/2
             deltawave = wave_bin_edges[1]-wave_bin_edges[0]
             effstims = []
 
-            #t0= time.time()
             for wave in wavesteps:
                 poppy_core._log.debug("Integrating across band centered at %.2f microns with width %.2f" % (wave/1e4,deltawave/1e4))
                 box = pysynphot.Box(wave, deltawave) * band
@@ -672,14 +673,11 @@ class Instrument(object):
                     binset =  np.linspace(wave-deltawave, wave+deltawave, 30)  # what wavelens to use when integrating across the sub-band?
                     result = pysynphot.Observation(source, box, binset=binset).effstim('counts')
                 effstims.append(result)
-            #t1 = time.time()
-            #print "  that took %f seconds for %d wavelengths" % (t1-t0, nlambda)
 
             effstims = np.array(effstims)
             effstims /= effstims.sum()
             wave_m =  band.waveunits.Convert(wavesteps,'m') # convert to meters
 
-            #newsource = {'wavelengths': wave_m, 'weights':effstims}
             newsource = (wave_m, effstims)
             if verbose: print newsource
             self._spectra_cache[ self._getSpecCacheKey(source,nlambda)] = newsource

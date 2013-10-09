@@ -7,6 +7,8 @@ _log = logging.getLogger('poppy')
 #
 import astropy.io.fits as fits
 
+from . import settings
+
 try:
     from IPython.core.debugger import Tracer; stop = Tracer()
 except:
@@ -28,7 +30,9 @@ _Strehl_perfect_cache = {} # dict for caching perfect images used in Strehl calc
 #    Display functions 
 #
 def imshow_with_mouseover(image, ax=None,  *args, **kwargs):
-    """ Wrapper for pyplot.imshow that sets up a custom mouseover display formatter
+    """ wrapper for matplotlib imshow that displays the value under the cursor position
+    
+    Wrapper for pyplot.imshow that sets up a custom mouseover display formatter
     so that mouse motions over the image are labeled in the status bar with
     pixel numerical value as well as X and Y coords.
 
@@ -194,6 +198,9 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
 def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None, ext1=0, ext2=0, vmax=1e-4, title=None, imagecrop=None, adjust_for_oversampling=False, crosshairs=False, colorbar=True, colorbar_orientation='vertical', print_=False, ax=None, return_ax=False, vmin=None,
         normalize=False, normalize_to_second=False):
     """Display nicely the difference of two PSFs from given files 
+
+    The two files may be FITS files on disk or FITS HDUList objects in memory. The two must have the same 
+    shape and size.
     
     Parameters
     ----------
@@ -302,6 +309,8 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
 def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_levels=True ):
     """ Display Encircled Energy curve for a PSF
 
+    The azimuthally averaged encircled energy is plotted as a function of radius.
+
     Parameters
     ----------
     HDUlist_or_filename1,2 : fits.HDUlist or string
@@ -347,6 +356,7 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
 def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False ):
     """ Produce two plots of PSF radial profile and encircled energy
 
+    See also the display_EE function.
 
     Parameters
     ----------
@@ -495,7 +505,10 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
 #
 
 def measure_EE(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
-    """ Returns a function object which when called returns the Encircled Energy inside a given radius.
+    """ measure encircled energy vs radius and return as an interpolator
+    
+    Returns a function object which when called returns the Encircled Energy inside a given radius, 
+    for any arbitrary desired radius smaller than the image size.
 
 
 
@@ -538,7 +551,9 @@ def measure_EE(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     
 
 def measure_radial(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
-    """ Returns a function object which when called returns the mean value at a given radius.
+    """ measure azimuthally averaged radial profile of a PSF.
+    
+    Returns a function object which when called returns the mean value at a given radius.
 
     Parameters
     ----------
@@ -573,8 +588,10 @@ def measure_radial(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     
 
 def measure_fwhm(HDUlist_or_filename=None, ext=0, center=None, level=0.5):
-    """ Measure FWHM* by interpolation of the radial profile 
-    (* or full width at some other fraction of max.)
+    """ Measure FWHM by interpolation of the radial profile 
+
+    This measures the full width at half maximum for the supplied PSF, 
+    or optionally the full width at some other fraction of max.
 
     Parameters
     ----------
@@ -635,6 +652,11 @@ def measure_sharpness(HDUlist_or_filename=None, ext=0):
 
 def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, print_=False, units='pixels', relativeto='origin', **kwargs):
     """ Measure the center of an image via center-of-mass
+
+    The centroid method used is the floating-box center of mass algorithm by
+    Jeff Valenti et al., which has been adopted for JWST target acquisition 
+    measurements on orbit.
+    See JWST technical reports JWST-STScI-001117 and JWST-STScI-001134 for details.
 
     Parameters
     ----------
@@ -800,7 +822,8 @@ def measure_anisotropy(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50):
 #
 
 def rebin_array(a = None, rc=(2,2), verbose=False):
-    """  
+    """ Rebin array by an integer factor while conserving flux
+
     Perform simple-minded flux-conserving binning... clip trailing
     size mismatch: eg a 10x3 array binned by 3 results in a 3x1 array
 
@@ -843,8 +866,7 @@ def rebin_array(a = None, rc=(2,2), verbose=False):
 
 
 def krebin(a, shape):
-    """
-    Fast Rebinning
+    """ Fast Rebinning with flux conservation
 
     New shape must be an integer divisor of the current shape.
 
@@ -869,6 +891,10 @@ def krebin(a, shape):
 def specFromSpectralType(sptype, return_list=False, catalog=None):
     """Get Pysynphot Spectrum object from a user-friendly spectral type string.
 
+    Given a spectral type such as 'A0IV' or 'G2V', this uses a fixed lookup table
+    to determine an appropriate spectral model from Castelli & Kurucz 2004 or 
+    the Phoenix model grids. Depends on pysynphot and CDBS. This is just a
+    convenient access function.
 
     Parameters
     -----------
@@ -1048,109 +1074,76 @@ def specFromSpectralType(sptype, return_list=False, catalog=None):
 ###################################################################33
 
 
+def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, memory_fraction=0.5):
+    """ Attempt to estimate a reasonable number of processes to use for a multi-wavelength calculation.
 
-def fft_comparison_tests(size=2048, dtype=np.complex128):
-    """ Compare speed and test the API of pyFFTW3 and PyFFTW
-    which are, somewhat surprisingly, completely different independent modules"""
-    import fftw3
-    import pyfftw
-    import multiprocessing
-    import matplotlib.pyplot as pl
-    import time
-
+    This is not entirely obvious because this can be either CPU- or memory-limited, and you don't want
+    to just spawn nwavelengths processes necessarily. 
     
+    Here we attempt to estimate how many such calculations can happen in
+    parallel without swapping to disk, with a mixture of empiricism and conservatism.
+    One really does not want to end up swapping to disk with huge arrays.
 
-    test_array = np.ones( (size,size), dtype=dtype)
-    test_array[size*3/8:size*5/8, size*3/8:size*5/8] = 1 # square aperture oversampling 2...
+    NOTE: Requires psutil package. Otherwise defaults to just 4?
 
-    ncores = multiprocessing.cpu_count()
+    Parameters
+    -----------
+    osys : OpticalSystem instance
+        The optical system that we will be calculating for. 
+    nwavelengths : int
+        Number of wavelengths. Sets maximum # of processes.
+    padding_factor : int
+        How many copies of the wavefront array per calculation
+    memory_fraction : float
+        What fraction of total system physical RAM should webbPSF make use of?
+        This is in attempt to make it play nicely with whatever else you're running...
+    """
 
-    pl.clf()
-    for FFT_direction in ['forward']: #,'backward']:
+    try:
+        import psutil
+    except:
+        _log.debug("No psutil package available, cannot estimate optimal nprocesses.")
+        return 4
 
-        print "Array size: {1} x {1}\nDirection: {2}\ndtype: {3}\nncores: {4}".format(0, size, FFT_direction, dtype, ncores)
-        print ""
-        # Let's first deal with some planning to make sure wisdom is generated ahead of time.
-        for i, fft_type in enumerate(['numpy','pyfftw3','pyfftw']):
-                # planning using PyFFTW3
-                p0 = time.time()
-                print "Now planning "+fft_type+" in the "+FFT_direction+" direction"
-                #if (test_array.shape, FFT_direction) not in _FFTW3_INIT.keys():
-                if fft_type=='numpy':
-                    print "\tno planning required"
-                elif fft_type=='pyfftw3':
-                    fftplan = fftw3.Plan(test_array.copy(), None, nthreads = ncores,direction=FFT_direction, flags=['measure'])
-                else:
-                    pyfftw.interfaces.cache.enable()
-                    pyfftw.interfaces.cache.set_keepalive_time(30)
+    wfshape = osys.inputWavefront().shape
+    # will we do an FFT or not?
+    propinfo = osys._propagation_info()
+    if 'FFT' in propinfo['steps']:
+        wavefrontsize = wfshape[0]*wfshape[1]*osys.oversample**2 *  16 # 16 bytes = complex double size 
+        _log.debug('FFT propagation with array={0}, oversample = {1} uses {2} bytes'.format(wfshape[0], osys.oversample, wavefrontsize))
+        padding_factor = 4  if settings.use_fftw() else 5
+        # The following is a very rough estimate
 
-                    test_array = pyfftw.n_byte_align_empty( (size,size), 16, dtype=dtype)
-                    test_array = pyfftw.interfaces.numpy_fft.fft2(test_array, overwrite_input=True, planner_effort='FFTW_MEASURE', threads=ncores)
+        # empirical tests show that an 8192x8192 propagation results in Python sessions with ~4 GB memory allocation. using FFTW
+        # usingg mumpy FFT, the memory usage per process can exceed 5 GGB for an 8192x8192 propagation.
 
-                p1 = time.time()
-                print "\tTime elapsed planning: {0:.4f} s".format(p1-p0)
-
-        print ""
-
-        # Now let's run some FFTs
-        for i, fft_type in enumerate(['numpy','pyfftw3','pyfftw']):
-            
-            # display
-            if fft_type == 'pyfftw':
-                test_array = pyfftw.n_byte_align_empty( (size,size), 16, dtype=dtype)
-                output_array = pyfftw.n_byte_align_empty( (size,size), 16, dtype=dtype)
-                test_array[:,:] = 0
-
-            else:
-                test_array = np.zeros( (size,size), dtype=np.complex128)
-            test_array[size*3/8:size*5/8, size*3/8:size*5/8] = 1 # square aperture oversampling 2...
-            pl.subplot(2,3, 1 + i)
-            pl.imshow(np.abs(test_array), vmin=0, vmax=1)
-            pl.title( "FFT type: {0:10s} input array".format(fft_type))
-            pl.draw()
-
-
-            # actual timed FFT section starts here:
-            t0 = time.time()
-
-            if fft_type=='numpy':
-                test_array = np.fft.fft2(test_array)
-            elif fft_type=='pyfftw3':
-
-                fftplan = fftw3.Plan(test_array, None, nthreads = multiprocessing.cpu_count(),direction=FFT_direction, flags=['measure'])
-                fftplan.execute() # execute the plan
-            elif fft_type=='pyfftw':
-                test_array = pyfftw.interfaces.numpy_fft.fft2(test_array, overwrite_input=True, planner_effort='FFTW_MEASURE', threads=ncores)
+    else:
+        # oversampling not relevant for memory size in MFT mode
+        wavefrontsize = wfshape[0]*wfshape[1] *  16 # 16 bytes = complex double size 
+        _log.debug('MFT propagation with array={0} uses {2} bytes'.format(wfshape[0], osys.oversample, wavefrontsize))
+        padding_factor = 1
  
-    
-            t1 = time.time()
+    mem_per_prop = wavefrontsize * padding_factor
+    mem_per_output = propinfo['output_size']*8
 
-            if FFT_direction=='forward': test_array = np.fft.fftshift(test_array)
+    # total memory needed is the sum of memory for the propagation plus memory to hold the results
+    #avail_ram = psutil.phymem_usage().total * memory_fraction
+    avail_ram = psutil.virtual_memory().available
+    avail_ram -= 2* 1024.**3   # always leave at least 2 GB extra padding - let's be cautious to make sure we don't swap.
+    recommendation = int(np.floor(float(avail_ram) / (mem_per_prop+mem_per_output)))
+       
+    if recommendation > psutil.NUM_CPUS: recommendation = psutil.NUM_CPUS
+    if nwavelengths is not None:
+        if recommendation > nwavelengths: recommendation = nwavelengths
 
-            # display
-            t_elapsed = t1-t0
-            summarytext = "FFT type: {0:10s}\tTime Elapsed: {3:.4f} s".format(fft_type, size, FFT_direction, t_elapsed)
-            print summarytext
+    _log.info("estimated optimal # of processes is {0}".format(recommendation))
+    return recommendation
 
-            pl.subplot(2,3, 1+i+3)
-
-
-
-            psf = np.real( test_array * np.conjugate(test_array))
-            norm=matplotlib.colors.LogNorm(vmin=psf.max()*1e-6, vmax=psf.max())
-
-            cmap = matplotlib.cm.jet
-            cmap.set_bad((0,0,0.5))
-
-            pl.imshow(psf[size*3/8:size*5/8, size*3/8:size*5/8], norm=norm)
-            pl.title(summarytext)
-
-            #stop()
 
 def fftw_save_wisdom(filename=None):
     """ Save accumulated FFTW wisdom to a file 
+
     By default this file will be in the user's astropy configuration directory.
-    
     (Another location could be chosen - this is simple and works easily cross-platform.)
     
     Parameters
@@ -1160,8 +1153,10 @@ def fftw_save_wisdom(filename=None):
     """
     import os
     import astropy.config
-    import pyfftw
-    #from astropy import config
+    try:
+        import pyfftw
+    except:
+        return # FFTW is not present, therefore this is a null op
 
     if filename is None:
         filename=os.path.join( astropy.config.get_config_dir(), "poppy_fftw_wisdom.txt")
@@ -1180,9 +1175,9 @@ def fftw_save_wisdom(filename=None):
 
 
 def fftw_load_wisdom(filename=None):
-    """ Read accumulated FFTW wisdom from a file 
+    """ Read accumulated FFTW wisdom previously saved in previously saved in a file 
+
     By default this file will be in the user's astropy configuration directory.
-    
     (Another location could be chosen - this is simple and works easily cross-platform.)
     
     Parameters
@@ -1193,7 +1188,10 @@ def fftw_load_wisdom(filename=None):
  
     import os
     from astropy import config
-    import pyfftw
+    try:
+        import pyfftw
+    except:
+        return # FFTW is not present, therefore this is a null op
 
     if filename is None:
         filename=os.path.join( config.get_config_dir(), "poppy_fftw_wisdom.txt")

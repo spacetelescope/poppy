@@ -62,3 +62,20 @@ onto a common pixel scale) more than makes up for this and the MFT is faster.
         destination of your choice.
 
 
+
+
+Working with OpticalElements
+===================================
+
+OpticalElements can be instantiated from FITS files, or created by one of a large number of analytic function definitions implemented as :py:class:`AnalyticOpticalElement` subclasses. 
+Typically these classes take some number of arguments to set their properties. 
+Once instantiated, any analytic function can be displayed on screen, sampled onto a numerical grid, and/or saved to disk.::
+
+    >>> ap = poppy.CircularAperture(radius=2)
+    >>> ap.display(what='both')
+
+    >>> values = ap.sample(npix=512)    # evaluate on 512 x 512 grid
+    >>> ap.toFITS('test_circle.fits')   # write to disk as a FITS file. 
+
+See the :py:class:`AnalyticOpticalElement` class documentation for detailed arguments to these functions.
+

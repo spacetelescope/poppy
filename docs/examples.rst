@@ -31,6 +31,39 @@ This is very simple, as it should be::
    :align: center
    :alt: Sample calculation result
 
+A complex segmented pupil
+--------------------------
+
+By combining multiple analytic optics together it is possible to create quite complex pupils::
+
+        ap = poppy.MultiHexagonAperture(rings=3, flattoflat=2)           # 3 rings of 2 m segments yields 14.1 m circumscribed diameter
+        sec = poppy.SecondaryObscuration(secondary_radius=1.5, n_supports=4, support_width=0.1)   # secondary with spiders
+        atlast = poppy.CompoundAnalyticOptic( opticslist=[ap, sec], name='Mock ATLAST')           # combine into one optic
+
+        atlast.display(npix=1024, colorbar_orientation='vertical')
+
+.. image:: ./example_atlast_pupil.png
+   :scale: 50%
+   :align: center
+   :alt: Sample calculation result
+
+And here's the PSF::
+
+        osys = poppy.OpticalSystem()
+        osys.addPupil(atlast)
+        osys.addDetector(pixelscale=0.010, fov_arcsec=2.0)
+        psf = osys.calcPSF(1e-6)
+
+        poppy.display_PSF(psf, title="Mock ATLAST PSF")
+
+.. image:: ./example_atlast_psf.png
+   :scale: 50%
+   :align: center
+   :alt: Sample calculation result
+
+
+
+
 Multiple defocused PSFs
 ---------------------------
 

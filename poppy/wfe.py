@@ -18,7 +18,7 @@
 """
 
 
-from .poppy_core import *
+from .poppy_core import AnalyticOpticalElement
 
 
 class WavefrontError(AnalyticOpticalElement):

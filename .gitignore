@@ -28,3 +28,12 @@ pip-log.txt
 
 # vim scratchfiles
 .*.sw[poq]
+
+# Mac OS
+.DS_Store
+
+
+# Package-specific things to ignore:
+docs/_build
+docs/_generated
+app/
