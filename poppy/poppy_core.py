@@ -520,7 +520,7 @@ class Wavefront(object):
             imshow_with_mouseover(phase/(np.pi*2), ax=ax, extent=extent, norm=norm, cmap=cmap)
             plt.title("Phase "+self.location)
             plt.xlabel(unit)
-            if colorbar: plt.colorbar(ax2.images[0], orientation='vertical', shrink=0.8)
+            if colorbar: plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
 
 
         else:
@@ -3179,7 +3179,7 @@ class OpticalSystem():
         normwts /= normwts.sum()
 
         if settings.use_multiprocessing() and len(wavelength) > 1 : ######### Parallellized computation ############
-            if settings.use_FFTW(): #_USE_FFTW3():
+            if settings.use_fftw(): #_USE_FFTW3():
                 _log.warn('IMPORTANT WARNING: Python multiprocessing and fftw3 do not appear to play well together. This is likely to crash intermittently')
                 _log.warn('   We suggest you set   poppy._USE_FFTW3 = False   if you want to use calcPSFmultiproc().')
             if display:
