@@ -54,25 +54,21 @@ from .poppy_core import (Wavefront, OpticalElement, FITSOpticalElement, Rotation
 	MultiHexagonAperture, NgonAperture, SquareAperture, RectangleAperture, SecondaryObscuration, AsymmetricSecondaryObscuration, CompoundAnalyticOptic, 
 	Detector, OpticalSystem, SemiAnalyticCoronagraph)
 
-#from .poppy_core import (_USE_FFTW3, _USE_MULTIPROC, _MULTIPROC_NPROCESS, _TIMETESTS, _FLUXCHECK, _IMAGECROP)
-#from . import settings
-
 from .utils import (display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
         measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid, measure_strehl,
         measure_anisotropy, specFromSpectralType, rebin_array)
 
 from .settings import save_config #, autosave_fftw_wisdom
 
-
 from .instrument import Instrument
-from .wfe import ZernikeWFE, PowerSpectralDensityWFE, KolmogorovWFE
+
+# Not yet implemented:
+#from .wfe import ZernikeWFE, PowerSpectralDensityWFE, KolmogorovWFE
 
 
 
 if settings.autosave_fftw_wisdom():
-#if autosave_fftw_wisdom():
-   from . import utils
-   # the following will just return if FFTW not present
+   # the following will just return if FFTW is not present
    utils.fftw_load_wisdom()
 
 
