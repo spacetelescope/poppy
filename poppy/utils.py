@@ -9,10 +9,6 @@ import astropy.io.fits as fits
 
 from . import settings
 
-try:
-    from IPython.core.debugger import Tracer; stop = Tracer()
-except:
-    pass
 
 __doc__="""
 

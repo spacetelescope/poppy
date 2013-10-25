@@ -17,7 +17,6 @@ from matplotlib.colors import LogNorm  # for log scaling of images, with automat
 import astropy.io.fits as fits
 
 
-
 from .matrixDFT import MatrixFourierTransform
 from . import utils
 from . import settings
@@ -26,10 +25,6 @@ from . import settings
 import logging
 _log = logging.getLogger('poppy')
 
-try:
-    from IPython.core.debugger import Tracer; stop = Tracer()
-except:
-    pass
 
 # Setup infrastructure for FFTW
 _FFTW_INIT = {}  # dict of array sizes for which we have already performed the required FFTW planning step
