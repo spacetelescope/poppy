@@ -18,7 +18,6 @@ import astropy.io.fits as fits
 
 
 
-#from .utils import imshow_with_mouseover, estimate_optimal_nprocesses, fftw_load_wisdom, fftw_save_
 from .matrixDFT import MatrixFourierTransform
 from . import utils
 from . import settings
