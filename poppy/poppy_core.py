@@ -3657,7 +3657,7 @@ class SemiAnalyticCoronagraph(OpticalSystem):
         if display_intermediates: 
             wavefront_combined.display(what='best',nrows=nrows,row=6, colorbar=False)
             #suptitle.remove() #  does not work due to some matplotlib limitation, so work arount:
-            suptitle.set_text('') # clean up before next iteration to avoid ugly overwriting
+            plt.suptitle.set_text('') # clean up before next iteration to avoid ugly overwriting
 
 
 
