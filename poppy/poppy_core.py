@@ -389,7 +389,7 @@ class Wavefront(object):
         self.asFITS(**kwargs).writeto(filename, clobber=clobber)
         _log.info("  Wavefront saved to %s" % filename)
 
-    def display(self,what='intensity', nrows=1,row=1,showpadding=False,imagecrop=None, colorbar=False, crosshairs=True, ax=None, title=None):
+    def display(self,what='intensity', nrows=1,row=1,showpadding=False,imagecrop=None, colorbar=False, crosshairs=True, ax=None, title=None,vmin=1e-8,vmax=1e0):
         """Display wavefront on screen
 
         Parameters
@@ -483,7 +483,7 @@ class Wavefront(object):
                 cmap = matplotlib.cm.gray
                 cmap.set_bad('0.0')
             else:
-                norm=LogNorm(vmin=1e-8,vmax=1e-1)
+                norm=LogNorm(vmin=vmin,vmax=vmax)
                 cmap = matplotlib.cm.jet
                 cmap.set_bad(cmap(0))
 
@@ -519,10 +519,13 @@ class Wavefront(object):
                 title= "Phase "+self.location
             plt.title(title)
             plt.xlabel(unit)
-            if colorbar: plt.colorbar(ax2.images[0], orientation='vertical', shrink=0.8)
+            if colorbar: plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
 
 
         else:
+            if ax is None:
+                ax = plt.subplot(nr,nc,int(row))
+            cmap = matplotlib.cm.gray
             plt.subplot(nrows,2,(row*2)-1)
             plt.imshow(amp,extent=extent,cmap=cmap)
             plt.title("Wavefront amplitude")
@@ -1380,7 +1383,7 @@ class FITSOpticalElement(OpticalElement):
 
             if transmission is None:
                 _log.info("No info supplied on amplitude transmission; assuming uniform throughput = 1")
-                self.amplitude = np.ones(self.opd)
+                self.amplitude = np.ones(self.opd.shape)
 
             # convert OPD into meters
 
