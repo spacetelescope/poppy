@@ -15,9 +15,9 @@ n_processes = astropy.config.ConfigurationItem('n_processes', 4, 'Maximum number
 use_fftw = astropy.config.ConfigurationItem('use_fftw', True, 'Use FFTW for FFTs (assuming it is available)?  Set to False to force numpy.fft always, True to try importing and using FFTW via PyFFTW.')
 
 
-enable_speed_tests =  astropy.config.ConfigurationItem('enable_speed_tests', False, 'Enable additional verbose printout of computation times. Useful for benchmarking.')
-enable_flux_tests =  astropy.config.ConfigurationItem('enable_flux_tests', False, 'Enable additional verbose printout of fluxes and flux conservation during calculations. Useful for testing.')
-default_image_display_fov =  astropy.config.ConfigurationItem('default_image_display_fov', 5.0, 'Default image display field of view, in arcseconds. Adjust this to display only a subregion of a larger output array.')
+enable_speed_tests =  astropy.config.ConfigurationItem('enable_speed_tests', True, 'Enable additional verbose printout of computation times. Useful for benchmarking.')
+enable_flux_tests =  astropy.config.ConfigurationItem('enable_flux_tests', True, 'Enable additional verbose printout of fluxes and flux conservation during calculations. Useful for testing.')
+default_image_display_fov =  astropy.config.ConfigurationItem('default_image_display_fov', 15.0, 'Default image display field of view, in arcseconds. Adjust this to display only a subregion of a larger output array.')
 
 autosave_fftw_wisdom=  astropy.config.ConfigurationItem('autosave_fftw_wisdom', True, 'Should POPPY automatically save and reload FFTW "wisdom" for improved speed?')
 
