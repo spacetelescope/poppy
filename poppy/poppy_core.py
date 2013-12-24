@@ -536,15 +536,17 @@ class Wavefront(object):
             plt.imshow(amp,extent=extent,cmap=cmap)
             plt.title("Wavefront amplitude")
             plt.ylabel(unit)
+            plt.xlabel(unit)
+
             if colorbar: plt.colorbar(orientation='vertical',shrink=0.8)
 
             plt.subplot(nrows,2,row*2)
             plt.imshow(phase,extent=extent, cmap=cmap)
             if colorbar: plt.colorbar(orientation='vertical',shrink=0.8)
 
-            plt.ylabel(unit)
+            plt.xlabel(unit)
             plt.title("Wavefront phase [radians]")
-
+            plt.tight_layout()
         ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5))
         ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5))
 
