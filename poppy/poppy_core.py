@@ -1199,7 +1199,6 @@ class OpticalElement():
 
     def __str__(self):
         if self.planetype is _PUPIL:
-            #return "Pupil plane: %s (%dx%d pixels, diam=%f m)" % (self.name, self.shape[0], self.shape[0], self.pupil_diam)
             return "Pupil plane: %s " % (self.name)
         elif self.planetype is _IMAGE:
             desc = "(%dx%d pixels, scale=%f arcsec/pixel)" % (self.shape[0], self.shape[0], self.pixelscale) if self.pixelscale is not None else "(Analytic)"
@@ -2059,6 +2058,8 @@ class IdealFieldStop(AnalyticOpticalElement):
 class IdealCircularOcculter(AnalyticOpticalElement):
     """ Defines an ideal circular occulter (opaque circle)
 
+
+
     Parameters
     ----------
     name : string
@@ -2875,7 +2876,8 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
                     self._default_display_size = max(self._default_display_size, optic._default_display_size)
 
         if self.planetype == _PUPIL:
-            self.pupil_diam = np.asarray( [o.pupil_diam for o in self.opticslist]).max()
+            if all([hasattr(o, 'pupil_diam') for o in self.opticslist]):
+                self.pupil_diam = np.asarray( [o.pupil_diam for o in self.opticslist]).max()
 
     def getPhasor(self,wave):
         #phasor = self.opticslist[0].getPhasor(wave)
