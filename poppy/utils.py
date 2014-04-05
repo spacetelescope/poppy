@@ -309,8 +309,8 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
 
     Parameters
     ----------
-    HDUlist_or_filename1,2 : fits.HDUlist or string
-        FITS files containing image to difference
+    HDUlist_or_filename : fits.HDUlist or string
+        FITS file containing image to display encircled energy for.
     ext : bool
         FITS extension to use. Default is 0
     overplot : bool
@@ -349,7 +349,7 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
 
 
 
-def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False ):
+def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False):
     """ Produce two plots of PSF radial profile and encircled energy
 
     See also the display_EE function.
@@ -375,7 +375,7 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False ):
 
     if not overplot:
         plt.clf()
-        plt.title("PSF sim for %s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER']))
+        plt.title("PSF for %s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER']))
         plt.xlabel("Radius [arcsec]")
         plt.ylabel("PSF radial profile")
     plt.subplot(2,1,1)
