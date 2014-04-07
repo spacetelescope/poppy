@@ -4,7 +4,9 @@ Release Notes
 
 
 0.3
------
+----------
+
+Released April 7, 2014
 
  * Dependencies updated to use astropy.
  * Added documentation and examples for POPPY, separate from the WebbPSF documentation.
