@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Licensed under a 3-clause BSD style license - see LICENSE.txt
 # --based on setup.py from astropy--
 
 import glob
@@ -24,7 +24,7 @@ This module implements an object-oriented system for modeling physical optics pr
 
 Right now only far-field diffraction (Fraunhofer regime) between image and pupil planes is supported; Fresnel propagation and intermediate planes are a future goal.
 
-Developed by Marshall Perrin at STScI, 2010-2012, for use simulating the James Webb Space Telescope. 
+Developed by Marshall Perrin at STScI, 2010-2014, for use simulating the James Webb Space Telescope. 
 
 Documentation can be found online at http://www.stsci.edu/jwst/software/webbpsf/
 """
@@ -133,8 +133,6 @@ setup(name=PACKAGENAME,
       package_dir=package_dirs,
       ext_modules=extensions,
       scripts=scripts,
-      requires=['astropy'],
-      install_requires=['astropy'],
       provides=[PACKAGENAME],
       author=AUTHOR,
       author_email=AUTHOR_EMAIL,
