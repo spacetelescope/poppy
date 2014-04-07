@@ -50,6 +50,6 @@ Getting Help
 POPPY is developed and maintained primarily by Marshall Perrin. Questions, comments, and
 code additions always welcome.
 
-The source code is available `here on Github <https://github.com/mperrin/poppy>`_.
+The source code is available `on Github <https://github.com/mperrin/poppy>`_.
 
 
