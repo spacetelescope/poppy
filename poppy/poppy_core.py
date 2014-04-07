@@ -19,7 +19,7 @@ import astropy.io.fits as fits
 
 from .matrixDFT import MatrixFourierTransform
 from . import utils
-from . import settings
+from . import conf
 
 
 import logging
@@ -29,13 +29,13 @@ _log = logging.getLogger('poppy')
 # Setup infrastructure for FFTW
 _FFTW_INIT = {}  # dict of array sizes for which we have already performed the required FFTW planning step
 _FFTW_FLAGS = ['measure']
-if settings.use_fftw():
+if conf.use_fftw():
     try:
         # try to import FFTW and use it
         import pyfftw
     except:
         # we tried but failed to import it. 
-        settings.use_fftw.set(False)
+        conf.use_fftw.set(False)
 
 # internal constants for types of plane
 _PUPIL = 1
@@ -131,9 +131,9 @@ def _wrap_propagate_for_multiprocessing(args):
     unpacking the results, and *then* at last making our instance method call.
     """
     self, wavelength, weight, kwargs, usefftw3flag = args
-    settings.use_fftw.set(usefftw3flag)  #passed in from parent process
+    conf.use_fftw.set(usefftw3flag)  #passed in from parent process
 
-    if settings.use_fftw(): # we're in a different Python interprepter process so we need to
+    if conf.use_fftw(): # we're in a different Python interprepter process so we need to
                             # load the wisdom here too
         utils.fftw_load_wisdom()
     
@@ -405,7 +405,9 @@ class Wavefront(object):
             Which row to display this one in?
         imagecrop : float, optional
             For image planes, set the maximum # of arcseconds to display. Default is 5, so
-            only the innermost 5x5 arcsecond region will be shown.
+            only the innermost 5x5 arcsecond region will be shown. This default may be
+            changed in the POPPY config file. If the image size is < 5 arcsec then the
+            entire image is displayed. 
         showpadding : bool, optional
             Show the entire padded arrays, or just the good parts? Default is False
         colorbar : bool
@@ -420,7 +422,7 @@ class Wavefront(object):
 
 
         """
-        if imagecrop is None: imagecrop = settings.default_image_display_fov()
+        if imagecrop is None: imagecrop = conf.default_image_display_fov()
 
         intens = self.intensity.copy()
         phase  = self.phase.copy()
@@ -635,7 +637,7 @@ class Wavefront(object):
 
         elif self.planetype == _IMAGE and optic.planetype ==_PUPIL:
             FFT_direction = 'backward'
-            if settings.use_fftw(): #_USE_FFTW:
+            if conf.use_fftw(): #_USE_FFTW:
                 normalization_factor =  1./self.wavefront.shape[0] # correct for FFTW3 FFT
                 # TODO check this for pyfftw
             else:
@@ -649,12 +651,12 @@ class Wavefront(object):
 
 
         # do FFT
-        if settings.enable_flux_tests(): _log.debug("\tPre-FFT total intensity: "+str(self.totalIntensity))
-        if settings.enable_speed_tests(): t0 = time.time()
+        if conf.enable_flux_tests(): _log.debug("\tPre-FFT total intensity: "+str(self.totalIntensity))
+        if conf.enable_speed_tests(): t0 = time.time()
 
         if FFT_direction =='backward': self.wavefront = numpy_ifftshift(self.wavefront)
 
-        if settings.use_fftw(): # _USE_FFTW:
+        if conf.use_fftw(): # _USE_FFTW:
             _log.debug("using FFTW FFT  of {0} array".format(str(self.wavefront.shape)))
             # Benchmarking on a Mac Pro (8 cores) indicated that the fastest performance comes from
             # in-place FFTs, and that it is safe to ignore byte alignment issues for these arrays
@@ -707,11 +709,11 @@ class Wavefront(object):
         self.wavefront = self.wavefront *normalization_factor
         self._last_transform_type = 'FFT'
 
-        if settings.enable_speed_tests():
+        if conf.enable_speed_tests():
             t1 = time.time()
             _log.debug("\tTIME %f s\t for the FFT" % (t1-t0))
 
-        if settings.enable_flux_tests(): _log.debug("\tPost-FFT total intensity: "+str(self.totalIntensity))
+        if conf.enable_flux_tests(): _log.debug("\tPost-FFT total intensity: "+str(self.totalIntensity))
 
 
 
@@ -3240,7 +3242,7 @@ class OpticalSystem():
 
         """
 
-        if settings.enable_speed_tests():
+        if conf.enable_speed_tests():
             t_start = time.time()
         if self.verbose: _log.info(" Propagating wavelength = %g meters %s" % (wavelength, "" if poly_weight is None else " with weight=%.2f" % poly_weight))
         wavefront = self.inputWavefront(wavelength)
@@ -3271,7 +3273,7 @@ class OpticalSystem():
 
 
 
-            if settings.enable_flux_tests(): _log.debug("  Flux === "+str(wavefront.totalIntensity))
+            if conf.enable_flux_tests(): _log.debug("  Flux === "+str(wavefront.totalIntensity))
 
             if save_intermediates:
                 if len(self.intermediate_wfs) < count:
@@ -3281,14 +3283,14 @@ class OpticalSystem():
                     _log.info("    Storing intermediate wavefront plane %d with weight %f" % (count-1, poly_weight))
                 if poly_weight is None: self.intermediate_wfs[count-1].writeto(intermediate_fn % count, what='parts')
             if display_intermediates:
-                if settings.enable_speed_tests():
+                if conf.enable_speed_tests():
                     t0 = time.time()
                 #if save_intermediates: self.intermediate_wfs[count-1].display(what='best',nrows=len(self.planes),row=count)
                 title = None if count > 1 else "propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6)
                 wavefront.display(what='best',nrows=len(self.planes),row=count, colorbar=False, title=title)
                 #plt.title("propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6))
 
-                if settings.enable_speed_tests():
+                if conf.enable_speed_tests():
                     t1 = time.time()
                     _log.debug("\tTIME %f s\t for displaying the wavefront." % (t1-t0))
 
@@ -3300,7 +3302,7 @@ class OpticalSystem():
         if normalize.lower()=='last':
                 wavefront.normalize()
 
-        if settings.enable_speed_tests():
+        if conf.enable_speed_tests():
             t_stop = time.time()
             _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop-t_start))
 
@@ -3370,16 +3372,16 @@ class OpticalSystem():
         normwts =  np.asarray(weight, dtype=float)
         normwts /= normwts.sum()
 
-        if settings.use_fftw():
+        if conf.use_fftw():
             utils.fftw_load_wisdom()
 
 
-        if settings.use_multiprocessing() and len(wavelength) > 1 : ######### Parallellized computation ############
-            if settings.use_fftw(): 
+        if conf.use_multiprocessing() and len(wavelength) > 1 : ######### Parallellized computation ############
+            if conf.use_fftw(): 
                 _log.warn('IMPORTANT WARNING: Python multiprocessing and fftw3 do not appear to play well together. This may crash intermittently')
-                _log.warn('   We suggest you set   poppy.settings.use_fftw to False   if you want to use multiprocessing().')
+                _log.warn('   We suggest you set   poppy.conf.use_fftw to False   if you want to use multiprocessing().')
             if display:
-                _log.warn('Display during calculations is not supported for multiprocessing mode. Please set poppy.settings.use_multiprocessing.set(False) if you want to use display=True.')
+                _log.warn('Display during calculations is not supported for multiprocessing mode. Please set poppy.conf.use_multiprocessing.set(False) if you want to use display=True.')
                 _log.warn('For now, display is being set to False.')
                 display=False
 
@@ -3391,16 +3393,16 @@ class OpticalSystem():
             # do *NOT* just blindly try to create as many processes as one has CPUs, or one per wavelength either
             # This is a memory-intensive task so that can end up swapping to disk and thrashing IO
 
-            if settings.n_processes() < 1:
+            if conf.n_processes() < 1:
                 nproc = utils.estimate_optimal_nprocesses(self, nwavelengths=len(wavelength))
             else:
-                nproc = settings.n_processes()
+                nproc = conf.n_processes()
             pool = multiprocessing.Pool( int(nproc) )  # be sure to cast to int, will fail if given a float even if of integer value
 
 
             # build a single iterable containing the required function arguments
             _log.info("Beginning multiprocessor job using {0} processes".format(nproc))
-            iterable = [(self, wavelen, wt, kwargs, settings.use_fftw()) for wavelen, wt in zip(wavelength, normwts)]
+            iterable = [(self, wavelen, wt, kwargs, conf.use_fftw()) for wavelen, wt in zip(wavelength, normwts)]
             results = pool.map(_wrap_propagate_for_multiprocessing, iterable)
             _log.info("Finished multiprocessor job")
             pool.close()
@@ -3412,7 +3414,7 @@ class OpticalSystem():
             for i in range(1, len(normwts)):
                 _log.info("got results for wavelength channel %d / %d" % (i, len(tuple(wavelength))) )
                 outFITS[0].data += results[i][0].data * normwts[i]
-            outFITS[0].header.add_history("Multiwavelength PSF calc on %d processors completed." % settings.n_processes())
+            outFITS[0].header.add_history("Multiwavelength PSF calc on %d processors completed." % conf.n_processes())
 
 
 
@@ -3458,7 +3460,7 @@ class OpticalSystem():
 
 
 
-        if settings.use_fftw() and settings.autosave_fftw_wisdom():
+        if conf.use_fftw() and conf.autosave_fftw_wisdom():
             utils.fftw_save_wisdom()
 
         # TODO update FITS header for oversampling here if detector is different from regular?
@@ -3470,7 +3472,7 @@ class OpticalSystem():
         for i in range(waves.size):
             outFITS[0].header.update('WAVE'+str(i), waves[i], "Wavelength "+str(i))
             outFITS[0].header.update('WGHT'+str(i), wts[i], "Wavelength weight "+str(i))
-        if settings.use_fftw():
+        if conf.use_fftw():
             ffttype = "pyFFTW"
         else:
             ffttype = "numpy.fft"
@@ -3605,7 +3607,7 @@ class SemiAnalyticCoronagraph(OpticalSystem):
             Ignored in current version of code?
 
         """
-        if settings.enable_speed_tests():
+        if conf.enable_speed_tests():
             t_start = time.time()
         if self.verbose: _log.info(" Propagating wavelength = %g meters" % wavelength)
         wavefront = self.inputWavefront(wavelength)
@@ -3672,7 +3674,7 @@ class SemiAnalyticCoronagraph(OpticalSystem):
         if normalize.lower()=='last':
                 wavefront_combined.normalize()
 
-        if settings.enable_speed_tests():
+        if conf.enable_speed_tests():
             t_stop = time.time()
             _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop-t_start))
 
