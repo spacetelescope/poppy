@@ -10,29 +10,6 @@ the logger name "poppy".
 
 
 """
-#Module-level configuration constants
-#------------------------------------
-#
-#_USE_FFTW3 : bool
-#    Should the FFTW3 library be used? Set automatically to True if fftw3 is importable, else False.
-#_USE_MULTIPROC : bool
-#    Should we use python multiprocessing to spawn multiple simultaneous processes to speed calculations?
-#    Note that FFTW3 automatically makes use of multiple cores so this should not be used at the same time as
-#    _USE_FFTW3. Default is False.
-#_MULTIPROC_NPROCESS : int
-#    If the above is set, how many processes should be used? Default is 4. Note that you probably don't want to 
-#    set this too large due to memory limitations; i.e. don't just blindly set this to 16 on a 16-core machine unless
-#    you have many, many GB of RAM...
-#
-#_TIMETESTS : bool
-#    Print out simple benchmarking of elapsed time to screen. Default False
-#_FLUXCHECK : bool
-#    Print out total flux after each step of a propagation. Useful for debugging, mostly.
-#
-#_IMAGECROP : float
-#    Default zoom in region for image displays. Default is 5.0
-#
-
 
 try:
     from .version import version as __version__
@@ -45,31 +22,52 @@ except ImportError:
     # TODO: Issue a warning using the logging framework
     __githash__ = ''
 
- 
 
 from .poppy_core import (Wavefront, OpticalElement, FITSOpticalElement, Rotation, AnalyticOpticalElement, 
 	ScalarTransmission, InverseTransmission, ThinLens, BandLimitedCoron, 
 	FQPM_FFT_aligner, IdealFQPM, IdealFieldStop, IdealRectangularFieldStop, IdealCircularOcculter, 
 	IdealBarOcculter, ParityTestAperture, CircularAperture, HexagonAperture, 
-	MultiHexagonAperture, NgonAperture, SquareAperture, RectangleAperture, SecondaryObscuration, AsymmetricSecondaryObscuration, CompoundAnalyticOptic, 
+	MultiHexagonAperture, NgonAperture, SquareAperture, RectangleAperture, SecondaryObscuration, 
+    AsymmetricSecondaryObscuration, CompoundAnalyticOptic, 
 	Detector, OpticalSystem, SemiAnalyticCoronagraph)
 
 from .utils import (display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
-        measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid, measure_strehl,
-        measure_anisotropy, specFromSpectralType, rebin_array)
-
-from .settings import save_config #, autosave_fftw_wisdom
+    measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid, measure_strehl,
+    specFromSpectralType, rebin_array)
 
 from .instrument import Instrument
+import conf
 
 # Not yet implemented:
 #from .wfe import ZernikeWFE, PowerSpectralDensityWFE, KolmogorovWFE
 
 
 
-if settings.autosave_fftw_wisdom():
+if conf.autosave_fftw_wisdom(): # if we have autosaved, then auto reload as well
    # the following will just return if FFTW is not present
    utils.fftw_load_wisdom()
 
 
+# Possible in astropy 0.3, but about to be deprecated in 0.4:
+def save_config():
+    """ Save package configuration variables using the Astropy.config system """
+    astropy.config.save_config('poppy')
+
+
+def test( verbose=False ) :
+    #
+    import os, pytest
+
+    # find the directory where the test package lives
+    from . import tests
+    dir = os.path.dirname( tests.__file__ )
+
+    # assemble the py.test args
+    args = [ dir ]
+
+    # run py.test
+    try :
+        return pytest.main( args )
+    except SystemExit as e :
+        return e.code
 
