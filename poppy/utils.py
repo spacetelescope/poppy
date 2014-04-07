@@ -1,23 +1,18 @@
+#
+# Poppy utility functions
+#
+# These provide various utilities to measure the PSF's properties in certain ways, display it on screen etc. 
+#
+
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
 import matplotlib
 import logging
 _log = logging.getLogger('poppy')
-#
 import astropy.io.fits as fits
 
-from . import settings
-
-
-__doc__="""
-
-Poppy utility functions
-
-These provide various utilities to measure the PSF's properties in certain ways, display it on screen etc. 
-
-
-"""
+from . import conf
 
 _Strehl_perfect_cache = {} # dict for caching perfect images used in Strehl calcs.
 
@@ -25,6 +20,8 @@ _Strehl_perfect_cache = {} # dict for caching perfect images used in Strehl calc
 #
 #    Display functions 
 #
+
+
 def imshow_with_mouseover(image, ax=None,  *args, **kwargs):
     """ wrapper for matplotlib imshow that displays the value under the cursor position
     
@@ -57,6 +54,7 @@ def imshow_with_mouseover(image, ax=None,  *args, **kwargs):
     ax.format_coord = report_pixel
 
     return ax
+
 
 def display_PSF(HDUlist_or_filename=None, ext=0,
     vmin=1e-8,vmax=1e-1, scale='log', cmap = matplotlib.cm.jet, 
@@ -301,7 +299,6 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
         else: return ax
 
 
-
 def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_levels=True ):
     """ Display Encircled Energy curve for a PSF
 
@@ -346,7 +343,6 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
             EElev = radius[np.where(EE > level)[0][0]]
             yoffset = 0 if level < 0.9 else -0.05 
             plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
-
 
 
 def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False):
@@ -495,6 +491,7 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
         EE = csim[rind]
         return (rr, radialprofile2, EE) 
 
+
 ###########################################################################
 #
 #    PSF evaluation functions 
@@ -544,7 +541,7 @@ def measure_EE(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     EE_fn = scipy.interpolate.interp1d(rr0, EE0,kind='cubic', bounds_error=False)
 
     return EE_fn
-    
+
 
 def measure_radial(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     """ measure azimuthally averaged radial profile of a PSF.
@@ -581,7 +578,7 @@ def measure_radial(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     radial_fn = scipy.interpolate.interp1d(rr, radialprofile,kind='cubic', bounds_error=False)
 
     return radial_fn
-    
+
 
 def measure_fwhm(HDUlist_or_filename=None, ext=0, center=None, level=0.5):
     """ Measure FWHM by interpolation of the radial profile 
@@ -645,6 +642,7 @@ def measure_sharpness(HDUlist_or_filename=None, ext=0):
 
     sharpness =  (detpixels.data**2).sum()
     return sharpness
+
 
 def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, print_=False, units='pixels', relativeto='origin', **kwargs):
     """ Measure the center of an image via center-of-mass
@@ -809,8 +807,8 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True, p
     return strehl
 
 
-def measure_anisotropy(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50):
-    pass
+#def measure_anisotropy(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50):
+#    pass
 
 ###########################################################################
 #
@@ -1068,6 +1066,8 @@ def specFromSpectralType(sptype, return_list=False, catalog=None):
 
 
 ###################################################################33
+#
+#     Multiprocessing and FFT helper functions 
 
 
 def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, memory_fraction=0.5):
@@ -1107,7 +1107,7 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
     if 'FFT' in propinfo['steps']:
         wavefrontsize = wfshape[0]*wfshape[1]*osys.oversample**2 *  16 # 16 bytes = complex double size 
         _log.debug('FFT propagation with array={0}, oversample = {1} uses {2} bytes'.format(wfshape[0], osys.oversample, wavefrontsize))
-        padding_factor = 4  if settings.use_fftw() else 5
+        padding_factor = 4  if conf.use_fftw() else 5
         # The following is a very rough estimate
 
         # empirical tests show that an 8192x8192 propagation results in Python sessions with ~4 GB memory allocation. using FFTW
