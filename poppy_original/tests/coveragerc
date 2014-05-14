@@ -1,5 +1,5 @@
 [run]
-source = {packagename}
+source = {poppy}
 
 [report]
 exclude_lines =
