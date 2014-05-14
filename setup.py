@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Based on astropy affiliated package template
+# Based on astropy affiliated package template's setup.py
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 
 import glob

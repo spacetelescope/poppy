@@ -1,5 +1,4 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
-#   --Taken from astropy for reuse in poppy--
 
 """
 Pre-ez_setup bootstrap module to ensure that either distribute or setuptools >=
