@@ -74,6 +74,8 @@ def padToOversample(array, oversample):
     padded = np.zeros(shape=(npix*oversample, npix*oversample), dtype=array.dtype)
     n0 = float(npix)*(oversample - 1)/2
     n1 = n0+npix
+    print("DEBUG")
+    print(padded.shape, n0, n1)
     padded[n0:n1, n0:n1] = array
     return padded
 
@@ -325,43 +327,43 @@ class Wavefront(object):
             outarr[1,:,:] = amp
             outarr[2,:,:] = phase
             outFITS = fits.HDUList(fits.PrimaryHDU(outarr))
-            outFITS[0].header.update('PLANE1', 'Wavefront Intensity')
-            outFITS[0].header.update('PLANE2', 'Wavefront Amplitude')
-            outFITS[0].header.update('PLANE3', 'Wavefront Phase')
+            outFITS[0].header['PLANE1'] = 'Wavefront Intensity'
+            outFITS[0].header['PLANE2'] = 'Wavefront Amplitude'
+            outFITS[0].header['PLANE3'] = 'Wavefront Phase'
         elif what.lower() =='parts':
             outarr = np.zeros((2,amp.shape[0], amp.shape[1]))
             outarr[0,:,:] = amp
             outarr[1,:,:] = phase
             outFITS = fits.HDUList(fits.PrimaryHDU(outarr))
-            outFITS[0].header.update('PLANE1', 'Wavefront Amplitude')
-            outFITS[0].header.update('PLANE2', 'Wavefront Phase')
+            outFITS[0].header['PLANE1'] = 'Wavefront Amplitude'
+            outFITS[0].header['PLANE2'] = 'Wavefront Phase'
         elif what.lower() =='intensity':
             outFITS = fits.HDUList(fits.PrimaryHDU(intens))
-            outFITS[0].header.update('PLANE1', 'Wavefront Intensity')
+            outFITS[0].header['PLANE1'] = 'Wavefront Intensity'
         elif what.lower() =='phase':
             outFITS = fits.HDUList(fits.PrimaryHDU(phase))
-            outFITS[0].header.update('PLANE1', 'Phase')
+            outFITS[0].header['PLANE1'] = 'Phase'
         elif what.lower()  == 'complex':
             outFITS = fits.HDUList(fits.PrimaryHDU(wave))
-            outFITS[0].header.update('PLANE1', 'Wavefront Complex Phasor ')
+            outFITS[0].header['PLANE1'] = 'Wavefront Complex Phasor '
 
 
 
 
-        outFITS[0].header.update('WAVELEN', self.wavelength, 'Wavelength in meters')
-        outFITS[0].header.update('DIFFLMT', self.wavelength/self.diam*206265., 'Diffraction limit lambda/D in arcsec')
-        outFITS[0].header.update('OVERSAMP', self.oversample, 'Oversampling factor for FFTs in computation')
-        outFITS[0].header.update('DET_SAMP', self.oversample, 'Oversampling factor for MFT to detector plane')
+        outFITS[0].header['WAVELEN'] =  (self.wavelength, 'Wavelength in meters')
+        outFITS[0].header['DIFFLMT'] =  (self.wavelength/self.diam*206265., 'Diffraction limit lambda/D in arcsec')
+        outFITS[0].header['OVERSAMP'] = (self.oversample, 'Oversampling factor for FFTs in computation')
+        outFITS[0].header['DET_SAMP'] = (self.oversample, 'Oversampling factor for MFT to detector plane')
         if self.planetype ==_IMAGE:
-            outFITS[0].header.update('PIXELSCL', self.pixelscale, 'Scale in arcsec/pix (after oversampling)')
+            outFITS[0].header['PIXELSCL'] =  (self.pixelscale, 'Scale in arcsec/pix (after oversampling)')
             if np.isscalar(self.fov):
-                outFITS[0].header.update('FOV', self.fov, 'Field of view in arcsec (full array)')
+                outFITS[0].header['FOV'] =  (self.fov, 'Field of view in arcsec (full array)')
             else:
-                outFITS[0].header.update('FOV_X', self.fov[1], 'Field of view in arcsec (full array), X direction')
-                outFITS[0].header.update('FOV_Y', self.fov[0], 'Field of view in arcsec (full array), Y direction')
+                outFITS[0].header['FOV_X'] =  (self.fov[1], 'Field of view in arcsec (full array), X direction')
+                outFITS[0].header['FOV_Y'] =  (self.fov[0], 'Field of view in arcsec (full array), Y direction')
         else:
-            outFITS[0].header.update('PIXELSCL', self.pixelscale, 'Pixel scale in meters/pixel')
-            outFITS[0].header.update('DIAM', self.diam, 'Pupil diameter in meters (not incl padding)')
+            outFITS[0].header['PIXELSCL'] =  (self.pixelscale, 'Pixel scale in meters/pixel')
+            outFITS[0].header['DIAM'] =  (self.diam, 'Pupil diameter in meters (not incl padding)')
 
         for h in self.history: outFITS[0].header.add_history(h)
 
@@ -3460,16 +3462,16 @@ class OpticalSystem():
         waves = np.asarray(wavelength)
         wts = np.asarray(weight)
         mnwave = (waves*wts).sum() / wts.sum()
-        outFITS[0].header.update('WAVELEN', mnwave, 'Weighted mean wavelength in meters')
-        outFITS[0].header.update('NWAVES',waves.size, 'Number of wavelengths used in calculation')
+        outFITS[0].header['WAVELEN'] = ( mnwave, 'Weighted mean wavelength in meters')
+        outFITS[0].header['NWAVES'] = (waves.size, 'Number of wavelengths used in calculation')
         for i in range(waves.size):
-            outFITS[0].header.update('WAVE'+str(i), waves[i], "Wavelength "+str(i))
-            outFITS[0].header.update('WGHT'+str(i), wts[i], "Wavelength weight "+str(i))
+            outFITS[0].header['WAVE'+str(i)] = ( waves[i], "Wavelength "+str(i))
+            outFITS[0].header['WGHT'+str(i)] = ( wts[i], "Wavelength weight "+str(i))
         if conf.use_fftw():
             ffttype = "pyFFTW"
         else:
             ffttype = "numpy.fft"
-        outFITS[0].header.update('FFTTYPE',ffttype, 'Algorithm for FFTs: numpy or fftw')
+        outFITS[0].header['FFTTYPE'] = ffttype, 'Algorithm for FFTs: numpy or fftw')
 
         if self.verbose: _log.info("PSF Calculation completed.")
         if return_intermediates:
