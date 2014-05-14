@@ -11,12 +11,9 @@ from . import poppy_core
 from . import utils
 from .version import version
 
-try:
-    import pysynphot
-    _HAS_PYSYNPHOT = True
-except:
-    _HAS_PYSYNPHOT = False
+from __future__ import (absolute_import, division, print_function, unicode_literals)
 
+__all__ = ['Instrument']
 
 class Instrument(object):
     """ A generic astronomical instrument, composed of 
@@ -614,6 +611,13 @@ class Instrument(object):
         Uses pysynphot (if installed), otherwise assumes simple-minded flat spectrum
 
         """
+        try:
+            import pysynphot
+            _HAS_PYSYNPHOT = True
+        except:
+            _HAS_PYSYNPHOT = False
+
+
         if monochromatic is not None:
             poppy_core._log.info(" monochromatic calculation requested.")
             return (np.asarray([monochromatic]),  np.asarray([1]) )
@@ -679,7 +683,7 @@ class Instrument(object):
             wave_m =  band.waveunits.Convert(wavesteps,'m') # convert to meters
 
             newsource = (wave_m, effstims)
-            if verbose: print newsource
+            if verbose: _log.info( " Wavelengths and weights computed from pysynphot: "+str( newsource))
             self._spectra_cache[ self._getSpecCacheKey(source,nlambda)] = newsource
             return newsource
 

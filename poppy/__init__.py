@@ -31,7 +31,7 @@ from .poppy_core import (Wavefront, OpticalElement, FITSOpticalElement, Rotation
 	Detector, OpticalSystem, SemiAnalyticCoronagraph)
 
 from .utils import (display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
-    measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid, measure_strehl,
+    measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid, measure_strehl, measure_anisotropy,
     specFromSpectralType, rebin_array)
 
 from .instrument import Instrument

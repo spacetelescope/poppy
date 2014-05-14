@@ -3,7 +3,7 @@
 # package doc string now in __init__.py in this directory!
 
 
-from __future__ import division
+from __future__ import (absolute_import, division, print_function, unicode_literals)
 import multiprocessing
 import copy
 import numpy as np
@@ -235,7 +235,7 @@ class Wavefront(object):
 
     def normalize(self):
         "Set this wavefront's total intensity to 1 "
-        #print "Wavefront normalized"
+        #_log.debug("Wavefront normalized")
         self.wavefront /= np.sqrt(self.totalIntensity)
 
     def __imul__(self, optic):
@@ -259,7 +259,6 @@ class Wavefront(object):
         phasor = optic.getPhasor(self)
 
         if not np.isscalar(phasor) and phasor.size>1:  # actually isscalar() does not handle the case of a 1-element array properly
-            #print self.wavefront.shape, phasor.shape
             assert self.wavefront.shape == phasor.shape
 
         self.wavefront *= phasor
@@ -674,9 +673,9 @@ class Wavefront(object):
 
                 fftplan = fftw3.Plan(self.wavefront, None, nthreads = multiprocessing.cpu_count(),direction=FFT_direction, flags=_FFTW_FLAGS)
                 fftplan.execute() # execute the plan
-                    #print "After  FFTW Flux 2: %f" % (abs(outarr)**2).sum()
+                    #print("After  FFTW Flux 2: %f" % (abs(outarr)**2).sum())
                 # due to FFTW normalization convention, must divide by number of pixels per side.
-                    #print "After  FFTW Flux 1: %f" % (self.totalIntensity)
+                    #print("After  FFTW Flux 1: %f" % (self.totalIntensity))
             else:  # new code for pyfftw
                 import pyfftw
                 if (self.wavefront.shape, FFT_direction) not in _FFTW_INIT.keys():
@@ -795,7 +794,7 @@ class Wavefront(object):
         # - number of pixels on a side in focal plane array.
 
         lamD = self.wavelength / self.diam * _RADIANStoARCSEC
-        #print "lam/D = %f arcsec" % lamD
+        #print("lam/D = %f arcsec" % lamD)
 
         det_fov_lamD = self.fov / lamD
         #det_calc_size_pixels = det.fov_pixels * det.oversample
@@ -975,7 +974,7 @@ class OpticalElement():
     name : string
         descriptive name for optic
     verbose : bool
-        whether to print stuff while computing
+        whether to be more verbose in log outputs while computing
     planetype : int
         either poppy._IMAGE or poppy._PUPIL
     oversample : int
@@ -1250,8 +1249,6 @@ class FITSOpticalElement(OpticalElement):
     opdunits : string
         units for the OPD file. Default is 'meters'. can be 'meter', 'meters', 'micron(s)', 'nanometer(s)', or their SI abbreviations.
         If this keyword is not set explicitly, the BUNIT keyword in the FITS header will be checked. 
-    verbose : bool
-        whether to print stuff while computing
     planetype : int
         either _IMAGE or _PUPIL
     oversample : int
@@ -1909,9 +1906,8 @@ class BandLimitedCoron(AnalyticOpticalElement):
 
 
         if not np.isfinite(self.transmission.sum()):
-            #print "There are NaNs in the BLC mask - error!"
             #stop()
-            _log.debug("There are NaNs in the BLC mask - correcting to zero. (DEBUG LATER?)")
+            _log.warn("There are NaNs in the BLC mask - correcting to zero. (DEBUG LATER?)")
             self.transmission[np.where(np.isfinite(self.transmission) == False)] = 0
         return self.transmission
 
@@ -2419,7 +2415,6 @@ class MultiHexagonAperture(AnalyticOpticalElement):
         interior_rings=0
         if hex_index ==0: return 0
         for i in range(100):
-            #print i
             if self._nHexesInsideRing(i) <= hex_index and self._nHexesInsideRing(i+1) > hex_index:
                 return i
         return "Loop exceeded!"
@@ -2440,7 +2435,7 @@ class MultiHexagonAperture(AnalyticOpticalElement):
 
         # now count around from the starting point:
         index_in_ring = hex_index - self._nHexesInsideRing(ring) +1  # 1-based
-        #print "hex %d is %dth in its ring" % (hex_index, index_in_ring)
+        #print("hex %d is %dth in its ring" % (hex_index, index_in_ring))
 
         angle_per_hex = 2*np.pi/self._nHexesInRing(ring) # angle in radians
 
@@ -2506,7 +2501,6 @@ class MultiHexagonAperture(AnalyticOpticalElement):
  
                 xpos = xpos0+dx*np.mod(index_in_ring-1, ring)
                 ypos = ypos0+dy*np.mod(index_in_ring-1, ring)
-                #print index_in_ring, whichside, np.mod(index_in_ring-1, ring),  xpos, ypos
 
         # now clock clockwise around the ring (for rings <=3 only)
         if xpos is None:
@@ -2552,7 +2546,6 @@ class MultiHexagonAperture(AnalyticOpticalElement):
 
         #val = np.sqrt(float(index)) if self._label_values else 1
         val=1
-        #if self._label_values: print "value: ", val
         self.transmission[w_rect] = val
         self.transmission[w_left_tri] = val
         self.transmission[w_right_tri] = val
@@ -2989,7 +2982,7 @@ class OpticalSystem():
         detector plane sampling 2x2 computed pixels per real detector
         pixel.  Default is 2.
     verbose : bool
-        whether to print stuff while computing
+        whether to be more verbose with log output while computing
 
 
 
@@ -3171,7 +3164,7 @@ class OpticalSystem():
 
     def describe(self):
         """ Print out a string table describing all planes in an optical system"""
-        print str(self)+"\n\t"+ "\n\t".join([str(p) for p in self.planes])
+        print( str(self)+"\n\t"+ "\n\t".join([str(p) for p in self.planes]) )
 
     def __getitem__(self, num):
         return self.planes[num]
@@ -3664,7 +3657,7 @@ class SemiAnalyticCoronagraph(OpticalSystem):
         if display_intermediates: 
             wavefront_combined.display(what='best',nrows=nrows,row=6, colorbar=False)
             #suptitle.remove() #  does not work due to some matplotlib limitation, so work arount:
-            plt.suptitle.set_text('') # clean up before next iteration to avoid ugly overwriting
+            #plt.suptitle.set_text('') # clean up before next iteration to avoid ugly overwriting
 
 
 

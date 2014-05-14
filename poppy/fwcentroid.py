@@ -22,6 +22,7 @@ See JWST technical reports JWST-STScI-001117 and JWST-STScI-001134 for details.
 M. Perrin, 2011-02-17, based on IDL code by Jeff Valenti et al. 
 
 """
+from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import numpy as np
 
@@ -79,7 +80,7 @@ def fwcentroid(image, checkbox=1, maxiterations=20, threshold=1e-4, halfwidth=5,
         # just use brightest pixel
         w = np.where(image == image.max())
         YPEAK, XPEAK = w[0][0], w[1][0]
-        if verbose: print "Peak pixels are %d, %d" % (XPEAK, YPEAK)
+        if verbose: print("Peak pixels are {0}, {1}".format(XPEAK, YPEAK))
 
    
     # Calculate centroid for first iteration
@@ -125,7 +126,7 @@ def fwcentroid(image, checkbox=1, maxiterations=20, threshold=1e-4, halfwidth=5,
 
     
 
-    if verbose: print( "After initial calc, cent pos is  (%f, %f)" % (XCEN, YCEN))
+    if verbose: print( "After initial calc, cent pos is  ({0:f}, {1:f})".format(XCEN, YCEN))
 
     # Iteratively calculate centroid until solution converges,
     # use more neighboring pixels and apply weighting: 
@@ -184,7 +185,7 @@ def fwcentroid(image, checkbox=1, maxiterations=20, threshold=1e-4, halfwidth=5,
         #XCEN += oldXCEN -XHW-1
         #YCEN += oldYCEN -YHW-1   #this would be equivalent to removing the XLOC lines?
  
-        if verbose: print( "After iter %d , cent pos is  (%f, %f)" % (k, XCEN, YCEN))
+        if verbose: print( "After iter {0} , cent pos is  ({1:f}, {2:f})".format(k, XCEN, YCEN))
         #Check for convergence:
         if (np.abs(XCEN - oldXCEN) <= threshold and
             np.abs(YCEN - oldYCEN) <= threshold):
@@ -218,7 +219,7 @@ def test_fwcentroid(n=100, width=5, halfwidth=5, **kwargs):
         return arr
 
 
-    print "Performing %d tests using Gaussian PSF with width=%.1f, centroid halfwidth= %.1f" % (n,width, halfwidth)
+    print("Performing {0} tests using Gaussian PSF with width={1:.1f}, centroid halfwidth= {2:.1f}".format(n,width, halfwidth))
     
     diffx = np.zeros(n)
     diffy = np.zeros(n)
@@ -230,8 +231,8 @@ def test_fwcentroid(n=100, width=5, halfwidth=5, **kwargs):
         diffx[i] = coords[0] - measx
         diffy[i] = coords[1] - measy
 
-    print "RMS measured position error, X: %f pixels" % diffx.std()
-    print "RMS measured position error, Y: %f pixels" % diffy.std()
+    print("RMS measured position error, X: {0} pixels".format(diffx.std()) )
+    print("RMS measured position error, Y: {0} pixels".format(diffy.std()) )
 
 
 

@@ -41,8 +41,9 @@
     2012-09-26: minor big fixes
 
 """
-from __future__ import division # always floating point
+from __future__ import (absolute_import, division, print_function, unicode_literals)
 
+__all__ = ['MatrixFourierTransform']
 
 import numpy as np
 import astropy.io.fits as fits
@@ -151,9 +152,9 @@ def DFT_combined(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, centering=
     expXU = np.exp(-2.0 * np.pi * 1j * XU)
     expYV = np.exp(-2.0 * np.pi * 1j * YV)
 
-    #print ""
+    #print("")
     #print dx, dy, du, dv
-    #print ""
+    #print("")
 
     if inverse:
         expYV = expYV.T.copy()
@@ -214,9 +215,9 @@ def DFT_fftstyle(pupil, nlamD, npix, inverse=False, **kwargs):
     expXU = np.exp(-2.0 * np.pi * 1j * XU)
     expYV = np.exp(-2.0 * np.pi * 1j * YV)
 
-    print ""
-    print dx, dy, du, dv
-    print ""
+    #print("")
+    #print( dx, dy, du, dv)
+    #print("")
 
     if inverse:
         expYV = expYV.T.copy()
@@ -573,7 +574,7 @@ class MatrixFourierTransform:
         if self.verbose:
             #print centering 
             #print "Announcement  - This instance of SlowFourierTransform uses SFT2"
-            print "This instance of SFT is a(n) %s  set-up calling %s " % (centering, fns[centering])
+            _log.info("This instance of MatrixFourierTransform is a(n) {0}  set-up calling {1} ".format(centering, fns[centering]))
         _log.debug("MatrixDFT initialized using centering type = {0}".format(centering))
 
     def perform(self, pupil, nlamD, npix, **kwargs):

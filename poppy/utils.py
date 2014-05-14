@@ -4,6 +4,7 @@
 # These provide various utilities to measure the PSF's properties in certain ways, display it on screen etc. 
 #
 
+from __future__ import (absolute_import, division, print_function, unicode_literals)
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
@@ -254,10 +255,9 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
 
     if print_:
         rms_diff = np.sqrt((diff_im**2).mean())
-        print "RMS of difference image: %f" % rms_diff
+        print("RMS of difference image: {0}".format(rms_diff))
 
     norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
-    #print "Display range: ", vmin, vmax
     cmap = matplotlib.cm.gray
     halffov_x = HDUlist1[ext1].header['PIXELSCL']*HDUlist1[ext1].data.shape[1]/2
     halffov_y = HDUlist1[ext1].header['PIXELSCL']*HDUlist1[ext1].data.shape[0]/2
@@ -478,7 +478,6 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
             if i == 0: wg = np.where(r < radius+ binsize/2)
             else: 
                 wg = np.where( (r_pix >= (radius-binsize/2)) &  (r_pix < (radius+binsize/2)))
-                #print radius-binsize/2, radius+binsize/2, len(wg[0])
                 #wg = np.where( (r >= rr[i-1]) &  (r <rr[i] )))
             stddevs[i] = image[wg].std()
         return (rr, stddevs)
@@ -508,9 +507,9 @@ def measure_EE(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     Parameters
     ----------
     HDUlist_or_filename : string
-        what it sounds like.
+        Either a fits.HDUList object or a filename of a FITS file on disk
     ext : int
-        Extension in FITS file
+        Extension in that FITS file
     center : tuple of floats
         Coordinates (x,y) of PSF center. Default is image center. 
     binsize: 
@@ -644,7 +643,7 @@ def measure_sharpness(HDUlist_or_filename=None, ext=0):
     return sharpness
 
 
-def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, print_=False, units='pixels', relativeto='origin', **kwargs):
+def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, verbose=False, units='pixels', relativeto='origin', **kwargs):
     """ Measure the center of an image via center-of-mass
 
     The centroid method used is the floating-box center of mass algorithm by
@@ -654,11 +653,14 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, print
 
     Parameters
     ----------
-    HDUlist_or_filename, ext : string, int
-        Same as above
+    HDUlist_or_filename : string
+        Either a fits.HDUList object or a filename of a FITS file on disk
+    ext : int
+        Extension in that FITS file
+    slice : int, optional
+        If that extension is a 3D datacube, which slice (plane) of that datacube to use
     boxsize : int
         Half box size for centroid
-
     relativeto : string
         either 'origin' for relative to pixel (0,0) or 'center' for relative to image center. Default is 'origin'
     units : string
@@ -686,20 +688,9 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, print
         image = image[slice,:,:]
 
 
-    if 0: 
-        y, x= np.indices(image.shape)
-        wpeak = np.where(image == image.max())
-        cy, cx = y[wpeak][0], x[wpeak][0]
-        print "Peak pixel: (%d, %d)" % (cx, cy)
+    cent_of_mass = fwcentroid(image, halfwidth=boxsize, **kwargs)
 
-
-        cutout = image[cy-boxsize:cy+boxsize+1, cx-boxsize:cx+boxsize+1]
-        cent_of_mass_cutout = np.asarray(scipy.ndimage.center_of_mass(cutout))
-        cent_of_mass =  cent_of_mass_cutout + np.array([cy-boxsize, cx-boxsize])
-    else:
-        cent_of_mass = fwcentroid(image, halfwidth=boxsize, **kwargs)
-
-    if print_: print("Center of mass: (%.4f, %.4f)" % (cent_of_mass[1], cent_of_mass[0]))
+    if verbose: print("Center of mass: (%.4f, %.4f)" % (cent_of_mass[1], cent_of_mass[0]))
 
     if relativeto == 'center':
         imcen = np.array([ (image.shape[0]-1)/2., (image.shape[1]-1)/2. ])
@@ -713,7 +704,7 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, print
     return cent_of_mass
 
 
-def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True, print_=True, cache_perfect=False):
+def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, display=True, verbose=True, cache_perfect=False):
     """ Estimate the Strehl ratio for a PSF.
     
     This requires computing a simulated PSF with the same
@@ -726,14 +717,16 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True, p
 
     Parameters
     ----------
-    HDUlist_or_filename, ext : string, int
-        Same as above
-
+    HDUlist_or_filename : string
+        Either a fits.HDUList object or a filename of a FITS file on disk
+    ext : int
+        Extension in that FITS file
+    slice : int, optional
+        If that extension is a 3D datacube, which slice (plane) of that datacube to use
     center : tuple
         center to compute around.  Default is image center. If the center is on the
         crosshairs between four pixels, then the mean of those four pixels is used.
         Otherwise, if the center is in a single pixel, then that pixel is used. 
-
     print_, display : bool
         control whether to print the results or display plots on screen. 
 
@@ -754,6 +747,10 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True, p
 
     image = HDUlist[ext].data
     header = HDUlist[ext].header
+
+    if image.ndim >=3:  # handle datacubes gracefully
+        image = image[slice,:,:]
+
  
     if center is None:
         # get exact center of image
@@ -798,17 +795,16 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True, p
         plt.gcf().suptitle("Strehl ratio = %.3f" % strehl) 
 
 
-    if print_:
-
-        print "Measured peak:  %.3g" % meas_peak
-        print "Reference peak: %.3g" % ref_peak
-        print "  Strehl ratio = %.3f " % strehl
+    if verbose:
+        print("Measured peak:  {0:.3g}".format(meas_peak))
+        print("Reference peak: {0:.3g}".format(ref_peak))
+        print("  Strehl ratio: {0:.3f}".format(strehl))
 
     return strehl
 
 
-#def measure_anisotropy(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50):
-#    pass
+def measure_anisotropy(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50):
+    raise NotImplementedError("measure_anisotropy is not yet implemented.")
 
 ###########################################################################
 #
@@ -828,7 +824,7 @@ def rebin_array(a = None, rc=(2,2), verbose=False):
     rc : two-element tuple 
         (nrows, ncolumns) desired for rebinned array
     verbose : bool
-        print additional status text?
+        output additional status text?
 
 
     anand@stsci.edu
@@ -849,13 +845,13 @@ def rebin_array(a = None, rc=(2,2), verbose=False):
     for ri in range(0, nr):
         Rlo = ri * r
         if verbose:
-            print "row loop"
+            print("row loop")
         for ci in range(0, nc):
             Clo = ci * c
             b[ri, ci] = np.add.reduce(a[Rlo:Rlo+r, Clo:Clo+c].copy().flat)
             if verbose:
-                print "    [%d:%d, %d:%d]" % (Rlo,Rlo+r, Clo,Clo+c),
-                print "%4.0f"  %   np.add.reduce(a[Rlo:Rlo+r, Clo:Clo+c].copy().flat)
+                print("    [%d:%d, %d:%d]" % (Rlo,Rlo+r, Clo,Clo+c))
+                print("%4.0f"  %   np.add.reduce(a[Rlo:Rlo+r, Clo:Clo+c].copy().flat))
     return b
 
 
@@ -877,7 +873,6 @@ def krebin(a, shape):
     """
     # Klaus P's fastrebin from web
     sh = shape[0],a.shape[0]//shape[0],shape[1],a.shape[1]//shape[1]
-    print "sh", sh
     return a.reshape(sh).sum(-1).sum(1)
 
 
@@ -1060,9 +1055,9 @@ def specFromSpectralType(sptype, return_list=False, catalog=None):
         try:
             return pysynphot.Icat(catname,keys[0], keys[1], keys[2])
         except:
-            print "catalog: "+catname
-            print "keys: ", keys
-            raise LookupError("Error loading Spectrum object from %s catalog for spectral type %s. Check that is a valid name in the lookup table, and/or that pysynphot is installed properly." % (catname,sptype))
+            errmsg = "Could not find a match in catalog {0} for key {1}. Check that is a valid name in the lookup table, and/or that pysynphot is installed properly.".format(catname, sptype)
+            _log.critical(errmsg)
+            raise LookupError(errmsg)
 
 
 ###################################################################33
