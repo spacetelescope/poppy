@@ -1,15 +1,13 @@
 include README.rst
 
-include distribute_setup.py
+include ez_setup.py
 include setuptools_bootstrap.py
-recursive-include poppy *.pyx *.c
 
 recursive-include docs *
 recursive-include licenses *
 recursive-include cextern *
 recursive-include scripts *
 
-exclude *.pyc *.o 
+exclude *.pyc *.o
 prune docs/_build
 prune build
-
