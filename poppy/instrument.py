@@ -1,3 +1,4 @@
+from __future__ import (absolute_import, division, print_function, unicode_literals)
 import os
 import time
 import copy
@@ -11,7 +12,6 @@ from . import poppy_core
 from . import utils
 from .version import version
 
-from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 __all__ = ['Instrument']
 
