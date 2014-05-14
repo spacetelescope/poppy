@@ -1,3 +1,4 @@
+from __future__ import (absolute_import, division, print_function, unicode_literals)
 import os
 import time
 import copy
@@ -9,9 +10,7 @@ import astropy.io.fits as fits
 
 from . import poppy_core
 from . import utils
-from .version import version
 
-from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 __all__ = ['Instrument']
 
@@ -327,6 +326,12 @@ class Instrument(object):
 
         This function will modify the primary header of the result HDUlist.
         """
+
+        try:
+            from .version import version as __version__
+        except ImportError:
+            __version__ = ''
+
         #---  update FITS header, display, and output.
         if isinstance( self.pupil, basestring):
             pupilstr= os.path.basename(self.pupil)
@@ -349,7 +354,7 @@ class Instrument(object):
         result[0].header.update('INSTRUME', self.name, 'Instrument')
         result[0].header.update('FILTER', self.filter, 'Filter name')
         result[0].header.update('EXTNAME', 'OVERSAMP')
-        result[0].header.add_history('Created by POPPY version '+version)
+        result[0].header.add_history('Created by POPPY version '+__version__)
 
         if 'fft_oversample' in options.keys():
             result[0].header.update('OVERSAMP', options['fft_oversample'], 'Oversampling factor for FFTs in computation')
