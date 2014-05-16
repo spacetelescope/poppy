@@ -1102,18 +1102,16 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
     if 'FFT' in propinfo['steps']:
         wavefrontsize = wfshape[0]*wfshape[1]*osys.oversample**2 *  16 # 16 bytes = complex double size 
         _log.debug('FFT propagation with array={0}, oversample = {1} uses {2} bytes'.format(wfshape[0], osys.oversample, wavefrontsize))
-        padding_factor = 4  if conf.use_fftw() else 5
         # The following is a very rough estimate
-
         # empirical tests show that an 8192x8192 propagation results in Python sessions with ~4 GB memory allocation. using FFTW
-        # usingg mumpy FFT, the memory usage per process can exceed 5 GGB for an 8192x8192 propagation.
-
+        # usingg mumpy FT, the memory usage per process can exceed 5 GB for an 8192x8192 propagation.
+        padding_factor = 4  if conf.use_fftw else 5
     else:
         # oversampling not relevant for memory size in MFT mode
         wavefrontsize = wfshape[0]*wfshape[1] *  16 # 16 bytes = complex double size 
         _log.debug('MFT propagation with array={0} uses {2} bytes'.format(wfshape[0], osys.oversample, wavefrontsize))
         padding_factor = 1
- 
+
     mem_per_prop = wavefrontsize * padding_factor
     mem_per_output = propinfo['output_size']*8
 

@@ -48,7 +48,7 @@ except:
 
 
 
-if conf.autosave_fftw_wisdom(): # if we might have autosaved, then auto reload as well
+if conf.autosave_fftw_wisdom: # if we might have autosaved, then auto reload as well
    # the following will just return if FFTW is not present
    utils.fftw_load_wisdom()
 

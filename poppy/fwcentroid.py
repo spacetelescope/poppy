@@ -130,6 +130,7 @@ def fwcentroid(image, checkbox=1, maxiterations=20, threshold=1e-4, halfwidth=5,
 
     # Iteratively calculate centroid until solution converges,
     # use more neighboring pixels and apply weighting: 
+    #print("---"+str(maxiterations))
     for k in range(maxiterations):
         SUM = 0.0
         XSUM = 0.0
@@ -192,6 +193,7 @@ def fwcentroid(image, checkbox=1, maxiterations=20, threshold=1e-4, halfwidth=5,
             CONVERGENCEFLAG = True
             break
         else:
+            if verbose: print (np.abs(XCEN - oldXCEN), np.abs(YCEN - oldYCEN), threshold)
             CONVERGENCEFLAG = False
             oldXCEN = XCEN
             oldYCEN = YCEN
@@ -203,7 +205,7 @@ def fwcentroid(image, checkbox=1, maxiterations=20, threshold=1e-4, halfwidth=5,
 
 ############################
 
-def test_fwcentroid(n=100, width=5, halfwidth=5, **kwargs):
+def test_fwcentroid(n=100, width=5, halfwidth=5, verbose=True, **kwargs):
     def gaussian(height, center_x, center_y, width_x, width_y):
         """Returns a gaussian function with the given parameters"""
         width_x = float(width_x)
@@ -218,22 +220,33 @@ def test_fwcentroid(n=100, width=5, halfwidth=5, **kwargs):
         arr = gaussian(1, center[0], center[1], width, width)(x,y)
         return arr
 
+    # we use the following below to make up random positions that aren't too
+    # close to the center (to make it harder...)
+    # and not to close to the edge (since then you can't really centroid anyway)
+    maxhalfwidth = np.max(halfwidth) #allows both scalars and tuples
+ 
 
-    print("Performing {0} tests using Gaussian PSF with width={1:.1f}, centroid halfwidth= {2:.1f}".format(n,width, halfwidth))
+    if verbose: print("Performing {0} tests using Gaussian PSF with width={1:.1f}, centroid halfwidth= {2:s}".format(n,width, str(halfwidth)))
     
     diffx = np.zeros(n)
     diffy = np.zeros(n)
     size = 100
+
+
     for i in range(n):
-        coords = np.random.uniform(halfwidth+1,size-halfwidth-1,(2))
+        coords = np.random.uniform(maxhalfwidth+1,size-maxhalfwidth-1,(2))
         im = makegaussian(size=size, center=coords, width=width) #, **kwargs)
         measy, measx = fwcentroid(im, halfwidth=halfwidth, **kwargs)
         diffx[i] = coords[0] - measx
         diffy[i] = coords[1] - measy
 
-    print("RMS measured position error, X: {0} pixels".format(diffx.std()) )
-    print("RMS measured position error, Y: {0} pixels".format(diffy.std()) )
+        if verbose: print("True: {0},{1}     Meas: {2},{3}    Diff:{4},{5}".format(coords[0],coords[1], measx,measy, diffx[i], diffy[i]))
 
+    if verbose: 
+        print("RMS measured position error, X: {0} pixels".format(diffx.std()) )
+        print("RMS measured position error, Y: {0} pixels".format(diffy.std()) )
+
+    assert np.sqrt(np.mean(diffx**2+diffy**2)) < 5e-3
 
 
 if __name__ == "__main__":

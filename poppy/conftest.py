@@ -3,5 +3,5 @@
 # no matter how it is invoked within the source tree.
 
 # for some reason this breaks the fft tests ?!?
-#from astropy.tests.pytest_plugins import *
-pass
+from astropy.tests.pytest_plugins import *
+#pass
