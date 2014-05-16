@@ -1312,7 +1312,7 @@ class FITSOpticalElement(OpticalElement):
         else:
             # load transmission file.
             if transmission is not None:
-                if isinstance(transmission,str):
+                if isinstance(transmission,basestring):
                     self.amplitude_file = transmission
                     self.amplitude, self.amplitude_header = fits.getdata(self.amplitude_file, header=True)
                     if self.name=='unnamed optic': self.name='Optic from '+self.amplitude_file
@@ -1451,7 +1451,7 @@ class FITSOpticalElement(OpticalElement):
 
             if pixelscale is None:
                 pixelscale = 'PUPLSCAL' if self.planetype == _PUPIL else 'PIXSCALE' # set default FITS keyword
-            if isinstance(pixelscale,str): # pixelscale is a str, so interpret it as a FITS keyword
+            if isinstance(pixelscale,basestring): # pixelscale is a str, so interpret it as a FITS keyword
                 _log.debug("  Getting pixel scale from FITS keyword:" + pixelscale)
                 try:
                     self.pixelscale = self.amplitude_header[pixelscale]
@@ -3044,7 +3044,7 @@ class OpticalSystem():
             # OpticalElement object provided. 
             # We can use it directly, but make sure the plane type is set.
             optic.planetype = _PUPIL
-        elif isinstance(optic, str):
+        elif isinstance(optic, basestring):
             # convenience code to instantiate objects from a string name.
             fns = {'circle':CircularAperture, 'square':SquareAperture, 'rectangle':RectangleAperture, 'rect':RectangleAperture, 
                     'hexagon': HexagonAperture, 'hex':HexagonAperture, 'fqpm_aligner':FQPM_FFT_aligner, 'fqpm_fft_aligner': FQPM_FFT_aligner}
@@ -3102,7 +3102,7 @@ class OpticalSystem():
 
         """
 
-        if isinstance(optic, str):
+        if isinstance(optic, basestring):
             function = optic
             optic = None
 
@@ -3471,7 +3471,7 @@ class OpticalSystem():
             ffttype = "pyFFTW"
         else:
             ffttype = "numpy.fft"
-        outFITS[0].header['FFTTYPE'] = ffttype, 'Algorithm for FFTs: numpy or fftw')
+        outFITS[0].header['FFTTYPE'] = (ffttype, 'Algorithm for FFTs: numpy or fftw')
 
         if self.verbose: _log.info("PSF Calculation completed.")
         if return_intermediates:

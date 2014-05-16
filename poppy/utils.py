@@ -104,7 +104,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
 
 
     """
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -215,12 +215,12 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
         (making this True conserves surface brightness but not total flux)
         default is False, to conserve total flux.
     """
-    if isinstance(HDUlist_or_filename1, str):
+    if isinstance(HDUlist_or_filename1, basestring):
         HDUlist1 = fits.open(HDUlist_or_filename1)
     elif isinstance(HDUlist_or_filename1, fits.HDUList):
         HDUlist1 = HDUlist_or_filename1
     else: raise ValueError("input must be a filename or HDUlist")
-    if isinstance(HDUlist_or_filename2, str):
+    if isinstance(HDUlist_or_filename2, basestring):
         HDUlist2 = fits.open(HDUlist_or_filename2)
     elif isinstance(HDUlist_or_filename2, fits.HDUList):
         HDUlist2 = HDUlist_or_filename2
@@ -319,7 +319,7 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
         Default is True
  
     """
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename,ext=ext)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -360,7 +360,7 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False):
         whether to overplot or clear and produce an new plot. Default false
  
     """
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename,ext=ext)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -425,7 +425,7 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
         so you should use (radius+binsize/2) for the radius of the EE curve if you want to be
         as precise as possible.
     """
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -626,7 +626,7 @@ def measure_sharpness(HDUlist_or_filename=None, ext=0):
         Same as above
  
     """
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -676,7 +676,7 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, verbo
     """
     from .fwcentroid import fwcentroid
 
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -739,7 +739,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
         Strehl ratio as a floating point number between 0.0 - 1.0
   
     """
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename

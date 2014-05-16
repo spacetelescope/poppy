@@ -35,7 +35,13 @@ from .utils import (display_PSF, display_PSF_difference, display_EE, display_pro
     specFromSpectralType, rebin_array)
 
 from .instrument import Instrument
-import conf
+
+try:
+    # if we have astropy >=0.4
+    from config import conf
+except:
+    # if we have astropy 0.3
+    import conf
 
 # Not yet implemented:
 #from .wfe import ZernikeWFE, PowerSpectralDensityWFE, KolmogorovWFE

@@ -2,4 +2,6 @@
 # by importing them here in conftest.py they are discoverable by py.test
 # no matter how it is invoked within the source tree.
 
-from astropy.tests.pytest_plugins import *
+# for some reason this breaks the fft tests ?!?
+#from astropy.tests.pytest_plugins import *
+pass

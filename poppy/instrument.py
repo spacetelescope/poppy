@@ -249,7 +249,7 @@ class Instrument(object):
                     transform=f.transFigure, horizontalalignment='right')
 
         if outfile is not None:
-            result[0].header.["FILENAME"] = ( os.path.basename (outfile), comment="Name of this file")
+            result[0].header["FILENAME"] = ( os.path.basename(outfile), "Name of this file")
             result.writeto(outfile, clobber=clobber)
             poppy_core._log.info("Saved result to "+outfile)
 
