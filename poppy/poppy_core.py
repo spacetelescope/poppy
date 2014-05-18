@@ -2133,15 +2133,9 @@ class IdealBarOcculter(AnalyticOpticalElement):
         assert (wave.planetype == _IMAGE)
 
         y, x= wave.coordinates()
-        #y, x = np.indices(wave.shape)
-        #y -= wave.shape[0]/2
-        #x -= wave.shape[1]/2
 
         xnew = x*np.cos(np.deg2rad(self.angle)) + y*np.sin(np.deg2rad(self.angle))
-        del x
-        del y
         w_inside = np.where( np.abs(xnew) <= self.width/2)
-        del xnew
         self.transmission = np.ones(wave.shape)
         self.transmission[w_inside] = 0
 
@@ -3670,31 +3664,4 @@ class SemiAnalyticCoronagraph(OpticalSystem):
 
 
 
-if __name__ == "__main__":
-    import pylab as pl
-    logging.basicConfig(level=logging.INFO,format='%(name)-10s: %(levelname)-8s %(message)s')
-
-    if False:
-        for npix in (111,112):
-        #for offset in [ (0,0)]:
-            for offset in [ (0,0), (0,0.5), (1,0), (1,1.5)]:
-
-                osys = OpticalSystem("Circle JW", oversample=1)
-                #osys.addPupil(function='Square', name = "6.5m square", size=6.5)
-                osys.addPupil(function='Circle', name = "6.5m circle", radius=6.5/2)
-                #osys.addImage()
-                #osys.addDetector(0.032, name="Detector", fov_pixels=128)
-                osys.addDetector(0.032/2, name="Detector", fov_pixels=npix)
-
-                osys.planes[-1].det_offset = offset
-
-
-                src = {'wavelengths': [2e-6], 'weights': [1.0]}
-                res = osys.calcPSF(src, display=True)
-
-
-                #plt.clf()
-                #plt.imshow(res[0].data)
-                res.writeto('test_ci_np%d_off%s.fits' %(npix, offset), clobber=True)
-
-    #test_speed()
+#if __name__ == "__main__":
