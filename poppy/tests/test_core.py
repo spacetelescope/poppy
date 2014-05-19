@@ -92,7 +92,7 @@ def test_padToSize():
 
 
 
-def test_airy():
+def test_basic_functionality():
     """ For one specific geometry, test that we get the expected value based on a prior reference
     calculation."""
     osys = poppy_core.OpticalSystem("test", oversample=1)
@@ -102,6 +102,56 @@ def test_airy():
     psf = osys.calcPSF(wavelength=1.0e-6)
     # we need to be a little careful here due to floating point math comparision equality issues... Can't just do a strict equality
     assert abs(psf[0].data.max() - 0.201) < 0.001
+
+
+def test_CircularAperture_Airy(display=False):
+    """ Compare analytic 2d Airy function with the results of a POPPY
+    numerical calculation of the PSF for a circular aperture.
+    
+    Note that we expect very close but not precisely perfect agreement due to
+    the quantization of the POPPY PSF relative to a perfect geometric circle.
+    """
+    
+    from ..misc import airy_2d
+    # Analytic PSF for 1 meter diameter aperture
+    analytic = airy_2d(diameter=1)
+    analytic /= analytic.sum() # for comparison with poppy outputs normalized to total=1
+
+
+    # Numeric PSF for 1 meter diameter aperture
+    osys = poppy_core.OpticalSystem()
+    ap = poppy_core.CircularAperture(radius=0.5)
+    osys.addPupil(ap)
+    osys.addDetector(pixelscale=0.010,fov_pixels=512, oversample=1)
+    numeric = osys.calcPSF(wavelength=1.0e-6, display=False)
+
+    # Comparison
+    difference = numeric[0].data-analytic
+    assert np.all(np.abs(difference) < 3e-5)
+
+    if display:
+        from .. import utils
+        #comparison of the two
+        from matplotlib.colors import LogNorm
+        norm = LogNorm(vmin=1e-6, vmax=1e-2)
+
+        pl.figure(figsize=(15,5))
+        pl.subplot(141)
+        ax1=pl.imshow(analytic, norm=norm)
+        pl.title("Analytic")
+        pl.subplot(142)
+        #ax2=pl.imshow(numeric[0].data, norm=norm)
+        utils.display_PSF(numeric, vmin=1e-6, vmax=1e-2, colorbar=False)
+        pl.title("Numeric")
+        pl.subplot(143)
+        ax2=pl.imshow(numeric[0].data-analytic, norm=norm)
+        pl.title("Difference N-A")
+        pl.subplot(144)
+        ax2=pl.imshow(np.abs(numeric[0].data-analytic) < 3e-5)
+        pl.title("Difference <1e-5")
+
+#fits.writeto("test.fits", numeric[0].data-analytic)
+#print a2.max()
 
 
 

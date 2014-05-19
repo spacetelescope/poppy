@@ -21,6 +21,9 @@ Documentation can be found online at http://www.stsci.edu/~mperrin/software/popp
 from ._astropy_init import *
 # ----------------------------------------------------------------------------
 
+import astropy
+if astropy.version.major + astropy.version.minor*0.1 < 0.4:
+    raise ImportError("astropy >= 0.4 is required for this version of poppy.")
 
 from .poppy_core import (Wavefront, OpticalElement, FITSOpticalElement, Rotation, AnalyticOpticalElement, 
 	ScalarTransmission, InverseTransmission, ThinLens, BandLimitedCoron, 
@@ -36,12 +39,8 @@ from .utils import (display_PSF, display_PSF_difference, display_EE, display_pro
 
 from .instrument import Instrument
 
-try:
-    # if we have astropy >=0.4
-    from config import conf
-except:
-    # if we have astropy 0.3
-    import conf
+# if we have astropy >=0.4
+from config import conf
 
 # Not yet implemented:
 #from .wfe import ZernikeWFE, PowerSpectralDensityWFE, KolmogorovWFE

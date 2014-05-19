@@ -132,7 +132,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
     else: 
         norm=matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
-    if type(pixelscale) is str:
+    if isinstance(pixelscale, basestring):
         halffov_x = HDUlist[ext].header[pixelscale]*HDUlist[ext].data.shape[1]/2
         halffov_y = HDUlist[ext].header[pixelscale]*HDUlist[ext].data.shape[0]/2
     else:

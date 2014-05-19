@@ -74,8 +74,6 @@ def padToOversample(array, oversample):
     padded = np.zeros(shape=(npix*oversample, npix*oversample), dtype=array.dtype)
     n0 = float(npix)*(oversample - 1)/2
     n1 = n0+npix
-    print("DEBUG")
-    print(padded.shape, n0, n1)
     n0 = int(round(n0)) # because astropy test_plugins enforces integer indices
     n1 = int(round(n1))
     padded[n0:n1, n0:n1] = array
