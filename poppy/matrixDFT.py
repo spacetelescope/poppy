@@ -41,7 +41,8 @@
     2012-09-26: minor big fixes
 
 """
-from __future__ import (absolute_import, division, print_function, unicode_literals)
+#from __future__ import (absolute_import, division, print_function, unicode_literals)
+from __future__ import print_function
 
 __all__ = ['MatrixFourierTransform']
 

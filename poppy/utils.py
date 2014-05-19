@@ -104,7 +104,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
 
 
     """
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -132,7 +132,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
     else: 
         norm=matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
-    if type(pixelscale) is str:
+    if isinstance(pixelscale, basestring):
         halffov_x = HDUlist[ext].header[pixelscale]*HDUlist[ext].data.shape[1]/2
         halffov_y = HDUlist[ext].header[pixelscale]*HDUlist[ext].data.shape[0]/2
     else:
@@ -215,12 +215,12 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
         (making this True conserves surface brightness but not total flux)
         default is False, to conserve total flux.
     """
-    if isinstance(HDUlist_or_filename1, str):
+    if isinstance(HDUlist_or_filename1, basestring):
         HDUlist1 = fits.open(HDUlist_or_filename1)
     elif isinstance(HDUlist_or_filename1, fits.HDUList):
         HDUlist1 = HDUlist_or_filename1
     else: raise ValueError("input must be a filename or HDUlist")
-    if isinstance(HDUlist_or_filename2, str):
+    if isinstance(HDUlist_or_filename2, basestring):
         HDUlist2 = fits.open(HDUlist_or_filename2)
     elif isinstance(HDUlist_or_filename2, fits.HDUList):
         HDUlist2 = HDUlist_or_filename2
@@ -319,7 +319,7 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
         Default is True
  
     """
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename,ext=ext)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -360,7 +360,7 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False):
         whether to overplot or clear and produce an new plot. Default false
  
     """
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename,ext=ext)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -425,7 +425,7 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
         so you should use (radius+binsize/2) for the radius of the EE curve if you want to be
         as precise as possible.
     """
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -626,7 +626,7 @@ def measure_sharpness(HDUlist_or_filename=None, ext=0):
         Same as above
  
     """
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -676,7 +676,7 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, verbo
     """
     from .fwcentroid import fwcentroid
 
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -739,7 +739,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
         Strehl ratio as a floating point number between 0.0 - 1.0
   
     """
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -1102,18 +1102,16 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
     if 'FFT' in propinfo['steps']:
         wavefrontsize = wfshape[0]*wfshape[1]*osys.oversample**2 *  16 # 16 bytes = complex double size 
         _log.debug('FFT propagation with array={0}, oversample = {1} uses {2} bytes'.format(wfshape[0], osys.oversample, wavefrontsize))
-        padding_factor = 4  if conf.use_fftw() else 5
         # The following is a very rough estimate
-
         # empirical tests show that an 8192x8192 propagation results in Python sessions with ~4 GB memory allocation. using FFTW
-        # usingg mumpy FFT, the memory usage per process can exceed 5 GGB for an 8192x8192 propagation.
-
+        # usingg mumpy FT, the memory usage per process can exceed 5 GB for an 8192x8192 propagation.
+        padding_factor = 4  if conf.use_fftw else 5
     else:
         # oversampling not relevant for memory size in MFT mode
         wavefrontsize = wfshape[0]*wfshape[1] *  16 # 16 bytes = complex double size 
         _log.debug('MFT propagation with array={0} uses {2} bytes'.format(wfshape[0], osys.oversample, wavefrontsize))
         padding_factor = 1
- 
+
     mem_per_prop = wavefrontsize * padding_factor
     mem_per_output = propinfo['output_size']*8
 

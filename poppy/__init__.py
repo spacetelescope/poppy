@@ -21,6 +21,9 @@ Documentation can be found online at http://www.stsci.edu/~mperrin/software/popp
 from ._astropy_init import *
 # ----------------------------------------------------------------------------
 
+import astropy
+if astropy.version.major + astropy.version.minor*0.1 < 0.4:
+    raise ImportError("astropy >= 0.4 is required for this version of poppy.")
 
 from .poppy_core import (Wavefront, OpticalElement, FITSOpticalElement, Rotation, AnalyticOpticalElement, 
 	ScalarTransmission, InverseTransmission, ThinLens, BandLimitedCoron, 
@@ -35,14 +38,16 @@ from .utils import (display_PSF, display_PSF_difference, display_EE, display_pro
     specFromSpectralType, rebin_array)
 
 from .instrument import Instrument
-import conf
+
+# if we have astropy >=0.4
+from config import conf
 
 # Not yet implemented:
 #from .wfe import ZernikeWFE, PowerSpectralDensityWFE, KolmogorovWFE
 
 
 
-if conf.autosave_fftw_wisdom(): # if we might have autosaved, then auto reload as well
+if conf.autosave_fftw_wisdom: # if we might have autosaved, then auto reload as well
    # the following will just return if FFTW is not present
    utils.fftw_load_wisdom()
 
