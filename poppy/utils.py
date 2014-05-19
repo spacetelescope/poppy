@@ -13,7 +13,7 @@ import logging
 _log = logging.getLogger('poppy')
 import astropy.io.fits as fits
 
-from . import conf
+from .config import conf
 
 _Strehl_perfect_cache = {} # dict for caching perfect images used in Strehl calcs.
 

@@ -9,7 +9,7 @@ class Conf(_config.ConfigNamespace):
     Configuration parameters for `poppy`.
     """
 
-    use_multiprocessing = _config.ConfigurationItem(False, 
+    use_multiprocessing = _config.ConfigItem(False, 
             'Should PSF calculations run in parallel using multiple processers'+
             'using the Python multiprocessing framework (if True; faster but '+
             'does not allow display of each wavelength) or run serially in a '+
@@ -21,29 +21,29 @@ class Conf(_config.ConfigNamespace):
     # because this is a memory-intensive calculation and you willg
     # just end up thrashing IO and swapping out a ton, so everything
     # becomes super slow.
-    n_processes = _config.ConfigurationItem(4, 'Maximum number of additional '+
+    n_processes = _config.ConfigItem(4, 'Maximum number of additional '+
             'worker processes to spawn. PSF calculations are likely RAM '+
             'limited more than CPU limited for higher N on modern machines.')
 
-    use_fftw = _config.ConfigurationItem(True, 'Use FFTW for FFTs (assuming it'+
+    use_fftw = _config.ConfigItem(True, 'Use FFTW for FFTs (assuming it'+
             'is available)?  Set to False to force numpy.fft always, True to'+
             'try importing and using FFTW via PyFFTW.')
-    autosave_fftw_wisdom=  _config.ConfigurationItem(True, 'Should POPPY '+
+    autosave_fftw_wisdom=  _config.ConfigItem(True, 'Should POPPY '+
             'automatically save and reload FFTW '+
             '"wisdom" for improved speed?')
 
 
-    default_image_display_fov =  _config.ConfigurationItem(5.0, 'Default image'+
+    default_image_display_fov =  _config.ConfigItem(5.0, 'Default image'+
             'display field of view, in arcseconds. Adjust this to display '+
             'only a subregion of a larger output array.')
 
 
-    default_logging_level = _config.ConfigurationItem('INFO', 'Logging '+
+    default_logging_level = _config.ConfigItem('INFO', 'Logging '+
         'verbosity: one of {DEBUG, INFO, WARN, ERROR, or CRITICAL}')
 
-    enable_speed_tests =  _config.ConfigurationItem(False, 'Enable additional '+
+    enable_speed_tests =  _config.ConfigItem(False, 'Enable additional '+
         'verbose printout of computation times. Useful for benchmarking.')
-    enable_flux_tests =  _config.ConfigurationItem(False, 'Enable additional '+
+    enable_flux_tests =  _config.ConfigItem(False, 'Enable additional '+
         'verbose printout of fluxes and flux conservation during '+
         'calculations. Useful for testing.')
 

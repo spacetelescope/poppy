@@ -5,13 +5,14 @@ import scipy
 
 from ..misc import airy_1d, airy_2d, _RADtoARCSEC, _ARCSECtoRAD
 
+airy_zeros = np.asarray([3.8317, 7.0156, 10.1735, 13.3237, 16.4706])/np.pi  # first several zeros of the Bessel function J1. See e.g. http://en.wikipedia.org/wiki/Airy_disk#Mathematical_details
 
 def test_airy_1d(display=False):
     """ Compare analytic airy function results to the expected locations
     for the first three dark rings and the FWHM of the PSF."""
     lam = 1.0e-6
     D = 1.0
-    r, airyprofile = airy_1d(wavelength=lam, diameter=D, length=10240, pixelscale=0.0001)
+    r, airyprofile = airy_1d(wavelength=lam, diameter=D, length=20480, pixelscale=0.0001)
 
     # convert to units of lambda/D
     r_norm = r*_ARCSECtoRAD / (lam/D)
@@ -21,19 +22,19 @@ def test_airy_1d(display=False):
         pl.axhline(0.5, color='k', ls=':')
         pl.ylabel('Intensity relative to peak')
         pl.xlabel('Separation in $\lambda/D$')
-        for rad in [1.22, 2.23, 3.24]:
+        for rad in airy_zeros:
             pl.axvline(rad, color='red', ls='--')
 
     airyfn = scipy.interpolate.interp1d(r_norm, airyprofile)
     # test FWHM occurs at 1.028 lam/D, i.e. HWHM is at 0.514
-    assert (airyfn(0.514) - 0.5) < 1e-3
+    assert (airyfn(0.5144938) - 0.5) < 1e-5
 
     # test first minima occur near 1.22 lam/D, 2.23, 3.24 lam/D
     # TODO investigate/improve numerical precision here?
-    for rad in [1.2198, 2.233, 3.2383]:
+    for rad in airy_zeros:
         #print(rad, airyfn(rad), airyfn(rad+0.005))
-        assert airyfn(rad) < airyfn(rad+0.001)
-        assert airyfn(rad) < airyfn(rad-0.001)
+        assert airyfn(rad) < airyfn(rad+0.0003)
+        assert airyfn(rad) < airyfn(rad-0.0003)
 
 
 def test_airy_2d(display=False):
