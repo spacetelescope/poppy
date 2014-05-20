@@ -15,7 +15,7 @@ Requirements
 --------------
 
 * The standard Python scientific stack: numpy, scipy, matplotlib
-* `astropy <http://astropy.org>`_, 0.2 or more recent, in particular its ``astropy.io.fits`` and ``astropy.io.ascii`` components.
+* `astropy <http://astropy.org>`_, 0.4 or more recent, in particular its ``astropy.io.fits``, ``astropy.io.ascii`` and ``astropy.config`` components.
 
 These are optional but recommended:
 

@@ -38,7 +38,6 @@ Contents
 .. toctree::
   :maxdepth: 2
 
-<<<<<<< HEAD
   installation.rst
   relnotes.rst
   overview.rst

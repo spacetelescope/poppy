@@ -361,9 +361,9 @@ class Wavefront(object):
         amp    = self.amplitude
 
         if self.planetype==_PUPIL and self.ispadded and not showpadding :
-            intens = removePadding(intens,self.oversample)
-            phase = removePadding(phase,self.oversample)
-            amp = removePadding(amp,self.oversample)
+            intens = utils.removePadding(intens,self.oversample)
+            phase = utils.removePadding(phase,self.oversample)
+            amp = utils.removePadding(amp,self.oversample)
 
 
         # extent specifications need to include the *full* data region, including the half pixel on either

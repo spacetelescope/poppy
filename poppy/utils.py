@@ -867,10 +867,17 @@ def padToSize(array, padded_shape):
     ---------
     padToOversample 
     """
+
+    if len(padded_shape) < 2: 
+        outsize0 = padded_shape
+        outside1 = padded_shape
+    else:
+        outsize0 = padded_shape[0]
+        outsize1 = padded_shape[1]
     #npix = array.shape[0]
     padded = np.zeros(shape=padded_shape, dtype=array.dtype)
-    n0 = (padded_shape[0] - array.shape[0])/2  # pixel offset for the inner array
-    m0 = (padded_shape[1] - array.shape[1])/2  # pixel offset in second dimension
+    n0 = (outsize0 - array.shape[0])/2  # pixel offset for the inner array
+    m0 = (outsize1 - array.shape[1])/2  # pixel offset in second dimension
     n1 = n0+array.shape[0]
     m1 = m0+array.shape[1]
     n0 = int(round(n0)) # because astropy test_plugins enforces integer indices
