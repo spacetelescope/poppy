@@ -17,6 +17,12 @@ from .config import conf
 
 _Strehl_perfect_cache = {} # dict for caching perfect images used in Strehl calcs.
 
+
+__all__ = [ 'display_PSF', 'display_PSF_difference', 'display_EE', 'display_profiles', 'radial_profile',
+    'measure_EE', 'measure_radial', 'measure_fwhm', 'measure_sharpness', 'measure_centroid', 'measure_strehl', 'measure_anisotropy',
+    'specFromSpectralType']
+
+
 ###########################################################################
 #
 #    Display functions 
@@ -345,7 +351,7 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
             plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
 
 
-def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False):
+def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, **kwargs):
     """ Produce two plots of PSF radial profile and encircled energy
 
     See also the display_EE function.
@@ -367,7 +373,7 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False):
     else: raise ValueError("input must be a filename or HDUlist")
 
 
-    radius, profile, EE = radial_profile(HDUlist, EE=True)
+    radius, profile, EE = radial_profile(HDUlist, EE=True, **kwargs)
 
     if not overplot:
         plt.clf()
@@ -808,8 +814,81 @@ def measure_anisotropy(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50):
 
 ###########################################################################
 #
-#    Other utility functions 
+#    Array manipulation utility functions 
 #
+
+
+def padToOversample(array, oversample):
+    """ Add zeros around the edge of an array, for a given desired FFT integer oversampling ratio
+
+    Parameters
+    ----------
+    array :  ndarray
+        A 2D array representing some image
+    oversample : int
+        Padding factor for expanding the array
+
+    Returns
+    -------
+    padded_array : ndarray
+        A larger array containing mostly zeros but with the input array in the center.
+
+    See Also
+    ---------
+    padToSize
+    """
+    npix = array.shape[0]
+    padded = np.zeros(shape=(npix*oversample, npix*oversample), dtype=array.dtype)
+    n0 = float(npix)*(oversample - 1)/2
+    n1 = n0+npix
+    n0 = int(round(n0)) # because astropy test_plugins enforces integer indices
+    n1 = int(round(n1))
+    padded[n0:n1, n0:n1] = array
+    return padded
+
+def padToSize(array, padded_shape):
+    """ Add zeros around the edge of an array, to reach a specific defined size and shape.
+    This is similar to padToOversample but is more flexible.
+
+    Parameters
+    ----------
+    array :  ndarray
+        A 2D array representing some image
+    padded_shape :  tuple of 2 elements
+        Desired size for the padded array.
+
+    Returns
+    -------
+    padded_array : ndarray
+        A larger array containing mostly zeros but with the input array in the center.
+
+
+    See Also
+    ---------
+    padToOversample 
+    """
+    #npix = array.shape[0]
+    padded = np.zeros(shape=padded_shape, dtype=array.dtype)
+    n0 = (padded_shape[0] - array.shape[0])/2  # pixel offset for the inner array
+    m0 = (padded_shape[1] - array.shape[1])/2  # pixel offset in second dimension
+    n1 = n0+array.shape[0]
+    m1 = m0+array.shape[1]
+    n0 = int(round(n0)) # because astropy test_plugins enforces integer indices
+    n1 = int(round(n1))
+    m0 = int(round(m0))
+    m1 = int(round(m1))
+    padded[n0:n1, m0:m1] = array
+    return padded
+
+def removePadding(array,oversample):
+    " Remove zeros around the edge of an array, assuming some integer oversampling padding factor "
+    npix = array.shape[0] / oversample
+    n0 = float(npix)*(oversample - 1)/2
+    n1 = n0+npix
+    n0 = int(round(n0))
+    n1 = int(round(n1))
+    return array[n0:n1,n0:n1].copy()
+
 
 def rebin_array(a = None, rc=(2,2), verbose=False):
     """ Rebin array by an integer factor while conserving flux
@@ -874,6 +953,11 @@ def krebin(a, shape):
     # Klaus P's fastrebin from web
     sh = shape[0],a.shape[0]//shape[0],shape[1],a.shape[1]//shape[1]
     return a.reshape(sh).sum(-1).sum(1)
+
+###########################################################################
+#
+#    Other utility functions 
+#
 
 
 

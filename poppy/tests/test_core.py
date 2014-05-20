@@ -1,6 +1,7 @@
 #Test functions for core poppy functionality
 
 from .. import poppy_core 
+from .. import optics
 
 import numpy as np
 import astropy.io.fits as fits
@@ -30,7 +31,7 @@ def check_wavefront(filename_or_hdulist, slice=0, ext=0, test='nearzero', commen
 
 wavelength=2e-6
 
-class ParityTestAperture(poppy_core.AnalyticOpticalElement):
+class ParityTestAperture(optics.AnalyticOpticalElement):
     """ Defines a circular pupil aperture with boxes cut out.
     This is mostly a test aperture
 
@@ -82,21 +83,14 @@ class ParityTestAperture(poppy_core.AnalyticOpticalElement):
 ######### Core tests functions #########
 
 
-def test_padToSize():
-    square = np.ones((300,300))
-
-    for desiredshape in [ (500, 500), (400,632), (2048, 312)]:
-        newshape = poppy_core.padToSize(square, desiredshape).shape 
-        for i in [0,1]: assert newshape[i] == desiredshape[i]
-
-
 
 
 def test_basic_functionality():
     """ For one specific geometry, test that we get the expected value based on a prior reference
     calculation."""
     osys = poppy_core.OpticalSystem("test", oversample=1)
-    osys.addPupil(function='Circle', radius=1)
+    pupil = optics.CircularAperture(radius=1)
+    osys.addPupil(pupil) #function='Circle', radius=1)
     osys.addDetector(pixelscale=0.1, fov_arcsec=5.0) # use a large FOV so we grab essentially all the light and conserve flux
 
     psf = osys.calcPSF(wavelength=1.0e-6)
@@ -120,8 +114,8 @@ def test_CircularAperture_Airy(display=False):
 
     # Numeric PSF for 1 meter diameter aperture
     osys = poppy_core.OpticalSystem()
-    ap = poppy_core.CircularAperture(radius=0.5)
-    osys.addPupil(ap)
+    pupil = optics.CircularAperture(radius=0.5)
+    osys.addPupil(pupil)
     osys.addDetector(pixelscale=0.010,fov_pixels=512, oversample=1)
     numeric = osys.calcPSF(wavelength=1.0e-6, display=False)
 
@@ -159,7 +153,8 @@ def test_normalization():
     """ Test that we can compute a PSF and get the desired flux, 
     depending on the normalization """
     osys = poppy_core.OpticalSystem("test", oversample=2)
-    osys.addPupil(function='Circle', radius=6.5/2)
+    pupil = optics.CircularAperture(radius=6.5/2)
+    osys.addPupil(pupil) #function='Circle', radius=6.5/2)
     osys.addDetector(pixelscale=0.01, fov_arcsec=5.0) # use a large FOV so we grab essentially all the light and conserve flux
 
 
@@ -179,7 +174,8 @@ def test_fov_size_pixels():
     """ Test the PSF field of view size is as requested, in pixels for a square aperture"""
 
     osys = poppy_core.OpticalSystem("test", oversample=2)
-    osys.addPupil(function='Circle', radius=6.5/2)
+    pupil = optics.CircularAperture(radius=6.5/2)
+    osys.addPupil(pupil)
     osys.addDetector(pixelscale=0.1, fov_pixels=100, oversample=1)
 
     psf = osys.calcPSF(wavelength=1e-6)
@@ -197,7 +193,7 @@ def test_inverse_MFT():
 
     fov_arcsec  = 5.0
 
-    test_ap = ParityTestAperture(radius=6.5/2)
+    test_ap = optics.ParityTestAperture(radius=6.5/2)
 
     osys = poppy_core.OpticalSystem("test", oversample=4)
     osys.addPupil(test_ap)

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 # package doc string now in __init__.py in this directory!
 
 
@@ -8,11 +7,9 @@ import multiprocessing
 import copy
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy.special
 import scipy.ndimage.interpolation
 import matplotlib
 import time
-from matplotlib.colors import LogNorm  # for log scaling of images, with automatic colorbar support
 
 import astropy.io.fits as fits
 
@@ -22,9 +19,12 @@ from . import utils
 from .config import conf
 
 
+
 import logging
 _log = logging.getLogger('poppy')
 
+
+__all__ = ['Wavefront',  'OpticalSystem', 'SemiAnalyticCoronagraph', 'OpticalElement', 'FITSOpticalElement', 'Rotation', 'InverseTransmission' ,'Detector' ]
 
 # Setup infrastructure for FFTW
 _FFTW_INIT = {}  # dict of array sizes for which we have already performed the required FFTW planning step
@@ -35,14 +35,14 @@ if conf.use_fftw:
         import pyfftw
     except:
         # we tried but failed to import it. 
-        conf.use_fftw.set(False)
+        conf.use_fftw = False
 
 # internal constants for types of plane
-_PUPIL = 1
-_IMAGE = 2
+_PUPIL = 'PUPIL'
+_IMAGE = 'IMAGE'
 _DETECTOR = 3 # specialized type of image plane.
 _ROTATION = 4 # not a real optic, just a coordinate transform
-_typestrs = ['', 'Pupil plane', 'Image plane', 'Detector', 'Rotation']
+_typestrs = {0:'', 1:'Pupil plane', 2:'Image plane', 3:'Detector', 4:'Rotation', 'PUPIL':'Pupil plane','IMAGE':'Image plane'}
 
 
 #conversions
@@ -50,77 +50,6 @@ _RADIANStoARCSEC = 180.*60*60 / np.pi
 
 
 #------ Utility functions for array padding ------
-
-def padToOversample(array, oversample):
-    """ Add zeros around the edge of an array, for a given desired FFT integer oversampling ratio
-
-    Parameters
-    ----------
-    array :  ndarray
-        A 2D array representing some image
-    oversample : int
-        Padding factor for expanding the array
-
-    Returns
-    -------
-    padded_array : ndarray
-        A larger array containing mostly zeros but with the input array in the center.
-
-    See Also
-    ---------
-    padToSize
-    """
-    npix = array.shape[0]
-    padded = np.zeros(shape=(npix*oversample, npix*oversample), dtype=array.dtype)
-    n0 = float(npix)*(oversample - 1)/2
-    n1 = n0+npix
-    n0 = int(round(n0)) # because astropy test_plugins enforces integer indices
-    n1 = int(round(n1))
-    padded[n0:n1, n0:n1] = array
-    return padded
-
-def padToSize(array, padded_shape):
-    """ Add zeros around the edge of an array, to reach a specific defined size and shape.
-    This is similar to padToOversample but is more flexible.
-
-    Parameters
-    ----------
-    array :  ndarray
-        A 2D array representing some image
-    padded_shape :  tuple of 2 elements
-        Desired size for the padded array.
-
-    Returns
-    -------
-    padded_array : ndarray
-        A larger array containing mostly zeros but with the input array in the center.
-
-
-    See Also
-    ---------
-    padToOversample 
-    """
-    #npix = array.shape[0]
-    padded = np.zeros(shape=padded_shape, dtype=array.dtype)
-    n0 = (padded_shape[0] - array.shape[0])/2  # pixel offset for the inner array
-    m0 = (padded_shape[1] - array.shape[1])/2  # pixel offset in second dimension
-    n1 = n0+array.shape[0]
-    m1 = m0+array.shape[1]
-    n0 = int(round(n0)) # because astropy test_plugins enforces integer indices
-    n1 = int(round(n1))
-    m0 = int(round(m0))
-    m1 = int(round(m1))
-    padded[n0:n1, m0:m1] = array
-    return padded
-
-def removePadding(array,oversample):
-    " Remove zeros around the edge of an array, assuming some integer oversampling padding factor "
-    npix = array.shape[0] / oversample
-    n0 = float(npix)*(oversample - 1)/2
-    n1 = n0+npix
-    n0 = int(round(n0))
-    n1 = int(round(n1))
-    return array[n0:n1,n0:n1].copy()
 
 
 #------ Utility functions for parallelization ------
@@ -316,10 +245,10 @@ class Wavefront(object):
         wave = self.wavefront.copy()
 
         if self.planetype==_PUPIL and self.ispadded and not includepadding :
-            intens = removePadding(intens,self.oversample)
-            phase = removePadding(phase,self.oversample)
-            amp = removePadding(amp,self.oversample)
-            wave = removePadding(wave,self.oversample)
+            intens = utils.removePadding(intens,self.oversample)
+            phase =  utils.removePadding(phase, self.oversample)
+            amp =    utils.removePadding(amp,   self.oversample)
+            wave =   utils.removePadding(wave,  self.oversample)
 
 
         if what.lower() =='all':
@@ -476,7 +405,7 @@ class Wavefront(object):
         # compute plot parameters for the subplot grid
         nc = int(np.ceil(np.sqrt(nrows)))
         nr = int(np.ceil(float(nrows)/nc))
-        if nrows - nc*(nc-1) == 1: # avoid just one alone on a row by itself...
+        if (nrows - nc*(nc-1) == 1) and (nr>1): # avoid just one alone on a row by itself...
             nr -= 1
             nc += 1
 
@@ -487,7 +416,7 @@ class Wavefront(object):
                 cmap = matplotlib.cm.gray
                 cmap.set_bad('0.0')
             else:
-                norm=LogNorm(vmin=vmin,vmax=vmax)
+                norm=matplotlib.colors.LogNorm(vmin=vmin,vmax=vmax)
                 cmap = matplotlib.cm.jet
                 cmap.set_bad(cmap(0))
 
@@ -620,7 +549,7 @@ class Wavefront(object):
 
         if self.oversample > 1 and not self.ispadded: #add padding for oversampling, if necessary
             assert self.oversample == optic.oversample
-            self.wavefront = padToOversample(self.wavefront, self.oversample)
+            self.wavefront = utils.padToOversample(self.wavefront, self.oversample)
             self.ispadded = True
             if optic.verbose: _log.debug("    Padded WF array for oversampling by %dx" % self.oversample)
             self.history.append("    Padded WF array for oversampling by %dx" % self.oversample)
@@ -649,7 +578,7 @@ class Wavefront(object):
             #(pre-)update state:
             self.planetype=_PUPIL
             self.pixelscale = self.diam *self.oversample / self.wavefront.shape[0]
-            self.history.append('   FFT %s,  to _PUPIL scale=%f' %(self.wavefront.shape, self.pixelscale))
+            self.history.append('   FFT %s,  to PUPIL scale=%f' %(self.wavefront.shape, self.pixelscale))
 
 
         # do FFT
@@ -732,7 +661,7 @@ class Wavefront(object):
 
         if self.ispadded:
             #pupil plane is padded - trim that out since it's not needed
-            self.wavefront = removePadding(self.wavefront, self.oversample)
+            self.wavefront = utils.removePadding(self.wavefront, self.oversample)
             self.ispadded = False
         self._preMFT_pupil_shape =self.wavefront.shape  #save for possible inverseMFT
         self._preMFT_pupil_pixelscale = self.pixelscale #save for possible inverseMFT
@@ -949,8 +878,720 @@ class Wavefront(object):
         return y*yscale, x*xscale
 
 
-#------ Optical Element Classes ------
 
+#------  Optical System classes -------
+
+class OpticalSystem():
+    """ A class representing a series of optical elements,
+    either Pupil, Image, or Detector planes, through which light
+    can be propagated.
+
+    The difference between
+    Image and Detector planes is that Detectors have fixed pixels
+    in terms of arcsec/pixel regardless of wavelength (computed via
+    MFT) while Image planes have variable pixels scaled in terms of
+    lambda/D. Pupil planes are some fixed size in meters, of course.
+
+    Parameters
+    ----------
+    name : string
+        descriptive name of optical system
+    oversample : int
+        Either how many times *above* Nyquist we should be
+        (for pupil or image planes), or how many times a fixed
+        detector pixel will be sampled. E.g. `oversample=2` means
+        image plane sampling lambda/4*D (twice Nyquist) and
+        detector plane sampling 2x2 computed pixels per real detector
+        pixel.  Default is 2.
+    verbose : bool
+        whether to be more verbose with log output while computing
+
+
+
+
+    """
+    def __init__(self, name="unnamed system", verbose=True, oversample=2):
+        self.name = name
+        self.verbose=verbose
+        self.planes = []                    # List of OpticalElements
+        self.oversample = oversample
+
+        self.source_offset_r = 0 # = np.zeros((2))     # off-axis tilt of the source, in ARCSEC
+        self.source_offset_theta = 0 # in degrees CCW
+
+        self.intermediate_wfs = None        #
+        if self.verbose:
+            _log.info("Initialized OpticalSystem: "+self.name)
+
+    # Methods for adding or manipulating optical planes:
+
+    def addPupil(self, optic=None, function=None, **kwargs):
+        """ Add a pupil plane optic from file(s) giving transmission or OPD
+
+          1) from file(s) giving transmission and/or OPD
+                [set arguments `transmission=filename` and/or `opd=filename`]
+          2) from an analytic function
+                [set `function='Circle', 'Square'`
+                and set additional kwargs to define shape etc.
+          3) from an already-created OpticalElement object
+                [set `optic=that object`]
+
+        Parameters
+        ----------
+        optic : poppy.OpticalElement, optional
+            An already-created OpticalElement object you would like to add
+        function: string, optional
+            The name of some analytic function you would like to use.
+            Optional `kwargs` can be used to set the parameters of that function.
+            Allowable function names are Circle, Square, Hexagon, Rectangle, and FQPM_FFT_Aligner
+        opd, transmission : string, optional
+            Filenames of FITS files describing the desired optic.
+
+
+        Note: Now you can use the optic argument for either an OpticalElement or a string function name,
+        and it will do the right thing depending on type.  Both existing arguments are left for compatibility for now.
+
+
+        Any provided parameters are passed to :ref:`OpticalElement`.
+
+
+        """
+        if optic is None and function is not None: # ease of use: 'function' input and providing 'optic' parameter as a string are synonymous.
+            optic = function
+
+
+        if isinstance(optic, OpticalElement):
+            # OpticalElement object provided. 
+            # We can use it directly, but make sure the plane type is set.
+            optic.planetype = _PUPIL
+        elif isinstance(optic, basestring):
+            # convenience code to instantiate objects from a string name.
+
+            raise NotImplementedError('Setting optics based on strings is now deprecated.')
+
+#            fns = {'circle':CircularAperture, 'square':SquareAperture, 'rectangle':RectangleAperture, 'rect':RectangleAperture, 
+#                    'hexagon': HexagonAperture, 'hex':HexagonAperture, 'fqpm_aligner':FQPM_FFT_aligner, 'fqpm_fft_aligner': FQPM_FFT_aligner}
+#
+#            try:
+#                fn = fns[optic.lower()]
+#            except:
+#                raise ValueError("Unknown pupil function type: %s. Perhaps you meant to set transmission= or opd= instead?" % optic)
+#            optic = fn(oversample=self.oversample, **kwargs)
+#            optic.planetype = _PUPIL
+
+        elif optic is None: 
+            # create image from files specified in kwargs
+            optic = FITSOpticalElement(planetype=_PUPIL, oversample=self.oversample, **kwargs)
+        else:
+            raise TypeError("Not sure how to handle an Optic input of that type...")
+
+        self.planes.append(optic)
+        if self.verbose: _log.info("Added pupil plane: "+self.planes[-1].name)
+
+    def addImage(self, optic=None, function=None, **kwargs):
+        """ Add an image plane optic to the optical system
+
+        That image plane optic can be specified either
+
+          1) from file(s) giving transmission or OPD
+                [set arguments `transmission=filename` and/or `opd=filename`]
+          2) from an analytic function
+                [set `function='circle, fieldstop, bandlimitedcoron, or FQPM'`
+                and set additional kwargs to define shape etc.
+          3) from an already-created OpticalElement object
+                [set `optic=that object`]
+
+        Parameters
+        ----------
+        optic : poppy.OpticalElement
+            An already-created OpticalElement you would like to add
+        function: string
+            Name of some analytic function to add.
+            Optional `kwargs` can be used to set the parameters of that function.
+            Allowable function names are CircularOcculter, fieldstop, BandLimitedCoron, FQPM
+        opd, transmission : string
+            Filenames of FITS files describing the desired optic.
+
+
+
+        Notes
+        ------
+
+        Now you can use the optic argument for either an OpticalElement or a
+        string function name, and it will do the right thing depending on type.
+        Both existing arguments are left for back compatibility for now.
+
+
+
+        """
+
+        if isinstance(optic, basestring):
+            function = optic
+            optic = None
+
+        if optic is None:
+            if function == 'CircularOcculter':
+                fn = IdealCircularOcculter
+            elif function == 'BarOcculter':
+                fn = IdealBarOcculter
+            elif function == 'fieldstop':
+                fn = IdealFieldStop
+            elif function == 'BandLimitedCoron':
+                fn = BandLimitedCoron
+            elif function == 'FQPM':
+                fn = IdealFQPM
+            elif function is not None:
+                raise ValueError("Analytic mask type '%s' is unknown." % function)
+            else: # create image from files specified in kwargs
+                fn = FITSOpticalElement
+
+            optic = fn(oversample=self.oversample, **kwargs)
+            optic.planetype=_IMAGE
+        else:
+            optic.planetype = _IMAGE
+            optic.oversample = self.oversample # these need to match...
+
+        self.planes.append(optic)
+        if self.verbose: _log.info("Added image plane: "+self.planes[-1].name)
+
+    def addRotation(self, *args, **kwargs):
+        """ Add a clockwise or counterclockwise rotation around the optical axis """
+
+        self.planes.append(Rotation(*args, **kwargs))
+        if self.verbose: _log.info("Added rotation plane: "+self.planes[-1].name)
+
+
+    def addDetector(self, pixelscale, oversample=None, **kwargs):
+        """ Add a Detector object to an optical system.
+        By default, use the same oversampling as the rest of the optical system,
+        but the user can override to a different value if desired by setting `oversample`.
+
+
+        Other arguments are passed to the init method for Detector().
+
+        Parameters
+        ----------
+        pixelscale : float
+            Pixel scale in arcsec/pixel
+        oversample : int, optional
+            Oversampling factor for *this detector*, relative to hardware pixel size.
+            Optionally distinct from the default oversampling parameter of the OpticalSystem.
+
+        """
+
+        if oversample is None:
+            oversample = self.oversample
+        self.planes.append(Detector(pixelscale, oversample=oversample, **kwargs))
+        if self.verbose: _log.info("Added detector: %s, with pixelscale=%f arcsec/pixel and oversampling=%d" % (self.planes[-1].name,pixelscale,oversample) )
+
+
+        #return "Optical system '%s' containing %d optics" % (self.name, len(self.planes))
+
+    def describe(self):
+        """ Print out a string table describing all planes in an optical system"""
+        print( str(self)+"\n\t"+ "\n\t".join([str(p) for p in self.planes]) )
+
+    def __getitem__(self, num):
+        return self.planes[num]
+
+    # methods for dealing with wavefronts:
+    def inputWavefront(self, wavelength=2e-6):
+        """Create a Wavefront object suitable for sending through a given optical system, based on
+        the size of the first optical plane, assumed to be a pupil.
+
+        If the first optical element is an Analytic pupil (i.e. has no pixel scale) then
+        an array of 1024x1024 will be created (not including oversampling).
+
+        Uses self.source_offset to assign an off-axis tilt, if requested.
+
+        Parameters
+        ----------
+        wavelength : float
+            Wavelength in meters
+
+        Returns
+        -------
+        wavefront : poppy.Wavefront instance
+            A wavefront appropriate for passing through this optical system.
+
+        """
+
+        npix = self.planes[0].shape[0] if self.planes[0].shape is not None else 1024
+        diam = self.planes[0].pupil_diam if hasattr(self.planes[0], 'pupil_diam') else 8
+
+        inwave = Wavefront(wavelength=wavelength,
+                npix = npix,
+                diam = diam,
+                oversample=self.oversample)
+        _log.debug("Creating input wavefront with wavelength=%f, npix=%d, pixel scale=%f meters/pixel" % (wavelength, npix, diam/npix))
+
+        if np.abs(self.source_offset_r) > 0:
+            offset_x = self.source_offset_r *-np.sin(self.source_offset_theta*np.pi/180)  # convert to offset X,Y in arcsec
+            offset_y = self.source_offset_r * np.cos(self.source_offset_theta*np.pi/180)  # using the usual astronomical angle convention
+            inwave.tilt(Xangle=offset_x, Yangle=offset_y)
+            _log.debug("Tilted input wavefront by theta_X=%f, theta_Y=%f arcsec" % (offset_x, offset_y))
+        return inwave
+
+    def propagate_mono(self, wavelength=2e-6, normalize='first', save_intermediates=False, display_intermediates=False, intermediate_fn='wave_step_%03d.fits', poly_weight=None, **kwargs):
+        """ Propagate a monochromatic wavefront through the optical system. Called from within calcPSF.
+        Returns a fits.HDUList object.
+
+        Parameters
+        ----------
+        wavelength : float
+            Wavelength in meters
+        normalize : string, {'first', 'last'}
+            how to normalize the wavefront?
+            * 'first' = set total flux = 1 after the first optic, presumably a pupil
+            * 'last' = set total flux = 1 after the entire optical system.
+            * 'first=2' = set total flux = 2 after the first optic (used for debugging only)
+        display_intermediates : bool
+            Should intermediate steps in the calculation be displayed on screen? Default False
+        save_intermediates : bool
+            Should intermediate steps in the calculation be saved to disk? Default False.
+            If this is True, then setting `poly_weight` controls whether intermediate optical planes are actually saved to *disk* by this routine
+            (for the monochromatic case) or are passed back up via memory and handled in `calcPSF` (for the polychromatic case).
+        poly_weight : float
+            is this being called as part of a polychromatic calculation?
+            if not, set this to None. if so, set this to the weight for
+            that wavelength. (This is used only for properly normalizing the
+            multiwavelength FITs file written to disk if save_intermediates is set.)
+
+
+        """
+
+        if conf.enable_speed_tests:
+            t_start = time.time()
+        if self.verbose: _log.info(" Propagating wavelength = %g meters %s" % (wavelength, "" if poly_weight is None else " with weight=%.2f" % poly_weight))
+        wavefront = self.inputWavefront(wavelength)
+
+        if save_intermediates and poly_weight is None:
+            self.intermediate_wfs=[]
+            _log.warning("User requested saving intermediates, but no weight for this wavelength is provided - cannot properly calculate intermediate wavefront")
+            _log.debug("reset intermediates")
+
+        # do the propagation:
+        #if display_intermediates:
+            #suptitle = plt.suptitle( "propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6), size='x-large')
+
+            #wavefront.display(what='best',nrows=nrows,row=1, colorbar=False, title="propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6))
+
+        count = 0
+        for optic in self.planes:
+            wavefront.propagateTo(optic)
+            wavefront *= optic
+            count += 1
+
+
+            if count==1 and normalize.lower()=='first':  # set entrance plane to 1. 
+                wavefront.normalize()
+            elif count==1 and normalize.lower()=='first=2': # this undocumented option is present only for testing/validation purposes
+                wavefront.normalize()
+                wavefront *= np.sqrt(2) 
+
+
+
+            if conf.enable_flux_tests: _log.debug("  Flux === "+str(wavefront.totalIntensity))
+
+            if save_intermediates:
+                if len(self.intermediate_wfs) < count:
+                    self.intermediate_wfs.append(wavefront.copy())
+                else:
+                    self.intermediate_wfs[count-1] += wavefront.copy()*poly_weight
+                    _log.info("    Storing intermediate wavefront plane %d with weight %f" % (count-1, poly_weight))
+                if poly_weight is None: self.intermediate_wfs[count-1].writeto(intermediate_fn % count, what='parts')
+            if display_intermediates:
+                if conf.enable_speed_tests: t0 = time.time()
+                #if save_intermediates: self.intermediate_wfs[count-1].display(what='best',nrows=len(self.planes),row=count)
+                title = None if count > 1 else "propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6)
+                wavefront.display(what='best',nrows=len(self.planes),row=count, colorbar=False, title=title)
+                #plt.title("propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6))
+
+                if conf.enable_speed_tests:
+                    t1 = time.time()
+                    _log.debug("\tTIME %f s\t for displaying the wavefront." % (t1-t0))
+
+        #if display_intermediates:
+            #suptitle.remove() #  does not work due to some matplotlib limitation, so work around:
+            #suptitle.set_text('') # clean up before next iteration to avoid ugly overwriting
+
+        # prepare output arrays
+        if normalize.lower()=='last':
+                wavefront.normalize()
+
+        if conf.enable_speed_tests:
+            t_stop = time.time()
+            _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop-t_start))
+
+        return wavefront.asFITS()  # this returns the intensity, by default. 
+
+
+    def calcPSF(self, wavelength=1e-6, weight=None,
+        save_intermediates=False, save_intermediates_what='all', display= False, return_intermediates=False, source=None, **kwargs):
+        """Calculate a PSF, either multi-wavelength or monochromatic.
+
+        The wavelength coverage computed will be:
+        - multi-wavelength PSF over some weighted sum of wavelengths (if you provide a source parameter)
+        - monochromatic (if you provide just a wavelen= parameter)
+
+        Any additional `kwargs` will be passed on to `propagate_mono()`
+
+        Parameters
+        ----------
+        source : dict
+            a dict containing 'wavelengths' and 'weights' list.
+            *TBD - replace w/ pysynphot observation object*
+        wavelen : float, optional
+            wavelength in meters for monochromatic calculation.
+        save_intermediates : bool
+            whether to output intermediate optical planes to disk. Default is False
+        save_intermediate_what : string
+            What to save - phase, intensity, amplitude, complex, parts, all. default is all.
+        return_intermediates: bool
+            return intermediate wavefronts as well as PSF?
+        display : bool
+            whether to display when finished or not.
+
+
+        Returns
+        -------
+        outfits :
+            a fits.HDUList
+        """
+
+        tstart = time.time() 
+        if source is not None:
+            wavelength = source['wavelengths']
+            weight=source['weights']
+
+        if not hasattr(wavelength,'__iter__'):
+            wavelength = [wavelength]
+        if weight is None:
+            weight = [1.0] * len(wavelength)
+
+        if len(tuple(wavelength)) != len(tuple(weight)):
+            raise ValueError("Input source has different number of weights and wavelengths...")
+
+        if display: plt.clf()
+
+        if save_intermediates or return_intermediates:
+            self.intermediate_wfs = []
+            _log.info("User requested saving intermediate wavefronts in call to poppy.calcPSF")
+            _log.debug('reset intermediates in calcPSF')
+            #raise ValueError("Saving intermediates for multi-wavelen not yet implemented!!")
+        else:
+            self.intermediate_wfs = None
+
+        # loop over wavelengths
+        if self.verbose: _log.info("Calculating PSF with %d wavelengths" % (len(wavelength)))
+        outFITS = None
+
+        normwts =  np.asarray(weight, dtype=float)
+        normwts /= normwts.sum()
+
+        if conf.use_fftw:
+            utils.fftw_load_wisdom()
+
+
+        if conf.use_multiprocessing and len(wavelength) > 1 : ######### Parallellized computation ############
+            if conf.use_fftw: 
+                _log.warn('IMPORTANT WARNING: Python multiprocessing and fftw3 do not appear to play well together. This may crash intermittently')
+                _log.warn('   We suggest you set   poppy.conf.use_fftw to False   if you want to use multiprocessing().')
+            if display:
+                _log.warn('Display during calculations is not supported for multiprocessing mode. Please set poppy.conf.use_multiprocessing.set(False) if you want to use display=True.')
+                _log.warn('For now, display is being set to False.')
+                display=False
+
+            if save_intermediates:
+                raise NotImplementedError("Can't save intermediate steps if using parallelized code")
+                save_intermediates = False
+                self.intermediate_wfs = []
+
+            # do *NOT* just blindly try to create as many processes as one has CPUs, or one per wavelength either
+            # This is a memory-intensive task so that can end up swapping to disk and thrashing IO
+            nproc = conf.n_processes if conf.nprocesses > 1 else utils.estimate_optimal_nprocesses(self, nwavelengths=len(wavelength))
+
+            pool = multiprocessing.Pool( int(nproc) )  # be sure to cast to int, will fail if given a float even if of integer value
+
+
+            # build a single iterable containing the required function arguments
+            _log.info("Beginning multiprocessor job using {0} processes".format(nproc))
+            iterable = [(self, wavelen, wt, kwargs, conf.use_fftw) for wavelen, wt in zip(wavelength, normwts)]
+            results = pool.map(_wrap_propagate_for_multiprocessing, iterable)
+            _log.info("Finished multiprocessor job")
+            pool.close()
+
+            # Sum all the results up into one array, using the weights
+            outFITS = results[0]
+            outFITS[0].data *= normwts[0]
+            _log.info("got results for wavelength channel %d / %d" % (0, len(tuple(wavelength))) )
+            for i in range(1, len(normwts)):
+                _log.info("got results for wavelength channel %d / %d" % (i, len(tuple(wavelength))) )
+                outFITS[0].data += results[i][0].data * normwts[i]
+            outFITS[0].header.add_history("Multiwavelength PSF calc on %d processors completed." % conf.n_processes)
+
+
+
+
+        else:  ########## single-threaded computations (may still use multi cores if FFTW enabled ######
+
+
+            for wavelen, wave_weight in zip(wavelength, normwts):
+            #for wavelen, weight in zip(source['wavelengths'], normwts):
+                mono_psf = self.propagate_mono(wavelen, poly_weight=wave_weight, save_intermediates=save_intermediates or return_intermediates, **kwargs)
+                # add mono_psf into the output array:
+
+                if outFITS is None:
+                    outFITS = mono_psf
+                    outFITS[0].data = mono_psf[0].data*wave_weight
+                else:
+                    outFITS[0].data += mono_psf[0].data *wave_weight
+
+            if save_intermediates:
+                for i in range(len(self.intermediate_wfs)):
+                    self.intermediate_wfs[i].writeto('wavefront_plane_%03d.fits' % i, what=save_intermediates_what, **kwargs )
+
+        tstop = time.time()
+        tdelta = tstop-tstart
+        _log.info("  Calculation completed in {0:.3f} s".format(tdelta))
+        outFITS[0].header.add_history("Calculation completed in {0:.3f} seconds".format(tdelta))
+
+
+
+        if display:
+            # This display may be redundant if display_intermediates is not already set...
+            cmap = matplotlib.cm.jet
+            cmap.set_bad('0.3')
+            #cmap.set_bad('k', 0.8)
+            halffov_x =outFITS[0].header['PIXELSCL']*outFITS[0].data.shape[1]/2
+            halffov_y =outFITS[0].header['PIXELSCL']*outFITS[0].data.shape[0]/2
+            extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
+            unit="arcsec"
+            norm=matplotlib.colors.LogNorm(vmin=1e-8,vmax=1e-1)
+            plt.xlabel(unit)
+
+            utils.imshow_with_mouseover(outFITS[0].data, extent=extent, norm=norm, cmap=cmap)
+
+
+
+        if conf.use_fftw and conf.autosave_fftw_wisdom:
+            utils.fftw_save_wisdom()
+
+        # TODO update FITS header for oversampling here if detector is different from regular?
+        waves = np.asarray(wavelength)
+        wts = np.asarray(weight)
+        mnwave = (waves*wts).sum() / wts.sum()
+        outFITS[0].header['WAVELEN'] = ( mnwave, 'Weighted mean wavelength in meters')
+        outFITS[0].header['NWAVES'] = (waves.size, 'Number of wavelengths used in calculation')
+        for i in range(waves.size):
+            outFITS[0].header['WAVE'+str(i)] = ( waves[i], "Wavelength "+str(i))
+            outFITS[0].header['WGHT'+str(i)] = ( wts[i], "Wavelength weight "+str(i))
+        ffttype = "pyFFTW" if conf.use_fftw else "numpy.fft"
+        outFITS[0].header['FFTTYPE'] = (ffttype, 'Algorithm for FFTs: numpy or fftw')
+
+        if self.verbose: _log.info("PSF Calculation completed.")
+        if return_intermediates:
+            return outFITS, self.intermediate_wfs
+        else:
+            return outFITS
+
+
+    def display(self, **kwargs):
+        """ Display all elements in an optical system on screen.
+
+        Any extra arguments are passed to the `optic.display()` methods of each element.
+
+        """
+
+        planes_to_display = [p for p in self.planes if (not isinstance(p, Detector) and not p._suppress_display)]
+        nplanes = len(planes_to_display)
+        for i, plane in enumerate(planes_to_display):
+            _log.info("Displaying plane {0:s} in row {1:d} of {2:d}".format(plane.name, i+1, nplanes))
+            plane.display(nrows=nplanes, row=i+1, **kwargs)
+
+
+    def _propagation_info(self):
+        """ Provide some summary information on the optical propagation calculations that
+        would be done for a given optical system 
+
+        Right now this mostly is checking whether a given propagation makes use of FFTs or not,
+        since the padding for oversampled FFTS majorly affects the max memory used for multiprocessing
+        estimation """
+
+        steps = []
+        for i, p in enumerate(self.planes):
+            if i == 0: continue # no propagation needed for first plane
+            if p.planetype == _ROTATION:  steps.append('rotation')
+            elif self.planes[i-1].planetype==_PUPIL and p.planetype ==_DETECTOR: steps.append('MFT')
+            elif self.planes[i-1].planetype==_PUPIL and p.planetype ==_IMAGE:
+                  if i > 1 and steps[-1] =='MFT': steps.append('invMFT')
+                  else: steps.append('FFT')
+            elif self.planes[i-1].planetype==_IMAGE and p.planetype == _DETECTOR: steps.append('resample')
+            else: steps.append('FFT')
+
+        
+        output_shape = [a * self.planes[-1].oversample for a in self.planes[-1].shape]
+        output_size = output_shape[0]*output_shape[1]
+
+        return {'steps': steps, 'output_shape': output_shape, 'output_size':output_size}
+
+
+class SemiAnalyticCoronagraph(OpticalSystem):
+    """ A subclass of OpticalSystem that implements a specialized propagation
+    algorithm for coronagraphs whose occulting mask has limited and small support in
+    the image plane. Algorithm from Soummer et al. (2007)
+
+    The way to use this class is to build an OpticalSystem class the usual way, and then
+    cast it to a SemiAnalyticCoronagraph, and then you can just call calcPSF on that in the
+    usual fashion.
+
+    Parameters
+    -----------
+    ExistingOpticalSystem : OpticalSystem
+        An optical system which can be converted into a SemiAnalyticCoronagraph. This
+        means it must have exactly 4 planes, in order Pupil, Image, Pupil, Detector.
+    oversample : int
+        Oversampling factor in intermediate image plane. Default is 8
+    occulter_box : float
+        half size of field of view region entirely including the occulter, in arcseconds. Default 1.0
+        This can be a tuple or list to specify a rectangular region [deltaY,deltaX] if desired.
+
+
+    Notes
+    ------
+
+    Note that this algorithm is only appropriate for certain types of Fourier transform,
+    namely those using occulters limited to a sub-region of the image plane.
+    It is certainly appropriate for TFI, and probably the right choice for NIRCam as well, but
+    is of no use for MIRI's FQPMs.
+
+
+
+    """
+
+    def __init__(self, ExistingOpticalSystem, oversample=8, occulter_box = 1.0):
+
+        if len(ExistingOpticalSystem.planes) != 4:
+            raise ValueError("Input optical system must have exactly 4 planes to be convertible into a SemiAnalyticCoronagraph")
+        self.name = "SemiAnalyticCoronagraph for "+ExistingOpticalSystem.name
+        self.verbose = ExistingOpticalSystem.verbose
+        self.source_offset_r = ExistingOpticalSystem.source_offset_r
+        self.source_offset_theta = ExistingOpticalSystem.source_offset_theta
+        self.planes = ExistingOpticalSystem.planes
+
+        # SemiAnalyticCoronagraphs have some fixed planes, so give them reasonable names.
+        self.inputpupil = self.planes[0]
+        self.occulter = self.planes[1]
+        self.lyotplane = self.planes[2]
+        self.detector = self.planes[3]
+
+        self.mask_function = InverseTransmission(self.occulter)
+
+        for i, typecode in enumerate([_PUPIL, _IMAGE, _PUPIL, _DETECTOR]):
+            if not self.planes[i].planetype == typecode:
+                raise ValueError("Plane {0:d} is not of the right type for a semianalytic coronagraph calculation: should be {1:s} but is {2:s}.".format(i, _typestrs[typecode], _typestrs[self.planes[i].planetype]))
+
+
+        self.oversample = oversample
+
+        if hasattr(occulter_box, '__getitem__'):
+            occulter_box = np.array(occulter_box) # cast to numpy array so the multiplication by 2 just below will work
+        self.occulter_box = occulter_box
+
+        self.occulter_det = Detector(self.detector.pixelscale/self.oversample, fov_arcsec = self.occulter_box*2, name='Oversampled Occulter Plane')
+
+    def propagate_mono(self, wavelength=2e-6, normalize='first', save_intermediates=False, display_intermediates=False, intermediate_fn=None, poly_weight=None):
+        """
+
+        Parameters
+        -------------
+        wavelength : float
+            Wavelength in meters
+        normalize : string, {'first', 'last'}
+            how to normalize the wavefront?
+
+            * 'first' : set total flux = 1 after the first optic, presumably a pupil
+            * 'last' : set total flux = 1 after the entire optical system.
+
+
+        save_intermediates, display_intermediates, intermediate_fn, poly_weight : bools
+            Ignored in current version of code?
+
+        """
+        if conf.enable_speed_tests: t_start = time.time()
+        if self.verbose: _log.info(" Propagating wavelength = %g meters" % wavelength)
+        wavefront = self.inputWavefront(wavelength)
+
+        if save_intermediates:
+            raise NotImplemented("not yet")
+
+        #------- differences from regular propagation begin here --------------
+        wavefront *= self.inputpupil
+
+        if normalize.lower()=='first':
+            wavefront.normalize()
+
+
+        if display_intermediates:
+            #suptitle = plt.suptitle( "propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6), size='x-large')
+
+            nrows = 6
+            #plt.clf()
+            wavefront.display(what='best',nrows=nrows,row=1, colorbar=False, title="propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6))
+
+
+        # determine FOV region bounding the image plane occulting stop.
+        # determine number of pixels across that to use ("N_B")
+        # calculate the MFT to the N_B x N_B occulting region.
+        wavefront_cor = wavefront.copy()
+        wavefront_cor.propagateTo(self.occulter_det)
+
+        if display_intermediates: wavefront_cor.display(what='best',nrows=nrows,row=2, colorbar=False)
+
+
+        # Multiply that by M(r) =  1 - the occulting plane mask function
+        wavefront_cor *= self.mask_function
+
+        if display_intermediates: wavefront_cor.display(what='best',nrows=nrows,row=3, colorbar=False)
+
+        # calculate the MFT from that small region back to the full Lyot plane
+
+        wavefront_lyot = wavefront_cor.copy()
+        wavefront_lyot.propagateTo(self.lyotplane)
+
+        if display_intermediates: wavefront_lyot.display(what='best',nrows=nrows,row=4, colorbar=False)
+        # combine that with the original pupil function
+        wavefront_combined = wavefront + (-1)*wavefront_lyot
+
+        wavefront_combined *= self.lyotplane
+        wavefront_combined.location = 'after combined Lyot pupil'
+
+        if display_intermediates: wavefront_combined.display(what='best',nrows=nrows,row=5, colorbar=False)
+
+        # propagate to the real detector in the final image plane.
+        wavefront_combined.propagateTo(self.detector)
+
+        if display_intermediates: 
+            wavefront_combined.display(what='best',nrows=nrows,row=6, colorbar=False)
+            #suptitle.remove() #  does not work due to some matplotlib limitation, so work arount:
+            #plt.suptitle.set_text('') # clean up before next iteration to avoid ugly overwriting
+
+
+
+        #------- differences from regular propagation end here --------------
+
+        # prepare output arrays
+        if normalize.lower()=='last':
+                wavefront_combined.normalize()
+
+        if conf.enable_speed_tests:
+            t_stop = time.time()
+            _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop-t_start))
+
+        return wavefront_combined.asFITS()
+
+
+#------ core Optical Element Classes ------
 class OpticalElement():
     """ Base class for all optical elements, whether from FITS files or analytic functions. 
 
@@ -1051,7 +1692,7 @@ class OpticalElement():
 
             # new version: pad to match the wavefront sampling, from whatever sized array we started with. Allows more
             # flexibility for differently sized FITS arrays, so long as they all have the same pixel scale as checked above!
-            return padToSize(self.phasor, wave.shape)
+            return utils.padToSize(self.phasor, wave.shape)
         else:
             return self.phasor
 
@@ -1544,1357 +2185,6 @@ class InverseTransmission(OpticalElement):
         return 1- self.optic.getPhasor(wave)
 
 
-#------ Generic Analytic elements -----
-
-class AnalyticOpticalElement(OpticalElement):
-    """ Defines an abstract analytic optical element, i.e. one definable by some formula rather than
-        by an input OPD or pupil file.
-
-        This class is useless on its own; instead use its various subclasses that implement appropriate getPhasor functions.
-        It exists mostly to provide some behaviors & initialization common to all analytic optical elements.
-
-        Parameters
-        ----------
-        name, verbose, oversample, planetype : various
-            Same as for OpticalElement
-        transmission, opd : string
-            These are *not allowed* for Analytic optical elements, and this class will raise an error if you try to set one.
-
-
-    """
-    def __init__(self,  **kwargs):
-        OpticalElement.__init__(self, **kwargs)
-
-        self.shape = None # no explicit shape required
-        self.pixelscale = None
-
-    def __str__(self):
-        if self.planetype is _PUPIL:
-            return "Pupil plane: %s (Analytic)" % (self.name)
-        elif self.planetype is _IMAGE:
-            return "Image plane: %s (Analytic)" % (self.name)
-        else:
-            return "Optic: "+self.name
-
-    def getPhasor(self,wave):
-        raise NotImplementedError("getPhasor must be supplied by a derived subclass")
-
-    def sample(self, wavelength=2e-6, npix=512, grid_size=None, what='amplitude', return_scale=False, phase_unit='waves'):
-        """ Sample the Analytic Optic onto a grid and return the array 
-        
-        Parameters
-        ----------
-        wavelength : float
-            Wavelength in meters.
-        npix : integer
-            Number of pixels for sampling the array
-        grid_size : float
-            Field of view grid size (diameter) for sampling the optic, in meters for 
-            pupil plane optics and arcseconds for image planes. Default value is
-            taken from the optic's properties, if defined. Otherwise defaults to 
-            6.5 meters or 2 arcseconds depending on plane.
-        what : string
-            What to return: optic 'amplitude' transmission, 'intensity' transmission, or 
-            'phase'.  Note that phase with phase_unit = 'waves' should give the optical path difference, OPD.
-        phase_unit : string
-            Unit for returned phase array IF what=='phase'. One of 'radians', 'waves', 'meters'. 
-        return_scale : float
-            if True, will return a tuple containing the desired array and a float giving the pixel scale.
-        """
-        if self.planetype is _PUPIL:
-            if grid_size is not None: diam = grid_size
-            elif hasattr(self, 'pupil_diam'): diam = self.pupil_diam
-            else : diam = 6.5  # meters
-            w = Wavefront(wavelength=wavelength, npix=npix,  diam = diam)
-            pixel_scale = diam/npix
-
-        else:
-            #unit="arcsec"
-
-            if grid_size is not None: fov = grid_size
-            elif hasattr(self, '_default_display_size'): fov = self._default_display_size
-            else: fov=4
-            pixel_scale = fov/npix
-            w = Wavefront(wavelength=wavelength, npix=npix,  pixelscale = pixel_scale)
-
-        phasor = self.getPhasor(w)
-        _log.info("Computing {0} for {1} sampled onto {2} pixel grid".format(what, self.name, npix))
-        if what =='amplitude':
-            output_array = np.abs(phasor)
-        elif what =='intensity':
-            output_array = np.abs(phasor)**2
-        elif what =='phase':
-            if phase_unit == 'radians':
-                output_array = np.angle(phasor) 
-            elif phase_unit =='waves':
-                output_array = np.angle(phasor) /(2*np.pi)
-            elif phase_unit =='meters':
-                output_array = np.angle(phasor) /(2*np.pi) * wavelength
-            else:
-                raise ValueError('Invalid/unknown phase_unit: '+phase_unit+". Must be one of [radians, waves, meters]")
-        elif what =='complex':
-            output_array = phasor
-        else:
-            raise ValueError('Invalid/unknown what to sample: '+what+". Must be one of [amplitude, intensity, phase, complex]")
-
-        if return_scale:
-            return (output_array, pixel_scale)
-        else:
-            return output_array
-
-
-    def display(self, nrows=1, row=1,  wavelength=2e-6, npix=512,   **kwargs):
-        """Display an Analytic optic by first computing it onto a grid...
-
-        Parameters
-        ----------
-        wavelength : float
-            Wavelength to evaluate this optic's properties at
-        npix : int
-            Number of pixels to use when sampling the analytic optical element.
-
-        what : str
-            What to display: 'intensity', 'phase', or 'both'
-        ax : matplotlib.Axes instance 
-            Axes to display into
-        nrows, row : integers
-            # of rows and row index for subplot display
-        crosshairs : bool
-            Display crosshairs indicating the center?
-        colorbar : bool
-            Show colorbar?
-        colorbar_orientation : bool
-            Desired orientation, horizontal or vertical?
-            Default is horizontal if only 1 row of plots, else vertical
-        opd_vmax : float
-            Max value for OPD image display, in meters.
-        title : string
-            Plot label
-
-
-        """
- 
-
-        _log.debug("Displaying "+self.name)
-        phasor, pixelscale = self.sample(wavelength=wavelength, npix=npix, what='complex', return_scale=True) 
-
-#        if self.planetype is _PUPIL:
-#            #unit="meters"
-#            if hasattr(self, 'pupil_diam'): self.diam = self.pupil_diam
-#            else : self.diam = 6.5
-#            halffov_x = self.diam/2
-#            halffov_y = self.diam/2
-#            w = Wavefront(wavelength=wavelength, npix=npix,  diam = self.diam)
-#            self.pupil_scale = self.diam/npix
-#            self.pixelscale = self.pupil_scale
-#
-#        else:
-#            #unit="arcsec"
-#            if hasattr(self, '_default_display_size'):
-#                halffov_x = self._default_display_size/2
-#                halffov_y = self._default_display_size/2
-#            else:
-#                halffov_x = 2.0
-#                halffov_y = 2.0
-#            self.pixelscale = 2.*halffov_x/npix
-#            w = Wavefront(wavelength=wavelength, npix=npix,  pixelscale = self.pixelscale)
-#
-
-        # temporarily set attributes appropriately as if this were a regular OPticalElement
-        #phasor = self.getPhasor(w)
-        self.amplitude = np.abs(phasor)
-        phase = np.angle(phasor) / (2*np.pi) 
-        self.opd = phase *wavelength
-        self.pixelscale = pixelscale
-
-        #then call parent class display
-        OpticalElement.display(self,nrows=nrows, row=row, **kwargs)
-
-        # now un-set all the temporary attributes back, since this is analytic and these are unneeded
-        self.pixelscale = None
-        #self.pupil_scale = None
-        #self.diam = None
-        self.opd = None
-        self.amplitude = None
-
-    def toFITS(self, outname=None, what='amplitude', wavelength=2e-6, npix=512):
-        """ Save an analytic optic computed onto a grid to a FITS file """
-
-        if outname is None:
-            raise ValueError("You must supply an output filename to write a FITS file.")
-
-        output_array, pixelscale = self.sample(wavelength=wavelength, npix=npix, what=what, return_scale=True) 
-        
-
-#        if self.planetype is _PUPIL:
-#            unit="meters"
-#            if hasattr(self, 'pupil_diam'): self.diam = self.pupil_diam
-#            else : self.diam = 6.5
-#            halffov = self.diam/2
-#            w = Wavefront(wavelength=wavelength, npix=npix,  diam = self.diam)
-#            self.pupil_scale = self.diam/npix
-#            self.pixelscale = self.pupil_scale
-#
-#        else:
-#            unit="arcsec"
-#            if hasattr(self, '_default_display_size'):
-#                halffov = self._default_display_size/2
-#            else:
-#                halffov = 2.0
-#            self.pixelscale = 2.*halffov/npix
-#            w = Wavefront(wavelength=wavelength, npix=npix,  pixelscale = self.pixelscale)
-#
-#
-#        # set attributes appropriately as if this were a regular OPticalElement
-#        phasor = self.getPhasor(w)
-#        self.amplitude = np.abs(phasor)
-#        phase = np.angle(phasor) * 2*np.pi
-#        self.opd = phase *wavelength
-
-        phdu = fits.PrimaryHDU(output_array)
-        phdu.header['OPTIC'] = self.name
-        phdu.header['SOURCE'] = 'Computed with POPPY'
-        phdu.header['CONTENTS'] = what
-        phdu.header['PIXELSCL'] = pixelscale
-        phdu.writeto(outname, clobber=True)
-        _log.info("Output written to "+outname)
-
-
-class ScalarTransmission(AnalyticOpticalElement):
-    """ Either a null optic (empty plane) or some perfect ND filter...
-    But most commonly this is just used as a null optic placeholder """
-    def __init__(self, name="-empty-", transmission=1.0, **kwargs):
-        AnalyticOpticalElement.__init__(self,name=name, **kwargs)
-        self.transmission = transmission
-    def getPhasor(self, wave):
-        return self.transmission
-
-
-#------ Analytic Image Plane elements -----
-
-class BandLimitedCoron(AnalyticOpticalElement):
-    """ Defines an ideal band limited coronagraph occulting mask.
-
-
-        Parameters
-        ----------
-        name : string
-            Descriptive name
-        kind : string
-            Either 'circular' or 'linear'. The linear ones are custom shaped to NIRCAM's design
-            with flat bits on either side of the linear tapered bit.
-            Also includes options 'nircamcircular' and 'nircamwedge' specialized for the
-            JWST NIRCam occulters, including the off-axis ND acq spots and the changing
-            width of the wedge occulter.
-        sigma : float
-            The numerical size parameter, as specified in Krist et al. 2009 SPIE
-        wavelength : float
-            Wavelength this BLC is optimized for, only for the linear ones.
-
-    """
-    def __init__(self, name="unnamed BLC", kind='circular', sigma=1, wavelength=None, **kwargs):
-        AnalyticOpticalElement.__init__(self,name=name, planetype=_IMAGE, **kwargs)
-
-        self.kind = kind.lower()        # either circular or linear
-        if self.kind not in ['circular', 'linear', 'nircamwedge', 'nircamcircular']:
-            raise ValueError("Invalid kind of BLC: "+self.kind)
-        self.sigma = float(sigma)              # size parameter. See section 2.1 of Krist et al. SPIE 2007, 2009
-        if wavelength is not None:
-            self.wavelength = float(wavelength)    # wavelength, for selecting the linear wedge option only
-        self._default_display_size= 20.        # default size for onscreen display, sized for NIRCam
-
-    def getPhasor(self,wave):
-        """ Compute the amplitude transmission appropriate for a BLC for some given pixel spacing
-        corresponding to the supplied Wavefront.
-
-        Based on the Krist et al. SPIE paper on NIRCam coronagraph design
-
-        Note that the equations in Krist et al specify the intensity transmission of the occulter,
-        but what we want to return here is the amplitude transmittance. That is the square root of the
-        intensity, of course, so the equations as implemented here all differ from those written in
-        Krist's SPIE paper by lacking an exponential factor of 2. Thanks to John Krist for pointing this out.
-
-        """
-        if not isinstance(wave, Wavefront):
-            raise ValueError("BLC getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _IMAGE)
-
-        y, x = wave.coordinates()
-        if self.kind == 'circular':
-            # larger sigma implies narrower peak? TBD verify if this is correct
-            #
-            r = np.sqrt(x**2+y**2)
-            sigmar = self.sigma*r
-            self.transmission = (1-  (2*scipy.special.jn(1,sigmar)/sigmar)**2)
-        if self.kind == 'nircamcircular':
-            # larger sigma implies narrower peak? TBD verify if this is correct
-            #
-            r = np.sqrt(x**2+y**2)
-            sigmar = self.sigma*r
-            sigmar.clip(np.finfo(sigmar.dtype).tiny)  # avoid divide by zero -> NaNs
-            self.transmission = (1-  (2*scipy.special.jn(1,sigmar)/sigmar)**2)
-
-            # add in the ND squares. Note the positions are not exactly the same in the two wedges.
-            # See the figures  in Krist et al. of how the 6 ND squares are spaced among the 5 corongraph regions
-            # Also add in the opaque border of the coronagraph mask holder.
-            if self.sigma > 4:
-                wnd = np.where((y > 5) & (((x < -5)&(x>-10)) | ((x > 7.5)&(x<12.5))) ) # MASK210R has one in the corner and one half in the other corner
-                wborder  = np.where((np.abs(y) > 10) | (x < -10) )                        #left end of mask holder
-            else:
-                wnd = np.where((y > 5) & (np.abs(x) > 7.5) & (np.abs(x) < 12.5))        # the others have two halves on in each corner.
-                wborder  = np.where(np.abs(y) > 10)
-
-            self.transmission[wnd] = np.sqrt(1e-3)
-            self.transmission[wborder] = 0
-
-
-        elif self.kind == 'linear':
-            #raise(NotImplemented("Generic linear not implemented"))
-            sigmar = self.sigma * np.abs(y)
-            sigmar.clip( np.finfo(sigmar.dtype).tiny)  # avoid divide by zero -> NaNs
-            self.transmission = (1-  (np.sin(sigmar)/sigmar)**2)
-
-
-        elif self.kind == 'nircamwedge':
-            # This is hard-coded to the wedge-plus-flat-regions shape for NIRCAM
-
-            # we want a scale factor that goes from  2 to 6 with 1/5th of it as a fixed part on either end
-            #scalefact = np.linspace(1,7, x.shape[1]).clip(2,6)
-
-            # the scale fact should depent on X coord in arcsec, scaling across a 20 arcsec FOV.
-            # map flat regions to 2.5 arcsec each?
-            # map -7.5 to 2, +7.5 to 6. slope is 4/15, offset is +9.5
-            scalefact = (2+(-x+7.5)*4/15).clip(2,6)
-
-            #scalefact *= self.sigma / 2 #;2.2513
-            #scalefact *= 2.2513
-            #scalefact.shape = (1, x.shape[1])
-            # This does not work - shape appears to be curved not linear.
-            # This is NOT a linear relationship. See calc_blc_wedge in test_poppy.
-
-            if np.abs(self.wavelength - 2.1e-6) < 0.1e-6:
-                polyfitcoeffs = np.array([  2.01210737e-04,  -7.18758337e-03,   1.12381516e-01,
-                                          -1.00877701e+00,   5.72538509e+00,  -2.12943497e+01,
-                                           5.18745152e+01,  -7.97815606e+01,   7.02728734e+01])
-            elif np.abs(self.wavelength - 4.6e-6) < 0.1e-6:
-                polyfitcoeffs = np.array([  9.16195583e-05,  -3.27354831e-03,   5.11960734e-02,
-                                          -4.59674047e-01,   2.60963397e+00,  -9.70881273e+00,
-                                           2.36585911e+01,  -3.63978587e+01,   3.20703511e+01])
-            else:
-                raise NotImplemented("No defined NIRCam wedge BLC mask for that wavelength?  ")
-
-            sigmas = scipy.poly1d(polyfitcoeffs)(scalefact)
-
-            sigmar = sigmas * np.abs(y)
-            sigmar.clip( np.finfo(sigmar.dtype).tiny)  # avoid divide by zero -> NaNs
-            self.transmission = (1-  (np.sin(sigmar)/sigmar)**2)
-            # the bar should truncate at +- 10 arcsec:
-            woutside = np.where(np.abs(x) > 10)
-            self.transmission[woutside] = 1.0
-
-
-            # add in the ND squares. Note the positions are not exactly the same in the two wedges.
-            # See the figures  in Krist et al. of how the 6 ND squares are spaced among the 5 corongraph regions
-            # Also add in the opaque border of the coronagraph mask holder.
-            if np.abs(self.wavelength - 2.1e-6) < 0.1e-6:
-                wnd = np.where((y > 5) & (((x < -5)&(x>-10)) | ((x > 7.5)&(x<12.5))) ) # half ND square on each side
-                wborder  = np.where(np.abs(y) > 10)
-            elif np.abs(self.wavelength - 4.6e-6) < 0.1e-6:
-                wnd = np.where((y > 5) & (((x < -7.5)&(x>-12.5)) | (x > 5)) )
-                wborder  = np.where((np.abs(y) > 10) | (x > 10) )     # right end of mask holder
-
-            self.transmission[wnd] = np.sqrt(1e-3)
-            self.transmission[wborder] = 0
-
-
-
-        if not np.isfinite(self.transmission.sum()):
-            #stop()
-            _log.warn("There are NaNs in the BLC mask - correcting to zero. (DEBUG LATER?)")
-            self.transmission[np.where(np.isfinite(self.transmission) == False)] = 0
-        return self.transmission
-
-
-class IdealFQPM(AnalyticOpticalElement):
-    """ Defines an ideal 4-quadrant phase mask coronagraph, with its retardance
-    set perfectly to 0.5 waves at one specific wavelength and varying linearly on
-    either side of that.
-
-    Parameters
-    ----------
-    name : string
-        Descriptive name
-    wavelength : float
-        Wavelength in meters for which the FQPM was designed
-
-
-    """
-    def __init__(self, name="unnamed FQPM ", wavelength=10.65e-6, **kwargs):
-        AnalyticOpticalElement.__init__(self, planetype=_IMAGE, **kwargs)
-        self.name = name
-
-        self.central_wavelength =wavelength
-
-    def getPhasor(self,wave):
-        """ Compute the amplitude transmission appropriate for a 4QPM for some given pixel spacing
-        corresponding to the supplied Wavefront
-        """
-
-        if not isinstance(wave, Wavefront):
-            raise ValueError("4QPM getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _IMAGE)
-
-        # TODO this computation could be sped up a lot w/ optimzations
-        phase = np.empty(wave.shape)
-        n0 = wave.shape[0]/2
-        n0 = int(round(n0))
-        phase[:n0,:n0]=0.5
-        phase[n0:,n0:]=0.5
-        phase[n0:,:n0]=0
-        phase[:n0,n0:]=0
-
-        retardance = phase*self.central_wavelength/wave.wavelength
-
-        #outFITS = fits.HDUList(fits.PrimaryHDU(retardance))
-        #outFITS.writeto('retardance_fqpm.fits', clobber=True)
-        #_log.info("Retardance is %f waves" % retardance.max())
-        FQPM_phasor = np.exp(1.j * 2* np.pi * retardance)
-        return FQPM_phasor
-
-
-class IdealRectangularFieldStop(AnalyticOpticalElement):
-    """ Defines an ideal rectangular field stop
-
-    Parameters
-    ----------
-    name : string
-        Descriptive name
-    width, height: float
-        Size of the field stop, in arcseconds. Default 0.5 width, height 5.
-    angle : float
-        Position angle of the field stop sides relative to the detector +Y direction, in degrees.
-
-    """
-
-    def __init__(self, name="unnamed field stop",  width=0.5, height=5.0, angle=0, **kwargs):
-        AnalyticOpticalElement.__init__(self, planetype=_IMAGE, **kwargs)
-        self.name = name
-        self.width = float(width)            # width of square stop in arcseconds.
-        self.height = float(height)            # height of square stop in arcseconds.
-        self.angle = float(angle)
-        self._default_display_size = max(height, width)*1.2
-
-    def getPhasor(self,wave):
-        """ Compute the transmission inside/outside of the field stop.
-        """
-        if not isinstance(wave, Wavefront):
-            raise ValueError("IdealFieldStop getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _IMAGE)
-
-        y, x= wave.coordinates()
-        xnew =  x*np.cos(np.deg2rad(self.angle)) + y*np.sin(np.deg2rad(self.angle))
-        ynew = -x*np.sin(np.deg2rad(self.angle)) + y*np.cos(np.deg2rad(self.angle))
-        x,y = xnew, ynew
-
-
-        w_outside = np.where( (abs(y) > (self.height/2))  | (abs(x) > (self.width/2)))
-        del x # for large arrays, cleanup very promptly, before allocating self.transmission
-        del y
-        self.transmission = np.ones(wave.shape)
-        self.transmission[w_outside] = 0
-
-        return self.transmission
-
-
-class IdealFieldStop(AnalyticOpticalElement):
-    """ Defines an ideal square field stop
-
-    Parameters
-    ----------
-    name : string
-        Descriptive name
-    size : float
-        Size of the field stop, in arcseconds. Default 20.
-    angle : float
-        Position angle of the field stop sides relative to the detector +Y direction, in degrees.
-
-    """
-
-    def __init__(self, name="unnamed field stop",  size=20., angle=0, **kwargs):
-        AnalyticOpticalElement.__init__(self, planetype=_IMAGE, **kwargs)
-        self.name = name
-        self.size = size            # size of square stop in arcseconds.
-        #self.pixelscale=0
-        self.angle=angle
-        self._default_display_size = size*1.2
-
-    def getPhasor(self,wave):
-        """ Compute the transmission inside/outside of the field stop.
-        """
-        if not isinstance(wave, Wavefront):
-            raise ValueError("IdealFieldStop getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _IMAGE)
-
-        #phasor = np.zeros(wave.shape)
-        y, x= wave.coordinates()
-        #y, x = np.indices(wave.shape)
-        #y -= wave.shape[0]/2
-        #x -= wave.shape[1]/2
-        xnew =  x*np.cos(np.deg2rad(self.angle)) + y*np.sin(np.deg2rad(self.angle))
-        ynew = -x*np.sin(np.deg2rad(self.angle)) + y*np.cos(np.deg2rad(self.angle))
-        x,y = xnew, ynew
-        #del xnew
-        #del ynew
-
-
-        halfsize = self.size   / 2
-        w_outside = np.where( (abs(y) > halfsize)  | (abs(x) > halfsize))
-        del x # for large arrays, cleanup very promptly, before allocating self.transmission
-        del y
-        self.transmission = np.ones(wave.shape)
-        self.transmission[w_outside] = 0
-
-        return self.transmission
-
-
-class IdealCircularOcculter(AnalyticOpticalElement):
-    """ Defines an ideal circular occulter (opaque circle)
-
-
-
-    Parameters
-    ----------
-    name : string
-        Descriptive name
-    radius : float
-        Radius of the occulting spot, in arcseconds. Default is 1.0
-
-    """
-
-    def __init__(self, name="unnamed occulter",  radius=1.0, **kwargs):
-        AnalyticOpticalElement.__init__(self, planetype=_IMAGE, **kwargs)
-        self.name = name
-        self.radius = radius    # radius of circular occulter in arcseconds.
-        self._default_display_size = 10
-        #self.pixelscale=0
-
-    def getPhasor(self,wave):
-        """ Compute the transmission inside/outside of the occulter.
-        """
-        if not isinstance(wave, Wavefront):
-            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _IMAGE)
-
-        y, x= wave.coordinates()
-        #y, x = np.indices(wave.shape)
-        #y -= wave.shape[0]/2
-        #x -= wave.shape[1]/2
-        r = np.sqrt(x**2+y**2) #* wave.pixelscale
-        w_inside = np.where( r <= self.radius)
-
-        del x
-        del y
-        del r
-        self.transmission = np.ones(wave.shape)
-        self.transmission[w_inside] = 0
-
-        return self.transmission
-
-
-class IdealBarOcculter(AnalyticOpticalElement):
-    """ Defines an ideal bar occulter (like in MIRI's Lyot coronagraph)
-
-    Parameters
-    ----------
-    name : string
-        Descriptive name
-    width : float
-        width of the bar stop, in arcseconds. Default is 1.0
-    angle : float
-        position angle of the bar, rotated relative to the normal +y direction.
-
-    """
-
-    def __init__(self, name="bar occulter",  width=1.0, angle= 0, **kwargs):
-        AnalyticOpticalElement.__init__(self, planetype=_IMAGE, **kwargs)
-        self.name = name
-        self.width = width
-        self.angle = angle
-        #self.pixelscale=0
-        self._default_display_size = 10
-
-    def getPhasor(self,wave):
-        """ Compute the transmission inside/outside of the occulter.
-        """
-        if not isinstance(wave, Wavefront):
-            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _IMAGE)
-
-        y, x= wave.coordinates()
-
-        xnew = x*np.cos(np.deg2rad(self.angle)) + y*np.sin(np.deg2rad(self.angle))
-        w_inside = np.where( np.abs(xnew) <= self.width/2)
-        self.transmission = np.ones(wave.shape)
-        self.transmission[w_inside] = 0
-
-        return self.transmission
-
-
-#------ Analytic Pupil Plane elements -----
-
-class FQPM_FFT_aligner(AnalyticOpticalElement):
-    """  Helper class for modeling FQPMs accurately
-
-    Adds (or removes) a slight wavelength- and pixel-scale-dependent tilt
-    to a pupil wavefront, to ensure the correct alignment of the image plane
-    FFT'ed PSF with the desired quad pixel alignment for the FQPM.
-
-    This is purely a computational convenience tool to work around the
-    pixel coordinate restrictions imposed by the FFT algorithm,
-    not a representation of any physical optic.
-
-    Parameters
-    ----------
-    direction : string
-        'forward' or 'backward'
-
-    """
-    def __init__(self, name="FQPM FFT aligner", direction='forward', **kwargs):
-        AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
-        direction = direction.lower()
-        if direction != 'forward' and direction !='backward': raise ValueError("Invalid direction %s, must be either forward or backward." % direction)
-        self.direction = direction
-        self._suppress_display=True
-        #self.displayable = False
-
-    def getPhasor(self,wave):
-        """ Compute the required tilt needed to get the PSF centered on the corner between
-        the 4 central pixels, not on the central pixel itself.
-        """
-
-        if not isinstance(wave, Wavefront):
-            raise ValueError("FQPM getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL )
-
-
-        fft_im_pixelscale = wave.wavelength/ wave.diam / wave.oversample * _RADIANStoARCSEC
-        required_offset = -fft_im_pixelscale *0.5
-        if self.direction == 'backward':
-            required_offset *= -1
-            wave._image_centered='pixel'
-        else:
-            wave._image_centered='corner'
-        wave.tilt(required_offset, required_offset)
-
-        # gotta return something... so return a value that will not affect the wave any more.
-        align_phasor = 1.0
-        return align_phasor
-
-
-class ParityTestAperture(AnalyticOpticalElement):
-    """ Defines a circular pupil aperture with boxes cut out.
-    This is mostly a test aperture, which has no symmetry and thus can be used to
-    test the various Fourier transform algorithms and sign conventions.
-
-    Parameters
-    ----------
-    name : string
-        Descriptive name
-    radius : float
-        Radius of the pupil, in meters. Default is 1.0
-
-    pad_factor : float, optional
-        Amount to oversize the wavefront array relative to this pupil.
-        This is in practice not very useful, but it provides a straightforward way
-        of verifying during code testing that the amount of padding (or size of the circle)
-        does not make any numerical difference in the final result.
-
-    """
-
-    def __init__(self, name=None,  radius=1.0, pad_factor = 1.5, **kwargs):
-        if name is None: name = "Circle, radius=%.2f m" % radius
-        AnalyticOpticalElement.__init__(self,name=name, planetype=_PUPIL, **kwargs)
-        self.radius = radius
-        self.pupil_diam = pad_factor * 2* self.radius # for creating input wavefronts - let's pad a bit
-
-
-    def getPhasor(self,wave):
-        """ Compute the transmission inside/outside of the occulter.
-        """
-        if not isinstance(wave, Wavefront):
-            raise ValueError("CircularAperture getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL)
-
-        y, x = wave.coordinates()
-        r = np.sqrt(x**2+y**2) #* wave.pixelscale
-
-
-        w_outside = np.where( r > self.radius)
-        self.transmission = np.ones(wave.shape)
-        self.transmission[w_outside] = 0
-
-        w_box1 = np.where( (r> (self.radius*0.5)) & (np.abs(x) < self.radius*0.1) & (y < 0))
-        w_box2 = np.where( (r> (self.radius*0.75)) & (np.abs(y) < self.radius*0.2) & (x< 0))
-        self.transmission[w_box1] = 0
-        self.transmission[w_box2] = 0
-
-        return self.transmission
-
-
-class CircularAperture(AnalyticOpticalElement):
-    """ Defines an ideal circular pupil aperture
-
-    Parameters
-    ----------
-    name : string
-        Descriptive name
-    radius : float
-        Radius of the pupil, in meters. Default is 1.0
-
-    pad_factor : float, optional
-        Amount to oversize the wavefront array relative to this pupil.
-        This is in practice not very useful, but it provides a straightforward way
-        of verifying during code testing that the amount of padding (or size of the circle)
-        does not make any numerical difference in the final result.
-
-    """
-
-    def __init__(self, name=None,  radius=1.0, pad_factor = 1.5, **kwargs):
-        if name is None: name = "Circle, radius=%.2f m" % radius
-        AnalyticOpticalElement.__init__(self,name=name, planetype=_PUPIL, **kwargs)
-        self.radius = radius
-        self.pupil_diam = pad_factor * 2* self.radius # for creating input wavefronts - let's pad a bit
-
-
-    def getPhasor(self,wave):
-        """ Compute the transmission inside/outside of the occulter.
-        """
-        if not isinstance(wave, Wavefront):
-            raise ValueError("CircularAperture getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL)
-
-        y, x = wave.coordinates()
-        #y, x = np.indices(wave.shape)
-        #y -= wave.shape[0]/2
-        #x -= wave.shape[1]/2
-        r = np.sqrt(x**2+y**2) #* wave.pixelscale
-        del x
-        del y
-
-
-        w_outside = np.where( r > self.radius)
-        del r
-        self.transmission = np.ones(wave.shape)
-        self.transmission[w_outside] = 0
-
-        #_log.debug("Circle: radius = %.3f m = %.3f pixels " % (self.radius, self.radius/wave.pixelscale))
-        #_log.debug("        center = %f" % (wave.shape[0]/2 ))
-        #w_inside = np.where( r <= self.radius)
-        #_log.debug("        minx: %d" % w_inside[0].min())
-        #stop()
-
-        return self.transmission
-
-
-class HexagonAperture(AnalyticOpticalElement):
-    """ Defines an ideal hexagonal pupil aperture
-
-    Specify either the side length (= corner radius) or the
-    flat-to-flat distance.
-
-    Parameters
-    ----------
-    name : string
-        Descriptive name
-    flattoflat : float, optional
-        Flat-to-flat distance of the pupil, in meters. Default is 1.0
-    side : float, optional
-        side length of hexagon, in meters. Overrides flattoflat if both are present.
-
-    """
-
-    def __init__(self, name=None,  flattoflat=None, side=None, **kwargs):
-        if flattoflat is None and side is None:
-            self.side = 1.0
-        elif side is not None:
-            self.side = float(side)
-        else:
-            self.side = float(flattoflat)/np.sqrt(3.)
-        self.pupil_diam = 2* self.side # for creating input wavefronts
-        if name is None: name = "Hexagon, side length= %.1f m" % self.side
-
-        AnalyticOpticalElement.__init__(self,name=name, planetype=_PUPIL, **kwargs)
-
-
-    def getPhasor(self,wave):
-        """ Compute the transmission inside/outside of the occulter.
-        """
-        if not isinstance(wave, Wavefront):
-            raise ValueError("CircularAperture getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL)
-
-        y, x = wave.coordinates()
-        absy = np.abs(y)
-
-        self.transmission = np.zeros(wave.shape)
-
-        w_rect = np.where((np.abs(x) <= 0.5*self.side) & (absy <= np.sqrt(3)/2*self.side))
-        w_left_tri  = np.where(   (x<=-0.5*self.side) & (x >= -1*self.side) & (absy <= (x+1*self.side)*np.sqrt(3)))
-        w_right_tri = np.where(   (x>= 0.5*self.side) & (x <=  1*self.side) & (absy <= (1*self.side-x)*np.sqrt(3)))
-        self.transmission[w_rect] = 1
-        self.transmission[w_left_tri] = 1
-        self.transmission[w_right_tri] = 1
-
-        return self.transmission
-
-
-class MultiHexagonAperture(AnalyticOpticalElement):
-    """ Defines a hexagonally segmented aperture
-
-    Parameters
-    ----------
-    name : string
-        Descriptive name
-    rings : integer
-        The number of rings of hexagons to include (
-        i.e. 2 for a JWST-like aperture, 3 for a Keck-like aperture, and so on)
-    flattoflat : float, optional
-        Flat-to-flat distance a single hexagonal segment, in meters. Default is 1.0
-    gap: float, optional
-        Gap between adjacent segments, in meters. Default is 0.01 m = 1 cm
-    center : bool, optional
-        should the central segment be included? Default is False. 
-    segmentlist : list of ints, optional
-        This allows one to specify that only a subset of segments are present, for a
-        partially populated segmented telescope, non-redundant segment set, etc. 
-        Segments are numbered from 0 for the center segment, 1 for the segment immediately
-        above it, and then clockwise around each ring. 
-        For example, segmentlist=[1,3,5] would make an aperture of 3 segments. 
-
-
-    Note that this routine becomes a bit slow for nrings >4. For repeated computations on
-    the same aperture, it will be faster to create this once, save it to a FITS file using
-    the toFITS() method, and then use that. 
-
-    """
-
-
-    def __init__(self, name="MultiHex",  flattoflat=1.0, gap=0.01, rings=1, segmentlist=None, center=False, **kwargs):
-        self.flattoflat=float(flattoflat)
-        self.side = float(flattoflat)/np.sqrt(3.)
-        self.rings=rings
-        self.gap=gap
-        #self._label_values = True # undocumented feature to draw hex indexes into the array
-        AnalyticOpticalElement.__init__(self,name=name, planetype=_PUPIL, **kwargs)
-
-        self.pupil_diam = (self.flattoflat+self.gap) * (2*self.rings+1)
-
-        # make a list of all the segments included in this hex aperture
-        if segmentlist is not None:
-            self.segmentlist=segmentlist
-        else:
-            self.segmentlist = range(self._nHexesInsideRing(self.rings+1))
-            if not center: self.segmentlist.remove(0) # remove center segment 0
-          
-
-    def _nHexesInRing(self, n):
-        """ How many hexagons in ring N? """
-        return 1 if n==0 else 6*n
-
-    def _nHexesInsideRing(self,n):
-        """ How many hexagons interior to ring N, not counting N?"""
-        return sum( [self._nHexesInRing(i) for i in range(n)])
-
-    def _hexInRing(self, hex_index):
-        """ What ring is a given hexagon in?"""
-        interior_rings=0
-        if hex_index ==0: return 0
-        for i in range(100):
-            if self._nHexesInsideRing(i) <= hex_index and self._nHexesInsideRing(i+1) > hex_index:
-                return i
-        return "Loop exceeded!"
-
-    def _hexRadius(self, hex_index):
-        " Radius of a given hexagon from the center "
-        ring = self._hexInRing(hex_index)
-        if ring <=1: return (self.flattoflat+self.gap) * ring
-
-    def _hexCenter(self, hex_index):
-        """ Center coordinates of a given hexagon 
-        counting clockwise around each ring
-
-        Returns y, x coords
-
-        """
-        ring = self._hexInRing(hex_index)
-
-        # now count around from the starting point:
-        index_in_ring = hex_index - self._nHexesInsideRing(ring) +1  # 1-based
-        #print("hex %d is %dth in its ring" % (hex_index, index_in_ring))
-
-        angle_per_hex = 2*np.pi/self._nHexesInRing(ring) # angle in radians
-
-        # Now figure out what the radius is:
-        xpos = None
-        if ring <=1: 
-            radius =  (self.flattoflat+self.gap) * ring
-            angle = angle_per_hex * (index_in_ring-1)
-        elif ring ==2:
-            if np.mod(index_in_ring,2) == 1: radius = (self.flattoflat+self.gap) * ring # JWST 'B' segments
-            else: radius = radius = self.side*3 + self.gap*np.sqrt(3.)/2*2              # JWST 'C' segments
-            angle = angle_per_hex * (index_in_ring-1)
-        elif ring==3:
-            if np.mod(index_in_ring,ring) == 1: 
-                radius = (self.flattoflat+self.gap) * ring # JWST 'B' segments
-                angle = angle_per_hex * (index_in_ring-1)
-            else: # C-like segments (in pairs)
-                ypos = 2.5*(self.flattoflat+self.gap)
-                xpos = 1.5*self.side + self.gap* np.sqrt(3)/4  
-                radius = np.sqrt(xpos**2+ ypos**2) # (self.flattoflat+self.gap) * ring # JWST 'B' segments
-                Cangle = np.arctan2(xpos, ypos)
-
-                if np.mod(index_in_ring,3) == 2:
-                    last_B_angle = ((index_in_ring-1)//3)*3 * angle_per_hex
-                    angle = last_B_angle + Cangle* np.mod(index_in_ring-1,3)
-                else:
-                    next_B_angle = (((index_in_ring-1)//3)*3+3) * angle_per_hex
-                    angle = next_B_angle - Cangle #* np.mod(index_in_ring-1,3)
-                xpos=None
-        else: # generalized code!
-            # the above are actuall now redundant given that this exists, but
-            # I'll leave them alone for now. 
-
-            whichside = (index_in_ring-1)//ring # which of the sides are we on?
-
-            if np.mod(index_in_ring,ring) == 1: 
-                radius = (self.flattoflat+self.gap) * ring # JWST 'B' segments
-                angle = angle_per_hex * (index_in_ring-1)
-            else: 
-                # find position of previous 'B' type segment.
-                radius0 = (self.flattoflat+self.gap) * ring # JWST 'B' segments
-                last_B_angle = ((index_in_ring-1)//ring)*ring * angle_per_hex
-                #angle0 = angle_per_hex * (index_in_ring-1)
-                ypos0 = radius0 * np.cos(last_B_angle)
-                xpos0 = radius0 * np.sin(last_B_angle)
-
-                da = (self.flattoflat+self.gap)*np.cos(30*np.pi/180)
-                db = (self.flattoflat+self.gap)*np.sin(30*np.pi/180)
-
-        
-                if whichside ==0: 
-                    dx, dy = da, -db
-                elif whichside==1:
-                    dx, dy = 0, -(self.flattoflat+self.gap)
-                elif whichside==2:
-                    dx, dy = -da, -db
-                elif whichside==3:
-                    dx, dy = -da, db
-                elif whichside==4:
-                    dx, dy = 0, (self.flattoflat+self.gap)
-                elif whichside==5:
-                    dx, dy = da, db
- 
-                xpos = xpos0+dx*np.mod(index_in_ring-1, ring)
-                ypos = ypos0+dy*np.mod(index_in_ring-1, ring)
-
-        # now clock clockwise around the ring (for rings <=3 only)
-        if xpos is None:
-            ypos = radius * np.cos(angle)
-            xpos = radius * np.sin(angle)
-
-        return ypos, xpos
-
-
-
-    def getPhasor(self,wave):
-        """ Compute the transmission inside/outside of the occulter.
-        """
-        if not isinstance(wave, Wavefront):
-            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL)
-
-        y, x = wave.coordinates()
-        absy = np.abs(y)
-
-        self.transmission = np.zeros(wave.shape)
-
-        for i in self.segmentlist:
-            self._oneHexagon(wave, i)
-
-
-        return self.transmission
-
-    def _oneHexagon(self, wave, index):
-        """ Draw one hexagon into the self.transmission array """
-
-        y, x = wave.coordinates()
-
-        ceny, cenx = self._hexCenter(index)
-
-        y-= ceny
-        x -=cenx
-        absy = np.abs(y)
-
-        w_rect = np.where((np.abs(x) <= 0.5*self.side) & (absy <= np.sqrt(3)/2*self.side))
-        w_left_tri  = np.where(   (x<=-0.5*self.side) & (x >= -1*self.side) & (absy <= (x+1*self.side)*np.sqrt(3)))
-        w_right_tri = np.where(   (x>= 0.5*self.side) & (x <=  1*self.side) & (absy <= (1*self.side-x)*np.sqrt(3)))
-
-        #val = np.sqrt(float(index)) if self._label_values else 1
-        val=1
-        self.transmission[w_rect] = val
-        self.transmission[w_left_tri] = val
-        self.transmission[w_right_tri] = val
-
-
-class NgonAperture(AnalyticOpticalElement):
-    """ Defines an ideal N-gon pupil aperture. 
-
-    Parameters
-    -----------
-    name : string
-        Descriptive name
-    nsides : integer
-        Number of sides. Default is 6.
-    radius : float
-        radius to the vertices, meters. Default is 1. 
-    rotation : float
-        Rotation angle to first vertex. Default is 0.
-    """
-    def __init__(self, name=None,  nsides=6, radius=1, rotation=0., **kwargs):
-        self.radius =radius
-        self.nsides =nsides
-        self.rotation =rotation
-        self.pupil_diam = 2* self.radius # for creating input wavefronts
-        if name is None: name = "%d-gon, radius= %.1f m" % (self.nsides, self.radius)
-        AnalyticOpticalElement.__init__(self,name=name, planetype=_PUPIL, **kwargs)
-
-    def getPhasor(self,wave):
-        """ Compute the transmission inside/outside of the occulter.
-        """
-        if not isinstance(wave, Wavefront):
-            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL)
-        y, x = wave.coordinates()
-
-        phase = self.rotation *np.pi/180
-        vertices = np.array( [ [np.cos( i * 2*np.pi/self.nsides +phase ), np.sin( i * 2*np.pi/self.nsides +phase)] for i in range(self.nsides)], float)
-
-        self.transmission = np.zeros(wave.shape)
-        for row in range(wave.shape[0]):
-            pts = np.asarray(zip(x[row],y[row]))
-            ok = matplotlib.nxutils.points_inside_poly(pts, vertices)
-            self.transmission[row][ok] = 1.0
-
-
-        return self.transmission
-
-
-class RectangleAperture(AnalyticOpticalElement):
-    """ Defines an ideal rectangular pupil aperture
-
-    Parameters
-    ----------
-    name : string
-        Descriptive name
-    width : float
-        width of the rectangle, in meters. Default is 0.5
-    height : float
-        height of the rectangle, in meters. Default is 1.0
-    rotation : float
-        Rotation angle for 'width' axis. Default is 0.
-
-    """
-
-    def __init__(self, name=None,  width=0.5, height=1.0, rotation=0.0, **kwargs):
-        self.width=width
-        self.height=height
-        self.rotation =rotation
-        if name is None: name = "Rectangle, size= {s.width:.1f} m wide * {s.height:.1f} m high".format(s=self)
-        AnalyticOpticalElement.__init__(self,name=name, planetype=_PUPIL, **kwargs)
-        self.pupil_diam = np.sqrt(self.height**2 + self.width**2) # for creating input wavefronts
-
-    def getPhasor(self,wave):
-        """ Compute the transmission inside/outside of the occulter.
-        """
-        if not isinstance(wave, Wavefront):
-            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL)
-
-        y, x = wave.coordinates()
-
-        if self.rotation != 0 :
-            angle = np.deg2rad(self.rotation)
-            xp =  np.cos(angle) * x + np.sin(angle) * y
-            yp = -np.sin(angle) * x + np.cos(angle) * y
-
-            x = xp
-            y = yp
-
-
-        w_outside = np.where( (abs(y) > (self.height/2)) | (abs(x) > (self.width/2)) )
-        del y
-        del x
-
-        self.transmission = np.ones(wave.shape)
-        self.transmission[w_outside] = 0
-        return self.transmission
-
-
-class SquareAperture(RectangleAperture):
-    """ Defines an ideal square pupil aperture
-
-    Parameters
-    ----------
-    name : string
-        Descriptive name
-    size: float
-        side length of the square, in meters. Default is 1.0
-    rotation : float
-        Rotation angle for the square. Default is 0.
-
-
-    """
-
-    def __init__(self, name=None,  size=1.0, **kwargs):
-        self._size=size
-        if name is None: name = "Square, side length= %.1f m" % size*2
-        RectangleAperture.__init__(self,width=size, height=size,**kwargs)
-        self.size = size
-        self.pupil_diam = 2* self.size # for creating input wavefronts
-
-    @property
-    def size(self):
-        return self._size
-    @size.setter
-    def size(self, value):
-        self._size=value
-        self.height=value
-        self.width=value
-
-
-class SecondaryObscuration(AnalyticOpticalElement):
-    """ Defines the central obscuration of an on-axis telescope including secondary mirror and supports
-
-    The number of supports is adjustible but they are always radially symmetric around the center.
-
-    Parameters
-    ----------
-    secondary_radius : float
-        Radius of the circular secondary obscuration. Default 0.5 m
-    n_supports : int
-        Number of secondary mirror supports ("spiders"). These will be 
-        spaced equally around a circle.  Default is 4.
-    support_width : float
-        Width of each support, in meters. Default is 0.01 m = 1 cm.
-    """
-
-    def __init__(self, name=None,  secondary_radius=0.5, n_supports=4, support_width=0.01, **kwargs):
-        if name is None: name = "Secondary Obscuration with {0} supports".format(n_supports)
-        AnalyticOpticalElement.__init__(self,name=name, planetype=_PUPIL, **kwargs)
-        self.secondary_radius=secondary_radius
-        self.n_supports = n_supports
-        self.support_width = support_width
-
-        self.pupil_diam = 4* self.secondary_radius # for creating input wavefronts if this is the first optic in a opticalsystem
-
-    def getPhasor(self,wave):
-        """ Compute the transmission inside/outside of the obscuration
-        """
-        if not isinstance(wave, Wavefront):
-            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL)
-
-        self.transmission = np.ones(wave.shape)
-
-        y, x = wave.coordinates()
-        r = np.sqrt(x**2+y**2) #* wave.pixelscale
-
-        self.transmission[r < self.secondary_radius] = 0
-
-        for i in range(self.n_supports):
-            angle = 2*np.pi / self.n_supports * i
-
-            # calculate rotated x' and y' coordinates after rotation by that angle.
-            xp =  np.cos(angle) * x + np.sin(angle) * y
-            yp = -np.sin(angle) * x + np.cos(angle) * y
-
-            self.transmission[ (xp > 0) & (np.abs(yp) < self.support_width/2)] = 0
-
-            # TODO check here for if there are no pixels marked because the spider is too thin. In that case use a grey scale approximation
-
-        return self.transmission
-
-
-class AsymmetricSecondaryObscuration(SecondaryObscuration):
-    """ Defines a central obscuration with one or more supports which can be oriented at
-    arbitrary angles around the primary mirror, a la the three supports of JWST
-
-    Parameters
-    ----------
-    secondary_radius : float
-        Radius of the circular secondary obscuration. Default 0.5 m
-    support_angle : ndarray or list of floats
-        The angle measured counterclockwise from +Y for each support
-    support_width : float, or list of floats
-        if scalar, gives the width for all support struts
-        if a list, gives separately the width for each support strut independently.
-        Widths in meters. Default is 0.01 m = 1 cm.
-    """
-    def __init__(self, support_angle=[0, 90, 240], support_width=0.01, **kwargs):
-        SecondaryObscuration.__init__(self, n_supports = len(support_angle), **kwargs)
-
-        self.support_angle = np.asarray(support_angle)
-        if np.isscalar(support_width): support_width = np.zeros(len(support_angle)) + support_width
-        self.support_width  = support_width
-
-    def getPhasor(self,wave):
-        """ Compute the transmission inside/outside of the obscuration
-        """
-        if not isinstance(wave, Wavefront):
-            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL)
-
-        self.transmission = np.ones(wave.shape)
-
-        y, x = wave.coordinates()
-        r = np.sqrt(x**2+y**2) #* wave.pixelscale
-
-        self.transmission[r < self.secondary_radius] = 0
-
-        for angle_deg, width in zip(self.support_angle, self.support_width):
-            angle = np.deg2rad(angle_deg + 90)  # 90 deg offset is to start from the +Y direction
-
-            # calculate rotated x' and y' coordinates after rotation by that angle.
-            xp =  np.cos(angle) * x + np.sin(angle) * y
-            yp = -np.sin(angle) * x + np.cos(angle) * y
-
-            self.transmission[ (xp > 0) & (np.abs(yp) < width/2)] = 0
-
-            # TODO check here for if there are no pixels marked because the spider is too thin. In that case use a grey scale approximation
-
-        return self.transmission
-
-
-
-
-class ThinLens(AnalyticOpticalElement):
-    """ An idealized thin lens, implemented as a Zernike defocus term.
-
-    Parameters
-    -------------
-    nwaves : float
-        The number of waves of defocus, peak to valley. May be positive or negative.
-        This is applied as a normalization over an area defined by the circumscribing circle
-        of the input wavefront. That is, there will be nwaves defocus peak-to-valley
-        over the region of the pupil that has nonzero input intensity.
-    reference_wavelength : float
-        Wavelength, in meters, at which that number of waves of defocus is specified. 
-
-    """
-    def __init__(self, name='Thin lens', nwaves=4.0, reference_wavelength=2e-6, **kwargs):
-        AnalyticOpticalElement.__init__(self,name=name, planetype=_PUPIL, **kwargs)
-
-        self.reference_wavelength = reference_wavelength
-        self.nwaves = nwaves
-        self.max_phase_delay = reference_wavelength * nwaves
-
-
-    def getPhasor(self, wave):
-        y, x = wave.coordinates()
-        r = np.sqrt(x**2+y**2)
-        # get the normalized radius, assuming the input wave
-        # is a square
-        #if wave.shape[0] != wave.shape[1]:
-            #raise NotImplemented("ThinLens only implemented for square wavefronts.")
-        max_r = r[np.where(wave.intensity > 0)].max()
-        r_norm = r / max_r 
-        #r_norm = r / (wave.shape[0]/2.*wave.pixelscale)
-
-        #defocus_zernike = np.sqrt(3)* (2* r_norm**2 - 1)  *  (self.nwaves *self.reference_wavelength/wave.wavelength)
-        # don't forget the factor of 0.5 to make the scaling factor apply as peak-to-valley rather than center-to-peak
-        defocus_zernike = (2* r_norm**2 - 1)  *  (0.5 * self.nwaves *self.reference_wavelength/wave.wavelength)
-        lens_phasor = np.exp(1.j * 2* np.pi * defocus_zernike)
-        #stop()
-        return lens_phasor
-
-
-#------ generic analytic optics ------
-
-class CompoundAnalyticOptic(AnalyticOpticalElement):
-    """ Define a compound analytic optical element made up of the combination
-    of two or more individual optical elements.
-
-    This is just a convenience routine for semantic organization of optics.
-    It can be useful to keep the list of optical planes cleaner, but
-    you can certainly just add a whole bunch of planes all in a row without
-    using this class to group them.
-
-    All optics should be of the same plane type (pupil or image); propagation between
-    different optics contained inside one compound is not supported.
-
-    Parameters
-    ----------
-    opticslist : list
-        A list of AnalyticOpticalElements to be merged together.
-
-    """
-    def __init__(self, opticslist=None, name="unnamed", verbose=True, **kwargs):
-        if opticslist is None:
-            raise ValueError("Missing required opticslist argument to CompoundAnalyticOptic")
-        AnalyticOpticalElement.__init__(self,name=name, verbose=verbose, **kwargs)
-
-        #self.operation = operation
-        self.opticslist = []
-        self._default_display_size = 3
-        self.planetype= None
-        for optic in opticslist:
-
-            if not (isinstance(optic, AnalyticOpticalElement) 
-                or (isinstance(optic,InverseTransmission) and isinstance(optic.optic,AnalyticOpticalElement))):  #an inverted analytic element is also OK here
-                raise ValueError("Supplied optics list to CompoundAnalyticOptic can only contain AnalyticOptics")
-            else:
-                # if we are adding the first optic in the list, check what type of optical plane it has
-                # for subsequent optics, validate they have the same type
-                if len(self.opticslist)  == 0:
-                    self.planetype = optic.planetype 
-                elif self.planetype != optic.planetype: 
-                    raise ValueError("Cannot mix image plane and pupil plane optics in the same CompoundAnalyticOptic")
-
-
-                self.opticslist.append(optic)
-                if hasattr(optic, '_default_display_size'):
-                    self._default_display_size = max(self._default_display_size, optic._default_display_size)
-
-        if self.planetype == _PUPIL:
-            if all([hasattr(o, 'pupil_diam') for o in self.opticslist]):
-                self.pupil_diam = np.asarray( [o.pupil_diam for o in self.opticslist]).max()
-
-    def getPhasor(self,wave):
-        #phasor = self.opticslist[0].getPhasor(wave)
-
-        ampl = np.ones(wave.shape)
-        opd = np.zeros(wave.shape)
-        for optic in self.opticslist:
-            #nextphasor = optic.getPhasor(wave)
-            #phasor *= nextphasor #FIXME this does not work... for instance if you have an aperture mask (so all the phase is zero)
-                                  # then you really want to multiply the amplitude transmissions and add the phases.
-                                  # simpler to just multiply the wave instead here:
-            wave *= optic
-
-            #revised version: handle amplitude and OPD both explictly here
-            nextphasor = optic.getPhasor(wave)
-            nextamp = np.abs(nextphasor)
-            nextopd = np.angle(nextphasor) * 2*np.pi *wave.wavelength
-            ampl *= nextamp
-            opd  *= nextopd
-
-
-        phasor = ampl * np.exp(1.j * 2* np.pi * opd/wave.wavelength)
-        # and just hand back the last one to the calling routine:
-        #return self.opticslist[-1].getPhasor(wave)
-        return phasor
-
-
 #------ Detector ------
 
 class Detector(OpticalElement):
@@ -2952,714 +2242,3 @@ class Detector(OpticalElement):
         return "Detector plane: %s (%dx%d, %f arcsec/pixel)" % (self.name, self.shape[1], self.shape[0], self.pixelscale)
 
 
-#------  Optical System classes -------
-
-class OpticalSystem():
-    """ A class representing a series of optical elements,
-    either Pupil, Image, or Detector planes, through which light
-    can be propagated.
-
-    The difference between
-    Image and Detector planes is that Detectors have fixed pixels
-    in terms of arcsec/pixel regardless of wavelength (computed via
-    MFT) while Image planes have variable pixels scaled in terms of
-    lambda/D. Pupil planes are some fixed size in meters, of course.
-
-    Parameters
-    ----------
-    name : string
-        descriptive name of optical system
-    oversample : int
-        Either how many times *above* Nyquist we should be
-        (for pupil or image planes), or how many times a fixed
-        detector pixel will be sampled. E.g. `oversample=2` means
-        image plane sampling lambda/4*D (twice Nyquist) and
-        detector plane sampling 2x2 computed pixels per real detector
-        pixel.  Default is 2.
-    verbose : bool
-        whether to be more verbose with log output while computing
-
-
-
-
-    """
-    def __init__(self, name="unnamed system", verbose=True, oversample=2):
-        self.name = name
-        self.verbose=verbose
-        self.planes = []                    # List of OpticalElements
-        self.oversample = oversample
-
-        self.source_offset_r = 0 # = np.zeros((2))     # off-axis tilt of the source, in ARCSEC
-        self.source_offset_theta = 0 # in degrees CCW
-
-        self.intermediate_wfs = None        #
-        if self.verbose:
-            _log.info("Initialized OpticalSystem: "+self.name)
-
-    # Methods for adding or manipulating optical planes:
-
-    def addPupil(self, optic=None, function=None, **kwargs):
-        """ Add a pupil plane optic from file(s) giving transmission or OPD
-
-          1) from file(s) giving transmission and/or OPD
-                [set arguments `transmission=filename` and/or `opd=filename`]
-          2) from an analytic function
-                [set `function='Circle', 'Square'`
-                and set additional kwargs to define shape etc.
-          3) from an already-created OpticalElement object
-                [set `optic=that object`]
-
-        Parameters
-        ----------
-        optic : poppy.OpticalElement, optional
-            An already-created OpticalElement object you would like to add
-        function: string, optional
-            The name of some analytic function you would like to use.
-            Optional `kwargs` can be used to set the parameters of that function.
-            Allowable function names are Circle, Square, Hexagon, Rectangle, and FQPM_FFT_Aligner
-        opd, transmission : string, optional
-            Filenames of FITS files describing the desired optic.
-
-
-        Note: Now you can use the optic argument for either an OpticalElement or a string function name,
-        and it will do the right thing depending on type.  Both existing arguments are left for compatibility for now.
-
-
-        Any provided parameters are passed to :ref:`OpticalElement`.
-
-
-        """
-        if optic is None and function is not None: # ease of use: 'function' input and providing 'optic' parameter as a string are synonymous.
-            optic = function
-
-
-        if isinstance(optic, OpticalElement):
-            # OpticalElement object provided. 
-            # We can use it directly, but make sure the plane type is set.
-            optic.planetype = _PUPIL
-        elif isinstance(optic, basestring):
-            # convenience code to instantiate objects from a string name.
-            fns = {'circle':CircularAperture, 'square':SquareAperture, 'rectangle':RectangleAperture, 'rect':RectangleAperture, 
-                    'hexagon': HexagonAperture, 'hex':HexagonAperture, 'fqpm_aligner':FQPM_FFT_aligner, 'fqpm_fft_aligner': FQPM_FFT_aligner}
-
-            try:
-                fn = fns[optic.lower()]
-            except:
-                raise ValueError("Unknown pupil function type: %s. Perhaps you meant to set transmission= or opd= instead?" % optic)
-            optic = fn(oversample=self.oversample, **kwargs)
-            optic.planetype = _PUPIL
-
-        elif optic is None: 
-            # create image from files specified in kwargs
-            optic = FITSOpticalElement(planetype=_PUPIL, oversample=self.oversample, **kwargs)
-        else:
-            raise TypeError("Not sure how to handle an Optic input of that type...")
-
-        self.planes.append(optic)
-        if self.verbose: _log.info("Added pupil plane: "+self.planes[-1].name)
-
-    def addImage(self, optic=None, function=None, **kwargs):
-        """ Add an image plane optic to the optical system
-
-        That image plane optic can be specified either
-
-          1) from file(s) giving transmission or OPD
-                [set arguments `transmission=filename` and/or `opd=filename`]
-          2) from an analytic function
-                [set `function='circle, fieldstop, bandlimitedcoron, or FQPM'`
-                and set additional kwargs to define shape etc.
-          3) from an already-created OpticalElement object
-                [set `optic=that object`]
-
-        Parameters
-        ----------
-        optic : poppy.OpticalElement
-            An already-created OpticalElement you would like to add
-        function: string
-            Name of some analytic function to add.
-            Optional `kwargs` can be used to set the parameters of that function.
-            Allowable function names are CircularOcculter, fieldstop, BandLimitedCoron, FQPM
-        opd, transmission : string
-            Filenames of FITS files describing the desired optic.
-
-
-
-        Notes
-        ------
-
-        Now you can use the optic argument for either an OpticalElement or a
-        string function name, and it will do the right thing depending on type.
-        Both existing arguments are left for back compatibility for now.
-
-
-
-        """
-
-        if isinstance(optic, basestring):
-            function = optic
-            optic = None
-
-        if optic is None:
-            if function == 'CircularOcculter':
-                fn = IdealCircularOcculter
-            elif function == 'BarOcculter':
-                fn = IdealBarOcculter
-            elif function == 'fieldstop':
-                fn = IdealFieldStop
-            elif function == 'BandLimitedCoron':
-                fn = BandLimitedCoron
-            elif function == 'FQPM':
-                fn = IdealFQPM
-            elif function is not None:
-                raise ValueError("Analytic mask type '%s' is unknown." % function)
-            else: # create image from files specified in kwargs
-                fn = FITSOpticalElement
-
-            optic = fn(oversample=self.oversample, **kwargs)
-            optic.planetype=_IMAGE
-        else:
-            optic.planetype = _IMAGE
-            optic.oversample = self.oversample # these need to match...
-
-        self.planes.append(optic)
-        if self.verbose: _log.info("Added image plane: "+self.planes[-1].name)
-
-    def addRotation(self, *args, **kwargs):
-        """ Add a clockwise or counterclockwise rotation around the optical axis """
-
-        self.planes.append(Rotation(*args, **kwargs))
-        if self.verbose: _log.info("Added rotation plane: "+self.planes[-1].name)
-
-
-    def addDetector(self, pixelscale, oversample=None, **kwargs):
-        """ Add a Detector object to an optical system.
-        By default, use the same oversampling as the rest of the optical system,
-        but the user can override to a different value if desired by setting `oversample`.
-
-
-        Other arguments are passed to the init method for Detector().
-
-        Parameters
-        ----------
-        pixelscale : float
-            Pixel scale in arcsec/pixel
-        oversample : int, optional
-            Oversampling factor for *this detector*, relative to hardware pixel size.
-            Optionally distinct from the default oversampling parameter of the OpticalSystem.
-
-        """
-
-        if oversample is None:
-            oversample = self.oversample
-        self.planes.append(Detector(pixelscale, oversample=oversample, **kwargs))
-        if self.verbose: _log.info("Added detector: %s, with pixelscale=%f arcsec/pixel and oversampling=%d" % (self.planes[-1].name,pixelscale,oversample) )
-
-
-        #return "Optical system '%s' containing %d optics" % (self.name, len(self.planes))
-
-    def describe(self):
-        """ Print out a string table describing all planes in an optical system"""
-        print( str(self)+"\n\t"+ "\n\t".join([str(p) for p in self.planes]) )
-
-    def __getitem__(self, num):
-        return self.planes[num]
-
-    # methods for dealing with wavefronts:
-    def inputWavefront(self, wavelength=2e-6):
-        """Create a Wavefront object suitable for sending through a given optical system, based on
-        the size of the first optical plane, assumed to be a pupil.
-
-        If the first optical element is an Analytic pupil (i.e. has no pixel scale) then
-        an array of 1024x1024 will be created (not including oversampling).
-
-        Uses self.source_offset to assign an off-axis tilt, if requested.
-
-        Parameters
-        ----------
-        wavelength : float
-            Wavelength in meters
-
-        Returns
-        -------
-        wavefront : poppy.Wavefront instance
-            A wavefront appropriate for passing through this optical system.
-
-        """
-
-        npix = self.planes[0].shape[0] if self.planes[0].shape is not None else 1024
-        diam = self.planes[0].pupil_diam if hasattr(self.planes[0], 'pupil_diam') else 8
-
-        inwave = Wavefront(wavelength=wavelength,
-                npix = npix,
-                diam = diam,
-                oversample=self.oversample)
-        _log.debug("Creating input wavefront with wavelength=%f, npix=%d, pixel scale=%f meters/pixel" % (wavelength, npix, diam/npix))
-
-        if np.abs(self.source_offset_r) > 0:
-            offset_x = self.source_offset_r *-np.sin(self.source_offset_theta*np.pi/180)  # convert to offset X,Y in arcsec
-            offset_y = self.source_offset_r * np.cos(self.source_offset_theta*np.pi/180)  # using the usual astronomical angle convention
-            inwave.tilt(Xangle=offset_x, Yangle=offset_y)
-            _log.debug("Tilted input wavefront by theta_X=%f, theta_Y=%f arcsec" % (offset_x, offset_y))
-        return inwave
-
-    def propagate_mono(self, wavelength=2e-6, normalize='first', save_intermediates=False, display_intermediates=False, intermediate_fn='wave_step_%03d.fits', poly_weight=None, **kwargs):
-        """ Propagate a monochromatic wavefront through the optical system. Called from within calcPSF.
-        Returns a fits.HDUList object.
-
-        Parameters
-        ----------
-        wavelength : float
-            Wavelength in meters
-        normalize : string, {'first', 'last'}
-            how to normalize the wavefront?
-            * 'first' = set total flux = 1 after the first optic, presumably a pupil
-            * 'last' = set total flux = 1 after the entire optical system.
-            * 'first=2' = set total flux = 2 after the first optic (used for debugging only)
-        display_intermediates : bool
-            Should intermediate steps in the calculation be displayed on screen? Default False
-        save_intermediates : bool
-            Should intermediate steps in the calculation be saved to disk? Default False.
-            If this is True, then setting `poly_weight` controls whether intermediate optical planes are actually saved to *disk* by this routine
-            (for the monochromatic case) or are passed back up via memory and handled in `calcPSF` (for the polychromatic case).
-        poly_weight : float
-            is this being called as part of a polychromatic calculation?
-            if not, set this to None. if so, set this to the weight for
-            that wavelength. (This is used only for properly normalizing the
-            multiwavelength FITs file written to disk if save_intermediates is set.)
-
-
-        """
-
-        if conf.enable_speed_tests:
-            t_start = time.time()
-        if self.verbose: _log.info(" Propagating wavelength = %g meters %s" % (wavelength, "" if poly_weight is None else " with weight=%.2f" % poly_weight))
-        wavefront = self.inputWavefront(wavelength)
-
-        if save_intermediates and poly_weight is None:
-            self.intermediate_wfs=[]
-            _log.warning("User requested saving intermediates, but no weight for this wavelength is provided - cannot properly calculate intermediate wavefront")
-            _log.debug("reset intermediates")
-
-        # do the propagation:
-        #if display_intermediates:
-            #suptitle = plt.suptitle( "propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6), size='x-large')
-
-            #wavefront.display(what='best',nrows=nrows,row=1, colorbar=False, title="propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6))
-
-        count = 0
-        for optic in self.planes:
-            wavefront.propagateTo(optic)
-            wavefront *= optic
-            count += 1
-
-
-            if count==1 and normalize.lower()=='first':  # set entrance plane to 1. 
-                wavefront.normalize()
-            elif count==1 and normalize.lower()=='first=2': # this undocumented option is present only for testing/validation purposes
-                wavefront.normalize()
-                wavefront *= np.sqrt(2) 
-
-
-
-            if conf.enable_flux_tests: _log.debug("  Flux === "+str(wavefront.totalIntensity))
-
-            if save_intermediates:
-                if len(self.intermediate_wfs) < count:
-                    self.intermediate_wfs.append(wavefront.copy())
-                else:
-                    self.intermediate_wfs[count-1] += wavefront.copy()*poly_weight
-                    _log.info("    Storing intermediate wavefront plane %d with weight %f" % (count-1, poly_weight))
-                if poly_weight is None: self.intermediate_wfs[count-1].writeto(intermediate_fn % count, what='parts')
-            if display_intermediates:
-                if conf.enable_speed_tests: t0 = time.time()
-                #if save_intermediates: self.intermediate_wfs[count-1].display(what='best',nrows=len(self.planes),row=count)
-                title = None if count > 1 else "propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6)
-                wavefront.display(what='best',nrows=len(self.planes),row=count, colorbar=False, title=title)
-                #plt.title("propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6))
-
-                if conf.enable_speed_tests:
-                    t1 = time.time()
-                    _log.debug("\tTIME %f s\t for displaying the wavefront." % (t1-t0))
-
-        #if display_intermediates:
-            #suptitle.remove() #  does not work due to some matplotlib limitation, so work around:
-            #suptitle.set_text('') # clean up before next iteration to avoid ugly overwriting
-
-        # prepare output arrays
-        if normalize.lower()=='last':
-                wavefront.normalize()
-
-        if conf.enable_speed_tests:
-            t_stop = time.time()
-            _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop-t_start))
-
-        return wavefront.asFITS()  # this returns the intensity, by default. 
-
-
-    def calcPSF(self, wavelength=1e-6, weight=None,
-        save_intermediates=False, save_intermediates_what='all', display= False, return_intermediates=False, source=None, **kwargs):
-        """Calculate a PSF, either multi-wavelength or monochromatic.
-
-        The wavelength coverage computed will be:
-        - multi-wavelength PSF over some weighted sum of wavelengths (if you provide a source parameter)
-        - monochromatic (if you provide just a wavelen= parameter)
-
-        Any additional `kwargs` will be passed on to `propagate_mono()`
-
-        Parameters
-        ----------
-        source : dict
-            a dict containing 'wavelengths' and 'weights' list.
-            *TBD - replace w/ pysynphot observation object*
-        wavelen : float, optional
-            wavelength in meters for monochromatic calculation.
-        save_intermediates : bool
-            whether to output intermediate optical planes to disk. Default is False
-        save_intermediate_what : string
-            What to save - phase, intensity, amplitude, complex, parts, all. default is all.
-        return_intermediates: bool
-            return intermediate wavefronts as well as PSF?
-        display : bool
-            whether to display when finished or not.
-
-
-        Returns
-        -------
-        outfits :
-            a fits.HDUList
-        """
-
-        tstart = time.time() 
-        if source is not None:
-            wavelength = source['wavelengths']
-            weight=source['weights']
-
-        if not hasattr(wavelength,'__iter__'):
-            wavelength = [wavelength]
-        if weight is None:
-            weight = [1.0] * len(wavelength)
-
-        if len(tuple(wavelength)) != len(tuple(weight)):
-            raise ValueError("Input source has different number of weights and wavelengths...")
-
-        if display: plt.clf()
-
-        if save_intermediates or return_intermediates:
-            self.intermediate_wfs = []
-            _log.info("User requested saving intermediate wavefronts in call to poppy.calcPSF")
-            _log.debug('reset intermediates in calcPSF')
-            #raise ValueError("Saving intermediates for multi-wavelen not yet implemented!!")
-        else:
-            self.intermediate_wfs = None
-
-        # loop over wavelengths
-        if self.verbose: _log.info("Calculating PSF with %d wavelengths" % (len(wavelength)))
-        outFITS = None
-
-        normwts =  np.asarray(weight, dtype=float)
-        normwts /= normwts.sum()
-
-        if conf.use_fftw:
-            utils.fftw_load_wisdom()
-
-
-        if conf.use_multiprocessing and len(wavelength) > 1 : ######### Parallellized computation ############
-            if conf.use_fftw: 
-                _log.warn('IMPORTANT WARNING: Python multiprocessing and fftw3 do not appear to play well together. This may crash intermittently')
-                _log.warn('   We suggest you set   poppy.conf.use_fftw to False   if you want to use multiprocessing().')
-            if display:
-                _log.warn('Display during calculations is not supported for multiprocessing mode. Please set poppy.conf.use_multiprocessing.set(False) if you want to use display=True.')
-                _log.warn('For now, display is being set to False.')
-                display=False
-
-            if save_intermediates:
-                raise NotImplementedError("Can't save intermediate steps if using parallelized code")
-                save_intermediates = False
-                self.intermediate_wfs = []
-
-            # do *NOT* just blindly try to create as many processes as one has CPUs, or one per wavelength either
-            # This is a memory-intensive task so that can end up swapping to disk and thrashing IO
-            nproc = conf.n_processes if conf.nprocesses > 1 else utils.estimate_optimal_nprocesses(self, nwavelengths=len(wavelength))
-
-            pool = multiprocessing.Pool( int(nproc) )  # be sure to cast to int, will fail if given a float even if of integer value
-
-
-            # build a single iterable containing the required function arguments
-            _log.info("Beginning multiprocessor job using {0} processes".format(nproc))
-            iterable = [(self, wavelen, wt, kwargs, conf.use_fftw) for wavelen, wt in zip(wavelength, normwts)]
-            results = pool.map(_wrap_propagate_for_multiprocessing, iterable)
-            _log.info("Finished multiprocessor job")
-            pool.close()
-
-            # Sum all the results up into one array, using the weights
-            outFITS = results[0]
-            outFITS[0].data *= normwts[0]
-            _log.info("got results for wavelength channel %d / %d" % (0, len(tuple(wavelength))) )
-            for i in range(1, len(normwts)):
-                _log.info("got results for wavelength channel %d / %d" % (i, len(tuple(wavelength))) )
-                outFITS[0].data += results[i][0].data * normwts[i]
-            outFITS[0].header.add_history("Multiwavelength PSF calc on %d processors completed." % conf.n_processes)
-
-
-
-
-        else:  ########## single-threaded computations (may still use multi cores if FFTW enabled ######
-
-
-            for wavelen, wave_weight in zip(wavelength, normwts):
-            #for wavelen, weight in zip(source['wavelengths'], normwts):
-                mono_psf = self.propagate_mono(wavelen, poly_weight=wave_weight, save_intermediates=save_intermediates or return_intermediates, **kwargs)
-                # add mono_psf into the output array:
-
-                if outFITS is None:
-                    outFITS = mono_psf
-                    outFITS[0].data = mono_psf[0].data*wave_weight
-                else:
-                    outFITS[0].data += mono_psf[0].data *wave_weight
-
-            if save_intermediates:
-                for i in range(len(self.intermediate_wfs)):
-                    self.intermediate_wfs[i].writeto('wavefront_plane_%03d.fits' % i, what=save_intermediates_what, **kwargs )
-
-        tstop = time.time()
-        tdelta = tstop-tstart
-        _log.info("  Calculation completed in {0:.3f} s".format(tdelta))
-        outFITS[0].header.add_history("Calculation completed in {0:.3f} seconds".format(tdelta))
-
-
-
-        if display:
-            # This display may be redundant if display_intermediates is not already set...
-            cmap = matplotlib.cm.jet
-            cmap.set_bad('0.3')
-            #cmap.set_bad('k', 0.8)
-            halffov_x =outFITS[0].header['PIXELSCL']*outFITS[0].data.shape[1]/2
-            halffov_y =outFITS[0].header['PIXELSCL']*outFITS[0].data.shape[0]/2
-            extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
-            unit="arcsec"
-            norm=LogNorm(vmin=1e-8,vmax=1e-1)
-            plt.xlabel(unit)
-
-            utils.imshow_with_mouseover(outFITS[0].data, extent=extent, norm=norm, cmap=cmap)
-
-
-
-        if conf.use_fftw and conf.autosave_fftw_wisdom:
-            utils.fftw_save_wisdom()
-
-        # TODO update FITS header for oversampling here if detector is different from regular?
-        waves = np.asarray(wavelength)
-        wts = np.asarray(weight)
-        mnwave = (waves*wts).sum() / wts.sum()
-        outFITS[0].header['WAVELEN'] = ( mnwave, 'Weighted mean wavelength in meters')
-        outFITS[0].header['NWAVES'] = (waves.size, 'Number of wavelengths used in calculation')
-        for i in range(waves.size):
-            outFITS[0].header['WAVE'+str(i)] = ( waves[i], "Wavelength "+str(i))
-            outFITS[0].header['WGHT'+str(i)] = ( wts[i], "Wavelength weight "+str(i))
-        ffttype = "pyFFTW" if conf.use_fftw else "numpy.fft"
-        outFITS[0].header['FFTTYPE'] = (ffttype, 'Algorithm for FFTs: numpy or fftw')
-
-        if self.verbose: _log.info("PSF Calculation completed.")
-        if return_intermediates:
-            return outFITS, self.intermediate_wfs
-        else:
-            return outFITS
-
-
-    def display(self, **kwargs):
-        """ Display all elements in an optical system on screen.
-
-        Any extra arguments are passed to the `optic.display()` methods of each element.
-
-        """
-
-        planes_to_display = [p for p in self.planes if (not isinstance(p, Detector) and not p._suppress_display)]
-        nplanes = len(planes_to_display)
-        for i, plane in enumerate(planes_to_display):
-            _log.info("Displaying plane %sin row %d of %d" % (plane.name, i+1, nplanes))
-            plane.display(nrows=nplanes, row=i+1, **kwargs)
-
-
-    def _propagation_info(self):
-        """ Provide some summary information on the optical propagation calculations that
-        would be done for a given optical system 
-
-        Right now this mostly is checking whether a given propagation makes use of FFTs or not,
-        since the padding for oversampled FFTS majorly affects the max memory used for multiprocessing
-        estimation """
-
-        steps = []
-        for i, p in enumerate(self.planes):
-            if i == 0: continue # no propagation needed for first plane
-            if p.planetype == _ROTATION:  steps.append('rotation')
-            elif self.planes[i-1].planetype==_PUPIL and p.planetype ==_DETECTOR: steps.append('MFT')
-            elif self.planes[i-1].planetype==_PUPIL and p.planetype ==_IMAGE:
-                  if i > 1 and steps[-1] =='MFT': steps.append('invMFT')
-                  else: steps.append('FFT')
-            elif self.planes[i-1].planetype==_IMAGE and p.planetype == _DETECTOR: steps.append('resample')
-            else: steps.append('FFT')
-
-        
-        output_shape = [a * self.planes[-1].oversample for a in self.planes[-1].shape]
-        output_size = output_shape[0]*output_shape[1]
-
-        return {'steps': steps, 'output_shape': output_shape, 'output_size':output_size}
-
-
-class SemiAnalyticCoronagraph(OpticalSystem):
-    """ A subclass of OpticalSystem that implements a specialized propagation
-    algorithm for coronagraphs whose occulting mask has limited and small support in
-    the image plane. Algorithm from Soummer et al. (2007)
-
-    The way to use this class is to build an OpticalSystem class the usual way, and then
-    cast it to a SemiAnalyticCoronagraph, and then you can just call calcPSF on that in the
-    usual fashion.
-
-    Parameters
-    -----------
-    ExistingOpticalSystem : OpticalSystem
-        An optical system which can be converted into a SemiAnalyticCoronagraph. This
-        means it must have exactly 4 planes, in order Pupil, Image, Pupil, Detector.
-    oversample : int
-        Oversampling factor in intermediate image plane. Default is 8
-    occulter_box : float
-        half size of field of view region entirely including the occulter, in arcseconds. Default 1.0
-        This can be a tuple or list to specify a rectangular region [deltaY,deltaX] if desired.
-
-
-    Notes
-    ------
-
-    Note that this algorithm is only appropriate for certain types of Fourier transform,
-    namely those using occulters limited to a sub-region of the image plane.
-    It is certainly appropriate for TFI, and probably the right choice for NIRCam as well, but
-    is of no use for MIRI's FQPMs.
-
-
-
-    """
-
-    def __init__(self, ExistingOpticalSystem, oversample=8, occulter_box = 1.0):
-
-        if len(ExistingOpticalSystem.planes) != 4:
-            raise ValueError("Input optical system must have exactly 4 planes to be convertible into a SemiAnalyticCoronagraph")
-        self.name = "SemiAnalyticCoronagraph for "+ExistingOpticalSystem.name
-        self.verbose = ExistingOpticalSystem.verbose
-        self.source_offset_r = ExistingOpticalSystem.source_offset_r
-        self.source_offset_theta = ExistingOpticalSystem.source_offset_theta
-        self.planes = ExistingOpticalSystem.planes
-
-        # SemiAnalyticCoronagraphs have some fixed planes, so give them reasonable names.
-        self.inputpupil = self.planes[0]
-        self.occulter = self.planes[1]
-        self.lyotplane = self.planes[2]
-        self.detector = self.planes[3]
-
-        self.mask_function = InverseTransmission(self.occulter)
-
-        for i, typecode in enumerate([_PUPIL, _IMAGE, _PUPIL, _DETECTOR]):
-            if not self.planes[i].planetype == typecode:
-                raise ValueError("Plane %i is not of the right type for a semianalytic coronagraph calculation: should be %s but is %s." % (i, _typestrs[typecode], _typestrs[self.planes[i].planetype]))
-
-
-        self.oversample = oversample
-
-        if hasattr(occulter_box, '__getitem__'):
-            occulter_box = np.array(occulter_box) # cast to numpy array so the multiplication by 2 just below will work
-        self.occulter_box = occulter_box
-
-        self.occulter_det = Detector(self.detector.pixelscale/self.oversample, fov_arcsec = self.occulter_box*2, name='Oversampled Occulter Plane')
-
-    def propagate_mono(self, wavelength=2e-6, normalize='first', save_intermediates=False, display_intermediates=False, intermediate_fn=None, poly_weight=None):
-        """
-
-        Parameters
-        -------------
-        wavelength : float
-            Wavelength in meters
-        normalize : string, {'first', 'last'}
-            how to normalize the wavefront?
-
-            * 'first' : set total flux = 1 after the first optic, presumably a pupil
-            * 'last' : set total flux = 1 after the entire optical system.
-
-
-        save_intermediates, display_intermediates, intermediate_fn, poly_weight : bools
-            Ignored in current version of code?
-
-        """
-        if conf.enable_speed_tests: t_start = time.time()
-        if self.verbose: _log.info(" Propagating wavelength = %g meters" % wavelength)
-        wavefront = self.inputWavefront(wavelength)
-
-        if save_intermediates:
-            raise NotImplemented("not yet")
-
-        #------- differences from regular propagation begin here --------------
-        wavefront *= self.inputpupil
-
-        if normalize.lower()=='first':
-            wavefront.normalize()
-
-
-        if display_intermediates:
-            #suptitle = plt.suptitle( "propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6), size='x-large')
-
-            nrows = 6
-            #plt.clf()
-            wavefront.display(what='best',nrows=nrows,row=1, colorbar=False, title="propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6))
-
-
-        # determine FOV region bounding the image plane occulting stop.
-        # determine number of pixels across that to use ("N_B")
-        # calculate the MFT to the N_B x N_B occulting region.
-        wavefront_cor = wavefront.copy()
-        wavefront_cor.propagateTo(self.occulter_det)
-
-        if display_intermediates: wavefront_cor.display(what='best',nrows=nrows,row=2, colorbar=False)
-
-
-        # Multiply that by M(r) =  1 - the occulting plane mask function
-        wavefront_cor *= self.mask_function
-
-        if display_intermediates: wavefront_cor.display(what='best',nrows=nrows,row=3, colorbar=False)
-
-        # calculate the MFT from that small region back to the full Lyot plane
-
-        wavefront_lyot = wavefront_cor.copy()
-        wavefront_lyot.propagateTo(self.lyotplane)
-
-        if display_intermediates: wavefront_lyot.display(what='best',nrows=nrows,row=4, colorbar=False)
-        # combine that with the original pupil function
-        wavefront_combined = wavefront + (-1)*wavefront_lyot
-
-        wavefront_combined *= self.lyotplane
-        wavefront_combined.location = 'after combined Lyot pupil'
-
-        if display_intermediates: wavefront_combined.display(what='best',nrows=nrows,row=5, colorbar=False)
-
-        # propagate to the real detector in the final image plane.
-        wavefront_combined.propagateTo(self.detector)
-
-        if display_intermediates: 
-            wavefront_combined.display(what='best',nrows=nrows,row=6, colorbar=False)
-            #suptitle.remove() #  does not work due to some matplotlib limitation, so work arount:
-            #plt.suptitle.set_text('') # clean up before next iteration to avoid ugly overwriting
-
-
-
-        #------- differences from regular propagation end here --------------
-
-        # prepare output arrays
-        if normalize.lower()=='last':
-                wavefront_combined.normalize()
-
-        if conf.enable_speed_tests:
-            t_stop = time.time()
-            _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop-t_start))
-
-        return wavefront_combined.asFITS()
-
-
-
-#if __name__ == "__main__":

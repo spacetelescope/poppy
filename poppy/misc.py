@@ -20,8 +20,10 @@ def airy_1d( diameter=1.0, wavelength=1e-6, length = 512, pixelscale=0.010,
         aperture diameter and wavelength in meters
     size : tuple
         array size
-    pixelscale : 
+    pixelscale : float
         arcseconds
+    obscuration: float, optional
+        ratio of secondary obscuration (between 0 and 1)
 
     Returns 
     --------

@@ -21,26 +21,25 @@ Documentation can be found online at http://www.stsci.edu/~mperrin/software/popp
 from ._astropy_init import *
 # ----------------------------------------------------------------------------
 
-import astropy
-if astropy.version.major + astropy.version.minor*0.1 < 0.4:
+import astropy as _astropy
+if _astropy.version.major + _astropy.version.minor*0.1 < 0.4:
     raise ImportError("astropy >= 0.4 is required for this version of poppy.")
 
-from .poppy_core import (Wavefront, OpticalElement, FITSOpticalElement, Rotation, AnalyticOpticalElement, 
-	ScalarTransmission, InverseTransmission, ThinLens, BandLimitedCoron, 
-	FQPM_FFT_aligner, IdealFQPM, IdealFieldStop, IdealRectangularFieldStop, IdealCircularOcculter, 
-	IdealBarOcculter, ParityTestAperture, CircularAperture, HexagonAperture, 
-	MultiHexagonAperture, NgonAperture, SquareAperture, RectangleAperture, SecondaryObscuration, 
-    AsymmetricSecondaryObscuration, CompoundAnalyticOptic, 
-	Detector, OpticalSystem, SemiAnalyticCoronagraph)
+from . import poppy_core
+from . import utils
+from . import optics
 
-from .utils import (display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
-    measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid, measure_strehl, measure_anisotropy,
-    specFromSpectralType, rebin_array)
+from .poppy_core import *
+from .utils import * 
+from .optics import *
+
+ #(display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
+ #   measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid, measure_strehl, measure_anisotropy,
+ #   specFromSpectralType, rebin_array)
 
 from .instrument import Instrument
 
-# if we have astropy >=0.4
-from config import conf
+from .config import conf
 
 # Not yet implemented:
 #from .wfe import ZernikeWFE, PowerSpectralDensityWFE, KolmogorovWFE
@@ -52,20 +51,6 @@ if conf.autosave_fftw_wisdom: # if we might have autosaved, then auto reload as 
    utils.fftw_load_wisdom()
 
 
-#def test( verbose=False ) :
-#    #
-#    import os, pytest
-#
-#    # find the directory where the test package lives
-#    from . import tests
-#    dir = os.path.dirname( tests.__file__ )
-#
-#    # assemble the py.test args
-#    args = [ dir ]
-#
-#    # run py.test
-#    try :
-#        return pytest.main( args )
-#    except SystemExit as e :
-#        return e.code
-#
+__all__ = ['conf','Instrument'] +  utils.__all__ + poppy_core.__all__
+
+

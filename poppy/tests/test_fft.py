@@ -1,6 +1,7 @@
 # Tests for FFT based propagation
 
 from .. import poppy_core as poppy
+from .. import optics
 import numpy as np
 import astropy.io.fits as fits
 from .test_core import check_wavefront
@@ -13,7 +14,8 @@ def test_fft_normalization():
     """ Test the PSF normalization for FFTs"""
 
     osys = poppy.OpticalSystem("test", oversample=2)
-    osys.addPupil(function='Circle', radius=radius)
+    pupil = optics.CircularAperture(radius=radius)
+    osys.addPupil(pupil)
     osys.addImage() # null plane to force FFT
     osys.addPupil() # null plane to force FFT
     osys.addDetector(pixelscale=0.01, fov_arcsec=10.0) # use a large FOV so we grab essentially all the ligh        
@@ -28,11 +30,11 @@ def test_fft_blc_coronagraph():
 
     lyot_radius = 6.5/2.5
     osys = poppy.OpticalSystem("test", oversample=2)
-    osys.addPupil('Circle', radius=radius)
+    osys.addPupil( optics.CircularAperture(radius=radius) )
     osys.addImage()
-    osys.addImage('BandLimitedCoron', kind='circular', sigma=5.0)
+    osys.addImage( optics.BandLimitedCoron( kind='circular', sigma=5.0))
     osys.addPupil()
-    osys.addPupil('Circle', radius=lyot_radius)
+    osys.addPupil( optics.CircularAperture(radius=lyot_radius) )
     osys.addDetector(pixelscale=0.10, fov_arcsec=5.0)
 
     psf, int_wfs = osys.calcPSF(wavelength=wavelen, display_intermediates=False, return_intermediates=True)
@@ -56,12 +58,12 @@ def test_fft_fqpm(): #oversample=2, verbose=True, wavelength=2e-6):
 
     oversamp=2
     osys = poppy.OpticalSystem("test", oversample=oversamp)
-    osys.addPupil('Circle', radius=radius)
-    osys.addPupil('FQPM_FFT_aligner')
-    osys.addImage('FQPM', wavelength=wavelen)  # perfect FQPM for this wavelength
-    osys.addImage('fieldstop', size=6.0)
-    osys.addPupil('FQPM_FFT_aligner', direction='backward')
-    osys.addPupil('Circle', radius=radius)
+    osys.addPupil( optics.CircularAperture(radius=radius)   )
+    osys.addPupil( optics.FQPM_FFT_aligner()  ) #'FQPM_FFT_aligner')
+    osys.addImage( optics.IdealFQPM( wavelength=wavelen) )  # perfect FQPM for this wavelength
+    osys.addImage( optics.RectangularFieldStop( width=6.0))
+    osys.addPupil( optics.FQPM_FFT_aligner(direction='backward'))
+    osys.addPupil( optics.CircularAperture(radius=radius))
     osys.addDetector(pixelscale=0.01, fov_arcsec=10.0)
 
     psf = osys.calcPSF(wavelength=wavelen, oversample=oversamp)
@@ -78,9 +80,9 @@ def test_SAMC():
     pixelscale = 0.010
 
     osys = poppy.OpticalSystem("test", oversample=4)
-    osys.addPupil('Circle', radius=radius, name='Entrance Pupil')
-    osys.addImage('CircularOcculter', radius = 0.1)
-    osys.addPupil('Circle', radius=lyot_radius, name = "Lyot Pupil")
+    osys.addPupil( optics.CircularAperture(radius=radius), name='Entrance Pupil')
+    osys.addImage( optics.CircularOcculter( radius = 0.1) )
+    osys.addPupil( optics.CircularAperture(radius=lyot_radius), name = "Lyot Pupil")
     osys.addDetector(pixelscale=pixelscale, fov_arcsec=5.0)
 
 

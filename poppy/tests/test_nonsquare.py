@@ -1,4 +1,5 @@
 from .. import poppy_core as poppy
+from .. import optics
 import numpy as np
 import astropy.io.fits as fits
 
@@ -21,7 +22,8 @@ def test_nonsquare_detector(oversample=1, pixelscale=0.010, wavelength=1e-6):
             #pl.clf()
 
             osys = poppy.OpticalSystem("test", oversample=oversample)
-            osys.addPupil(function='Circle', radius=6.5/2)
+            circ = optics.CircularAperture(radius=6.5/2)
+            osys.addPupil(circ)
             osys.addDetector(pixelscale=pixelscale, fov_arcsec=fov_arcsec) 
             psf = osys.calcPSF(wavelength=wavelength)
             #poppy.utils.display_PSF(psf)

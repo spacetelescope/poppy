@@ -57,10 +57,10 @@ Optical Elements
      * `~poppy.FQPM_FFT_aligner`
 
  * Image plane analytic optics include:
-     * `~poppy.IdealFieldStop`
-     * `~poppy.IdealRectangularFieldStop`
-     * `~poppy.IdealCircularOcculter`
-     * `~poppy.IdealBarOcculter`
+     * `~poppy.RectangularFieldStop`
+     * `~poppy.SquareFieldStop`
+     * `~poppy.CircularOcculter`
+     * `~poppy.BarOcculter`
      * `~poppy.BandLimitedCoron`
      * `~poppy.IdealFQPM`
 
@@ -79,122 +79,6 @@ Reference/API
 .. automodapi:: poppy
 
 
-.. comment 
-	#
-	#.. inheritance-diagram:: poppy.Detector poppy.Wavefront poppy.OpticalSystem poppy.Rotation poppy.CircularAperture poppy.HexagonAperture poppy.SquareAperture poppy.IdealFieldStop poppy.IdealCircularOcculter poppy.IdealBarOcculter poppy.BandLimitedCoron poppy.IdealFQPM poppy.FQPM_FFT_aligner poppy.CompoundAnalyticOptic poppy.FITSOpticalElement poppy.Instrument poppy.SecondaryObscuration poppy.InverseTransmission poppy.NgonAperture poppy.MultiHexagonAperture
-	#
-	#
-	#.. _Wavefront:
-	#
-	#Wavefront
-	#---------
-	#
-	#.. autoclass:: poppy.Wavefront
-	#    :members:
-	#
-	#.. OpticalSystem:
-	#
-	#Optical System 
-	#--------------
-	#
-	#.. autoclass:: poppy.OpticalSystem
-	#    :members:
-	#
-	#.. autoclass:: poppy.SemiAnalyticCoronagraph
-	#    :members:
-	#
-	#
-	#
-	#
-	#.. OpticalElement:
-	#
-	#Optical Elements
-	#----------------
-	#
-	#.. autoclass:: poppy.OpticalElement
-	#   :members:
-	#
-	#
-	#General Optical Elements
-	#^^^^^^^^^^^^^^^^^^^^^^^^^
-	#
-	#.. autoclass:: poppy.FITSOpticalElement
-	#   :members:
-	#
-	#.. autoclass:: poppy.AnalyticOpticalElement
-	#   :show-inheritance:
-	#.. autoclass:: poppy.CompoundAnalyticOptic
-	#   :show-inheritance:
-	#.. autoclass:: poppy.InverseTransmission
-	#   :show-inheritance:
-	#.. autoclass:: poppy.Rotation
-	#   :show-inheritance:
-	#
-	#
-	#Pupil Plane Optical Elements
-	#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-	#.. autoclass:: poppy.CircularAperture
-	#   :show-inheritance:
-	#.. autoclass:: poppy.SquareAperture
-	#   :show-inheritance:
-	#.. autoclass:: poppy.RectangleAperture
-	#   :show-inheritance:
-	#.. autoclass:: poppy.HexagonAperture
-	#   :show-inheritance:
-	#.. autoclass:: poppy.MultiHexagonAperture
-	#   :show-inheritance:
-	#.. autoclass:: poppy.NgonAperture
-	#   :show-inheritance:
-	#.. autoclass:: poppy.SecondaryObscuration
-	#   :show-inheritance:
-	#
-	#.. autoclass:: poppy.ThinLens
-	#   :show-inheritance:
-	#
-	#
-	#
-	#.. autoclass:: poppy.FQPM_FFT_aligner
-	#   :show-inheritance:
-	#
-	#
-	#
-	#
-	#Image Plane Optical Elements
-	#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-	#
-	#
-	#.. autoclass:: poppy.IdealFieldStop
-	#   :show-inheritance:
-	#.. autoclass:: poppy.IdealCircularOcculter
-	#   :show-inheritance:
-	#.. autoclass:: poppy.IdealBarOcculter
-	#   :show-inheritance:
-	#.. autoclass:: poppy.BandLimitedCoron
-	#   :show-inheritance:
-	#.. autoclass:: poppy.IdealFQPM
-	#   :show-inheritance:
-	#
-	#
-	#
-	#The Detector Optical Element
-	#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-	#
-	#.. autoclass:: poppy.Detector
-	#   :show-inheritance:
-	#
-	#
-	#
-	#
-	#.. Instrument:
-	#
-	#Instrument
-	#----------------
-	#
-	#.. autoclass:: poppy.Instrument
-	#   :members:
-	#
-	#------
-	#
 
 --------------
 
