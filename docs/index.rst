@@ -43,6 +43,7 @@ Contents
   overview.rst
   examples.rst
   classes.rst
+  extending.rst
 
 
 Getting Help
