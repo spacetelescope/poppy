@@ -78,7 +78,7 @@ class AnalyticOpticalElement(OpticalElement):
             6.5 meters or 2 arcseconds depending on plane.
         what : string
             What to return: optic 'amplitude' transmission, 'intensity' transmission, or 
-            'phase'.  Note that phase with phase_unit = 'waves' should give the optical path difference, OPD.
+            'phase'.  Note that phase with phase_unit = 'meters' should give the optical path difference, OPD.
         phase_unit : string
             Unit for returned phase array IF what=='phase'. One of 'radians', 'waves', 'meters'. 
         return_scale : float
@@ -160,28 +160,6 @@ class AnalyticOpticalElement(OpticalElement):
 
         _log.debug("Displaying "+self.name)
         phasor, pixelscale = self.sample(wavelength=wavelength, npix=npix, what='complex', return_scale=True) 
-
-#        if self.planetype is _PUPIL:
-#            #unit="meters"
-#            if hasattr(self, 'pupil_diam'): self.diam = self.pupil_diam
-#            else : self.diam = 6.5
-#            halffov_x = self.diam/2
-#            halffov_y = self.diam/2
-#            w = Wavefront(wavelength=wavelength, npix=npix,  diam = self.diam)
-#            self.pupil_scale = self.diam/npix
-#            self.pixelscale = self.pupil_scale
-#
-#        else:
-#            #unit="arcsec"
-#            if hasattr(self, '_default_display_size'):
-#                halffov_x = self._default_display_size/2
-#                halffov_y = self._default_display_size/2
-#            else:
-#                halffov_x = 2.0
-#                halffov_y = 2.0
-#            self.pixelscale = 2.*halffov_x/npix
-#            w = Wavefront(wavelength=wavelength, npix=npix,  pixelscale = self.pixelscale)
-#
 
         # temporarily set attributes appropriately as if this were a regular OPticalElement
         #phasor = self.getPhasor(w)
@@ -1170,6 +1148,7 @@ class SecondaryObscuration(AnalyticOpticalElement):
     """ Defines the central obscuration of an on-axis telescope including secondary mirror and supports
 
     The number of supports is adjustible but they are always radially symmetric around the center.
+    See AsymmetricSecondaryObscuration if you need more flexibility. 
 
     Parameters
     ----------
@@ -1180,14 +1159,18 @@ class SecondaryObscuration(AnalyticOpticalElement):
         spaced equally around a circle.  Default is 4.
     support_width : float
         Width of each support, in meters. Default is 0.01 m = 1 cm.
+    support_angle_offset : float
+        Angular offset, in degrees, of the first secondary support from the X axis.
+        
     """
 
-    def __init__(self, name=None,  secondary_radius=0.5, n_supports=4, support_width=0.01, **kwargs):
+    def __init__(self, name=None,  secondary_radius=0.5, n_supports=4, support_width=0.01, support_angle_offset=0.0,  **kwargs):
         if name is None: name = "Secondary Obscuration with {0} supports".format(n_supports)
         AnalyticOpticalElement.__init__(self,name=name, planetype=_PUPIL, **kwargs)
         self.secondary_radius=secondary_radius
         self.n_supports = n_supports
         self.support_width = support_width
+        self.support_angle_offset = support_angle_offset
 
         self.pupil_diam = 4* self.secondary_radius # for creating input wavefronts if this is the first optic in a opticalsystem
 
@@ -1206,7 +1189,7 @@ class SecondaryObscuration(AnalyticOpticalElement):
         self.transmission[r < self.secondary_radius] = 0
 
         for i in range(self.n_supports):
-            angle = 2*np.pi / self.n_supports * i
+            angle = 2*np.pi / self.n_supports * i + np.deg2rad(self.support_angle_offset)
 
             # calculate rotated x' and y' coordinates after rotation by that angle.
             xp =  np.cos(angle) * x + np.sin(angle) * y
