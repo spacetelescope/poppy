@@ -35,7 +35,7 @@ def test_fft_blc_coronagraph():
     osys.addImage( optics.BandLimitedCoron( kind='circular', sigma=5.0))
     osys.addPupil()
     osys.addPupil( optics.CircularAperture(radius=lyot_radius) )
-    osys.addDetector(pixelscale=0.10, fov_arcsec=5.0)
+    osys.addDetector(pixelscale=0.010, fov_arcsec=5.0)
 
     psf, int_wfs = osys.calcPSF(wavelength=wavelen, display_intermediates=False, return_intermediates=True)
 

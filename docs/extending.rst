@@ -13,6 +13,7 @@ Defining a custom optic from an analytic function
 ---------------------------------------------------
 
 Example skeleton code::
+
     class myCustomOptic(poppy.AnalyticOpticalElement):
         def __init__(self, *args, **kwargs):
             """ If your optic has adjustible parameters, then save them as attributes here """

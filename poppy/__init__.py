@@ -1,4 +1,5 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
+
 """Physical Optics Propagation in PYthon (POPPY)
 
 
@@ -12,14 +13,17 @@ Developed by Marshall Perrin at STScI, 2010-2014, for use simulating the James W
 
 Documentation can be found online at http://www.stsci.edu/~mperrin/software/poppy/
 
-
+This is an Astropy affiliated package.
 """
 
+# Affiliated packages may add whatever they like to this file, but
+# should keep this content at the top.
 # ----------------------------------------------------------------------------
 # make use of astropy affiliate framework to set __version__, __githash__, and 
 # add the test() helper function
 from ._astropy_init import *
 # ----------------------------------------------------------------------------
+
 
 import astropy as _astropy
 if _astropy.version.major + _astropy.version.minor*0.1 < 0.4:

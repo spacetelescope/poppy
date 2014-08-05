@@ -1,26 +1,29 @@
 #! /usr/bin/env  python 
 """
-    Matrix DFT  
+    MatrixDFT: Matrix-based discrete Fourier transforms for computing PSFs. 
 
-    Matrix-based Fourier transforms for computing PSFs. 
     See Soummer et al. 2007 JOSA
 
-    This module was originally called "Slow Fourier Transform", and the function names still are. 
-    Note that this is 'slow' only in the sense that if you perform the exact same
-    calculation as an FFT, the FFT algorithm is much faster. However this algorithm
-    gives you much more flexibility in choosing array sizes and sampling, and often lets
-    you replace "fast calculations on very large arrays" with 
-    "relatively slow calculations on much smaller ones". 
+    The main user interface in this module is a class MatrixFourierTransform. 
+    Internally this will call one of several subfunctions depending on the 
+    specified centering type. These have to do with where the (0,0) element of the Fourier
+    transform is located, i.e. where the PSF center ends up.
+
+        - 'FFTSTYLE' centered on one pixel
+        - 'SYMMETRIC' centerd on crosshairs between middle pixel
+        - 'ADJUSTIBLE', always centered in output array depending on whether it is even/odd
+
+    'ADJUSTIBLE' is the default.
 
 
-    This module contains the following four functions for different types of discrete
-    FTs. There is also a class SlowFourierTransform() which is a useful wrapper.
-        - SFT1: 'FFTSTYLE' centered on one pixel
-        - SFT2: 'SYMMETRIC' centerd on crosshairs between middle pixel
-        - SFT3: 'ADJUSTIBLE', always centered in output array depending on whether it is even/odd
+    This module was originally called "Slow Fourier Transform", and this
+    terminology still appears in some places in the code.  Note that this is
+    'slow' only in the sense that if you perform the exact same calculation as
+    an FFT, the FFT algorithm is much faster. However this algorithm gives you
+    much more flexibility in choosing array sizes and sampling, and often lets
+    you replace "fast calculations on very large arrays" with "relatively slow
+    calculations on much smaller ones". 
 
-    There are also SFT1rect and SFT3rect versions which support non-square arrays for both
-    forward and inverse transformations.
 
 
     Example
@@ -312,7 +315,7 @@ def DFT_fftstyle_rect(pupil, nlamD, npix, inverse=False):
 
     #return  nlamD/(npup*npix) *   t2 * dx * dy
     # normalization here is almost certainly wrong:
-    norm_coeff = np.sqrt(  ( nlamDY* nlamDX) / (npupY*npupX*npixY*npixX))
+    norm_coeff = np.sqrt(  float( nlamDY* nlamDX) / (npupY*npupX*npixY*npixX))
     #mean_npup = np.sqrt(npupY**2+npupX**2)
     #mean_npix = np.sqrt(npixY**2+npixX**2)
     return  norm_coeff *   t2 
@@ -373,67 +376,68 @@ def DFT_symmetric(pupil, nlamD, npix, **kwargs):
     #return t2 * dx * dy
     return  float(nlamD)/(npup*npix) *   t2 
 
+## --- OBSOLETED BY DFT_adjustible_rect just below ----
+## 
+## # ADJUSTIBLE centering: PSF centered on array regardless of parity
+## def DFT_adjustible(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **kwargs):
+##     """
+##     Compute an adjustible-center matrix fourier transform. 
+## 
+##     For an output array with ODD size n,
+##     the PSF center will be at the center of pixel (n-1)/2
+##     
+##     For an output array with EVEN size n, 
+##     the PSF center will be in the corner between pixel (n/2-1,n/2-1) and (n/2,n/2)
+## 
+##     Those coordinates all assume Python/IDL style pixel coordinates running from
+##     (0,0) up to (n-1, n-1). 
+## 
+##     Parameters
+##     ----------
+##     pupil : array
+##         pupil array (n by n)
+##     nlamD : float or tuple
+##         size of focal plane array, in units of lam/D
+##         (corresponds to 'm' in Soummer et al. 2007 4.2)
+##     npix : float or tuple
+##         number of pixels per side side of focal plane array
+##         (corresponds to 'N_B' in Soummer et al. 2007 4.2)
+##     offset: tuple
+##         an offset in pixels relative to the above
+## 
+##     """
+## 
+## 
+##     npup = pupil.shape[0]
+## 
+##     du = nlamD / float(npix)
+##     dv = nlamD / float(npix)
+## 
+##     dx = 1.0/float(npup)
+##     dy = 1.0/float(npup)
+## 
+##     Xs = (np.arange(npup) - float(npup)/2.0 - offset[1] + 0.5) * dx
+##     Ys = (np.arange(npup) - float(npup)/2.0 - offset[0] + 0.5) * dy
+## 
+##     Us = (np.arange(npix) - float(npix)/2.0 - offset[1] + 0.5) * du
+##     Vs = (np.arange(npix) - float(npix)/2.0 - offset[0] + 0.5) * dv
+## 
+##     XU = np.outer(Xs, Us)
+##     YV = np.outer(Ys, Vs)
+## 
+## 
+##     expXU = np.exp(-2.0 * np.pi * 1j * XU)
+##     expYV = np.exp(-2.0 * np.pi * 1j * YV)
+##     expXU = expXU.T.copy()
+## 
+##     t1 = np.dot(expXU, pupil)
+##     t2 = np.dot(t1, expYV)
+## 
+##     #return t2 * dx * dy
+##     return  float(nlamD)/(npup*npix) *   t2 
+## 
 
-# ADJUSTIBLE centering: PSF centered on array regardless of parity
-def DFT_adjustible(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **kwargs):
-    """
-    Compute an adjustible-center matrix fourier transform. 
-
-    For an output array with ODD size n,
-    the PSF center will be at the center of pixel (n-1)/2
-    
-    For an output array with EVEN size n, 
-    the PSF center will be in the corner between pixel (n/2-1,n/2-1) and (n/2,n/2)
-
-    Those coordinates all assume Python/IDL style pixel coordinates running from
-    (0,0) up to (n-1, n-1). 
-
-    Parameters
-    ----------
-    pupil : array
-        pupil array (n by n)
-    nlamD : float or tuple
-        size of focal plane array, in units of lam/D
-        (corresponds to 'm' in Soummer et al. 2007 4.2)
-    npix : float or tuple
-        number of pixels per side side of focal plane array
-        (corresponds to 'N_B' in Soummer et al. 2007 4.2)
-    offset: tuple
-        an offset in pixels relative to the above
-
-    """
-
-
-    npup = pupil.shape[0]
-
-    du = nlamD / float(npix)
-    dv = nlamD / float(npix)
-
-    dx = 1.0/float(npup)
-    dy = 1.0/float(npup)
-
-    Xs = (np.arange(npup) - float(npup)/2.0 - offset[1] + 0.5) * dx
-    Ys = (np.arange(npup) - float(npup)/2.0 - offset[0] + 0.5) * dy
-
-    Us = (np.arange(npix) - float(npix)/2.0 - offset[1] + 0.5) * du
-    Vs = (np.arange(npix) - float(npix)/2.0 - offset[0] + 0.5) * dv
-
-    XU = np.outer(Xs, Us)
-    YV = np.outer(Ys, Vs)
-
-
-    expXU = np.exp(-2.0 * np.pi * 1j * XU)
-    expYV = np.exp(-2.0 * np.pi * 1j * YV)
-    expXU = expXU.T.copy()
-
-    t1 = np.dot(expXU, pupil)
-    t2 = np.dot(t1, expYV)
-
-    #return t2 * dx * dy
-    return  float(nlamD)/(npup*npix) *   t2 
-
-
-# ADJUSTIBLE centering, with rectangular pupils allowed
+# ADJUSTIBLE centering:PSF centered on array regardless of parity, with rectangular pupils allowed
 def DFT_adjustible_rect(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **kwargs):
     """
     Compute an adjustible-center matrix fourier transform. 
@@ -515,15 +519,15 @@ def DFT_adjustible_rect(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **k
         #print expYV.shape, pupil.shape, expXU.shape
         t2 = t2[::-1, ::-1]
 
-    norm_coeff = np.sqrt(  ( nlamDY* nlamDX) / (npupY*npupX*npixY*npixX))
+    norm_coeff = np.sqrt(  float( nlamDY* nlamDX) / (npupY*npupX*npixY*npixX))
     return  norm_coeff *   t2 
 
 # back compatibility aliases for older/more confusing terminology: 
-SFT1 = DFT_fftstyle 
-SFT1rect = DFT_fftstyle_rect 
-SFT2 = DFT_symmetric
-SFT3 = DFT_adjustible
-SFT3rect = DFT_adjustible_rect
+## SFT1 = DFT_fftstyle 
+## SFT1rect = DFT_fftstyle_rect 
+## SFT2 = DFT_symmetric
+## SFT3 = DFT_adjustible
+## SFT3rect = DFT_adjustible_rect
 
 
 
@@ -557,41 +561,31 @@ class MatrixFourierTransform:
 
     """
 
-    def __init__(self, centering="FFTSTYLE", choice=None, verbose=False):
+    def __init__(self, centering="FFTSTYLE", verbose=False):
 
         self.verbose=verbose
 
-        if choice is not None:
-            centering=choice
-
-        self.centering_methods= ("FFTSTYLE", "SYMMETRIC", "ADJUSTIBLE", 'FFTRECT')
-        #self.correctoffset = {self.centering_methods[0]: 0.5, self.centering_methods[1]: 0.0, self.centering_methods[2]:-1, self.centering_methods[3]: 0.5 }
+        self._dft_fns = {'FFTSTYLE':DFT_fftstyle, "SYMMETRIC":DFT_symmetric, "ADJUSTIBLE":DFT_adjustible_rect, 'FFTRECT': DFT_fftstyle_rect}
+        #self.centering_methods= ("FFTSTYLE", "SYMMETRIC", "ADJUSTIBLE", 'FFTRECT')
         centering = centering.upper()
-        if centering not in self.centering_methods:
-            raise ValueError("Error: centering method must be one of [%s]" % ', '.join(self.centering_methods))
+        if centering not in self._dft_fns.keys():
+            raise ValueError("Error: centering method must be one of [%s]" % ', '.join(self._dft_fns.keys()))
         self.centering = centering
 
 
         if self.verbose:
-            #print centering 
-            #print "Announcement  - This instance of SlowFourierTransform uses SFT2"
             _log.info("This instance of MatrixFourierTransform is a(n) {0}  set-up calling {1} ".format(centering, fns[centering]))
         _log.debug("MatrixDFT initialized using centering type = {0}".format(centering))
 
     def perform(self, pupil, nlamD, npix, **kwargs):
 
-        fns = {'FFTSTYLE':DFT_fftstyle, "SYMMETRIC":DFT_symmetric, "ADJUSTIBLE":DFT_adjustible_rect, 'FFTRECT': DFT_fftstyle_rect}
-        real_fn = fns[self.centering]
-        _log.debug("MatrixDFT mode {0} calling {1}".format( self.centering, str(real_fn)))
+        dft_fn_to_call = self._dft_fns[self.centering]
+        _log.debug("MatrixDFT mode {0} calling {1}".format( self.centering, str(dft_fn_to_call)))
 
         if not np.isscalar(nlamD) or not np.isscalar(npix):
             if self.centering == 'FFTSTYLE' or self.centering=='SYMMETRIC':
                 raise RuntimeError('The selected MatrixDFT centering mode, {0}, does not support rectangular arrays.'.format(self.centering))
-    
-        return real_fn(pupil, nlamD, npix, **kwargs)
-
-    #def offset(self):
-        #return self.correctoffset[self.centering]
+        return dft_fn_to_call(pupil, nlamD, npix, **kwargs)
 
 
     def inverse(self, image, nlamD, npix):
@@ -608,7 +602,7 @@ class MatrixFourierTransform:
 
         return newHDUlist
 
-SlowFourierTransform = MatrixFourierTransform  # back compatible name
+## SlowFourierTransform = MatrixFourierTransform  # back compatible name
 
 
 if __name__ == "__main__":

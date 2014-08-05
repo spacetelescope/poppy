@@ -34,6 +34,7 @@ if conf.use_fftw:
         # try to import FFTW and use it
         import pyfftw
     except:
+        _log.warning("USE_FFTW is set to True, but we cannot load FFTW. Therefore setting it to False.")
         # we tried but failed to import it. 
         conf.use_fftw = False
 
@@ -57,7 +58,7 @@ _RADIANStoARCSEC = 180.*60*60 / np.pi
 def _wrap_propagate_for_multiprocessing(args):
     """ This is an internal helper routine for parallelizing computations across multiple processors.
 
-    Python's multiprocessing module allows easy execution of tasks acrossg
+    Python's multiprocessing module allows easy execution of tasks across
     many CPUs or even distinct machines. It relies on Python's pickle mechanism to
     serialize and pass objects between processes. One side effect of this is
     that object instance methods cannot be pickled on their own, and thus cannot be easily
@@ -67,8 +68,8 @@ def _wrap_propagate_for_multiprocessing(args):
     as a tuple, transmitting that to the new process, and then unpickling that,
     unpacking the results, and *then* at last making our instance method call.
     """
-    instrument_object, wavelength, weight, kwargs, usefftw3flag = args
-    conf.use_fftw = usefftw3flag  #passed in from parent process
+    instrument_object, wavelength, weight, kwargs, usefftwflag = args
+    conf.use_fftw = usefftwflag  #passed in from parent process
 
     if conf.use_fftw:             # we're in a different Python interprepter process so we 
         utils.fftw_load_wisdom()  # need to load the wisdom here too
@@ -595,36 +596,33 @@ class Wavefront(object):
             # which say that aligning arrays helps. Not sure why, but it's true!
             # See the discussion of FFTs in the documentation.
             #wfold = self.copy()
-            if 0:  # old code for fftw3
-                if (self.wavefront.shape, FFT_direction) not in _FFTW_INIT.keys():
-                    # The first time you run FFTW to transform a given size, it does a speed test to determine optimal algorithm
-                    # that is destructive to your chosen array. So only do that test on a copy, not the real array:
-                    _log.info("Evaluating FFT optimal algorithm for %s, direction=%s" % (str(self.wavefront.shape), FFT_direction))
-                    fftplan = fftw3.Plan(self.wavefront.copy(), None, nthreads = multiprocessing.cpu_count(),direction=FFT_direction, flags=_FFTW_FLAGS)
-                    _FFTW_INIT[(self.wavefront.shape, FFT_direction)] = True
+            #    if (self.wavefront.shape, FFT_direction) not in _FFTW_INIT.keys():
+            #        # The first time you run FFTW to transform a given size, it does a speed test to determine optimal algorithm
+            #        # that is destructive to your chosen array. So only do that test on a copy, not the real array:
+            #        _log.info("Evaluating FFT optimal algorithm for %s, direction=%s" % (str(self.wavefront.shape), FFT_direction))
+            #        fftplan = fftw3.Plan(self.wavefront.copy(), None, nthreads = multiprocessing.cpu_count(),direction=FFT_direction, flags=_FFTW_FLAGS)
+            #        _FFTW_INIT[(self.wavefront.shape, FFT_direction)] = True
+            #
+            #    fftplan = fftw3.Plan(self.wavefront, None, nthreads = multiprocessing.cpu_count(),direction=FFT_direction, flags=_FFTW_FLAGS)
+            #    fftplan.execute() # execute the plan
+            #        #print("After  FFTW Flux 2: %f" % (abs(outarr)**2).sum())
+            #    # due to FFTW normalization convention, must divide by number of pixels per side.
+            #        #print("After  FFTW Flux 1: %f" % (self.totalIntensity))
+            if (self.wavefront.shape, FFT_direction) not in _FFTW_INIT.keys():
+                # The first time you run FFTW to transform a given size, it does a speed test to determine optimal algorithm
+                # that is destructive to your chosen array. So only do that test on a copy, not the real array:
+                _log.info("Evaluating PyFFT optimal algorithm for %s, direction=%s" % (str(self.wavefront.shape), FFT_direction))
 
-                fftplan = fftw3.Plan(self.wavefront, None, nthreads = multiprocessing.cpu_count(),direction=FFT_direction, flags=_FFTW_FLAGS)
-                fftplan.execute() # execute the plan
-                    #print("After  FFTW Flux 2: %f" % (abs(outarr)**2).sum())
-                # due to FFTW normalization convention, must divide by number of pixels per side.
-                    #print("After  FFTW Flux 1: %f" % (self.totalIntensity))
-            else:  # new code for pyfftw
-                import pyfftw
-                if (self.wavefront.shape, FFT_direction) not in _FFTW_INIT.keys():
-                    # The first time you run FFTW to transform a given size, it does a speed test to determine optimal algorithm
-                    # that is destructive to your chosen array. So only do that test on a copy, not the real array:
-                    _log.info("Evaluating PyFFT optimal algorithm for %s, direction=%s" % (str(self.wavefront.shape), FFT_direction))
+                pyfftw.interfaces.cache.enable()
+                pyfftw.interfaces.cache.set_keepalive_time(30)
 
-                    pyfftw.interfaces.cache.enable()
-                    pyfftw.interfaces.cache.set_keepalive_time(30)
+                #if byte_align: test_array = pyfftw.n_byte_align_empty( self.wavefront.shape, 16, dtype=dtype)
+                test_array = np.zeros(self.wavefront.shape)
+                test_array = pyfftw.interfaces.numpy_fft.fft2(test_array, overwrite_input=True, planner_effort='FFTW_MEASURE', threads=multiprocessing.cpu_count())
 
-                    #if byte_align: test_array = pyfftw.n_byte_align_empty( self.wavefront.shape, 16, dtype=dtype)
-                    test_array = np.zeros(self.wavefront.shape)
-                    test_array = pyfftw.interfaces.numpy_fft.fft2(test_array, overwrite_input=True, planner_effort='FFTW_MEASURE', threads=multiprocessing.cpu_count())
+                _FFTW_INIT[(self.wavefront.shape, FFT_direction)] = True
 
-                    _FFTW_INIT[(self.wavefront.shape, FFT_direction)] = True
-
-                self.wavefront = pyfftw.interfaces.numpy_fft.fft2(self.wavefront, overwrite_input=True, planner_effort='FFTW_MEASURE', threads=multiprocessing.cpu_count())
+            self.wavefront = pyfftw.interfaces.numpy_fft.fft2(self.wavefront, overwrite_input=True, planner_effort='FFTW_MEASURE', threads=multiprocessing.cpu_count())
 
 
 
@@ -1309,7 +1307,7 @@ class OpticalSystem():
 
             # do *NOT* just blindly try to create as many processes as one has CPUs, or one per wavelength either
             # This is a memory-intensive task so that can end up swapping to disk and thrashing IO
-            nproc = conf.n_processes if conf.nprocesses > 1 else utils.estimate_optimal_nprocesses(self, nwavelengths=len(wavelength))
+            nproc = conf.n_processes if conf.n_processes > 1 else utils.estimate_optimal_nprocesses(self, nwavelengths=len(wavelength))
 
             pool = multiprocessing.Pool( int(nproc) )  # be sure to cast to int, will fail if given a float even if of integer value
 
