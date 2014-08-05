@@ -6,6 +6,23 @@ import numpy as np
 import astropy.io.fits as fits
 from .test_core import check_wavefront
 
+
+# For some reason, the following block of code in poppy_core is not sufficient
+# to handle the "no pyfftw" case when running in test mode, even though it works
+# just fine when actually running poppy. Empirically this check has to be repeated
+# here in order to let the tests work when pyfftw is not present. 
+from .. import conf
+if conf.use_fftw:
+    try:
+        # try to import FFTW and use it
+        import pyfftw
+    except:
+        # we tried but failed to import it. 
+        conf.use_fftw = False
+
+
+
+
 wavelen = 1e-6 
 radius = 6.5/2
 

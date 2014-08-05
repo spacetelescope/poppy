@@ -25,7 +25,7 @@ Summary
 **What this software does not do:**
 
 * Fresnel, Talbot, or Huygens propagation.
-* Any kind of detector noise or imperfections modeling. 
+* Modelling of any kind of detector noise or imperfections. 
 
 While this current version only supports far-field calculations, future versions may add
 near-field (Fresnel) calculations as well, if interest and usage warrant that. 

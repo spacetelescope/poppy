@@ -34,7 +34,7 @@ if conf.use_fftw:
         # try to import FFTW and use it
         import pyfftw
     except:
-        _log.warning("USE_FFTW is set to True, but we cannot load FFTW. Therefore setting it to False.")
+        _log.warning("conf.use_fftw is set to True, but we cannot import pyfftw. Therefore overriding the config setting to False.")
         # we tried but failed to import it. 
         conf.use_fftw = False
 

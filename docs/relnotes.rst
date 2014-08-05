@@ -2,15 +2,15 @@
 Release Notes
 ===============
 
-0.4
+0.3.1
 -------------------
-To be released June 2014?
+To be released August 2014?
 
  * Astropy dependencies updated to 0.4; configuration system reworked to accomodate the astropy.configuration transition.
- * Several OpticalElements got renamed, for instance ``IdealCircularOcculter`` became just ``CircularOcculter``. These are all fairly
-   idealized optics and it seems inconsistent to signpost that for only some of them. This is kept only for the FQPM to emphasize that one
-   in particular uses a very simplified prescription and neglects refractive index variation vs wavelength.
  * Substantially improved unit test system. 
+ * Several OpticalElements got renamed, for instance ``IdealCircularOcculter`` became just ``CircularOcculter``. *All* the optics in ``poppy`` are 
+   fairly idealized and it seemed inconsistent to signpost that for only some of them. The explicit 'Ideal' nametag is kept only for the FQPM to emphasize that one
+   in particular uses a very simplified prescription and neglects refractive index variation vs wavelength.
  * Some new utility functions in poppy.misc for analytic PSFs for comparison (and use in the test system).
  * Internal code reorganization, mostly which should not affect end users directly.
 
