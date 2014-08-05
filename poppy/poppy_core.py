@@ -16,7 +16,7 @@ import astropy.io.fits as fits
 
 from .matrixDFT import MatrixFourierTransform
 from . import utils
-from .config import conf
+from . import conf
 
 
 

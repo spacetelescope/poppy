@@ -7,7 +7,6 @@ import matplotlib
 import astropy.io.fits as fits
 
 from . import utils
-from .config import conf
 
 
 import logging

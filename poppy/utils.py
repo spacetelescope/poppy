@@ -13,7 +13,6 @@ import logging
 _log = logging.getLogger('poppy')
 import astropy.io.fits as fits
 
-from .config import conf
 
 _Strehl_perfect_cache = {} # dict for caching perfect images used in Strehl calcs.
 
@@ -1181,6 +1180,7 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
         This is in attempt to make it play nicely with whatever else you're running...
     """
 
+    from . import conf
     try:
         import psutil
     except:
