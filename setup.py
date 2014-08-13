@@ -50,7 +50,7 @@ VERSION = '0.3.1.dev'
 RELEASE = 'dev' not in VERSION
 
 if not RELEASE:
-    VERSION += get_git_devstr(False)
+    VERSION += get_git_devstr(True)
 
 # Populate the dict of setup command overrides; this should be done before
 # invoking any other functionality from distutils since it can potentially

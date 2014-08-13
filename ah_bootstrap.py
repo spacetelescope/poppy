@@ -430,6 +430,8 @@ def _check_submodule_using_git(path):
 
 
     stdio_encoding = locale.getdefaultlocale()[1]
+    if stdio_encoding is None:
+        stdio_encoding = 'UTF8'
 
     if p.returncode != 0 or stderr:
         stderr = stderr.decode(stdio_encoding)
