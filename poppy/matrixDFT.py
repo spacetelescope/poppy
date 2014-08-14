@@ -28,8 +28,8 @@
 
     Example
     -------
-    sf = matrixDFT.SlowFourierTransform()
-    result = sf.perform(pupilArray, focalplane_size, focalplane_npix)
+    mf = matrixDFT.MatrixFourierTransform()
+    result = mf.perform(pupilArray, focalplane_size, focalplane_npix)
 
 
 
@@ -574,10 +574,26 @@ class MatrixFourierTransform:
 
 
         if self.verbose:
-            _log.info("This instance of MatrixFourierTransform is a(n) {0}  set-up calling {1} ".format(centering, fns[centering]))
+            _log.info("This instance of MatrixFourierTransform is a(n) {0}  set-up calling {1} ".format(centering, self._dft_fns[centering]))
         _log.debug("MatrixDFT initialized using centering type = {0}".format(centering))
 
     def perform(self, pupil, nlamD, npix, **kwargs):
+        """ Forward Fourier Transform 
+
+        Parameters
+        --------------
+        pupil : 2D ndarray
+            Real or complex valued 2D array representing the input image to transform
+        nlamD : float
+            Size of desired output region in lambda/D units, assuming that the pupil fills the
+            input array. I.e. this is in units of the spatial frequency that is just Nyquist sampled
+            by the input array
+        npix : int
+            Number of pixels to use for representing across that region lambda/D units in size.
+
+        Returns a 2D complex valued Fourier transform array.
+
+        """
 
         dft_fn_to_call = self._dft_fns[self.centering]
         _log.debug("MatrixDFT mode {0} calling {1}".format( self.centering, str(dft_fn_to_call)))
@@ -589,25 +605,41 @@ class MatrixFourierTransform:
 
 
     def inverse(self, image, nlamD, npix):
+        """ Inverse Fourier Transform 
+
+        Parameters
+        --------------
+        image : 2D ndarray
+            Real or complex valued 2D array representing the input image to transform, which
+            presumably is the result of some previous forward transform.
+        nlamD : float
+            Size of desired output region in lambda/D units, assuming that the pupil fills the
+            input array. I.e. this is in units of the spatial frequency that is just Nyquist sampled
+            by the input array
+        npix : int
+            Number of pixels to use for representing across that region lambda/D units in size.
+
+        Returns a 2D complex valued Fourier transform array.
+
+
+        """
         return self.perform(image, nlamD, npix, inverse=True)
 
-
-    def performFITS(hdulist, focalplane_size, focalplane_npix):
-        """ Perform an MFT, and return the result as a fits.HDUlist """
-        newHDUlist = hdulist.copy()
-        newim = self.perform(hdulist[0].data, focalplane_size, focalplane_npix)
-
-        newHDUlist[0].data = newim
-        #TODO fits header keyword updates
-
-        return newHDUlist
+#  This function is used nowhere in poppy or webbpsf, and it really
+#  does not do much of anything useful - so let's delete it. Aug 2014.
+#    def performFITS(hdulist, focalplane_size, focalplane_npix):
+#        """ Perform an MFT, and return the result as a fits.HDUlist """
+#        newHDUlist = hdulist.copy()
+#        newim = self.perform(hdulist[0].data, focalplane_size, focalplane_npix)
+#
+#        newHDUlist[0].data = newim
+#        #TODO fits header keyword updates
+#
+#        return newHDUlist
 
 ## SlowFourierTransform = MatrixFourierTransform  # back compatible name
 
+#---------------------------------------------------------------------
+#  Test functions 
+#  are now in tests/test_matrixDFT.py
 
-if __name__ == "__main__":
-    #---------------------------------------------------------------------
-    #  Test functions 
-    #  are now in ../tests/test_matrixDFT.py
-
-    pass
