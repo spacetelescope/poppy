@@ -350,7 +350,7 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
             plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
 
 
-def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, **kwargs):
+def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, title=None, **kwargs):
     """ Produce two plots of PSF radial profile and encircled energy
 
     See also the display_EE function.
@@ -363,6 +363,8 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, **kwargs):
         FITS extension to use. Default is 0
     overplot : bool
         whether to overplot or clear and produce an new plot. Default false
+    title : string, optional
+        Title for plot
  
     """
     if isinstance(HDUlist_or_filename, basestring):
@@ -374,9 +376,15 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, **kwargs):
 
     radius, profile, EE = radial_profile(HDUlist, EE=True, **kwargs)
 
+    if title is None:
+        try:
+            title= "%s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER'])
+        except: 
+            title= str(HDUlist_or_filename)
+
     if not overplot:
         plt.clf()
-        plt.title("PSF for %s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER']))
+        plt.title(title)
         plt.xlabel("Radius [arcsec]")
         plt.ylabel("PSF radial profile")
     plt.subplot(2,1,1)
@@ -393,9 +401,10 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, **kwargs):
         plt.ylabel("Encircled Energy")
 
     for level in [0.5, 0.8, 0.95]:
-        EElev = radius[np.where(EE > level)[0][0]]
-        yoffset = 0 if level < 0.9 else -0.05 
-        plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
+        if (EE>level).any():
+            EElev = radius[np.where(EE > level)[0][0]]
+            yoffset = 0 if level < 0.9 else -0.05 
+            plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
 
 
 def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stddev=False, binsize=None, maxradius=None):

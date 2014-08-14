@@ -34,7 +34,7 @@ if conf.use_fftw:
         # try to import FFTW and use it
         import pyfftw
     except:
-        _log.warning("conf.use_fftw is set to True, but we cannot import pyfftw. Therefore overriding the config setting to False.")
+        _log.debug("conf.use_fftw is set to True, but we cannot import pyfftw. Therefore overriding the config setting to False. Everything will work fine using numpy.fft, it just may be slightly slower.")
         # we tried but failed to import it. 
         conf.use_fftw = False
 
