@@ -126,7 +126,7 @@ def sinc2_2d( width=1.0, height=None, wavelength=1e-6, shape=(512,512), pixelsca
     alpha = k * x * halfwidth  * _ARCSECtoRAD
     beta  = k * y * halfheight * _ARCSECtoRAD
 
-    psf = (np.sin(alpha)/alpha)**2 * (np.sin(beta)/beta)**2
+    psf = (np.sinc(alpha))**2 * (np.sinc(beta))**2
 
     return psf
 ################################################################################
