@@ -32,6 +32,13 @@ near-field (Fresnel) calculations as well, if interest and usage warrant that.
 
 
 
+.. admonition:: Quickstart IPython Notebook
+
+       This documentation is complemented by an `IPython Notebook format quickstart tutorial <http://nbviewer.ipython.org/github/mperrin/poppy/blob/master/POPPY_tutorial.ipynb>`_.
+
+       Downloading and running that notebook is a great way to get started using POPPY. The documentation following here provides greater details on the algorithms and API.
+
+
 Contents
 -----------
 

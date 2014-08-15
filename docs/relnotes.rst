@@ -4,17 +4,20 @@ Release Notes
 
 0.3.1
 -------------------
-To be released August 2014?
+Released August 14 2014
 
- * Astropy dependencies updated to 0.4; configuration system reworked to accomodate the astropy.configuration transition.
- * Several OpticalElements got renamed, for instance ``IdealCircularOcculter`` became just ``CircularOcculter``. *All* the optics in ``poppy`` are 
+ * Astropy compatibility updated to 0.4. 
+        * Configuration system reworked to accomodate the astropy.configuration transition.
+        * Package infrastructure updated to most recent `astropy package-template <https://github.com/astropy/package-template/>`_.
+ * Several OpticalElements got renamed, for instance ``IdealCircularOcculter`` became just ``CircularOcculter``. (*All* the optics in ``poppy`` are 
    fairly idealized and it seemed inconsistent to signpost that for only some of them. The explicit 'Ideal' nametag is kept only for the FQPM to emphasize that one
-   in particular uses a very simplified prescription and neglects refractive index variation vs wavelength.
- * Some new utility functions in poppy.misc for analytic PSFs for comparison (and use in the test system).
+   in particular uses a very simplified prescription and neglects refractive index variation vs wavelength.)
  * Substantially improved unit test system. 
+ * Some new utility functions added in poppy.misc for calculating analytic PSFs such as Airy functions for comparison (and use in the test system).
  * Internal code reorganization, mostly which should not affect end users directly.
- * Package infrastructure updated to most recent `astropy package-template <https://github.com/astropy/package-template/>`_.
- * Packaging improvements and installation process streamlining, courtesy of Christine Slocum
+ * Packaging improvements and installation process streamlining, courtesy of Christine Slocum and Erik Bray
+ * Documentation improvements, in particular adding an IPython notebook tutorial. 
+
 
 
 0.3
