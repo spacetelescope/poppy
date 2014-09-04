@@ -2,6 +2,12 @@
 Release Notes
 ===============
 
+0.3.2
+-------------------
+Released 2014 Sept 8
+
+ * Bug fix: Correct pupil orientation for inverse transformed pupils using PyFFTW so that it is consistent with the result using numpy FFT.
+
 0.3.1
 -------------------
 Released August 14 2014
