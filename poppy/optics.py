@@ -160,8 +160,7 @@ class AnalyticOpticalElement(OpticalElement):
         _log.debug("Displaying "+self.name)
         phasor, pixelscale = self.sample(wavelength=wavelength, npix=npix, what='complex', return_scale=True) 
 
-        # temporarily set attributes appropriately as if this were a regular OPticalElement
-        #phasor = self.getPhasor(w)
+        # temporarily set attributes appropriately as if this were a regular OpticalElement
         self.amplitude = np.abs(phasor)
         phase = np.angle(phasor) / (2*np.pi) 
         self.opd = phase *wavelength
@@ -172,8 +171,6 @@ class AnalyticOpticalElement(OpticalElement):
 
         # now un-set all the temporary attributes back, since this is analytic and these are unneeded
         self.pixelscale = None
-        #self.pupil_scale = None
-        #self.diam = None
         self.opd = None
         self.amplitude = None
 
@@ -221,13 +218,17 @@ class AnalyticOpticalElement(OpticalElement):
 
 
 class ScalarTransmission(AnalyticOpticalElement):
-    """ Either a null optic (empty plane) or some perfect ND filter...
+    """ Uniform transmission between 0 and 1.0 in intensity. 
+    
+    Either a null optic (empty plane) or some perfect ND filter...
     But most commonly this is just used as a null optic placeholder """
     def __init__(self, name="-empty-", transmission=1.0, **kwargs):
         AnalyticOpticalElement.__init__(self,name=name, **kwargs)
         self.transmission = transmission
     def getPhasor(self, wave):
-        return self.transmission
+        res = np.empty(wave.shape)
+        res.fill(self.transmission)
+        return res
 
 
 #------ Analytic Image Plane elements -----

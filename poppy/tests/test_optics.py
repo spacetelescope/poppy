@@ -36,8 +36,8 @@ def test_scalar_transmission():
 
     for transmission in [1.0, 1.0e-3, 0.0]:
 
-        optic = optics.ScalarTransmission()
-        assert( optic.getPhasor(wave) == 1.0)
+        optic = optics.ScalarTransmission(transmission=transmission)
+        assert( np.all(optic.getPhasor(wave) == transmission))
 
 
 #------ Analytic Image Plane elements -----

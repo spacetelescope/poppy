@@ -555,12 +555,16 @@ class Wavefront(object):
             if optic.verbose: _log.debug("    Padded WF array for oversampling by %dx" % self.oversample)
             self.history.append("    Padded WF array for oversampling by %dx" % self.oversample)
 
+        method = 'pyfftw' if conf.use_fftw else 'numpy' # for logging
         # Set up for computation - figure out direction & normalization
         if self.planetype == _PUPIL and optic.planetype == _IMAGE:
             FFT_direction = 'forward'
             normalization_factor = 1./ self.wavefront.shape[0] # correct for numpy fft
-            numpy_fft = np.fft.fft2
-            numpy_fftshift = np.fft.fftshift
+
+            do_fft = pyfftw.interfaces.numpy_fft.fft2 if conf.use_fftw else np.fft.fft2 
+            do_fftshift = np.fft.fftshift
+                #numpy_fft = np.fft.fft2
+                #numpy_fftshift = np.fft.fftshift
             #(pre-)update state:
             self.planetype=_IMAGE
             self.pixelscale = self.wavelength/ self.diam / self.oversample * _RADIANStoARCSEC
@@ -569,13 +573,14 @@ class Wavefront(object):
 
         elif self.planetype == _IMAGE and optic.planetype ==_PUPIL:
             FFT_direction = 'backward'
-            if conf.use_fftw: #_USE_FFTW:
-                normalization_factor =  1./self.wavefront.shape[0] # correct for FFTW3 FFT
-                # TODO check this for pyfftw
-            else:
-                normalization_factor =  self.wavefront.shape[0] # correct for numpy fft
-            numpy_fft = np.fft.ifft2
-            numpy_ifftshift = np.fft.ifftshift
+            #if conf.use_fftw: #_USE_FFTW:
+            #    normalization_factor =  1./self.wavefront.shape[0] # correct for FFTW3 FFT
+            #    # TODO check this for pyfftw
+            #else:
+            normalization_factor =  self.wavefront.shape[0] # correct for numpy fft
+            do_fft = pyfftw.interfaces.numpy_fft.ifft2 if conf.use_fftw else np.fft.ifft2 
+                #numpy_fft = np.fft.ifft2
+                #numpy_ifftshift = np.fft.ifftshift
             #(pre-)update state:
             self.planetype=_PUPIL
             self.pixelscale = self.diam *self.oversample / self.wavefront.shape[0]
@@ -586,10 +591,10 @@ class Wavefront(object):
         if conf.enable_flux_tests: _log.debug("\tPre-FFT total intensity: "+str(self.totalIntensity))
         if conf.enable_speed_tests: t0 = time.time()
 
-        if FFT_direction =='backward': self.wavefront = numpy_ifftshift(self.wavefront)
+        if FFT_direction =='backward': self.wavefront = np.fft.ifftshift(self.wavefront)
 
+        _log.debug("using {2} FFT of {0} array, direction={1}".format(str(self.wavefront.shape), FFT_direction, method))
         if conf.use_fftw : # _USE_FFTW:
-            _log.debug("using FFTW FFT  of {0} array".format(str(self.wavefront.shape)))
             # Benchmarking on a Mac Pro (8 cores) indicated that the fastest performance comes from
             # in-place FFTs, and that it is safe to ignore byte alignment issues for these arrays
             # (indeed, even beneficial in many cases) contrary to the suggestion of the FFTW docs
@@ -618,21 +623,19 @@ class Wavefront(object):
 
                 #if byte_align: test_array = pyfftw.n_byte_align_empty( self.wavefront.shape, 16, dtype=dtype)
                 test_array = np.zeros(self.wavefront.shape)
-                test_array = pyfftw.interfaces.numpy_fft.fft2(test_array, overwrite_input=True, planner_effort='FFTW_MEASURE', threads=multiprocessing.cpu_count())
+                test_array = do_fft(test_array, overwrite_input=True, planner_effort='FFTW_MEASURE', threads=multiprocessing.cpu_count())
 
                 _FFTW_INIT[(self.wavefront.shape, FFT_direction)] = True
 
-            self.wavefront = pyfftw.interfaces.numpy_fft.fft2(self.wavefront, overwrite_input=True, planner_effort='FFTW_MEASURE', threads=multiprocessing.cpu_count())
 
-
+            self.wavefront = do_fft(self.wavefront, overwrite_input=True, planner_effort='FFTW_MEASURE', threads=multiprocessing.cpu_count())
 
 
         else:
-            _log.debug("using numpy FFT")
-            self.wavefront = numpy_fft(self.wavefront)
+            self.wavefront = do_fft(self.wavefront)
 
         if FFT_direction == 'forward':
-            self.wavefront = numpy_fftshift(self.wavefront)
+            self.wavefront = np.fft.fftshift(self.wavefront)
             # FFT produces pixel-centered images by default, unless the _image_centered param has already been set by an FQPM_FFT_aligner class
             if self._image_centered != 'corner': self._image_centered = 'pixel'
         self.wavefront = self.wavefront *normalization_factor
@@ -954,6 +957,9 @@ class OpticalSystem():
 
 
         """
+        if function is not None:
+            import warnings
+            warnings.warn("The function argument to addPupil is deprecated. Please provide an Optic object instead.", DeprecationWarning)
         if optic is None and function is not None: # ease of use: 'function' input and providing 'optic' parameter as a string are synonymous.
             optic = function
 
@@ -967,21 +973,16 @@ class OpticalSystem():
 
             raise NotImplementedError('Setting optics based on strings is now deprecated.')
 
-#            fns = {'circle':CircularAperture, 'square':SquareAperture, 'rectangle':RectangleAperture, 'rect':RectangleAperture, 
-#                    'hexagon': HexagonAperture, 'hex':HexagonAperture, 'fqpm_aligner':FQPM_FFT_aligner, 'fqpm_fft_aligner': FQPM_FFT_aligner}
-#
-#            try:
-#                fn = fns[optic.lower()]
-#            except:
-#                raise ValueError("Unknown pupil function type: %s. Perhaps you meant to set transmission= or opd= instead?" % optic)
-#            optic = fn(oversample=self.oversample, **kwargs)
-#            optic.planetype = _PUPIL
 
-        elif optic is None: 
+        elif optic is None and len(kwargs) > 0: # create image from files specified in kwargs
             # create image from files specified in kwargs
             optic = FITSOpticalElement(planetype=_PUPIL, oversample=self.oversample, **kwargs)
+        elif optic is None and len(kwargs) == 0: # create empty optic.
+            from .import optics
+            optic = optics.ScalarTransmission() # placeholder optic, transmission=100%
+            optic.planetype=_PUPIL
         else:
-            raise TypeError("Not sure how to handle an Optic input of that type...")
+            raise TypeError("Not sure how to handle an Optic input of the provided type, {0}".format(str(optic.__class__)))
 
         self.planes.append(optic)
         if self.verbose: _log.info("Added pupil plane: "+self.planes[-1].name)
@@ -1028,20 +1029,23 @@ class OpticalSystem():
             optic = None
 
         if optic is None:
+            from .import optics
             if function == 'CircularOcculter':
-                fn = IdealCircularOcculter
+                fn = optics.CircularOcculter
             elif function == 'BarOcculter':
-                fn = IdealBarOcculter
+                fn = optics.BarOcculter
             elif function == 'fieldstop':
-                fn = IdealFieldStop
+                fn = optics.FieldStop
             elif function == 'BandLimitedCoron':
-                fn = BandLimitedCoron
+                fn = optics.BandLimitedCoron
             elif function == 'FQPM':
-                fn = IdealFQPM
+                fn = optics.IdealFQPM
             elif function is not None:
                 raise ValueError("Analytic mask type '%s' is unknown." % function)
-            else: # create image from files specified in kwargs
+            elif len(kwargs) > 0: # create image from files specified in kwargs
                 fn = FITSOpticalElement
+            else:
+                fn = optics.ScalarTransmission # placeholder optic, transmission=100%
 
             optic = fn(oversample=self.oversample, **kwargs)
             optic.planetype=_IMAGE
