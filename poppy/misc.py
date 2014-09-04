@@ -3,9 +3,12 @@
 #  Airy functions for comparison's sake
 #
 ############################################################################
+from __future__ import (absolute_import, division, print_function, unicode_literals)
+
 import numpy as np
 import matplotlib.pyplot as pl
 import scipy
+
 
 _RADtoARCSEC = 180.*60*60/np.pi # ~ 206265
 _ARCSECtoRAD = np.pi/(180.*60*60)
