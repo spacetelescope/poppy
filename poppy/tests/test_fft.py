@@ -8,7 +8,7 @@ from .test_core import check_wavefront
 
 
 # For some reason, the following block of code in poppy_core is not sufficient
-# to handle the "no pyfftw" case when running in test mode, even though it works
+# to handle the "no pyfftw installed" case when running in test mode, even though it works
 # just fine when actually running poppy. Empirically this check has to be repeated
 # here in order to let the tests work when pyfftw is not present. 
 from .. import conf
@@ -143,6 +143,39 @@ def test_SAMC():
     #print "Max difference between results: ", maxdiff
 
     assert( maxdiff < 1e-7)
+
+if conf.use_fftw:
+    # The following test is only applicable if fftw is present. 
+
+    def test_pyfftw_vs_numpyfft():
+        """ Create an optical system with 2 parity test apertures, 
+        propagate light through it, and compare that we get the same results from both numpy and pyfftw"""
+
+
+        ap = optics.ParityTestAperture()
+        sys = poppy_core.OpticalSystem()
+        sys.addPupil(ap)
+        sys.addImage()
+        sys.addPupil(ap)
+        sys.addDetector(0.02, fov_pixels=512)  # fairly arbitrary, but big enough to get most of the flux
+
+        conf.use_fftw = False
+        psf_numpy, intermediates_numpy = sys.calcPSF(wavelength=1e-6, return_intermediates=True)
+
+        conf.use_fftw = True
+        psf_fftw, intermediates_fftw = sys.calcPSF(wavelength=1e-6, return_intermediates=True)
+
+        # check the final PSFs are consistent
+        assert np.abs(psf_fftw[0].data-psf_numpy[0].data).max() < 1e-6
+
+        # Check flux conservation for the intermediate arrays behaves the same for both
+        for intermediates in [intermediates_numpy, intermediates_fftw]:
+            for i in [1,2]:
+                assert np.abs(intermediates[i].totalIntensity-intermediates_numpy[0].totalIntensity) < 1e-6
+            assert np.abs(intermediates[3].totalIntensity-intermediates_numpy[0].totalIntensity) < 0.005
+
+
+
 
 
 
