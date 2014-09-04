@@ -75,7 +75,7 @@ def fwcentroid(image, checkbox=1, maxiterations=20, threshold=1e-4, halfwidth=5,
 
     # Determine starting peak location
     if checkbox >1:
-        raise NotImplemented("Checkbox smoothing not done yet")
+        raise NotImplementedError("Checkbox smoothing not done yet")
     else:
         # just use brightest pixel
         w = np.where(image == image.max())

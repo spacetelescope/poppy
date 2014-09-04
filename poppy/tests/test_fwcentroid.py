@@ -1,5 +1,6 @@
 
 import numpy as np
+from .. import fwcentroid
 from ..fwcentroid import test_fwcentroid
 
 # fwcentroid is a standalong package that's just included as a copy in
@@ -11,6 +12,22 @@ def test_fwcentroid_square(n=20,):
 def test_fwcentroid_rectangle(n=20,):
     test_fwcentroid(n=20,halfwidth=[5,7],verbose=False)
 
+
+try:
+    import pytest
+    _HAVE_PYTEST = True
+except:
+    _HAVE_PYTEST = False
+
+if _HAVE_PYTEST:
+    def test_checkbox_disabled():
+        """ This is mostly here to get Pytest 100% coverage on fwcentroid - 
+        should be replaced when/if we implement the checkbox option.
+        """
+
+        with pytest.raises(NotImplementedError) as excinfo:
+            fwcentroid.fwcentroid(np.ones((10,10)), checkbox=5)
+        assert excinfo.value.message == "Checkbox smoothing not done yet"
 
 
 

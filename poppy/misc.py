@@ -14,7 +14,7 @@ _RADtoARCSEC = 180.*60*60/np.pi # ~ 206265
 _ARCSECtoRAD = np.pi/(180.*60*60)
 
 def airy_1d( diameter=1.0, wavelength=1e-6, length = 512, pixelscale=0.010, 
-        obscuration=0.0, center=None, plot_=False):
+        obscuration=0.0, center=None, plot=False):
     """ 1-dimensional Airy function PSF calculator 
     
     Parameters
@@ -49,7 +49,7 @@ def airy_1d( diameter=1.0, wavelength=1e-6, length = 512, pixelscale=0.010,
     airy =  1./(1-e**2)**2* ((2*scipy.special.jn(1,v) - e*2*scipy.special.jn(1,e*v))/v )**2
     # see e.g. Schroeder, Astronomical Optics, 2nd ed. page 248
 
-    if plot_:
+    if plot:
         plt.semilogy(r, airy)
         plt.xlabel("radius [arcsec]")
         plt.ylabel("PSF intensity")
