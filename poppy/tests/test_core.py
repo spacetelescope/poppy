@@ -157,17 +157,45 @@ def test_normalization():
     osys.addPupil(pupil) #function='Circle', radius=6.5/2)
     osys.addDetector(pixelscale=0.01, fov_arcsec=5.0) # use a large FOV so we grab essentially all the light and conserve flux
 
+    from .. import conf
+    conf.enable_flux_tests  = True
 
     # we need to be a little careful here due to floating point math comparision equality issues... Can't just do a strict equality
 
     # this should be very very close to one
-    psf = osys.calcPSF(wavelength=1.0e-6, normalize='last')
-    assert (psf[0].data.sum() - 1) < 1e-9
+    psf_last = osys.calcPSF(wavelength=1.0e-6, normalize='last')
+    assert abs(psf_last[0].data.sum() - 1) < 0.01
 
     # this should be a little further but still pretty close
-    psf = osys.calcPSF(wavelength=1.0e-6, normalize='first')
-    assert abs(psf[0].data.sum() - 1) < 0.1
+    psf_first = osys.calcPSF(wavelength=1.0e-6, normalize='first')
+    assert abs(psf_first[0].data.sum() - 1) < 0.01
+    assert abs(psf_first[0].data.sum() - 1) > 0.0001
 
+    # for the simple optical system above, the 'first' and 'exit_pupil' options should be equivalent:
+    psf_exit_pupil = osys.calcPSF(wavelength=1.0e-6, normalize='exit_pupil')
+    assert (psf_exit_pupil[0].data.sum() - 1) < 1e-9
+    assert np.abs( psf_exit_pupil[0].data - psf_first[0].data).max()  < 1e-10
+
+
+    # and if we make an pupil stop with half the radius we should get 1/4 the light if normalized to 'first'
+    # but normalized to 1 if normalized to last_pupil
+    osys2 = poppy_core.OpticalSystem("test", oversample=2)
+    osys2.addPupil(  optics.CircularAperture(radius=6.5/2) )
+    osys2.addPupil(  optics.CircularAperture(radius=6.5/2/2) )
+    osys2.addDetector(pixelscale=0.01, fov_arcsec=5.0) # use a large FOV so we grab essentially all the light and conserve flux
+
+    psf_small_pupil_first = osys2.calcPSF(wavelength=1.0e-6, normalize='first')
+    psf_small_pupil_exit  = osys2.calcPSF(wavelength=1.0e-6, normalize='exit_pupil')
+    psf_small_pupil_last  = osys2.calcPSF(wavelength=1.0e-6, normalize='last')
+    # normalized for the output to 1 we should of course get 1
+    assert abs(psf_small_pupil_last[0].data.sum() - 1) < 1e-9
+    # normalized to the exit pupil we should get near but not exactly 1 (due to finite FOV)
+    assert abs(psf_small_pupil_exit[0].data.sum() - 1) < 0.01
+    assert abs(psf_small_pupil_exit[0].data.sum() - 1) > 0.0001
+    # normalized to the entrance pupil we should get very close to 4x over the exit pupil one
+    # (not totally sure why the agreement isn't closer - presumably due to finite sampling quantization
+    #  of the discretized arrays)
+    assert abs(psf_small_pupil_first[0].data.sum() *4 - psf_small_pupil_exit[0].data.sum()) < 1e-3
 
 
 def test_fov_size_pixels():

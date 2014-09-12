@@ -41,9 +41,9 @@ if conf.use_fftw:
 # internal constants for types of plane
 _PUPIL = 'PUPIL'
 _IMAGE = 'IMAGE'
-_DETECTOR = 3 # specialized type of image plane.
-_ROTATION = 4 # not a real optic, just a coordinate transform
-_typestrs = {0:'', 1:'Pupil plane', 2:'Image plane', 3:'Detector', 4:'Rotation', 'PUPIL':'Pupil plane','IMAGE':'Image plane'}
+_DETECTOR = 'DETECTOR' # specialized type of image plane.
+_ROTATION = 'ROTATION' # not a real optic, just a coordinate transform
+#_typestrs = {0:'', 1:'Pupil plane', 2:'Image plane', 3:'Detector', 4:'Rotation', 'PUPIL':'Pupil plane','IMAGE':'Image plane'}
 
 
 #conversions
@@ -520,6 +520,7 @@ class Wavefront(object):
             msg = "  Propagating wavefront to %s. " % str(optic)
             _log.debug(msg)
             self.history.append(msg)
+        _log.debug("conf.use_fftw is "+str(conf.use_fftw))
 
         #_log.debug('==== at %s, to %s' % (typestrs[self.planetype], typestrs[optic.planetype]))
         if optic.planetype == _ROTATION:     # rotate
@@ -556,6 +557,7 @@ class Wavefront(object):
             self.history.append("    Padded WF array for oversampling by %dx" % self.oversample)
 
         method = 'pyfftw' if conf.use_fftw else 'numpy' # for logging
+        _log.info("using {1} FFT of {0} array".format(str(self.wavefront.shape), method))
         # Set up for computation - figure out direction & normalization
         if self.planetype == _PUPIL and optic.planetype == _IMAGE:
             FFT_direction = 'forward'
@@ -1178,48 +1180,51 @@ class OpticalSystem():
 
             #wavefront.display(what='best',nrows=nrows,row=1, colorbar=False, title="propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6))
 
-        count = 0
+        current_plane_index = 0  # note: 0 is 'before first optical plane; 1 = 'after first plane and before second plane' and so on
         for optic in self.planes:
+            # The actual propagation:
             wavefront.propagateTo(optic)
             wavefront *= optic
-            count += 1
+            current_plane_index += 1
 
-
-            if count==1 and normalize.lower()=='first':  # set entrance plane to 1. 
+            # Normalize if appropriate:
+            if normalize.lower()=='first' and current_plane_index==1 :  # set entrance plane to 1. 
                 wavefront.normalize()
-            elif count==1 and normalize.lower()=='first=2': # this undocumented option is present only for testing/validation purposes
+                _log.debug("normalizing at first plane (entrance pupil) to 1.0 total intensity")
+            elif normalize.lower()=='first=2' and current_plane_index==1 : # this undocumented option is present only for testing/validation purposes
                 wavefront.normalize()
                 wavefront *= np.sqrt(2) 
+            elif normalize.lower()=='exit_pupil': # normalize the last pupil in the system to 1
+                last_pupil_plane_index = np.where(np.asarray([p.planetype =='PUPIL' for p in self.planes]))[0].max() +1
+                if current_plane_index == last_pupil_plane_index:  
+                    wavefront.normalize()
+                    _log.debug("normalizing at exit pupil (plane {0}) to 1.0 total intensity".format(current_plane_index))
+            elif normalize.lower()=='last' and current_plane_index==len(self.planes):
+                wavefront.normalize()
+                _log.debug("normalizing at last plane to 1.0 total intensity")
 
 
-
+            # Optional outputs:
             if conf.enable_flux_tests: _log.debug("  Flux === "+str(wavefront.totalIntensity))
 
-            if save_intermediates:
-                if len(self.intermediate_wfs) < count:
+            if save_intermediates: # save intermediate wavefront, summed for polychromatic if needed
+                if len(self.intermediate_wfs) < current_plane_index: 
                     self.intermediate_wfs.append(wavefront.copy())
                 else:
-                    self.intermediate_wfs[count-1] += wavefront.copy()*poly_weight
-                    _log.info("    Storing intermediate wavefront plane %d with weight %f" % (count-1, poly_weight))
-                if poly_weight is None: self.intermediate_wfs[count-1].writeto(intermediate_fn % count, what='parts')
+                    self.intermediate_wfs[current_plane_index-1] += wavefront.copy()*poly_weight
+                    _log.info("    Storing intermediate wavefront plane %d with weight %f" % (current_plane_index-1, poly_weight))
+                # if only one wavelength, write these out to disk right away. If polychromatic this happens later.
+                if poly_weight is None: self.intermediate_wfs[current_plane_index-1].writeto(intermediate_fn % current_plane_index, what='parts')
             if display_intermediates:
                 if conf.enable_speed_tests: t0 = time.time()
-                #if save_intermediates: self.intermediate_wfs[count-1].display(what='best',nrows=len(self.planes),row=count)
-                title = None if count > 1 else "propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6)
-                wavefront.display(what='best',nrows=len(self.planes),row=count, colorbar=False, title=title)
+                title = None if current_plane_index > 1 else "propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6)
+                wavefront.display(what='best',nrows=len(self.planes),row=current_plane_index, colorbar=False, title=title)
                 #plt.title("propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6))
 
                 if conf.enable_speed_tests:
                     t1 = time.time()
                     _log.debug("\tTIME %f s\t for displaying the wavefront." % (t1-t0))
 
-        #if display_intermediates:
-            #suptitle.remove() #  does not work due to some matplotlib limitation, so work around:
-            #suptitle.set_text('') # clean up before next iteration to avoid ugly overwriting
-
-        # prepare output arrays
-        if normalize.lower()=='last':
-                wavefront.normalize()
 
         if conf.enable_speed_tests:
             t_stop = time.time()
@@ -1229,7 +1234,8 @@ class OpticalSystem():
 
 
     def calcPSF(self, wavelength=1e-6, weight=None,
-        save_intermediates=False, save_intermediates_what='all', display= False, return_intermediates=False, source=None, **kwargs):
+        save_intermediates=False, save_intermediates_what='all', display= False, return_intermediates=False, source=None, 
+        normalize='first', **kwargs):
         """Calculate a PSF, either multi-wavelength or monochromatic.
 
         The wavelength coverage computed will be:
@@ -1245,14 +1251,16 @@ class OpticalSystem():
             *TBD - replace w/ pysynphot observation object*
         wavelen : float, optional
             wavelength in meters for monochromatic calculation.
-        save_intermediates : bool
+        save_intermediates : bool, optional
             whether to output intermediate optical planes to disk. Default is False
-        save_intermediate_what : string
+        save_intermediate_what : string, optional
             What to save - phase, intensity, amplitude, complex, parts, all. default is all.
-        return_intermediates: bool
+        return_intermediates: bool, optional
             return intermediate wavefronts as well as PSF?
-        display : bool
+        display : bool, optional
             whether to display when finished or not.
+        normalize : string, optional
+            How to normalize the PSF. See propagate_mono() for details.
 
 
         Returns
@@ -1340,7 +1348,7 @@ class OpticalSystem():
 
             for wavelen, wave_weight in zip(wavelength, normwts):
             #for wavelen, weight in zip(source['wavelengths'], normwts):
-                mono_psf = self.propagate_mono(wavelen, poly_weight=wave_weight, save_intermediates=save_intermediates or return_intermediates, **kwargs)
+                mono_psf = self.propagate_mono(wavelen, poly_weight=wave_weight, save_intermediates=save_intermediates or return_intermediates, normalize=normalize, **kwargs)
                 # add mono_psf into the output array:
 
                 if outFITS is None:
@@ -1390,6 +1398,8 @@ class OpticalSystem():
             outFITS[0].header['WGHT'+str(i)] = ( wts[i], "Wavelength weight "+str(i))
         ffttype = "pyFFTW" if conf.use_fftw else "numpy.fft"
         outFITS[0].header['FFTTYPE'] = (ffttype, 'Algorithm for FFTs: numpy or fftw')
+        outFITS[0].header['NORMALIZ'] = (normalize, 'PSF normalization method')
+
 
         if self.verbose: _log.info("PSF Calculation completed.")
         if return_intermediates:
@@ -1491,12 +1501,13 @@ class SemiAnalyticCoronagraph(OpticalSystem):
 
         for i, typecode in enumerate([_PUPIL, _IMAGE, _PUPIL, _DETECTOR]):
             if not self.planes[i].planetype == typecode:
-                raise ValueError("Plane {0:d} is not of the right type for a semianalytic coronagraph calculation: should be {1:s} but is {2:s}.".format(i, _typestrs[typecode], _typestrs[self.planes[i].planetype]))
+                raise ValueError("Plane {0:d} is not of the right type for a semianalytic coronagraph calculation: should be {1:s} but is {2:s}.".format(i, typecode, self.planes[i].planetype))
 
 
         self.oversample = oversample
 
-        if hasattr(occulter_box, '__getitem__'):
+        #if hasattr(occulter_box, '__getitem__'):
+        if not np.isscalar(occulter_box):
             occulter_box = np.array(occulter_box) # cast to numpy array so the multiplication by 2 just below will work
         self.occulter_box = occulter_box
 
@@ -1521,7 +1532,7 @@ class SemiAnalyticCoronagraph(OpticalSystem):
 
         """
         if conf.enable_speed_tests: t_start = time.time()
-        if self.verbose: _log.info(" Propagating wavelength = %g meters" % wavelength)
+        if self.verbose: _log.info(" Propagating wavelength = {0:g} meters {1}, using Fast Semi-Analytic Coronagraph method".format(wavelength, "" if poly_weight is None else " with weight=%.2f" % poly_weight))
         wavefront = self.inputWavefront(wavelength)
 
         if save_intermediates:
