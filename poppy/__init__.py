@@ -11,7 +11,7 @@ imaging simulations.
 
 Developed by Marshall Perrin at STScI, 2010-2014, for use simulating the James Webb Space Telescope. 
 
-Documentation can be found online at http://www.stsci.edu/~mperrin/software/poppy/
+Documentation can be found online at http://pythonhosted.org//poppy/
 
 This is an Astropy affiliated package.
 """

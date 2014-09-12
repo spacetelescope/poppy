@@ -49,6 +49,7 @@ Contents
   relnotes.rst
   overview.rst
   examples.rst
+  options.rst
   classes.rst
   extending.rst
 

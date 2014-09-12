@@ -72,7 +72,7 @@ project = setup_cfg['package_name']
 author = setup_cfg['author']
 author = u'Association of Universities for Research in Astronomy'
 copyright = '{0}, {1}'.format(
-    datetime.datetime.now().year, setup_cfg['author'])
+    datetime.datetime.now().year, author)
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

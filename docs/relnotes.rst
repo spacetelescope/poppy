@@ -2,6 +2,11 @@
 Release Notes
 ===============
 
+0.3.3
+-------------------
+
+ * Added normalize='exit_pupil' option; added documentation for normalization options.
+
 0.3.2
 -------------------
 Released 2014 Sept 8
