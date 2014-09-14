@@ -1,3 +1,4 @@
+.. _examples:
 
 Examples
 ============
@@ -20,7 +21,7 @@ A simple circular pupil
 This is very simple, as it should be::
 
         osys = poppy.OpticalSystem()
-        osys.addPupil(function='Circle', radius=3)          # pupil radius in meters
+        osys.addPupil( poppy.CircularAperture(radius=3))    # pupil radius in meters
         osys.addDetector(pixelscale=0.010, fov_arcsec=5.0)  # image plane coordinates in arcseconds
 
         psf = osys.calcPSF(2e-6)                            # wavelength in microns
@@ -75,8 +76,8 @@ Defocus can be added using a lens::
         for nwaves in range(nsteps):
 
             osys = poppy.OpticalSystem("test", oversample=2)
-            osys.addPupil('Circle', radius=3)
-            osys.addPupil(optic=poppy.ThinLens(nwaves=nwaves, reference_wavelength=wavelen))
+            osys.addPupil( poppy.CircularAperture(radius=3))    # pupil radius in meters
+            osys.addPupil( poppy.ThinLens(nwaves=nwaves, reference_wavelength=wavelen))
             osys.addDetector(pixelscale=0.01, fov_arcsec=4.0)
 
             psf = osys.calcPSF(wavelength=wavelen)
@@ -105,11 +106,11 @@ As an example of a more complicated calculation, here's a NIRCam-style band limi
     wavelength = 4.6e-6
 
     osys = poppy.OpticalSystem("test", oversample=oversample)
-    osys.addPupil('Circle', radius=6.5/2)
+    osys.addPupil(poppy.CircularAperture(radius=6.5/2))
     osys.addImage()
-    osys.addImage('BandLimitedCoron', kind='circular',  sigma=5.0)
+    osys.addImage(poppy.BandLimitedCoron(kind='circular',  sigma=5.0)) 
     osys.addPupil()
-    osys.addPupil('Circle', radius=6.5/2.5)
+    osys.addPupil(poppy.CircularAperture(radius=6.5/2))
     osys.addDetector(pixelscale=pixelscale, fov_arcsec=3.0)
 
     osys.source_offset_theta = 45.
@@ -196,9 +197,9 @@ The following code performs the same calculation both ways and compares their sp
         pixelscale = 0.060
 
         osys = poppy.OpticalSystem("test", oversample=8)
-        osys.addPupil('Circle', radius=radius, name='Entrance Pupil')
-        osys.addImage('CircularOcculter', radius = 0.1)
-        osys.addPupil('Circle', radius=lyot_radius, name = "Lyot Pupil")
+        osys.addPupil( poppy.CircularAperture(radius=radius), name='Entrance Pupil')
+        osys.addImage( poppy.CircularOcculter(radius = 0.1) )
+        osys.addPupil( poppy.CircularAperture(radius=lyot_radius), name='Lyot Pupil')
         osys.addDetector(pixelscale=pixelscale, fov_arcsec=5.0)
 
 

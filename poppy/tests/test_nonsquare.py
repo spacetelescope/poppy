@@ -1,11 +1,8 @@
-import poppy
-import logging
-import pylab as pl
+from .. import poppy_core as poppy
+from .. import optics
 import numpy as np
-try:
-    from IPython.core.debugger import Tracer; stop = Tracer()
-except:
-    pass
+import astropy.io.fits as fits
+
 
 def test_nonsquare_detector(oversample=1, pixelscale=0.010, wavelength=1e-6):
         """ Test that the MFT supports non-square detectors 
@@ -18,25 +15,25 @@ def test_nonsquare_detector(oversample=1, pixelscale=0.010, wavelength=1e-6):
         # verified working properly on Jan 28 2013
 
         results = []
-        pl.figure(1)
+        #pl.figure(1)
 
         fovs_to_test = ( (3,3), (3,6), (6,3),(4,2), (3,11))
         for fov_arcsec in  fovs_to_test:
-            pl.clf()
+            #pl.clf()
 
             osys = poppy.OpticalSystem("test", oversample=oversample)
-            osys.addPupil(function='Circle', radius=6.5/2)
+            circ = optics.CircularAperture(radius=6.5/2)
+            osys.addPupil(circ)
             osys.addDetector(pixelscale=pixelscale, fov_arcsec=fov_arcsec) 
-            psf = osys.calcPSF(wavelength=wavelength, display_intermediates=True)
-            poppy.utils.display_PSF(psf)
+            psf = osys.calcPSF(wavelength=wavelength)
+            #poppy.utils.display_PSF(psf)
 
             results.append(psf[0].data)
 
-            pl.draw()
-            #stop()
+            #pl.draw()
 
 
-        pl.figure(2)
+        #pl.figure(2)
         psf0 = results[0]
         bx=10
         ceny = psf0.shape[0]/2
@@ -44,38 +41,26 @@ def test_nonsquare_detector(oversample=1, pixelscale=0.010, wavelength=1e-6):
 
         cut0 = psf0[ceny-bx:ceny+bx, cenx-bx:cenx+bx]
 
-        pl.subplot(1, len(fovs_to_test), 1)
-        pl.imshow(np.log10(cut0))
-        pl.title("peak from\nsquare array = "+str(fovs_to_test[0]))
+        #pl.subplot(1, len(fovs_to_test), 1)
+        #pl.imshow(np.log10(cut0))
+        #pl.title("peak from\nsquare array = "+str(fovs_to_test[0]))
 
         # the maximum ought to be the same no matter what 
         for i in range(1, len(fovs_to_test)):
             thispsf = results[i]
             assert(psf0.max() == thispsf.max())
 
-            pl.subplot(1, len(fovs_to_test),  i+1)
+            #pl.subplot(1, len(fovs_to_test),  i+1)
 
             ceny = thispsf.shape[0]/2
             cenx = thispsf.shape[1]/2
 
             thiscut = thispsf[ceny-bx:ceny+bx, cenx-bx:cenx+bx]
-            pl.imshow(np.log10(thiscut))
+            #pl.imshow(np.log10(thiscut))
 
-            pl.title("peak from array =\n"+str(fovs_to_test[i]))
+            #pl.title("peak from array =\n"+str(fovs_to_test[i]))
 
-            print (thiscut-cut0).sum()
+            #print (thiscut-cut0).sum()
 
             assert( (thiscut-cut0).sum()  == 0)
 
-
-        pl.draw()
-            #assert( 
-
-
-        #return psf
-
-if __name__== "__main__":
-    logging.basicConfig(level=logging.DEBUG,format='%(name)-10s: %(levelname)-8s %(message)s')
-    test_nonsquare_detector()
-
-    poppy.poppy_core._IMAGECROP = 100 # basically don't crop

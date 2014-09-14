@@ -8,7 +8,7 @@
 # Note that not all possible configuration values are present in this file.
 #
 # All configuration values have a default. Some values are defined in
-# the global Astropy configuration which is loaded here before anything else. 
+# the global Astropy configuration which is loaded here before anything else.
 # See astropy.sphinx.conf for which values are set there.
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -25,29 +25,36 @@
 # Thus, any C-extensions that are needed to build the documentation will *not*
 # be accessible, and the documentation will not build correctly.
 
+import datetime
+import os
+import sys
+
+try:
+    import astropy_helpers
+except ImportError:
+    # Building from inside the docs/ directory?
+    if os.path.basename(os.getcwd()) == 'docs':
+        a_h_path = os.path.abspath(os.path.join('..', 'astropy_helpers'))
+        if os.path.isdir(a_h_path):
+            sys.path.insert(1, a_h_path)
+
 # Load all of the global Astropy configuration
-from astropy.sphinx.conf import *
+from astropy_helpers.sphinx.conf import *
 
+# Get configuration information from setup.cfg
+from distutils import config
+conf = config.ConfigParser()
+conf.read([os.path.join(os.path.dirname(__file__), '..', 'setup.cfg')])
+setup_cfg = dict(conf.items('metadata'))
 
-# -- General configuration -----------------------------------------------------
-
-default_role='py:obj'
-
-# Add any Sphinx extension module names here, as strings. They can be extensions
-# coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-#extensions = ['sphinx.ext.autodoc', 'numpydoc','sphinx.ext.inheritance_diagram', 'sphinx.ext.pngmath', 'sphinx.ext.autosummary', 'sphinx.ext.graphviz']
-
-# Add any paths that contain templates here, relative to this directory.
-#templates_path = ['_templates']
-
-# The suffix of source filenames.
-#source_suffix = '.rst'
-
-# The master toctree document.
-#master_doc = 'index'
+# -- General configuration ----------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-#needs_sphinx = '1.1'
+#needs_sphinx = '1.2'
+
+# To perform a Sphinx version check that needs to be more specific than
+# major.minor, call `check_sphinx_version("x.y.z")` here.
+# check_sphinx_version("1.2.1")
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -61,44 +68,39 @@ rst_epilog += """
 # -- Project information ------------------------------------------------------
 
 # This does not *have* to match the package name, but typically does
-project = u'POPPY'
-author = u'Marshall Perrin'
-copyright = u'2010-2013, ' + author
+project = setup_cfg['package_name']
+author = setup_cfg['author']
+author = u'Association of Universities for Research in Astronomy'
+copyright = '{0}, {1}'.format(
+    datetime.datetime.now().year, author)
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 
-import poppy
+__import__(setup_cfg['package_name'])
+package = sys.modules[setup_cfg['package_name']]
+
 # The short X.Y version.
-version = poppy.__version__.split('-', 1)[0]
+version = package.__version__.split('-', 1)[0]
 # The full version, including alpha/beta/rc tags.
-release = poppy.__version__
+release = package.__version__
 
-
-# -- Options for HTML output ---------------------------------------------------
 
 # -- Options for HTML output ---------------------------------------------------
 
 # A NOTE ON HTML THEMES
-#
-# The global astropy configuration uses a custom theme,
-# 'bootstrap-astropy', which is installed along with astropy. The
-# theme has options for controlling the text of the logo in the upper
-# left corner. This is how you would specify the options in order to
-# override the theme defaults (The following options *are* the
-# defaults, so we do not actually need to set them here.)
+# The global astropy configuration uses a custom theme, 'bootstrap-astropy',
+# which is installed along with astropy. A different theme can be used or
+# the options for this theme can be modified by overriding some of the
+# variables set in the global configuration. The variables set in the
+# global configuration are listed below, commented out.
 
 html_theme_options = {
     'logotext1': 'JWST ',  # white,  semi-bold
     'logotext2': 'POPPY',     # orange, light
     'logotext3': ':docs'   # white,  light
     }
-
-# A different theme can be used, or other parts of this theme can be
-# modified, by overriding some of the variables set in the global
-# configuration. The variables set in the global configuration are
-# listed below, commented out.
 
 # Add any paths that contain custom themes here, relative to this directory.
 # To use a different custom theme, add the directory containing the theme.
@@ -145,26 +147,23 @@ man_pages = [('index', project.lower(), project + u' Documentation',
               [author], 1)]
 
 
-# -- Options for the edit_on_github extension ----------------------------------------
-
-extensions += ['astropy.sphinx.ext.edit_on_github']
-
-# Don't import the module as "version" or it will override the
-# "version" configuration parameter
-from poppy import version as versionmod
-edit_on_github_project = "mperrin/poppy"
-if versionmod.release:
-    edit_on_github_branch = "v" + versionmod.version
-else:
-    edit_on_github_branch = "master"
-
-edit_on_github_source_root = ""
-edit_on_github_doc_root = "docs"
-
-
-
 # -- Options for inheritance diagram  ------------------------------------------------
 # See http://sphinx-doc.org/ext/inheritance.html
 # and http://stackoverflow.com/questions/2151711/how-can-i-make-sphinxs-inheritance-diagram-readable
 #inheritance_graph_attrs = dict(rankdir="LR", size='"12.0, 5.0"',
 #                                fontsize=36, ratio='compress')
+
+## -- Options for the edit_on_github extension ----------------------------------------
+
+if eval(setup_cfg.get('edit_on_github')):
+    extensions += ['astropy.sphinx.ext.edit_on_github']
+
+    versionmod = __import__(setup_cfg['package_name'] + '.version')
+    edit_on_github_project = setup_cfg['github_project']
+    if versionmod.version.release:
+        edit_on_github_branch = "v" + versionmod.version.version
+    else:
+        edit_on_github_branch = "master"
+
+    edit_on_github_source_root = ""
+    edit_on_github_doc_root = "docs"

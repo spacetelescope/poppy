@@ -1,3 +1,4 @@
+from __future__ import (absolute_import, division, print_function, unicode_literals)
 import os
 import time
 import copy
@@ -9,14 +10,9 @@ import astropy.io.fits as fits
 
 from . import poppy_core
 from . import utils
-from .version import version
 
-try:
-    import pysynphot
-    _HAS_PYSYNPHOT = True
-except:
-    _HAS_PYSYNPHOT = False
 
+__all__ = ['Instrument']
 
 class Instrument(object):
     """ A generic astronomical instrument, composed of 
@@ -253,8 +249,7 @@ class Instrument(object):
                     transform=f.transFigure, horizontalalignment='right')
 
         if outfile is not None:
-            result[0].header.update ("FILENAME", os.path.basename (outfile),
-                           comment="Name of this file")
+            result[0].header["FILENAME"] = ( os.path.basename(outfile), "Name of this file")
             result.writeto(outfile, clobber=clobber)
             poppy_core._log.info("Saved result to "+outfile)
 
@@ -292,9 +287,9 @@ class Instrument(object):
             if options['detector_oversample'] > 1:
                 result[0].data = utils.rebin_array(result[0].data, 
                         rc=(detector_oversample, detector_oversample))
-            result[0].header.update('OVERSAMP', 1, 'These data are rebinned to detector pixels')
-            result[0].header.update('CALCSAMP', detector_oversample, 'This much oversampling used in calculation')
-            result[0].header.update('EXTNAME', 'DET_SAMP')
+            result[0].header['OVERSAMP'] = ( 1, 'These data are rebinned to detector pixels')
+            result[0].header['CALCSAMP'] = ( detector_oversample, 'This much oversampling used in calculation')
+            result[0].header['EXTNAME'] = ( 'DET_SAMP')
             result[0].header['PIXELSCL'] *= detector_oversample
             return
         elif (output_mode == 'Both as FITS extensions') or ('both' in output_mode.lower()):
@@ -306,9 +301,9 @@ class Instrument(object):
             if options['detector_oversample'] > 1:
                 rebinned_result.data = utils.rebin_array(rebinned_result.data,
                         rc=(detector_oversample, detector_oversample))
-            rebinned_result.header.update('OVERSAMP', 1, 'These data are rebinned to detector pixels')
-            rebinned_result.header.update('CALCSAMP', detector_oversample, 'This much oversampling used in calculation')
-            rebinned_result.header.update('EXTNAME', 'DET_SAMP')
+            rebinned_result.header['OVERSAMP'] = ( 1, 'These data are rebinned to detector pixels')
+            rebinned_result.header['CALCSAMP'] = ( detector_oversample, 'This much oversampling used in calculation')
+            rebinned_result.header['EXTNAME'] =  'DET_SAMP'
             rebinned_result.header['PIXELSCL'] *= detector_oversample
             result.append(rebinned_result)
             return
@@ -330,6 +325,12 @@ class Instrument(object):
 
         This function will modify the primary header of the result HDUlist.
         """
+
+        try:
+            from .version import version as __version__
+        except ImportError:
+            __version__ = ''
+
         #---  update FITS header, display, and output.
         if isinstance( self.pupil, basestring):
             pupilstr= os.path.basename(self.pupil)
@@ -337,7 +338,7 @@ class Instrument(object):
             pupilstr= 'pupil from supplied FITS HDUList object'
         elif isinstance( self.pupil, poppy_core.OpticalElement):
             pupilstr = 'pupil from supplied OpticalElement: '+str(self.pupil)
-        result[0].header.update('PUPILINT', pupilstr, 'Pupil aperture intensity source')
+        result[0].header['PUPILINT'] = ( pupilstr, 'Pupil aperture intensity source')
 
         if self.pupilopd is None:
             opdstring = "NONE - perfect telescope! "
@@ -347,21 +348,21 @@ class Instrument(object):
             opdstring = 'OPD from supplied FITS HDUlist object'
         else: # tuple?
             opdstring =  "%s slice %d" % (os.path.basename(self.pupilopd[0]), self.pupilopd[1])
-        result[0].header.update('PUPILOPD', opdstring,  'Pupil wavefront OPD source')
+        result[0].header['PUPILOPD'] = ( opdstring,  'Pupil wavefront OPD source')
 
-        result[0].header.update('INSTRUME', self.name, 'Instrument')
-        result[0].header.update('FILTER', self.filter, 'Filter name')
-        result[0].header.update('EXTNAME', 'OVERSAMP')
-        result[0].header.add_history('Created by POPPY version '+version)
+        result[0].header['INSTRUME'] = ( self.name, 'Instrument')
+        result[0].header['FILTER'] = ( self.filter, 'Filter name')
+        result[0].header['EXTNAME'] = ( 'OVERSAMP')
+        result[0].header.add_history('Created by POPPY version '+__version__)
 
         if 'fft_oversample' in options.keys():
-            result[0].header.update('OVERSAMP', options['fft_oversample'], 'Oversampling factor for FFTs in computation')
+            result[0].header['OVERSAMP'] = ( options['fft_oversample'], 'Oversampling factor for FFTs in computation')
         if 'detector_oversample' in options.keys():
-            result[0].header.update('DET_SAMP', options['detector_oversample'], 'Oversampling factor for MFT to detector plane')
+            result[0].header['DET_SAMP'] = ( options['detector_oversample'], 'Oversampling factor for MFT to detector plane')
 
         (year, month, day, hour, minute, second, weekday, DOY, DST) =  time.gmtime()
-        result[0].header.update ("DATE", "%4d-%02d-%02dT%02d:%02d:%02d" % (year, month, day, hour, minute, second), "Date of calculation")
-        result[0].header.update ("AUTHOR", "%s@%s" % (os.getenv('USER'), os.getenv('HOST')), "username@host for calculation")
+        result[0].header["DATE"] = ( "%4d-%02d-%02dT%02d:%02d:%02d" % (year, month, day, hour, minute, second), "Date of calculation")
+        result[0].header["AUTHOR"] = ( "%s@%s" % (os.getenv('USER'), os.getenv('HOST')), "username@host for calculation")
 
     def _validate_config(self):
         """ Determine if a provided instrument configuration is valid.
@@ -505,9 +506,9 @@ class Instrument(object):
             strehl   = newpeak/peak # not really the whole Strehl ratio, just the part due to jitter
 
             poppy_core._log.info("        resulting image peak drops to %.3f of its previous value" % strehl)
-            result[0].header.update('JITRTYPE', 'Gaussian convolution', 'Type of jitter applied')
-            result[0].header.update('JITRSIGM', sigma, 'Gaussian sigma for jitter [arcsec]')
-            result[0].header.update('JITRSTRL', strehl, 'Image peak reduction due to jitter')
+            result[0].header['JITRTYPE'] = ( 'Gaussian convolution', 'Type of jitter applied')
+            result[0].header['JITRSIGM'] = ( sigma, 'Gaussian sigma for jitter [arcsec]')
+            result[0].header['JITRSTRL'] = ( strehl, 'Image peak reduction due to jitter')
 
             result[0].data = out
         else:
@@ -614,6 +615,13 @@ class Instrument(object):
         Uses pysynphot (if installed), otherwise assumes simple-minded flat spectrum
 
         """
+        try:
+            import pysynphot
+            _HAS_PYSYNPHOT = True
+        except:
+            _HAS_PYSYNPHOT = False
+
+
         if monochromatic is not None:
             poppy_core._log.info(" monochromatic calculation requested.")
             return (np.asarray([monochromatic]),  np.asarray([1]) )
@@ -679,7 +687,7 @@ class Instrument(object):
             wave_m =  band.waveunits.Convert(wavesteps,'m') # convert to meters
 
             newsource = (wave_m, effstims)
-            if verbose: print newsource
+            if verbose: _log.info( " Wavelengths and weights computed from pysynphot: "+str( newsource))
             self._spectra_cache[ self._getSpecCacheKey(source,nlambda)] = newsource
             return newsource
 

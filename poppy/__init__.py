@@ -1,78 +1,106 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
+
 """Physical Optics Propagation in PYthon (POPPY)
 
-This package implements an object-oriented system for modeling physical optics
-propagation with diffraction, particularly for telescopic and coronagraphic
-imaging. 
 
-POPPY makes use of python's ``logging`` facility for log messages, using
-the logger name "poppy".
+POPPY is a Python package that simulates physical optical propagation including diffraction. 
+It implements a flexible framework for modeling Fraunhofer (far-field) diffraction
+and point spread function formation, particularly in the context of astronomical telescopes.
+POPPY was developed as part of a simulation package for JWST, but is more broadly applicable to many kinds of 
+imaging simulations. 
 
+Developed by Marshall Perrin at STScI, 2010-2014, for use simulating the James Webb Space Telescope. 
 
+Documentation can be found online at http://pythonhosted.org//poppy/
+
+This is an Astropy affiliated package.
 """
-#Module-level configuration constants
-#------------------------------------
-#
-#_USE_FFTW3 : bool
-#    Should the FFTW3 library be used? Set automatically to True if fftw3 is importable, else False.
-#_USE_MULTIPROC : bool
-#    Should we use python multiprocessing to spawn multiple simultaneous processes to speed calculations?
-#    Note that FFTW3 automatically makes use of multiple cores so this should not be used at the same time as
-#    _USE_FFTW3. Default is False.
-#_MULTIPROC_NPROCESS : int
-#    If the above is set, how many processes should be used? Default is 4. Note that you probably don't want to 
-#    set this too large due to memory limitations; i.e. don't just blindly set this to 16 on a 16-core machine unless
-#    you have many, many GB of RAM...
-#
-#_TIMETESTS : bool
-#    Print out simple benchmarking of elapsed time to screen. Default False
-#_FLUXCHECK : bool
-#    Print out total flux after each step of a propagation. Useful for debugging, mostly.
-#
-#_IMAGECROP : float
-#    Default zoom in region for image displays. Default is 5.0
-#
+
+# Affiliated packages may add whatever they like to this file, but
+# should keep this content at the top.
+# ----------------------------------------------------------------------------
+# make use of astropy affiliate framework to set __version__, __githash__, and 
+# add the test() helper function
+from ._astropy_init import *
+# ----------------------------------------------------------------------------
 
 
-try:
-    from .version import version as __version__
-except ImportError:
-    # TODO: Issue a warning using the logging framework
-    __version__ = ''
-try:
-    from .version import githash as __githash__
-except ImportError:
-    # TODO: Issue a warning using the logging framework
-    __githash__ = ''
+import astropy as _astropy
+if _astropy.version.major + _astropy.version.minor*0.1 < 0.4:
+    raise ImportError("astropy >= 0.4 is required for this version of poppy.")
 
- 
 
-from .poppy_core import (Wavefront, OpticalElement, FITSOpticalElement, Rotation, AnalyticOpticalElement, 
-	ScalarTransmission, InverseTransmission, ThinLens, BandLimitedCoron, 
-	FQPM_FFT_aligner, IdealFQPM, IdealFieldStop, IdealRectangularFieldStop, IdealCircularOcculter, 
-	IdealBarOcculter, ParityTestAperture, CircularAperture, HexagonAperture, 
-	MultiHexagonAperture, NgonAperture, SquareAperture, RectangleAperture, SecondaryObscuration, AsymmetricSecondaryObscuration, CompoundAnalyticOptic, 
-	Detector, OpticalSystem, SemiAnalyticCoronagraph)
+from astropy import config as _config
+class Conf(_config.ConfigNamespace):
+    """ 
+    Configuration parameters for `poppy`.
+    """
 
-#from .poppy_core import (_USE_FFTW3, _USE_MULTIPROC, _MULTIPROC_NPROCESS, _TIMETESTS, _FLUXCHECK, _IMAGECROP)
-from . import settings
+    use_multiprocessing = _config.ConfigItem(False, 
+            'Should PSF calculations run in parallel using multiple processers'+
+            'using the Python multiprocessing framework (if True; faster but '+
+            'does not allow display of each wavelength) or run serially in a '+
+            'single process(if False; slower but shows the calculation in '+
+            'progress. Also a bit more robust.?)')
 
-from .utils import (display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
-        measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid, measure_strehl,
-        measure_anisotropy, specFromSpectralType, rebin_array)
 
-from .settings import save_config
+    # Caution: Do not make this next too large on high-CPU-count machines
+    # because this is a memory-intensive calculation and you willg
+    # just end up thrashing IO and swapping out a ton, so everything
+    # becomes super slow.
+    n_processes = _config.ConfigItem(4, 'Maximum number of additional '+
+            'worker processes to spawn. PSF calculations are likely RAM '+
+            'limited more than CPU limited for higher N on modern machines.')
 
+    use_fftw = _config.ConfigItem(True, 'Use FFTW for FFTs (assuming it'+
+            'is available)?  Set to False to force numpy.fft always, True to'+
+            'try importing and using FFTW via PyFFTW.')
+    autosave_fftw_wisdom=  _config.ConfigItem(True, 'Should POPPY '+
+            'automatically save and reload FFTW '+
+            '"wisdom" for improved speed?')
+
+
+    default_image_display_fov =  _config.ConfigItem(5.0, 'Default image'+
+            'display field of view, in arcseconds. Adjust this to display '+
+            'only a subregion of a larger output array.')
+
+
+    default_logging_level = _config.ConfigItem('INFO', 'Logging '+
+        'verbosity: one of {DEBUG, INFO, WARN, ERROR, or CRITICAL}')
+
+    enable_speed_tests =  _config.ConfigItem(False, 'Enable additional '+
+        'verbose printout of computation times. Useful for benchmarking.')
+    enable_flux_tests =  _config.ConfigItem(False, 'Enable additional '+
+        'verbose printout of fluxes and flux conservation during '+
+        'calculations. Useful for testing.')
+
+conf = Conf()
+
+
+from . import poppy_core
+from . import utils
+from . import optics
+
+from .poppy_core import *
+from .utils import * 
+from .optics import *
+
+ #(display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
+ #   measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid, measure_strehl, measure_anisotropy,
+ #   specFromSpectralType, rebin_array)
 
 from .instrument import Instrument
-from .wfe import ZernikeWFE, PowerSpectralDensityWFE, KolmogorovWFE
+
+# Not yet implemented:
+#from .wfe import ZernikeWFE, PowerSpectralDensityWFE, KolmogorovWFE
 
 
 
-if settings.autosave_fftw_wisdom():
-   from . import utils
-   # the following will just return if FFTW not present
+if conf.autosave_fftw_wisdom: # if we might have autosaved, then auto reload as well
+   # the following will just return if FFTW is not present
    utils.fftw_load_wisdom()
 
+
+__all__ = ['conf','Instrument'] +  utils.__all__ + poppy_core.__all__
 
 

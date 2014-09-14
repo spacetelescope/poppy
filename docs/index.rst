@@ -25,11 +25,18 @@ Summary
 **What this software does not do:**
 
 * Fresnel, Talbot, or Huygens propagation.
-* Any kind of detector noise or imperfections modeling. 
+* Modelling of any kind of detector noise or imperfections. 
 
 While this current version only supports far-field calculations, future versions may add
 near-field (Fresnel) calculations as well, if interest and usage warrant that. 
 
+
+
+.. admonition:: Quickstart IPython Notebook
+
+       This documentation is complemented by an `IPython Notebook format quickstart tutorial <http://nbviewer.ipython.org/github/mperrin/poppy/blob/master/POPPY_tutorial.ipynb>`_.
+
+       Downloading and running that notebook is a great way to get started using POPPY. The documentation following here provides greater details on the algorithms and API.
 
 
 Contents
@@ -42,7 +49,9 @@ Contents
   relnotes.rst
   overview.rst
   examples.rst
+  options.rst
   classes.rst
+  extending.rst
 
 
 Getting Help
@@ -50,6 +59,6 @@ Getting Help
 POPPY is developed and maintained primarily by Marshall Perrin. Questions, comments, and
 code additions always welcome.
 
-The source code is available `here on Github <https://github.com/mperrin/poppy>`_.
+The source code is available `on Github <https://github.com/mperrin/poppy>`_.
 
 

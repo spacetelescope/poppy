@@ -1,34 +1,33 @@
+#
+# Poppy utility functions
+#
+# These provide various utilities to measure the PSF's properties in certain ways, display it on screen etc. 
+#
+
+from __future__ import (absolute_import, division, print_function, unicode_literals)
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
 import matplotlib
 import logging
 _log = logging.getLogger('poppy')
-#
 import astropy.io.fits as fits
 
-from . import settings
-
-try:
-    from IPython.core.debugger import Tracer; stop = Tracer()
-except:
-    pass
-
-__doc__="""
-
-Poppy utility functions
-
-These provide various utilities to measure the PSF's properties in certain ways, display it on screen etc. 
-
-
-"""
 
 _Strehl_perfect_cache = {} # dict for caching perfect images used in Strehl calcs.
+
+
+__all__ = [ 'display_PSF', 'display_PSF_difference', 'display_EE', 'display_profiles', 'radial_profile',
+    'measure_EE', 'measure_radial', 'measure_fwhm', 'measure_sharpness', 'measure_centroid', 'measure_strehl', 'measure_anisotropy',
+    'specFromSpectralType']
+
 
 ###########################################################################
 #
 #    Display functions 
 #
+
+
 def imshow_with_mouseover(image, ax=None,  *args, **kwargs):
     """ wrapper for matplotlib imshow that displays the value under the cursor position
     
@@ -61,6 +60,7 @@ def imshow_with_mouseover(image, ax=None,  *args, **kwargs):
     ax.format_coord = report_pixel
 
     return ax
+
 
 def display_PSF(HDUlist_or_filename=None, ext=0,
     vmin=1e-8,vmax=1e-1, scale='log', cmap = matplotlib.cm.jet, 
@@ -109,7 +109,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
 
 
     """
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -137,7 +137,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
     else: 
         norm=matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
-    if type(pixelscale) is str:
+    if isinstance(pixelscale, basestring):
         halffov_x = HDUlist[ext].header[pixelscale]*HDUlist[ext].data.shape[1]/2
         halffov_y = HDUlist[ext].header[pixelscale]*HDUlist[ext].data.shape[0]/2
     else:
@@ -220,12 +220,12 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
         (making this True conserves surface brightness but not total flux)
         default is False, to conserve total flux.
     """
-    if isinstance(HDUlist_or_filename1, str):
+    if isinstance(HDUlist_or_filename1, basestring):
         HDUlist1 = fits.open(HDUlist_or_filename1)
     elif isinstance(HDUlist_or_filename1, fits.HDUList):
         HDUlist1 = HDUlist_or_filename1
     else: raise ValueError("input must be a filename or HDUlist")
-    if isinstance(HDUlist_or_filename2, str):
+    if isinstance(HDUlist_or_filename2, basestring):
         HDUlist2 = fits.open(HDUlist_or_filename2)
     elif isinstance(HDUlist_or_filename2, fits.HDUList):
         HDUlist2 = HDUlist_or_filename2
@@ -260,10 +260,9 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
 
     if print_:
         rms_diff = np.sqrt((diff_im**2).mean())
-        print "RMS of difference image: %f" % rms_diff
+        print("RMS of difference image: {0}".format(rms_diff))
 
     norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
-    #print "Display range: ", vmin, vmax
     cmap = matplotlib.cm.gray
     halffov_x = HDUlist1[ext1].header['PIXELSCL']*HDUlist1[ext1].data.shape[1]/2
     halffov_y = HDUlist1[ext1].header['PIXELSCL']*HDUlist1[ext1].data.shape[0]/2
@@ -305,7 +304,6 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
         else: return ax
 
 
-
 def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_levels=True ):
     """ Display Encircled Energy curve for a PSF
 
@@ -313,8 +311,8 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
 
     Parameters
     ----------
-    HDUlist_or_filename1,2 : fits.HDUlist or string
-        FITS files containing image to difference
+    HDUlist_or_filename : fits.HDUlist or string
+        FITS file containing image to display encircled energy for.
     ext : bool
         FITS extension to use. Default is 0
     overplot : bool
@@ -326,7 +324,7 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
         Default is True
  
     """
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename,ext=ext)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -352,8 +350,7 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
             plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
 
 
-
-def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False ):
+def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, title=None, **kwargs):
     """ Produce two plots of PSF radial profile and encircled energy
 
     See also the display_EE function.
@@ -366,20 +363,28 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False ):
         FITS extension to use. Default is 0
     overplot : bool
         whether to overplot or clear and produce an new plot. Default false
+    title : string, optional
+        Title for plot
  
     """
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename,ext=ext)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
     else: raise ValueError("input must be a filename or HDUlist")
 
 
-    radius, profile, EE = radial_profile(HDUlist, EE=True)
+    radius, profile, EE = radial_profile(HDUlist, EE=True, **kwargs)
+
+    if title is None:
+        try:
+            title= "%s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER'])
+        except: 
+            title= str(HDUlist_or_filename)
 
     if not overplot:
         plt.clf()
-        plt.title("PSF sim for %s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER']))
+        plt.title(title)
         plt.xlabel("Radius [arcsec]")
         plt.ylabel("PSF radial profile")
     plt.subplot(2,1,1)
@@ -396,9 +401,10 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False ):
         plt.ylabel("Encircled Energy")
 
     for level in [0.5, 0.8, 0.95]:
-        EElev = radius[np.where(EE > level)[0][0]]
-        yoffset = 0 if level < 0.9 else -0.05 
-        plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
+        if (EE>level).any():
+            EElev = radius[np.where(EE > level)[0][0]]
+            yoffset = 0 if level < 0.9 else -0.05 
+            plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
 
 
 def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stddev=False, binsize=None, maxradius=None):
@@ -433,7 +439,7 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
         so you should use (radius+binsize/2) for the radius of the EE curve if you want to be
         as precise as possible.
     """
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -486,7 +492,6 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
             if i == 0: wg = np.where(r < radius+ binsize/2)
             else: 
                 wg = np.where( (r_pix >= (radius-binsize/2)) &  (r_pix < (radius+binsize/2)))
-                #print radius-binsize/2, radius+binsize/2, len(wg[0])
                 #wg = np.where( (r >= rr[i-1]) &  (r <rr[i] )))
             stddevs[i] = image[wg].std()
         return (rr, stddevs)
@@ -498,6 +503,7 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
         #EE = np.cumsum(weighted_profile)
         EE = csim[rind]
         return (rr, radialprofile2, EE) 
+
 
 ###########################################################################
 #
@@ -515,9 +521,9 @@ def measure_EE(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     Parameters
     ----------
     HDUlist_or_filename : string
-        what it sounds like.
+        Either a fits.HDUList object or a filename of a FITS file on disk
     ext : int
-        Extension in FITS file
+        Extension in that FITS file
     center : tuple of floats
         Coordinates (x,y) of PSF center. Default is image center. 
     binsize: 
@@ -548,7 +554,7 @@ def measure_EE(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     EE_fn = scipy.interpolate.interp1d(rr0, EE0,kind='cubic', bounds_error=False)
 
     return EE_fn
-    
+
 
 def measure_radial(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     """ measure azimuthally averaged radial profile of a PSF.
@@ -585,7 +591,7 @@ def measure_radial(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     radial_fn = scipy.interpolate.interp1d(rr, radialprofile,kind='cubic', bounds_error=False)
 
     return radial_fn
-    
+
 
 def measure_fwhm(HDUlist_or_filename=None, ext=0, center=None, level=0.5):
     """ Measure FWHM by interpolation of the radial profile 
@@ -634,7 +640,7 @@ def measure_sharpness(HDUlist_or_filename=None, ext=0):
         Same as above
  
     """
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -650,7 +656,8 @@ def measure_sharpness(HDUlist_or_filename=None, ext=0):
     sharpness =  (detpixels.data**2).sum()
     return sharpness
 
-def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, print_=False, units='pixels', relativeto='origin', **kwargs):
+
+def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, verbose=False, units='pixels', relativeto='origin', **kwargs):
     """ Measure the center of an image via center-of-mass
 
     The centroid method used is the floating-box center of mass algorithm by
@@ -660,11 +667,14 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, print
 
     Parameters
     ----------
-    HDUlist_or_filename, ext : string, int
-        Same as above
+    HDUlist_or_filename : string
+        Either a fits.HDUList object or a filename of a FITS file on disk
+    ext : int
+        Extension in that FITS file
+    slice : int, optional
+        If that extension is a 3D datacube, which slice (plane) of that datacube to use
     boxsize : int
         Half box size for centroid
-
     relativeto : string
         either 'origin' for relative to pixel (0,0) or 'center' for relative to image center. Default is 'origin'
     units : string
@@ -680,7 +690,7 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, print
     """
     from .fwcentroid import fwcentroid
 
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -692,20 +702,9 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, print
         image = image[slice,:,:]
 
 
-    if 0: 
-        y, x= np.indices(image.shape)
-        wpeak = np.where(image == image.max())
-        cy, cx = y[wpeak][0], x[wpeak][0]
-        print "Peak pixel: (%d, %d)" % (cx, cy)
+    cent_of_mass = fwcentroid(image, halfwidth=boxsize, **kwargs)
 
-
-        cutout = image[cy-boxsize:cy+boxsize+1, cx-boxsize:cx+boxsize+1]
-        cent_of_mass_cutout = np.asarray(scipy.ndimage.center_of_mass(cutout))
-        cent_of_mass =  cent_of_mass_cutout + np.array([cy-boxsize, cx-boxsize])
-    else:
-        cent_of_mass = fwcentroid(image, halfwidth=boxsize, **kwargs)
-
-    if print_: print("Center of mass: (%.4f, %.4f)" % (cent_of_mass[1], cent_of_mass[0]))
+    if verbose: print("Center of mass: (%.4f, %.4f)" % (cent_of_mass[1], cent_of_mass[0]))
 
     if relativeto == 'center':
         imcen = np.array([ (image.shape[0]-1)/2., (image.shape[1]-1)/2. ])
@@ -719,7 +718,7 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, print
     return cent_of_mass
 
 
-def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True, print_=True, cache_perfect=False):
+def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, display=True, verbose=True, cache_perfect=False):
     """ Estimate the Strehl ratio for a PSF.
     
     This requires computing a simulated PSF with the same
@@ -732,14 +731,16 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True, p
 
     Parameters
     ----------
-    HDUlist_or_filename, ext : string, int
-        Same as above
-
+    HDUlist_or_filename : string
+        Either a fits.HDUList object or a filename of a FITS file on disk
+    ext : int
+        Extension in that FITS file
+    slice : int, optional
+        If that extension is a 3D datacube, which slice (plane) of that datacube to use
     center : tuple
         center to compute around.  Default is image center. If the center is on the
         crosshairs between four pixels, then the mean of those four pixels is used.
         Otherwise, if the center is in a single pixel, then that pixel is used. 
-
     print_, display : bool
         control whether to print the results or display plots on screen. 
 
@@ -752,7 +753,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True, p
         Strehl ratio as a floating point number between 0.0 - 1.0
   
     """
-    if isinstance(HDUlist_or_filename, str):
+    if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -760,6 +761,10 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True, p
 
     image = HDUlist[ext].data
     header = HDUlist[ext].header
+
+    if image.ndim >=3:  # handle datacubes gracefully
+        image = image[slice,:,:]
+
  
     if center is None:
         # get exact center of image
@@ -804,22 +809,101 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True, p
         plt.gcf().suptitle("Strehl ratio = %.3f" % strehl) 
 
 
-    if print_:
-
-        print "Measured peak:  %.3g" % meas_peak
-        print "Reference peak: %.3g" % ref_peak
-        print "  Strehl ratio = %.3f " % strehl
+    if verbose:
+        print("Measured peak:  {0:.3g}".format(meas_peak))
+        print("Reference peak: {0:.3g}".format(ref_peak))
+        print("  Strehl ratio: {0:.3f}".format(strehl))
 
     return strehl
 
 
 def measure_anisotropy(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50):
-    pass
+    raise NotImplementedError("measure_anisotropy is not yet implemented.")
 
 ###########################################################################
 #
-#    Other utility functions 
+#    Array manipulation utility functions 
 #
+
+
+def padToOversample(array, oversample):
+    """ Add zeros around the edge of an array, for a given desired FFT integer oversampling ratio
+
+    Parameters
+    ----------
+    array :  ndarray
+        A 2D array representing some image
+    oversample : int
+        Padding factor for expanding the array
+
+    Returns
+    -------
+    padded_array : ndarray
+        A larger array containing mostly zeros but with the input array in the center.
+
+    See Also
+    ---------
+    padToSize
+    """
+    npix = array.shape[0]
+    padded = np.zeros(shape=(npix*oversample, npix*oversample), dtype=array.dtype)
+    n0 = float(npix)*(oversample - 1)/2
+    n1 = n0+npix
+    n0 = int(round(n0)) # because astropy test_plugins enforces integer indices
+    n1 = int(round(n1))
+    padded[n0:n1, n0:n1] = array
+    return padded
+
+def padToSize(array, padded_shape):
+    """ Add zeros around the edge of an array, to reach a specific defined size and shape.
+    This is similar to padToOversample but is more flexible.
+
+    Parameters
+    ----------
+    array :  ndarray
+        A 2D array representing some image
+    padded_shape :  tuple of 2 elements
+        Desired size for the padded array.
+
+    Returns
+    -------
+    padded_array : ndarray
+        A larger array containing mostly zeros but with the input array in the center.
+
+
+    See Also
+    ---------
+    padToOversample 
+    """
+
+    if len(padded_shape) < 2: 
+        outsize0 = padded_shape
+        outside1 = padded_shape
+    else:
+        outsize0 = padded_shape[0]
+        outsize1 = padded_shape[1]
+    #npix = array.shape[0]
+    padded = np.zeros(shape=padded_shape, dtype=array.dtype)
+    n0 = (outsize0 - array.shape[0])/2  # pixel offset for the inner array
+    m0 = (outsize1 - array.shape[1])/2  # pixel offset in second dimension
+    n1 = n0+array.shape[0]
+    m1 = m0+array.shape[1]
+    n0 = int(round(n0)) # because astropy test_plugins enforces integer indices
+    n1 = int(round(n1))
+    m0 = int(round(m0))
+    m1 = int(round(m1))
+    padded[n0:n1, m0:m1] = array
+    return padded
+
+def removePadding(array,oversample):
+    " Remove zeros around the edge of an array, assuming some integer oversampling padding factor "
+    npix = array.shape[0] / oversample
+    n0 = float(npix)*(oversample - 1)/2
+    n1 = n0+npix
+    n0 = int(round(n0))
+    n1 = int(round(n1))
+    return array[n0:n1,n0:n1].copy()
+
 
 def rebin_array(a = None, rc=(2,2), verbose=False):
     """ Rebin array by an integer factor while conserving flux
@@ -834,7 +918,7 @@ def rebin_array(a = None, rc=(2,2), verbose=False):
     rc : two-element tuple 
         (nrows, ncolumns) desired for rebinned array
     verbose : bool
-        print additional status text?
+        output additional status text?
 
 
     anand@stsci.edu
@@ -855,13 +939,13 @@ def rebin_array(a = None, rc=(2,2), verbose=False):
     for ri in range(0, nr):
         Rlo = ri * r
         if verbose:
-            print "row loop"
+            print("row loop")
         for ci in range(0, nc):
             Clo = ci * c
             b[ri, ci] = np.add.reduce(a[Rlo:Rlo+r, Clo:Clo+c].copy().flat)
             if verbose:
-                print "    [%d:%d, %d:%d]" % (Rlo,Rlo+r, Clo,Clo+c),
-                print "%4.0f"  %   np.add.reduce(a[Rlo:Rlo+r, Clo:Clo+c].copy().flat)
+                print("    [%d:%d, %d:%d]" % (Rlo,Rlo+r, Clo,Clo+c))
+                print("%4.0f"  %   np.add.reduce(a[Rlo:Rlo+r, Clo:Clo+c].copy().flat))
     return b
 
 
@@ -883,8 +967,12 @@ def krebin(a, shape):
     """
     # Klaus P's fastrebin from web
     sh = shape[0],a.shape[0]//shape[0],shape[1],a.shape[1]//shape[1]
-    print "sh", sh
     return a.reshape(sh).sum(-1).sum(1)
+
+###########################################################################
+#
+#    Other utility functions 
+#
 
 
 
@@ -1066,12 +1154,14 @@ def specFromSpectralType(sptype, return_list=False, catalog=None):
         try:
             return pysynphot.Icat(catname,keys[0], keys[1], keys[2])
         except:
-            print "catalog: "+catname
-            print "keys: ", keys
-            raise LookupError("Error loading Spectrum object from %s catalog for spectral type %s. Check that is a valid name in the lookup table, and/or that pysynphot is installed properly." % (catname,sptype))
+            errmsg = "Could not find a match in catalog {0} for key {1}. Check that is a valid name in the lookup table, and/or that pysynphot is installed properly.".format(catname, sptype)
+            _log.critical(errmsg)
+            raise LookupError(errmsg)
 
 
 ###################################################################33
+#
+#     Multiprocessing and FFT helper functions 
 
 
 def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, memory_fraction=0.5):
@@ -1099,6 +1189,7 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
         This is in attempt to make it play nicely with whatever else you're running...
     """
 
+    from . import conf
     try:
         import psutil
     except:
@@ -1111,18 +1202,16 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
     if 'FFT' in propinfo['steps']:
         wavefrontsize = wfshape[0]*wfshape[1]*osys.oversample**2 *  16 # 16 bytes = complex double size 
         _log.debug('FFT propagation with array={0}, oversample = {1} uses {2} bytes'.format(wfshape[0], osys.oversample, wavefrontsize))
-        padding_factor = 4  if settings.use_fftw() else 5
         # The following is a very rough estimate
-
         # empirical tests show that an 8192x8192 propagation results in Python sessions with ~4 GB memory allocation. using FFTW
-        # usingg mumpy FFT, the memory usage per process can exceed 5 GGB for an 8192x8192 propagation.
-
+        # usingg mumpy FT, the memory usage per process can exceed 5 GB for an 8192x8192 propagation.
+        padding_factor = 4  if conf.use_fftw else 5
     else:
         # oversampling not relevant for memory size in MFT mode
         wavefrontsize = wfshape[0]*wfshape[1] *  16 # 16 bytes = complex double size 
         _log.debug('MFT propagation with array={0} uses {2} bytes'.format(wfshape[0], osys.oversample, wavefrontsize))
         padding_factor = 1
- 
+
     mem_per_prop = wavefrontsize * padding_factor
     mem_per_output = propinfo['output_size']*8
 

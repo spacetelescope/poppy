@@ -3,26 +3,32 @@
 #
 #
 
+import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+import astropy.io.fits as fits
 
 import os
+from .. import poppy_core 
+from .. import optics
+from .. import matrixDFT
 
-from poppy.matrixDFT import *
 
 import logging
-_log = logging.getLogger('poppy-test')
+_log = logging.getLogger('poppy_tests')
 
 
 def complexinfo(a, str=None):
+    """ Print some info about the dum of real and imaginary parts of an array
+    """
 
     if str:
         print 
         print "\t", str
     re = a.real.copy()
     im = a.imag.copy()
-    print "\t%.2e  %.2g  =  re.sum im.sum" % (re.sum(), im.sum())
-    print "\t%.2e  %.2g  =  abs(re).sum abs(im).sum" % (abs(re).sum(), abs(im).sum())
+    _log.debug("\t%.2e  %.2g  =  re.sum im.sum" % (re.sum(), im.sum()))
+    _log.debug("\t%.2e  %.2g  =  abs(re).sum abs(im).sum" % (abs(re).sum(), abs(im).sum()))
 
 
 
@@ -61,59 +67,78 @@ def makedisk(s=None, c=None, r=None, inside=1.0, outside=0.0, grey=None, t=None)
 
 
 
+def test_MFT_flux_conservation(centering='FFTSTYLE', outdir=None, outname='test_MFT_flux', precision=0.01):
+    """
+    Test that MFTing a circular aperture is properly normalized to be flux conserving.
 
-def test_DFT(centering='FFTSTYLE', outdir='.', outname='DFT1'):
+    This test is limited primarily by how finely the arrays are sampled. The function implements tests to
+    better than 1% or 0.1%, selectable using the 'precision' argument. 
 
-    print "Testing DFT, style = "+centering
+    Parameters
+    -----------
+
+    outdir : path
+        Directory path to output diagnostic FITS files. If not specified, files will not be written.
+    precision : float, either 0.01 or 0.001
+        How precisely to expect flux conservation; it will not be strictly 1.0 given any finite array size. 
+        This function usesd predetermined MFT array sizes based on the desired precision level of the test.
+    """
+
+    # Set up constants for either a more precise test or a less precise but much 
+    # faster test:
+    print("Testing MFT flux conservation for centering = "+centering)
+    if precision ==0.001:
+        npupil = 800
+        npix = 4096
+        u = 400    # of lam/D. Must be <= the Nyquist frequency of the pupil sampling or there
+                   #           will be aliased copies of the PSF.
+    elif precision==0.01: 
+        npupil = 400
+        npix = 2048
+        u = 200    # of lam/D. Must be <= the Nyquist frequency of the pupil sampling or there
+                   #           will be aliased copies of the PSF.
+    else:
+        raise NotImplementedError('Invalid value for precision.')
 
 
-    npupil = 156
-    pctr = int(npupil/2)
-    npix = 1024
-    u = 100    # of lam/D
-    s = (npupil,npupil)
 
-
-    # FFT style
-    sft1 = MatrixFourierTransform(centering=centering)
-
+    # Create pupil
     ctr = (float(npupil)/2.0, float(npupil)/2.0 )
-    #print ctr
-    pupil = makedisk(s=s, c=ctr, r=float(npupil)/2.0001, t=np.float64, grey=0)
-
+    pupil = makedisk(s=(npupil, npupil), c=ctr, r=float(npupil)/2.0001, t=np.float64, grey=0)
     pupil /= np.sqrt(pupil.sum())
+    if outdir is not None:
+        fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
 
-    fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
+    # MFT setup style and execute
+    mft = matrixDFT.MatrixFourierTransform(centering=centering, verbose=True)
+    a = mft.perform(pupil, u, npix)
 
-    a = sft1.perform(pupil, u, npix)
-
-    pre = (abs(pupil)**2).sum() 
-    post = (abs(a)**2).sum() 
+    pre = (abs(pupil)**2).sum()    # normalized area of input pupil, should be 1 by construction
+    post = (abs(a)**2).sum()       # 
     ratio = post / pre
-    calcr = 1./(u**2 *npix**2)     # multiply post by this to make them equal
     print "Pre-FFT  total: "+str( pre)
     print "Post-FFT total: "+str( post )
     print "Ratio:          "+str( ratio)
-    #print "Calc ratio  :   "+str( calcr)
-    #print "uncorrected:    "+str( ratio/calcr)
 
 
-    complexinfo(a, str="sft1 asf")
-    #print 
-    asf = a.real.copy()
-    fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
-    cpsf = a * a.conjugate()
-    psf = cpsf.real.copy()
-    #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), clobber='y')
-    fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
 
+    if outdir is not None:
+        complexinfo(a, str="mft1 asf")
+        asf = a.real.copy()
+        fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
+        cpsf = a * a.conjugate()
+        psf = cpsf.real.copy()
+        #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), clobber='y')
+        fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
 
-def test_DFT_all_types():
+    assert np.abs(1.0 - ratio) < precision
 
-    test_DFT(centering='FFTSTYLE')
-    test_DFT(centering='SYMMETRIC')
-    test_DFT(centering='ADJUSTIBLE')
-    test_DFT(centering='FFTRECT')
+def test_MFT_fluxconsv_all_types(centering=None, **kwargs):
+
+    test_MFT_flux_conservation(centering='FFTSTYLE', **kwargs)
+    test_MFT_flux_conservation(centering='SYMMETRIC', **kwargs)
+    test_MFT_flux_conservation(centering='ADJUSTIBLE', **kwargs)
+    test_MFT_flux_conservation(centering='FFTRECT', **kwargs)
 
 
 
@@ -151,9 +176,9 @@ def test_DFT_rect(centering='FFTRECT', outdir='.', outname='DFT1R_', npix=None, 
 
 
     # FFT style
-    sft1 = MatrixFourierTransform(centering=centering)
+    mft1 = matrixDFT.MatrixFourierTransform(centering=centering)
 
-    #ctr = (float(npupil)/2.0 + sft1.offset(), float(npupil)/2.0 + sft1.offset())
+    #ctr = (float(npupil)/2.0 + mft1.offset(), float(npupil)/2.0 + mft1.offset())
     ctr = (float(npupil)/2.0 , float(npupil)/2.0)
     #print ctr
     pupil = makedisk(s=s, c=ctr, r=float(npupil)/2.0001, t=np.float64, grey=0)
@@ -173,7 +198,7 @@ def test_DFT_rect(centering='FFTRECT', outdir='.', outname='DFT1R_', npix=None, 
 
     fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
 
-    a = sft1.perform(pupil, u, npix)
+    a = mft1.perform(pupil, u, npix)
 
     pre = (abs(pupil)**2).sum() 
     post = (abs(a)**2).sum() 
@@ -186,7 +211,7 @@ def test_DFT_rect(centering='FFTRECT', outdir='.', outname='DFT1R_', npix=None, 
     #print "uncorrected:    "+str( ratio/calcr)
 
 
-    complexinfo(a, str="sft1 asf")
+    complexinfo(a, str=",ft1 asf")
     #print 
     asf = a.real.copy()
     #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"asf.fits", data=asf.astype(np.float32), clobber='y')
@@ -206,7 +231,7 @@ def test_DFT_rect(centering='FFTRECT', outdir='.', outname='DFT1R_', npix=None, 
 
     plt.subplot(144)
 
-    pupil2 = sft1.inverse(a, u, npupil)
+    pupil2 = mft1.inverse(a, u, npupil)
     pupil2r = (pupil2 * pupil2.conjugate()).real
     plt.imshow( pupil2r, vmin=0,vmax=pmx*1.5*0.01) # FIXME flux normalization is not right?? I think this has to do with squaring the pupil here, that's all.
     plt.gca().set_title='back to pupil'
@@ -219,6 +244,8 @@ def test_DFT_rect(centering='FFTRECT', outdir='.', outname='DFT1R_', npix=None, 
     plt.savefig('test_DFT_rectangular_results_{0}.pdf'.format(centering))
 
 def test_DFT_rect_adj():
+    """ Repeat DFT rectangle check, but for am adjustible FFT centering 
+    """
     test_DFT_rect(centering='ADJUSTIBLE', outname='DFT1Radj_')
 
 def test_DFT_center( npix=100, outdir='.', outname='DFT1'):
@@ -232,7 +259,7 @@ def test_DFT_center( npix=100, outdir='.', outname='DFT1'):
 
 
     # FFT style
-    sft1 = MatrixFourierTransform(centering=centering)
+    mft1 = matrixDFT.MatrixFourierTransform(centering=centering)
 
     ctr = (float(npupil)/2.0, float(npupil)/2.0 )
     #print ctr
@@ -242,7 +269,7 @@ def test_DFT_center( npix=100, outdir='.', outname='DFT1'):
 
     fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
 
-    a = sft1.perform(pupil, u, npix)
+    a = mft1.perform(pupil, u, npix)
 
     pre = (abs(pupil)**2).sum() 
     post = (abs(a)**2).sum() 
@@ -255,7 +282,7 @@ def test_DFT_center( npix=100, outdir='.', outname='DFT1'):
     #print "uncorrected:    "+str( ratio/calcr)
 
 
-    complexinfo(a, str="sft1 asf")
+    complexinfo(a, str="mft1 asf")
     #print 
     asf = a.real.copy()
     #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"asf.fits", data=asf.astype(np.float32), clobber='y')
@@ -267,10 +294,12 @@ def test_DFT_center( npix=100, outdir='.', outname='DFT1'):
 
 
 
-def test_inverse():
+def test_inverse( centering='SYMMETRIC'):
+    """ Test repeated transformations between pupil and image
 
-    centering='ADJUSTIBLE'
-    centering='SYMMETRIC'
+    TODO FIXME - this needs some assertions added
+    """
+
 
     npupil = 300 #156
     pctr = int(npupil/2)
@@ -283,8 +312,7 @@ def test_inverse():
 
 
 
-    # FFT style
-    sft1 = MatrixFourierTransform(centering=centering)
+    mft1 = matrixDFT.MatrixFourierTransform(centering=centering)
 
     ctr = (float(npupil)/2.0, float(npupil)/2.0 )
     #print ctr
@@ -299,7 +327,7 @@ def test_inverse():
 
     print "Pupil 1 total:", pupil.sum() 
 
-    a = sft1.perform(pupil, u, npix)
+    a = mft1.perform(pupil, u, npix)
 
     asf = a.real.copy()
     cpsf = a * a.conjugate()
@@ -311,7 +339,7 @@ def test_inverse():
 
     plt.subplot(143)
 
-    pupil2 = sft1.inverse(a, u, npupil)
+    pupil2 = mft1.inverse(a, u, npupil)
     pupil2r = (pupil2 * pupil2.conjugate()).real
     plt.imshow( pupil2r)
 
@@ -319,16 +347,14 @@ def test_inverse():
 
 
 
-    a2 = sft1.perform(pupil2r, u, npix)
+    a2 = mft1.perform(pupil2r, u, npix)
     psf2 = (a2*a2.conjugate()).real.copy()
     print "PSF total", psf2.sum()
     plt.subplot(144)
     plt.imshow(psf2, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
 
 
-def test_DFT_combined(outdir='.', outname='DFT1'):
-
-
+def run_all_MFS_tests_DFT(outdir='.', outname='DFT1'):
     npupil = 156
     pctr = int(npupil/2)
     npix = 1024
@@ -337,7 +363,7 @@ def test_DFT_combined(outdir='.', outname='DFT1'):
 
 
     # FFT style
-    #sft1 = MatrixFourierTransform(centering=centering)
+    #mft1 = MatrixFourierTransform(centering=centering)
 
 
     # make a pupil
@@ -392,5 +418,21 @@ def test_DFT_combined(outdir='.', outname='DFT1'):
 
     for c, label in zip([c1, c2, c3, c4,c5], ['comb-fft', 'comb-sym', 'comb-adj', 'fft_rect', 'adj_rect']) :
         print label, c.shape
+
+def test_check_invalid_centering():
+    """ intentionally invalid CENTERING option to test the error message part of the code. 
+    """
+    try:
+        import pytest
+    except:
+        poppy._log.warning('Skipping test test_check_invalid_centering because pytest is not installed.')
+        return # We can't do this test if we don't have the pytest.raises function.
+
+    # MFT setup style and execute
+
+    with pytest.raises(ValueError) as excinfo:
+        mft = matrixDFT.MatrixFourierTransform(centering='some garbage value', verbose=True)
+    assert excinfo.value.message == 'Error: centering method must be one of [SYMMETRIC, ADJUSTIBLE, FFTRECT, FFTSTYLE]'
+
 
 
