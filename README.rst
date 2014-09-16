@@ -17,16 +17,17 @@ telescopes.
 
 POPPY was developed as part of a simulation package for the James Webb Space
 Telescope, but is more broadly applicable to many kinds of imaging simulations.
-It is not, however, a substitute for fidelity physical optical
-design software, but rather is intended as a lightweight alternative for cases
-that don't require that much computational firepower. 
+It is not, however, a substitute for high fidelity physical optical design
+software such as Zemax or Code V, but rather is intended as a lightweight
+alternative for cases for which far-field diffraction is sufficient and which
+require portability between platforms. 
 
 
-For documentation, see http://www.stsci.edu/~mperrin/software/poppy/
+For documentation, see https://pythonhosted.org/poppy/
 
 
 Most code by Marshall Perrin, with some contributions from 
-Anand Sivaramakrishnan, Remi Soummer, Ewan Douglas, and others.
+Anand Sivaramakrishnan, Remi Soummer, Ewan Douglas, Christine Slocum, and others.
 
 
 
