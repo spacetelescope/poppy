@@ -1,12 +1,22 @@
 #!/usr/bin/env python
 # Based on astropy affiliated package template's setup.py
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
+from __future__ import print_function
 
 import glob
 import os
 import sys
 import imp
 import ast
+
+try:
+    import numpy
+except ImportError:
+    print("""
+WARNING: NumPy was not found! setup.py will attempt to install it if asked, but
+\tyou may experience issues. Try installing NumPy first, separately.
+\tSee https://github.com/numpy/numpy/issues/2434 for details.
+""")
 
 import ah_bootstrap
 from setuptools import setup
