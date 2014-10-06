@@ -16,7 +16,7 @@ _log = logging.getLogger('poppy')
 from .poppy_core import OpticalElement, Wavefront, _PUPIL, _IMAGE, _RADIANStoARCSEC 
 
 __all__ = [ 'AnalyticOpticalElement',
-	'ScalarTransmission', 'ThinLens', 'BandLimitedCoron',
+	'ScalarTransmission', 'InverseTransmission', 'ThinLens', 'BandLimitedCoron',
 	'FQPM_FFT_aligner', 'IdealFQPM', 'SquareFieldStop', 'RectangularFieldStop', 'CircularOcculter',
 	'BarOcculter', 'CircularAperture', 'HexagonAperture', 
 	'MultiHexagonAperture', 'NgonAperture', 'SquareAperture', 'RectangleAperture', 'SecondaryObscuration',
@@ -222,13 +222,34 @@ class ScalarTransmission(AnalyticOpticalElement):
     
     Either a null optic (empty plane) or some perfect ND filter...
     But most commonly this is just used as a null optic placeholder """
-    def __init__(self, name="-empty-", transmission=1.0, **kwargs):
+    def __init__(self, name=None, transmission=1.0, **kwargs):
+        if name is None: 
+            name = "-empty-" if transmission==1.0 else "Scalar Transmission of {0}".format(transmission)
         AnalyticOpticalElement.__init__(self,name=name, **kwargs)
-        self.transmission = transmission
+        self.transmission = float(transmission)
     def getPhasor(self, wave):
         res = np.empty(wave.shape)
         res.fill(self.transmission)
         return res
+
+
+class InverseTransmission(OpticalElement):
+    """ Given any arbitrary OpticalElement with transmission T(x,y)
+    return the inverse transmission 1 - T(x,y)
+
+    This is a useful ingredient in the SemiAnalyticCoronagraph algorithm.
+    """
+    def __init__(self, optic=None):
+        if optic is None or not hasattr(optic, 'getPhasor'):
+            raise ValueError("Need to supply an valid optic to invert!")
+        self.uninverted_optic = optic
+        self.name = "1 - "+optic.name
+        self.planetype = optic.planetype
+        self.shape = optic.shape
+        self.pixelscale = optic.pixelscale
+        self.oversample = optic.oversample
+    def getPhasor(self, wave):
+        return 1- self.uninverted_optic.getPhasor(wave)
 
 
 #------ Analytic Image Plane elements -----
@@ -1327,7 +1348,7 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
         for optic in opticslist:
 
             if not (isinstance(optic, AnalyticOpticalElement) 
-                or (isinstance(optic,InverseTransmission) and isinstance(optic.optic,AnalyticOpticalElement))):  #an inverted analytic element is also OK here
+                or (isinstance(optic, InverseTransmission) and isinstance(optic.uninverted_optic, AnalyticOpticalElement))):  #an inverted analytic element is also OK here
                 raise ValueError("Supplied optics list to CompoundAnalyticOptic can only contain AnalyticOptics")
             else:
                 # if we are adding the first optic in the list, check what type of optical plane it has

@@ -67,3 +67,5 @@ docs/_build
 docs/_generated
 app/
 test_outputs/
+
+*.cfg

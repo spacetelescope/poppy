@@ -25,8 +25,24 @@ wavelength=1e-6
 #def test_Rotation():
 #    pass
 
-#def test_InverseTransmission():
-#    pass
+def test_InverseTransmission():
+    """ Verify this inverts the optic throughput appropriately"""
+    wave = poppy_core.Wavefront(npix=100, wavelength=wavelength)
+
+    # vary uniform scalar transmission
+    for transmission in np.arange(10, dtype=float)/10:
+
+        optic = optics.ScalarTransmission(transmission=transmission)
+        inverted = optics.InverseTransmission(optic)
+        assert( np.all(  np.abs(optic.getPhasor(wave) - (1-inverted.getPhasor(wave))) < 1e-10 ))
+
+    # vary 2d shape
+    for radius in np.arange(10, dtype=float)/10:
+
+        optic = optics.CircularAperture(radius=radius)
+        inverted = optics.InverseTransmission(optic)
+        assert( np.all(  np.abs(optic.getPhasor(wave) - (1-inverted.getPhasor(wave))) < 1e-10 ))
+
 
 #------ Generic Analytic elements -----
 

@@ -104,14 +104,14 @@ def test_fft_fqpm(): #oversample=2, verbose=True, wavelength=2e-6):
 
 
 
-def test_SAMC():
+def test_SAMC(oversample=4):
     """ Test semianalytic coronagraphic method
 
     """
     lyot_radius = 6.5/2.5
     pixelscale = 0.010
 
-    osys = poppy_core.OpticalSystem("test", oversample=4)
+    osys = poppy_core.OpticalSystem("test", oversample=oversample)
     osys.addPupil( optics.CircularAperture(radius=radius), name='Entrance Pupil')
     osys.addImage( optics.CircularOcculter( radius = 0.1) )
     osys.addPupil( optics.CircularAperture(radius=lyot_radius), name = "Lyot Pupil")
@@ -119,7 +119,7 @@ def test_SAMC():
 
 
     #plt.figure(1)
-    sam_osys = poppy_core.SemiAnalyticCoronagraph(osys, oversample=8, occulter_box=0.15)
+    sam_osys = poppy_core.SemiAnalyticCoronagraph(osys, oversample=oversample, occulter_box=0.15)
 
     #t0s = time.time()
     psf_sam = sam_osys.calcPSF()
@@ -139,10 +139,24 @@ def test_SAMC():
 
 
     
+    # The pixel by pixel difference should be small:
     maxdiff = np.abs(psf_fft[0].data - psf_sam[0].data).max()
     #print "Max difference between results: ", maxdiff
 
     assert( maxdiff < 1e-7)
+
+    # and the overall flux difference should be small also:
+    if oversample<=4:
+        thresh = 1e-4 
+    elif oversample==6:
+        thresh=5e-5
+    elif oversample>=8:
+        thresh = 4e-6
+    else:
+        raise NotImplementedError("Don't know what threshold to use for oversample="+str(oversample))
+
+
+    assert np.abs(psf_sam[0].data.sum() - psf_fft[0].data.sum()) < thresh
 
 if conf.use_fftw:
     # The following test is only applicable if fftw is present. 

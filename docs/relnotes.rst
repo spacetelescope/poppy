@@ -6,6 +6,7 @@ Release Notes
 -------------------
 
  * Added normalize='exit_pupil' option; added documentation for normalization options.
+ * Bug fix for "FQPM on an obscured aperture" example. Thanks to Github user qisaiman for the bug report.
 
 0.3.2
 -------------------
