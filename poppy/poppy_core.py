@@ -24,7 +24,7 @@ import logging
 _log = logging.getLogger('poppy')
 
 
-__all__ = ['Wavefront',  'OpticalSystem', 'SemiAnalyticCoronagraph', 'OpticalElement', 'FITSOpticalElement', 'Rotation', 'InverseTransmission' ,'Detector' ]
+__all__ = ['Wavefront',  'OpticalSystem', 'SemiAnalyticCoronagraph', 'OpticalElement', 'FITSOpticalElement', 'Rotation', 'Detector' ]
 
 # Setup infrastructure for FFTW
 _FFTW_INIT = {}  # dict of array sizes for which we have already performed the required FFTW planning step
@@ -1490,6 +1490,7 @@ class SemiAnalyticCoronagraph(OpticalSystem):
     """
 
     def __init__(self, ExistingOpticalSystem, oversample=8, occulter_box = 1.0):
+        from . import optics
 
         if len(ExistingOpticalSystem.planes) != 4:
             raise ValueError("Input optical system must have exactly 4 planes to be convertible into a SemiAnalyticCoronagraph")
@@ -1505,7 +1506,7 @@ class SemiAnalyticCoronagraph(OpticalSystem):
         self.lyotplane = self.planes[2]
         self.detector = self.planes[3]
 
-        self.mask_function = InverseTransmission(self.occulter)
+        self.mask_function = optics.InverseTransmission(self.occulter)
 
         for i, typecode in enumerate([_PUPIL, _IMAGE, _PUPIL, _DETECTOR]):
             if not self.planes[i].planetype == typecode:
@@ -2186,24 +2187,6 @@ class Rotation(OpticalElement):
         plt.subplot(nrows, 2, row*2-1)
         plt.text(0.3,0.3,self.name)
 
-
-class InverseTransmission(OpticalElement):
-    """ Given any arbitrary OpticalElement with transmission T(x,y)
-    return the inverse transmission 1 - T(x,y)
-
-    This is a useful ingredient in the SemiAnalyticCoronagraph algorithm.
-    """
-    def __init__(self, optic=None):
-        if optic is None or not hasattr(optic, 'getPhasor'):
-            raise ValueError("Need to supply an valid optic to invert!")
-        self.optic = optic
-        self.name = "1 - "+optic.name
-        self.planetype = optic.planetype
-        self.shape = optic.shape
-        self.pixelscale = optic.pixelscale
-        self.oversample = optic.oversample
-    def getPhasor(self, wave):
-        return 1- self.optic.getPhasor(wave)
 
 
 #------ Detector ------
