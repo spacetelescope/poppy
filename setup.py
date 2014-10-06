@@ -5,6 +5,8 @@
 import glob
 import os
 import sys
+import imp
+import ast
 
 import ah_bootstrap
 from setuptools import setup
@@ -35,9 +37,10 @@ LICENSE = metadata.get('license', 'unknown')
 URL = metadata.get('url', 'http://astropy.org')
 
 # Get the long description from the package's docstring
-__import__(PACKAGENAME)
-package = sys.modules[PACKAGENAME]
-LONG_DESCRIPTION = package.__doc__
+_, module_path, _ = imp.find_module(PACKAGENAME)
+with open(os.path.join(module_path, '__init__.py')) as f:
+    module_ast = ast.parse(f.read())
+LONG_DESCRIPTION = ast.get_docstring(module_ast)
 
 # Store the package name in a built-in variable so it's easy
 # to get from other parts of the setup infrastructure
