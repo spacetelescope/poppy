@@ -1,10 +1,22 @@
 #!/usr/bin/env python
 # Based on astropy affiliated package template's setup.py
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
+from __future__ import print_function
 
 import glob
 import os
 import sys
+import imp
+import ast
+
+try:
+    import numpy
+except ImportError:
+    print("""
+WARNING: NumPy was not found! setup.py will attempt to install it if asked, but
+\tyou may experience issues. Try installing NumPy first, separately.
+\tSee https://github.com/numpy/numpy/issues/2434 for details.
+""")
 
 import ah_bootstrap
 from setuptools import setup
@@ -35,9 +47,10 @@ LICENSE = metadata.get('license', 'unknown')
 URL = metadata.get('url', 'http://astropy.org')
 
 # Get the long description from the package's docstring
-__import__(PACKAGENAME)
-package = sys.modules[PACKAGENAME]
-LONG_DESCRIPTION = package.__doc__
+_, module_path, _ = imp.find_module(PACKAGENAME)
+with open(os.path.join(module_path, '__init__.py')) as f:
+    module_ast = ast.parse(f.read())
+LONG_DESCRIPTION = ast.get_docstring(module_ast)
 
 # Store the package name in a built-in variable so it's easy
 # to get from other parts of the setup infrastructure
@@ -95,8 +108,8 @@ setup(name=PACKAGENAME,
       version=VERSION,
       description=DESCRIPTION,
       scripts=scripts,
-      requires=['astropy'],
-      install_requires=['astropy'],
+      setup_requires=['numpy', 'astropy'],
+      install_requires=['numpy', 'scipy', 'matplotlib', 'astropy'],
       provides=[PACKAGENAME],
       author=AUTHOR,
       author_email=AUTHOR_EMAIL,
