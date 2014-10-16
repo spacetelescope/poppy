@@ -474,10 +474,6 @@ class Wavefront(object):
 
             plt.xlabel(unit)
             plt.title("Wavefront phase [radians]")
-            try:
-                plt.tight_layout()
-            except Exception, err:
-                print(err)
                 
         ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5))
         ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5))
