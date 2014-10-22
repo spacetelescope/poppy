@@ -972,10 +972,7 @@ class OpticalSystem():
             optic.planetype = _PUPIL
         elif isinstance(optic, basestring):
             # convenience code to instantiate objects from a string name.
-
             raise NotImplementedError('Setting optics based on strings is now deprecated.')
-
-
         elif optic is None and len(kwargs) > 0: # create image from files specified in kwargs
             # create image from files specified in kwargs
             optic = FITSOpticalElement(planetype=_PUPIL, oversample=self.oversample, **kwargs)
