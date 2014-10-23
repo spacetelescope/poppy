@@ -427,7 +427,7 @@ def derive_jwexikes(nterms=11, npix=1024, pupilfile=None):
 
     # precompute zernikes
     shape = (npix, npix)
-    Z = [np.zeros(shape)]  #TODO:jlong: why is this a list?
+    Z = [np.zeros(shape)]
     for j in range(nterms + 1):
         Z.append(zernike1(j + 1, npix=npix, outside=0., mask_outside=False))
 
@@ -549,15 +549,15 @@ def wf_generate(coeffs, npix=1024, kind='zernike', aperture=None):
     return out
 
 
-def save_to_fits(type='zernike', nterms=10, npix=1024):
+def save_to_fits(kind='zernike', nterms=10, npix=1024):
     """ Save a list of Zernike type terms to a FITS file
     """
     fns = {'Z': zernike_list, 'H': hexike_list, 'J': jwexike_list}
     names = {'Z': 'zernike', 'H': 'hexike', 'J': 'jwexike'}
-    basis_set = fns[type[0].upper()](nterms=nterms, npix=npix)
+    basis_set = fns[kind[0].upper()](nterms=nterms, npix=npix)
 
     basis_ar = np.array(basis_set)
-    outname = "%s_%d_%d.fits" % (names[type[0].upper()], npix, nterms)
+    outname = "%s_%d_%d.fits" % (names[kind[0].upper()], npix, nterms)
     fits.PrimaryHDU(basis_ar).writeto(outname)
 
     print "==>> " + outname
@@ -566,7 +566,7 @@ def save_to_fits(type='zernike', nterms=10, npix=1024):
 #--------------------------------------------------------------------------------
 # test routines
 
-def test_wf_expand(npix=512, type='zernike', term=3, npixout=1024):
+def test_wf_expand(npix=512, kind='zernike', term=3, npixout=1024):
     """ Test the wf_expand function
     """
 
@@ -574,7 +574,7 @@ def test_wf_expand(npix=512, type='zernike', term=3, npixout=1024):
         raise ValueError("Zernike index must be >= 1")
 
     fns = {'Z': zernike_list, 'H': hexike_list, 'J': jwexike_list}
-    terms = fns[type[0].upper()](term + 1, npix=npix)
+    terms = fns[kind[0].upper()](term + 1, npix=npix)
     myOPD = terms[term - 1]
     if term >= 2:
         myOPD = terms[term - 1] + 0.5 * terms[term - 2]
@@ -585,14 +585,14 @@ def test_wf_expand(npix=512, type='zernike', term=3, npixout=1024):
     plt.imshow(myOPD, vmin=-1, vmax=1)
     plt.title("Input OPD")
 
-    coeffs = wf_expand(myOPD, aperture=aperture, type=type)
+    coeffs = wf_expand(myOPD, aperture=aperture, kind=kind)
     strcoeffs = ['%.4f' % c for c in coeffs]
     print "Coeffs", strcoeffs
 
-    new = wf_generate(coeffs, npix=npixout, type=type)
+    new = wf_generate(coeffs, npix=npixout, kind=kind)
     plt.subplot(122)
     plt.imshow(new, vmin=-1, vmax=1)
-    plt.title("OPD from %s fit" % type)
+    plt.title("OPD from %s fit" % kind)
 
     print "Totals (should be equal (roughly?)): {}\t{} ".format(np.nansum(myOPD) / myOPD.size,
                                                                 np.nansum(new) / new.size)
