@@ -43,8 +43,8 @@ def _is_odd(number):
 
 def str_zernike(n_, m_):
     """Return analytic expression for a given Zernike in LaTeX syntax"""
-    m = np.abs(m_)
-    n = np.abs(n_)
+    m = int(np.abs(m_))
+    n = int(np.abs(n_))
 
     terms = []
     for k in range(int((n-m)/2)+1):
@@ -72,8 +72,8 @@ def R(n_, m_, rho):
     Zernike radial polynomial
     """
 
-    m = np.abs(m_)
-    n = np.abs(n_)
+    m = int(np.abs(m_))
+    n = int(np.abs(n_))
     output = np.zeros(rho.shape)
     if _is_odd(n - m):
         return 0
@@ -153,7 +153,7 @@ def zernike(n, m, npix=100, r=None, theta=None, mask_outside=True, outside=np.na
         return (sqrt(2) * sqrt(n+1)) * R(n, m, r) * np.sin(np.abs(m) * theta) * aperture
 
 
-def zernike1(j, return_indices=False, *args, **kwargs):
+def zernike1(j, return_indices=False, **kwargs):
     """ Return the Zernike polynomial Z_j for pupil points {r,theta}.
 
     For this function the desired Zernike is specified by a single index j.
@@ -240,7 +240,7 @@ def noll_indices(j):
             sign = 1
 
         if _is_odd(n):
-            row_m = [1,1]
+            row_m = [1, 1]
         else:
             row_m = [0]
 
@@ -267,7 +267,7 @@ def sum_zernikes(coeffs, npix=500):
     Returns the sum over i of coeffs[i] * Zernike[i]
     """
     out = np.zeros((npix, npix))
-    for  j in range(len(coeffs)):
+    for j in range(len(coeffs)):
         out += zernike1(j+1, npix=npix) * coeffs[j]
     return out
 
@@ -304,6 +304,7 @@ def hexike():
 
     """
     pass
+
 
 def hexike_from_table():
     """ See tabulated matrix coefficients on Page 2 of Mahajan article """
@@ -361,6 +362,7 @@ def hex_aperture(npix=500, vertical=False):
     else:
         return aperture
 
+
 def hexike_list(nterms=11, npix=500):
     """ Return a list of hexike polynomials 1-N following the
     method of Mahajan and Dai 2006 """
@@ -379,21 +381,17 @@ def hexike_list(nterms=11, npix=500):
     H = [np.zeros(shape), np.ones(shape) * aperture]  # array of hexikes
     c = {}  # coefficients hash
 
-
     for j in np.arange(nterms - 1) + 1:   # can do one less since we already have the piston term
         _log.debug("  j = "+str(j))
         # Compute the j'th G, then H
         nextG = Z[j+1]*aperture
         for k in np.arange(j)+1:
-            #print "   k=%d\tbefore: %s" %(k, np.isfinite(nextG.sum()))
             c[(j+1, k)] = -1/A * (Z[j+1] * H[k]*aperture).sum()
             if c[(j+1, k)] != 0:
                 nextG += c[(j+1, k)] * H[k]
-            #print "    c[%s] = %f\tafter: %s" % (str((j+1, k)), c[(j+1, k)], np.isfinite(nextG.sum()) )
-            _log.debug("    c[%s] = %f" % (str((j+1, k)), c[(j+1, k)] ))
+            _log.debug("    c[%s] = %f", str((j+1, k)), c[(j+1, k)])
 
-        #print "   nextG integral: %f" % sqrt((nextG**2).sum() / A )
-        nextH = nextG /  sqrt((nextG**2).sum() / A )
+        nextH = nextG / sqrt((nextG**2).sum() / A)
 
         G.append(nextG)
         H.append(nextH)
@@ -402,13 +400,15 @@ def hexike_list(nterms=11, npix=500):
         # cf. modified gram-schmidt algorithm discussion on wikipedia.
 
     # drop the 0th null element, return the rest
-    return H[1:] #, c
+    return H[1:]
 
 
 #--------------------------------------------------------------------------------
 # "JWST-exikes"?, "jwexikes"? Something else?
 
 _basepath = os.path.dirname(os.path.abspath(__file__))
+
+
 def derive_jwexikes(nterms=11, npix=1024, pupilfile=None):
     """ Derive a set of orthonormal polynomials over the JWST pupil, following the
     method of Mahajan and Dai 2006 """
@@ -419,34 +419,33 @@ def derive_jwexikes(nterms=11, npix=1024, pupilfile=None):
         raise IOError("Requested JWST pupil file '%s' does not exist." % pupilfile)
     aperture = np.array(fits.getdata(pupilfile), float)
     if npix != aperture.shape[0]:
-        raise ValueError("For JWexikes the pupil size is fixed by the aperture array at %d pix." % aperture.shape[0])
+        raise ValueError("For JWexikes the pupil size is fixed by the aperture "
+                         "array at %d pix." % aperture.shape[0])
     A = aperture.sum()
 
     # precompute zernikes
-    shape=(npix,npix)
-    Z= [np.zeros(shape) ]
-    for j in range(nterms+1):
-        Z.append(zernike1(j+1,npix=npix, outside=0., mask_outside=False))
+    shape = (npix, npix)
+    Z = [np.zeros(shape)]  #TODO:jlong: why is this a list?
+    for j in range(nterms + 1):
+        Z.append(zernike1(j + 1, npix=npix, outside=0., mask_outside=False))
 
-    G= [np.zeros(shape), np.ones(shape) ]  # array of G_i etc. intermediate fn
-    H= [np.zeros(shape), np.ones(shape)*aperture ]  # array of hexikes
+    G = [np.zeros(shape), np.ones(shape)]  # array of G_i etc. intermediate fn
+    H = [np.zeros(shape), np.ones(shape) * aperture]  # array of hexikes
     c = {}  # coefficients hash
 
-
-    for j in np.arange(nterms-1)+1: # can do one less since we already have the piston term
+    for j in np.arange(nterms - 1) + 1:  # can do one less since we already have the piston term
         _log.debug("  j = "+str(j))
         # Compute the j'th G, then H
         nextG = Z[j+1]*aperture
         for k in np.arange(j)+1:
-            #print "   k=%d\tbefore: %s" %(k, np.isfinite(nextG.sum()))
             c[(j+1, k)] = -1/A * (Z[j+1] * H[k]*aperture).sum()
             if c[(j+1, k)] != 0:
                 nextG += c[(j+1, k)] * H[k]
-            #print "    c[%s] = %f\tafter: %s" % (str((j+1, k)), c[(j+1, k)], np.isfinite(nextG.sum()) )
-            _log.debug("    c[%s] = %f" % (str((j+1, k)), c[(j+1, k)] ))
+
+            _log.debug("    c[%s] = %f", str((j + 1, k)), c[(j + 1, k)])
 
         #print "   nextG integral: %f" % sqrt((nextG**2).sum() / A )
-        nextH = nextG /  sqrt((nextG**2).sum() / A )
+        nextH = nextG / sqrt((nextG**2).sum() / A)
 
         G.append(nextG)
         H.append(nextH)
@@ -457,7 +456,8 @@ def derive_jwexikes(nterms=11, npix=1024, pupilfile=None):
     # drop the 0th null element, return the rest
     return H[1:], c, aperture
 
-def jwexike_list(nterms=15, npix=1024, *args, **kwargs):
+
+def jwexike_list(nterms=15, npix=1024, **kwargs):
     """ Return a list of orthonormal polynomials 1-N over the provided pupil (e.g. JWST)
 
     Results are cached in memory, so there is no penalty for calling this multiple times
@@ -467,12 +467,14 @@ def jwexike_list(nterms=15, npix=1024, *args, **kwargs):
     if ('JW', nterms, npix) in _ZCACHE.keys():
         return _ZCACHE[('JW', nterms, npix)]
     else:
-        H,x,aperture = derive_jwexikes(nterms, npix=npix, *args, **kwargs)
+        H, x, aperture = derive_jwexikes(nterms=nterms, npix=npix, **kwargs)
         _ZCACHE[('JW', nterms, npix)] = H
         return H
+
 #--------------------------------------------------------------------------------
 
-def wf_expand(wavefront, aperture = None, nterms=15, type='zernike', **kwargs):
+
+def wf_expand(wavefront, aperture=None, nterms=15, kind='zernike', **kwargs):
     """ Given a wavefront, return the list of Zernike coefficients that best fit it.
 
     Parameters
@@ -483,29 +485,36 @@ def wf_expand(wavefront, aperture = None, nterms=15, type='zernike', **kwargs):
         the pupil aperture.
     nterms : int
         Number of terms to use. Default 15
-    type : str
-        Type of polynomial to use. Zernike, Hexike, JWexike, etc
+    kind : str
+        Kind of polynomial to use. Zernike, Hexike, JWexike, etc
     """
 
     if aperture is None:
         _log.info("No aperture supplied - using the nonzero part of the wavefront as a guess.")
-        aperture = np.asarray((wavefront != 0)  & np.isfinite(wavefront), dtype=int )
+        aperture = np.asarray((wavefront != 0) & np.isfinite(wavefront), dtype=np.int32)
 
-    fns = {'Z': zernike_list, 'H': hexike_list, 'J': jwexike_list}
-    basis_set =  fns[type[0].upper()](nterms=nterms, npix=wavefront.shape[0], **kwargs)
+    fns = {
+        'zernike': zernike_list,
+        'hexike': hexike_list,
+        'jwexike': jwexike_list
+    }
+    if kind in fns.keys():
+        basis_set = fns[kind.lower()]
+        basis_set(nterms=nterms, npix=wavefront.shape[0], **kwargs)
+    else:
+        raise RuntimeError("Argument 'kind' must be one of: {}".format(fns.keys()))
 
     wgood = np.where(aperture & np.isfinite(basis_set[1]))
 
-    #stop()
     ngood = (wgood[0]).size
-    coeffs = [(wavefront * b)[wgood].sum()/ngood for b in basis_set ]
+    coeffs = [(wavefront * b)[wgood].sum() / ngood for b in basis_set]
 
     # normalization?
 
     return coeffs
 
 
-def wf_generate(coeffs, npix=1024,  type='zernike', aperture=None):
+def wf_generate(coeffs, npix=1024,  kind='zernike', aperture=None):
     """ Generate a wavefront for a given list of Zernike coefficients
     (or Zernike-like coefficients)
 
@@ -515,42 +524,40 @@ def wf_generate(coeffs, npix=1024,  type='zernike', aperture=None):
         Coefficients for the first N Zernikes (or equivalent)
     npix : int
         Size of array on which to evaluate the wavefront
-    type :  str
-        Type of polynomial to use. Zernike, Hexike, JWexike, etc
+    kind :  str
+        Kind of polynomial to use. Zernike, Hexike, JWexike, etc
 
     """
 
     nterms = len(coeffs)
 
     fns = {'Z': zernike_list, 'H': hexike_list, 'J': jwexike_list}
-    basis_set =  fns[type[0].upper()](nterms=nterms, npix=npix)
+    basis_set = fns[kind[0].upper()](nterms=nterms, npix=npix)
 
-    out = np.zeros( (npix,npix), dtype=float)
+    out = np.zeros((npix, npix), dtype=float)
     for i in range(nterms):
         out += basis_set[i]*coeffs[i]
         #print i, out[509:511,226]
 
     if aperture is not None:
-        wbad = np.where(  (aperture & np.isfinite(basis_set[0])) ==False )
+        wbad = np.where((aperture & np.isfinite(basis_set[0])) is False)
         out[wbad] = np.nan
 
     return out
 
 
-def save_to_fits(type='zernike', nterms=10,npix=1024):
+def save_to_fits(type='zernike', nterms=10, npix=1024):
     """ Save a list of Zernike type terms to a FITS file
     """
     fns = {'Z': zernike_list, 'H': hexike_list, 'J': jwexike_list}
     names = {'Z': 'zernike', 'H': 'hexike', 'J': 'jwexike'}
-    basis_set =  fns[type[0].upper()](nterms=nterms, npix=npix)
+    basis_set = fns[type[0].upper()](nterms=nterms, npix=npix)
 
     basis_ar = np.array(basis_set)
     outname = "%s_%d_%d.fits" % (names[type[0].upper()], npix, nterms)
     fits.PrimaryHDU(basis_ar).writeto(outname)
 
     print "==>> "+outname
-
-
 
 #--------------------------------------------------------------------------------
 # test routines
@@ -565,33 +572,29 @@ def test_wf_expand(npix=512, type='zernike', term=3, npixout=1024):
     fns = {'Z': zernike_list, 'H': hexike_list, 'J': jwexike_list}
     terms = fns[type[0].upper()](term+1, npix=npix)
     myOPD = terms[term-1]
-    if term >=2:
-        myOPD = terms[term-1] + 0.5*terms[term-2]
+    if term >= 2:
+        myOPD = terms[term - 1] + 0.5 * terms[term - 2]
 
-
-    #aperture = np.isfinite(myOPD).astype(int)
-    aperture = terms[0].astype(int) # use piston term for aperture
+    aperture = terms[0].astype(int)  # use piston term for aperture
 
     plt.subplot(121)
     plt.imshow(myOPD, vmin=-1, vmax=1)
     plt.title("Input OPD")
 
     coeffs = wf_expand(myOPD, aperture=aperture, type=type)
-    strcoeffs = ['%.4f' %c for c in coeffs]
+    strcoeffs = ['%.4f' % c for c in coeffs]
     print "Coeffs", strcoeffs
-
 
     new = wf_generate(coeffs, npix=npixout, type=type)
     plt.subplot(122)
     plt.imshow(new, vmin=-1, vmax=1)
-    plt.title("OPD from %s fit" %type)
+    plt.title("OPD from %s fit"  % type)
 
-    print "Totals (should be equal (roughly?)): ", np.nansum(myOPD)/myOPD.size, np.nansum(new)/new.size
+    print "Totals (should be equal (roughly?)): {}\t{} ".format(np.nansum(myOPD) / myOPD.size,
+                                                                np.nansum(new) / new.size)
 
 
-
-
-def test_plot_jwexikes(nterms = 20, npix=1024, **kwargs ):
+def test_plot_jwexikes(nterms=20, npix=1024, **kwargs):
     """ Test the jwexikes functions and display the results """
     plotny = int(np.floor(np.sqrt(nterms)))
     plotnx = int(nterms/plotny)
@@ -599,24 +602,24 @@ def test_plot_jwexikes(nterms = 20, npix=1024, **kwargs ):
     fig = plt.gcf()
     fig.clf()
 
-    H, c, ap = derive_jwexikes(nterms=nterms,npix=npix, **kwargs)
+    H, c, ap = derive_jwexikes(nterms=nterms, npix=npix, **kwargs)
 
-    wgood = np.where(ap !=0)
+    wgood = np.where(ap != 0)
     ap[np.where(ap == 0)] = np.nan
 
     for j in np.arange(nterms):
-        ax = fig.add_subplot(plotny,plotnx,j+1, frameon=False, xticks=[], yticks=[])
+        ax = fig.add_subplot(plotny, plotnx, j+1, frameon=False, xticks=[], yticks=[])
 
-        n,m = noll_indices(j+1)
+        n, m = noll_indices(j+1)
 
-        ax.imshow(H[j] * ap , vmin=-3, vmax=3.0)
-        #print "j = %d\tzmin = %f\tzmax=%f" % (j, np.nanmin(Z), np.nanmax(Z))
-        ax.text(npix*0.7, npix*0.1, "$JW_%d^{%d}$" % (n, m), fontsize=20)
-        print "Term %d:   std dev is %f. (should be near 1)" % ( j+1, H[j][wgood].std())
+        ax.imshow(H[j] * ap, vmin=-3, vmax=3.0)
+        ax.text(npix * 0.7, npix * 0.1, "$JW_%d^{%d}$" % (n, m), fontsize=20)
+        print "Term %d:   std dev is %f. (should be near 1)" % (j + 1, H[j][wgood].std())
 
     plt.draw()
 
-def test_plot_hexikes(nterms = 20, npix=500 ):
+
+def test_plot_hexikes(nterms=20, npix=500):
     """ Test the hexikes functions and display the results """
     plotny = int(np.floor(np.sqrt(nterms)))
     plotnx = int(nterms/plotny)
@@ -624,26 +627,25 @@ def test_plot_hexikes(nterms = 20, npix=500 ):
     fig = plt.gcf()
     fig.clf()
 
-    H = hexike_list(nterms=nterms,npix=npix)
+    H = hexike_list(nterms=nterms, npix=npix)
 
     ap = hex_aperture(npix)
-    wgood = np.where(ap !=0)
+    wgood = np.where(ap != 0)
     ap[np.where(ap == 0)] = np.nan
 
     for j in np.arange(nterms):
-        ax = fig.add_subplot(plotny,plotnx,j+1, frameon=False, xticks=[], yticks=[])
+        ax = fig.add_subplot(plotny, plotnx, j + 1, frameon=False, xticks=[], yticks=[])
 
-        n,m = noll_indices(j+1)
+        n, m = noll_indices(j+1)
 
-        ax.imshow(H[j] * ap , vmin=-3, vmax=3.0)
-        #print "j = %d\tzmin = %f\tzmax=%f" % (j, np.nanmin(Z), np.nanmax(Z))
-        ax.text(npix*0.7, npix*0.1, "$H_%d^{%d}$" % (n, m), fontsize=20)
-        print "Term %d:   std dev is %f. (should be near 1)" % ( j+1, H[j][wgood].std())
-        #stop()
+        ax.imshow(H[j] * ap, vmin=-3, vmax=3.0)
+        ax.text(npix * 0.7, npix * 0.1, "$H_%d^{%d}$" % (n, m), fontsize=20)
+        print "Term %d:   std dev is %f. (should be near 1)" % (j + 1, H[j][wgood].std())
 
     plt.draw()
 
-def test_plot_zernikes(nterms = 20, npix=500, names=False):
+
+def test_plot_zernikes(nterms=20, npix=500, names=False):
     """ Test the zernikes functions and display the results """
     plotny = int(np.floor(np.sqrt(nterms)))
     plotnx = int(nterms/plotny)
@@ -651,17 +653,16 @@ def test_plot_zernikes(nterms = 20, npix=500, names=False):
     fig = plt.gcf()
     fig.clf()
 
-
     ap = np.isfinite(zernike1(1, npix=npix)).astype(int)
     wgood = np.where(ap)
 
     for j in np.arange(nterms)+1:
-        ax = fig.add_subplot(plotny,plotnx,j, frameon=False, xticks=[], yticks=[])
+        ax = fig.add_subplot(plotny, plotnx, j, frameon=False, xticks=[], yticks=[])
 
         Z, n, m = zernike1(j, return_indices=True, npix=npix)
 
         ax.imshow(Z, vmin=-3, vmax=3.0)
-        #print "j = %d\tzmin = %f\tzmax=%f" % (j, np.nanmin(Z), np.nanmax(Z))
+
         ax.text(npix*0.7, npix*0.1, "$Z_%d^{%d}$" % (n, m), fontsize=20)
         zl = zern_name(j) if names else "$Z%d$" % j
         ax.text(npix * 0.95, npix * 0.8, zl, fontsize=20, horizontalalignment='right')
@@ -741,7 +742,6 @@ def test_1d_args(nterms=10, size=256):
         ax.text(size*0.7, size*0.1, "$Z_%d^{%d}$" % (n, m), fontsize=20)
         ax.text(size*0.95, size*0.8, "$Z%d$" % j, fontsize=20, horizontalalignment='right')
 
-
         Z2 = zernike1(j, r=r.flatten(), theta=theta.flatten())
         out.flat[:] = Z2
         ax = fig.add_subplot(plotny, plotnx, j+nterms, frameon=False, xticks=[], yticks=[])
@@ -762,11 +762,7 @@ def test_str_zernike():
     """Test str_zernike """
     assert str_zernike(4, -2) == '\\sqrt{10}* ( 4 r^4  -3 r^2  ) * \sin(2 \\theta)'
 
-
-
-
 #--------------------------------------------------------------------------------
-
 
 if __name__ == "__main__":
     pass
