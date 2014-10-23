@@ -1,4 +1,5 @@
 from __future__ import division
+
 """
 Zernike & Related Polynomials
 
@@ -30,6 +31,7 @@ import matplotlib.pyplot as plt
 from astropy.io import fits
 
 import logging
+
 _log = logging.getLogger('zernike')
 _log.setLevel(logging.INFO)
 _log.addHandler(logging.NullHandler())
@@ -47,12 +49,12 @@ def str_zernike(n_, m_):
     n = int(np.abs(n_))
 
     terms = []
-    for k in range(int((n-m)/2)+1):
-        coef = ((-1)**k * factorial(n - k) /
-                (factorial(k) * factorial((n + m)/2. - k) * factorial((n - m)/2. - k)))
+    for k in range(int((n - m) / 2) + 1):
+        coef = ((-1) ** k * factorial(n - k) /
+                (factorial(k) * factorial((n + m) / 2. - k) * factorial((n - m) / 2. - k)))
         if coef != 0:
             formatcode = "{0:d}" if k == 0 else "{0:+d}"
-            terms.append((formatcode+" r^{1:d} ").format(int(coef), n-2*k))
+            terms.append((formatcode + " r^{1:d} ").format(int(coef), n - 2 * k))
 
     outstr = " ".join(terms)
 
@@ -79,9 +81,9 @@ def R(n_, m_, rho):
         return 0
     else:
         for k in range(int((n - m) / 2) + 1):
-            coef = ((-1)**k * factorial(n-k) /
-                    (factorial(k) * factorial((n + m) / 2. - k) * factorial((n - m)/2. - k)))
-            output += coef * rho**(n - 2 * k)
+            coef = ((-1) ** k * factorial(n - k) /
+                    (factorial(k) * factorial((n + m) / 2. - k) * factorial((n - m) / 2. - k)))
+            output += coef * rho ** (n - 2 * k)
         return output
 
 
@@ -129,7 +131,7 @@ def zernike(n, m, npix=100, r=None, theta=None, mask_outside=True, outside=np.na
         y = x
         xx, yy = np.meshgrid(x, y)
 
-        r = np.sqrt(xx**2 + yy**2)
+        r = np.sqrt(xx ** 2 + yy ** 2)
         theta = np.arctan2(yy, xx)
 
         aperture = np.ones(r.shape)
@@ -146,11 +148,11 @@ def zernike(n, m, npix=100, r=None, theta=None, mask_outside=True, outside=np.na
         if n == 0:
             return np.ones(r.shape) * aperture
         else:
-            return sqrt(n+1) * R(n, m, r) * aperture
+            return sqrt(n + 1) * R(n, m, r) * aperture
     elif m > 0:
-        return (sqrt(2) * sqrt(n+1)) * R(n, m, r) * np.cos(np.abs(m) * theta) * aperture
+        return (sqrt(2) * sqrt(n + 1)) * R(n, m, r) * np.cos(np.abs(m) * theta) * aperture
     else:
-        return (sqrt(2) * sqrt(n+1)) * R(n, m, r) * np.sin(np.abs(m) * theta) * aperture
+        return (sqrt(2) * sqrt(n + 1)) * R(n, m, r) * np.sin(np.abs(m) * theta) * aperture
 
 
 def zernike1(j, return_indices=False, **kwargs):
@@ -228,11 +230,11 @@ def noll_indices(j):
     if n == 0:
         m = 0
     else:
-        nprev = (n+1)*(n+2)/2       # figure out which entry in the row (harder)
+        nprev = (n + 1) * (n + 2) / 2  # figure out which entry in the row (harder)
         # The rule is that the even Z obtain even indices j, the odd Z odd indices j.
         # Within a given n, lower values of m obtain lower j.
 
-        resid = int(j-nprev-1)
+        resid = int(j - nprev - 1)
 
         if _is_odd(j):
             sign = -1
@@ -268,7 +270,7 @@ def sum_zernikes(coeffs, npix=500):
     """
     out = np.zeros((npix, npix))
     for j in range(len(coeffs)):
-        out += zernike1(j+1, npix=npix) * coeffs[j]
+        out += zernike1(j + 1, npix=npix) * coeffs[j]
     return out
 
 
@@ -292,7 +294,7 @@ def zern_name(i):
         return "Z%d" % i
 
 
-#--------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------
 # Hexikes
 
 def hexike():
@@ -321,7 +323,7 @@ def hexike_from_table():
     M[8, 2] = M[7, 3]
     M[7, 7] = 10 * sqrt(35 / 2211)
     M[8, 8] = M[7, 7]
-    M[9, 9] = 2/3 * sqrt(5)
+    M[9, 9] = 2 / 3 * sqrt(5)
     M[10, 10] = 2 * sqrt(35 / 103)
     M[11, 1] = 521 * sqrt(172205)
     M[11, 4] = 88 * sqrt(15 / 214441)
@@ -381,17 +383,17 @@ def hexike_list(nterms=11, npix=500):
     H = [np.zeros(shape), np.ones(shape) * aperture]  # array of hexikes
     c = {}  # coefficients hash
 
-    for j in np.arange(nterms - 1) + 1:   # can do one less since we already have the piston term
-        _log.debug("  j = "+str(j))
+    for j in np.arange(nterms - 1) + 1:  # can do one less since we already have the piston term
+        _log.debug("  j = " + str(j))
         # Compute the j'th G, then H
-        nextG = Z[j+1]*aperture
-        for k in np.arange(j)+1:
-            c[(j+1, k)] = -1/A * (Z[j+1] * H[k]*aperture).sum()
-            if c[(j+1, k)] != 0:
-                nextG += c[(j+1, k)] * H[k]
-            _log.debug("    c[%s] = %f", str((j+1, k)), c[(j+1, k)])
+        nextG = Z[j + 1] * aperture
+        for k in np.arange(j) + 1:
+            c[(j + 1, k)] = -1 / A * (Z[j + 1] * H[k] * aperture).sum()
+            if c[(j + 1, k)] != 0:
+                nextG += c[(j + 1, k)] * H[k]
+            _log.debug("    c[%s] = %f", str((j + 1, k)), c[(j + 1, k)])
 
-        nextH = nextG / sqrt((nextG**2).sum() / A)
+        nextH = nextG / sqrt((nextG ** 2).sum() / A)
 
         G.append(nextG)
         H.append(nextH)
@@ -413,7 +415,7 @@ def derive_jwexikes(nterms=11, npix=1024, pupilfile=None):
     """ Derive a set of orthonormal polynomials over the JWST pupil, following the
     method of Mahajan and Dai 2006 """
     if pupilfile is None:
-        pupilfile = _basepath+os.sep+'JWpupil_%d.fits' % npix
+        pupilfile = _basepath + os.sep + 'JWpupil_%d.fits' % npix
 
     if not os.path.exists(pupilfile):
         raise IOError("Requested JWST pupil file '%s' does not exist." % pupilfile)
@@ -434,18 +436,18 @@ def derive_jwexikes(nterms=11, npix=1024, pupilfile=None):
     c = {}  # coefficients hash
 
     for j in np.arange(nterms - 1) + 1:  # can do one less since we already have the piston term
-        _log.debug("  j = "+str(j))
+        _log.debug("  j = " + str(j))
         # Compute the j'th G, then H
-        nextG = Z[j+1]*aperture
-        for k in np.arange(j)+1:
-            c[(j+1, k)] = -1/A * (Z[j+1] * H[k]*aperture).sum()
-            if c[(j+1, k)] != 0:
-                nextG += c[(j+1, k)] * H[k]
+        nextG = Z[j + 1] * aperture
+        for k in np.arange(j) + 1:
+            c[(j + 1, k)] = -1 / A * (Z[j + 1] * H[k] * aperture).sum()
+            if c[(j + 1, k)] != 0:
+                nextG += c[(j + 1, k)] * H[k]
 
             _log.debug("    c[%s] = %f", str((j + 1, k)), c[(j + 1, k)])
 
         #print "   nextG integral: %f" % sqrt((nextG**2).sum() / A )
-        nextH = nextG / sqrt((nextG**2).sum() / A)
+        nextH = nextG / sqrt((nextG ** 2).sum() / A)
 
         G.append(nextG)
         H.append(nextH)
@@ -470,6 +472,7 @@ def jwexike_list(nterms=15, npix=1024, **kwargs):
         H, x, aperture = derive_jwexikes(nterms=nterms, npix=npix, **kwargs)
         _ZCACHE[('JW', nterms, npix)] = H
         return H
+
 
 #--------------------------------------------------------------------------------
 
@@ -514,7 +517,7 @@ def wf_expand(wavefront, aperture=None, nterms=15, kind='zernike', **kwargs):
     return coeffs
 
 
-def wf_generate(coeffs, npix=1024,  kind='zernike', aperture=None):
+def wf_generate(coeffs, npix=1024, kind='zernike', aperture=None):
     """ Generate a wavefront for a given list of Zernike coefficients
     (or Zernike-like coefficients)
 
@@ -536,7 +539,7 @@ def wf_generate(coeffs, npix=1024,  kind='zernike', aperture=None):
 
     out = np.zeros((npix, npix), dtype=float)
     for i in range(nterms):
-        out += basis_set[i]*coeffs[i]
+        out += basis_set[i] * coeffs[i]
         #print i, out[509:511,226]
 
     if aperture is not None:
@@ -557,7 +560,8 @@ def save_to_fits(type='zernike', nterms=10, npix=1024):
     outname = "%s_%d_%d.fits" % (names[type[0].upper()], npix, nterms)
     fits.PrimaryHDU(basis_ar).writeto(outname)
 
-    print "==>> "+outname
+    print "==>> " + outname
+
 
 #--------------------------------------------------------------------------------
 # test routines
@@ -570,8 +574,8 @@ def test_wf_expand(npix=512, type='zernike', term=3, npixout=1024):
         raise ValueError("Zernike index must be >= 1")
 
     fns = {'Z': zernike_list, 'H': hexike_list, 'J': jwexike_list}
-    terms = fns[type[0].upper()](term+1, npix=npix)
-    myOPD = terms[term-1]
+    terms = fns[type[0].upper()](term + 1, npix=npix)
+    myOPD = terms[term - 1]
     if term >= 2:
         myOPD = terms[term - 1] + 0.5 * terms[term - 2]
 
@@ -588,7 +592,7 @@ def test_wf_expand(npix=512, type='zernike', term=3, npixout=1024):
     new = wf_generate(coeffs, npix=npixout, type=type)
     plt.subplot(122)
     plt.imshow(new, vmin=-1, vmax=1)
-    plt.title("OPD from %s fit"  % type)
+    plt.title("OPD from %s fit" % type)
 
     print "Totals (should be equal (roughly?)): {}\t{} ".format(np.nansum(myOPD) / myOPD.size,
                                                                 np.nansum(new) / new.size)
@@ -597,7 +601,7 @@ def test_wf_expand(npix=512, type='zernike', term=3, npixout=1024):
 def test_plot_jwexikes(nterms=20, npix=1024, **kwargs):
     """ Test the jwexikes functions and display the results """
     plotny = int(np.floor(np.sqrt(nterms)))
-    plotnx = int(nterms/plotny)
+    plotnx = int(nterms / plotny)
 
     fig = plt.gcf()
     fig.clf()
@@ -608,9 +612,9 @@ def test_plot_jwexikes(nterms=20, npix=1024, **kwargs):
     ap[np.where(ap == 0)] = np.nan
 
     for j in np.arange(nterms):
-        ax = fig.add_subplot(plotny, plotnx, j+1, frameon=False, xticks=[], yticks=[])
+        ax = fig.add_subplot(plotny, plotnx, j + 1, frameon=False, xticks=[], yticks=[])
 
-        n, m = noll_indices(j+1)
+        n, m = noll_indices(j + 1)
 
         ax.imshow(H[j] * ap, vmin=-3, vmax=3.0)
         ax.text(npix * 0.7, npix * 0.1, "$JW_%d^{%d}$" % (n, m), fontsize=20)
@@ -622,7 +626,7 @@ def test_plot_jwexikes(nterms=20, npix=1024, **kwargs):
 def test_plot_hexikes(nterms=20, npix=500):
     """ Test the hexikes functions and display the results """
     plotny = int(np.floor(np.sqrt(nterms)))
-    plotnx = int(nterms/plotny)
+    plotnx = int(nterms / plotny)
 
     fig = plt.gcf()
     fig.clf()
@@ -636,7 +640,7 @@ def test_plot_hexikes(nterms=20, npix=500):
     for j in np.arange(nterms):
         ax = fig.add_subplot(plotny, plotnx, j + 1, frameon=False, xticks=[], yticks=[])
 
-        n, m = noll_indices(j+1)
+        n, m = noll_indices(j + 1)
 
         ax.imshow(H[j] * ap, vmin=-3, vmax=3.0)
         ax.text(npix * 0.7, npix * 0.1, "$H_%d^{%d}$" % (n, m), fontsize=20)
@@ -648,7 +652,7 @@ def test_plot_hexikes(nterms=20, npix=500):
 def test_plot_zernikes(nterms=20, npix=500, names=False):
     """ Test the zernikes functions and display the results """
     plotny = int(np.floor(np.sqrt(nterms)))
-    plotnx = int(nterms/plotny)
+    plotnx = int(nterms / plotny)
 
     fig = plt.gcf()
     fig.clf()
@@ -656,14 +660,14 @@ def test_plot_zernikes(nterms=20, npix=500, names=False):
     ap = np.isfinite(zernike1(1, npix=npix)).astype(int)
     wgood = np.where(ap)
 
-    for j in np.arange(nterms)+1:
+    for j in np.arange(nterms) + 1:
         ax = fig.add_subplot(plotny, plotnx, j, frameon=False, xticks=[], yticks=[])
 
         Z, n, m = zernike1(j, return_indices=True, npix=npix)
 
         ax.imshow(Z, vmin=-3, vmax=3.0)
 
-        ax.text(npix*0.7, npix*0.1, "$Z_%d^{%d}$" % (n, m), fontsize=20)
+        ax.text(npix * 0.7, npix * 0.1, "$Z_%d^{%d}$" % (n, m), fontsize=20)
         zl = zern_name(j) if names else "$Z%d$" % j
         ax.text(npix * 0.95, npix * 0.8, zl, fontsize=20, horizontalalignment='right')
         print "Term %d: std dev is %f. (should be near 1)" % (j, Z[wgood].std())
@@ -673,7 +677,7 @@ def test_plot_zernikes(nterms=20, npix=500, names=False):
 
 def test_integrate_zernikes(nterms=10, size=500):
     """Verify the functions integrate properly over the unit circle"""
-    for j in np.arange(nterms)+1:
+    for j in np.arange(nterms) + 1:
         Z, n, m = zernike1(j, npix=size, return_indices=True)
         wg = np.where(np.isfinite(Z))
         print "j=%d\t(%d,%d)\t\\integral(Z_j) = %f" % (j, n, m, Z[wg].sum())
@@ -683,7 +687,7 @@ def test_ones_zernikes(nterms=10):
     """Verify the radial scaling function is correctly normalized"""
     rho = np.ones(3)
     theta = np.array([0, 1, 2])
-    for j in np.arange(nterms)+1:
+    for j in np.arange(nterms) + 1:
         Z, n, m = zernike1(j, r=rho, theta=theta, return_indices=True)
         Rs = R(n, m, rho)
         print "j=%d\tZ_(%d,%d) [1] = \t %s" % (j, n, m, str(Rs))
@@ -710,12 +714,12 @@ def test_cross_zernikes(testj, nterms=10, npix=500):
 
     Zj = zernike1(testj, npix=npix)
 
-    for j in np.arange(nterms)+1:
+    for j in np.arange(nterms) + 1:
         Z, n, m = zernike1(j, npix=npix, return_indices=True)
 
         prod = Z * Zj
         wg = np.where(np.isfinite(prod))
-        print "integral(Z_%d * Z_%d) = %f" % (j, testj,  prod[wg].sum())
+        print "integral(Z_%d * Z_%d) = %f" % (j, testj, prod[wg].sum())
 
 
 def test_1d_args(nterms=10, size=256):
@@ -726,12 +730,12 @@ def test_1d_args(nterms=10, size=256):
     fig.clf()
 
     Y, X = np.indices((60, 60))
-    X -= (60-1)/2.0
-    Y -= (60-1)/2.0
-    r = np.sqrt(X**2 + Y**2) / 30.0
+    X -= (60 - 1) / 2.0
+    Y -= (60 - 1) / 2.0
+    r = np.sqrt(X ** 2 + Y ** 2) / 30.0
     theta = np.arctan2(Y, X)
 
-    for j in np.arange(nterms)+1:
+    for j in np.arange(nterms) + 1:
         out = np.zeros_like(X).astype(np.float64)
         ax = fig.add_subplot(plotny, plotnx, j, frameon=False, xticks=[], yticks=[])
 
@@ -739,12 +743,12 @@ def test_1d_args(nterms=10, size=256):
 
         ax.imshow(Z, vmin=-3, vmax=3.0)
         print "j = %d\tzmin = %f\tzmax=%f" % (j, np.nanxmin(Z), np.nanmax(Z))
-        ax.text(size*0.7, size*0.1, "$Z_%d^{%d}$" % (n, m), fontsize=20)
-        ax.text(size*0.95, size*0.8, "$Z%d$" % j, fontsize=20, horizontalalignment='right')
+        ax.text(size * 0.7, size * 0.1, "$Z_%d^{%d}$" % (n, m), fontsize=20)
+        ax.text(size * 0.95, size * 0.8, "$Z%d$" % j, fontsize=20, horizontalalignment='right')
 
         Z2 = zernike1(j, r=r.flatten(), theta=theta.flatten())
         out.flat[:] = Z2
-        ax = fig.add_subplot(plotny, plotnx, j+nterms, frameon=False, xticks=[], yticks=[])
+        ax = fig.add_subplot(plotny, plotnx, j + nterms, frameon=False, xticks=[], yticks=[])
         ax.imshow(out, vmin=-3, vmax=3.0)
 
     plt.draw()
