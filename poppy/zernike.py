@@ -36,6 +36,16 @@ _log = logging.getLogger('zernike')
 _log.setLevel(logging.INFO)
 _log.addHandler(logging.NullHandler())
 
+ZERNIKE = ZERN = 'zernike'
+HEXIKE = HEX = 'hexike'
+JWEXIKE = JW = 'jwexike'
+
+KINDS = [
+    ZERNIKE,
+    HEXIKE,
+    JWEXIKE
+]
+
 _ZCACHE = {}
 
 
@@ -199,11 +209,11 @@ def zernike_list(nterms=15, npix=512, **kwargs):
     npix : int
         Size of arrays on which to compute the Zernike polynomials
     """
-    if ('Zern', nterms, npix) in _ZCACHE.keys():
-        return _ZCACHE[('Zern', nterms, npix)]
+    if (ZERNIKE, nterms, npix) in _ZCACHE:
+        return _ZCACHE[(ZERNIKE, nterms, npix)]
     else:
         Z = [zernike1(j + 1, return_indices=False, npix=npix, **kwargs) for j in range(nterms)]
-        _ZCACHE[('Zern', nterms, npix)] = Z
+        _ZCACHE[(ZERNIKE, nterms, npix)] = Z
         return Z
 
 
@@ -297,39 +307,39 @@ def zern_name(i):
 # --------------------------------------------------------------------------------
 # Hexikes
 
-def hexike():
-    """ Zernike-like orthonormal polynomials defined over a hexagonal pupil
+HEXIKE_TABLE = np.matrix(np.zeros((11, 11), dtype=np.float64))
 
-    See Mahajan and Dai, 2006. Optics Letters Vol 31, 16, p 2462:
-        http://www.opticsinfobase.org/ol/abstract.cfm?uri=ol-31-16-2462
-        doi: 0.1364/OL.31.002462
+# This indexing looks a little odd, but it makes sense for ease of comparison with
+# the original paper.
+HEXIKE_TABLE[1 - 1, 1 - 1] = 1
+HEXIKE_TABLE[2 - 1, 2 - 1] = sqrt(6 / 5)
+HEXIKE_TABLE[3 - 1, 3 - 1] = HEXIKE_TABLE[2, 2]
+HEXIKE_TABLE[4 - 1, 1 - 1] = sqrt(5 / 43)
+HEXIKE_TABLE[4 - 1, 4 - 1] = 2 * sqrt(15 / 43)
+HEXIKE_TABLE[5 - 1, 5 - 1] = sqrt(10 / 7)
+HEXIKE_TABLE[6 - 1, 6 - 1] = HEXIKE_TABLE[5, 5]
+HEXIKE_TABLE[7 - 1, 3 - 1] = 16 * sqrt(14 / 11055)
+HEXIKE_TABLE[8 - 1, 2 - 1] = HEXIKE_TABLE[7, 3]
+HEXIKE_TABLE[7 - 1, 7 - 1] = 10 * sqrt(35 / 2211)
+HEXIKE_TABLE[8 - 1, 8 - 1] = HEXIKE_TABLE[7, 7]
+HEXIKE_TABLE[9 - 1, 9 - 1] = 2 / 3 * sqrt(5)
+HEXIKE_TABLE[10 - 1, 10 - 1] = 2 * sqrt(35 / 103)
+HEXIKE_TABLE[11 - 1, 1 - 1] = 521 * sqrt(172205)
+HEXIKE_TABLE[11 - 1, 4 - 1] = 88 * sqrt(15 / 214441)
+HEXIKE_TABLE[11 - 1, 11 - 1] = 14 * sqrt(43 / 4987)
+HEXIKE_TABLE.flags.writeable = False
 
-    """
-    pass
+HEXIKE_TABLE.__doc__ = """
+Matrix of Zernike-like orthonormal polynomials defined over a hexagonal pupil
 
+See Mahajan and Dai, 2006. Optics Letters Vol 31, 16, p 2462:
+    http://www.opticsinfobase.org/ol/abstract.cfm?uri=ol-31-16-2462
+    doi: 0.1364/OL.31.002462
 
-def hexike_from_table():
-    """ See tabulated matrix coefficients on Page 2 of Mahajan article """
-    #TODO:jlong: make this a non-writable (constant) array at the module level
-    M = np.matrix(np.zeros(11, 11))
-    M[1, 1] = 1
-    M[2, 2] = sqrt(6 / 5)
-    M[3, 3] = M[2, 2]
-    M[4, 1] = sqrt(5 / 43)
-    M[4, 4] = 2 * sqrt(15 / 43)
-    M[5, 5] = sqrt(10 / 7)
-    M[6, 6] = M[5, 5]
-    M[7, 3] = 16 * sqrt(14 / 11055)
-    M[8, 2] = M[7, 3]
-    M[7, 7] = 10 * sqrt(35 / 2211)
-    M[8, 8] = M[7, 7]
-    M[9, 9] = 2 / 3 * sqrt(5)
-    M[10, 10] = 2 * sqrt(35 / 103)
-    M[11, 1] = 521 * sqrt(172205)
-    M[11, 4] = 88 * sqrt(15 / 214441)
-    M[11, 11] = 14 * sqrt(43 / 4987)
+Reference tabulated matrix coefficients on Page 2 of Mahajan article
 
-    return M
+-----------------------------------
+""" + HEXIKE_TABLE.__doc__
 
 
 def hex_aperture(npix=500, vertical=False):
@@ -474,6 +484,13 @@ def jwexike_list(nterms=15, npix=1024, **kwargs):
         return H
 
 
+def make_basis(kind, *args, **kwargs):
+    bases = {ZERNIKE: zernike_list, HEXIKE: hexike_list, JWEXIKE: jwexike_list}
+    if kind not in bases:
+        raise ValueError("Unknown basis set: {}".format(kind))
+    basis_maker = bases[kind]
+    return basis_maker(*args, **kwargs)
+
 #--------------------------------------------------------------------------------
 
 
@@ -496,17 +513,7 @@ def wf_expand(wavefront, aperture=None, nterms=15, kind='zernike', **kwargs):
         _log.info("No aperture supplied - using the nonzero part of the wavefront as a guess.")
         aperture = np.asarray((wavefront != 0) & np.isfinite(wavefront), dtype=np.int32)
 
-    fns = {
-        'zernike': zernike_list,
-        'hexike': hexike_list,
-        'jwexike': jwexike_list
-    }
-    if kind in fns.keys():
-        basis_set = fns[kind.lower()]
-        basis_set(nterms=nterms, npix=wavefront.shape[0], **kwargs)
-    else:
-        raise RuntimeError("Argument 'kind' must be one of: {}".format(fns.keys()))
-
+    basis_set = make_basis(kind, nterms=nterms, npix=wavefront.shape[0], **kwargs)
     wgood = np.where(aperture & np.isfinite(basis_set[1]))
 
     ngood = (wgood[0]).size
@@ -533,14 +540,11 @@ def wf_generate(coeffs, npix=1024, kind='zernike', aperture=None):
     """
 
     nterms = len(coeffs)
-
-    fns = {'Z': zernike_list, 'H': hexike_list, 'J': jwexike_list}
-    basis_set = fns[kind[0].upper()](nterms=nterms, npix=npix)
+    basis_set = make_basis(kind, nterms=nterms, npix=npix)
 
     out = np.zeros((npix, npix), dtype=float)
     for i in range(nterms):
         out += basis_set[i] * coeffs[i]
-        #print i, out[509:511,226]
 
     if aperture is not None:
         wbad = np.where((aperture & np.isfinite(basis_set[0])) is False)
@@ -549,15 +553,12 @@ def wf_generate(coeffs, npix=1024, kind='zernike', aperture=None):
     return out
 
 
-def save_to_fits(kind='zernike', nterms=10, npix=1024):
+def save_to_fits(kind=ZERNIKE, nterms=10, npix=1024):
     """ Save a list of Zernike type terms to a FITS file
     """
-    fns = {'Z': zernike_list, 'H': hexike_list, 'J': jwexike_list}
-    names = {'Z': 'zernike', 'H': 'hexike', 'J': 'jwexike'}
-    basis_set = fns[kind[0].upper()](nterms=nterms, npix=npix)
-
+    basis_set = make_basis(kind, nterms=nterms, npix=npix)
     basis_ar = np.array(basis_set)
-    outname = "%s_%d_%d.fits" % (names[kind[0].upper()], npix, nterms)
+    outname = "%s_%d_%d.fits" % (kind, npix, nterms)
     fits.PrimaryHDU(basis_ar).writeto(outname)
 
     print "==>> " + outname
@@ -574,7 +575,7 @@ def test_wf_expand(npix=512, kind='zernike', term=3, npixout=1024):
         raise ValueError("Zernike index must be >= 1")
 
     fns = {'Z': zernike_list, 'H': hexike_list, 'J': jwexike_list}
-    terms = fns[kind[0].upper()](term + 1, npix=npix)
+    terms = make_basis(kind, term + 1, npix=npix)
     myOPD = terms[term - 1]
     if term >= 2:
         myOPD = terms[term - 1] + 0.5 * terms[term - 2]
