@@ -32,7 +32,7 @@ from astropy.io import fits
 
 import logging
 
-_log = logging.getLogger('zernike')
+_log = logging.getLogger(__name__)
 _log.setLevel(logging.INFO)
 _log.addHandler(logging.NullHandler())
 
@@ -105,11 +105,11 @@ def zernike(n, m, npix=100, r=None, theta=None, mask_outside=True, outside=np.na
     ordered by a single index.
 
     You may specify the pupil in one of two ways:
-     zernike(n,m, npix)       where npix specifies a pupil diameter in pixels.
+     zernike(n, m, npix)       where npix specifies a pupil diameter in pixels.
                                The returned pupil will be a circular aperture
                                with this diameter, embedded in a square array
                                of size npix*npix.
-     zernike(n,m, r,theta)    Which explicitly provides the desired pupil coordinates
+     zernike(n, m, r, theta)    Which explicitly provides the desired pupil coordinates
                                as arrays r and theta. These need not be regular or contiguous.
 
 
@@ -132,12 +132,17 @@ def zernike(n, m, npix=100, r=None, theta=None, mask_outside=True, outside=np.na
     zern : 2D numpy array
         Z(m,n) evaluated at each (rho, theta)
     """
-
-    _log.debug("Zernike(%d, %d)" % (m, n))
+    if not n >= m:
+        raise ValueError("Zernike index m must be >= index n")
+    if (n - m) % 2 != 0:
+        _log.warn("Radial polynomial is zero for these inputs: m={}, n={} (are you sure you wanted "
+                         "this Zernike?)".format(m, n))
+    _log.debug("Zernike(n=%d, m=%d)" % (n, m))
 
     if theta is None:
 
         x = (np.arange(npix, dtype=np.float64) - (npix - 1) / 2.) / ((npix - 1) / 2.)
+        _log.warn("coords range for zern: {} to {}".format(np.min(x), np.max(x)))
         y = x
         xx, yy = np.meshgrid(x, y)
 
@@ -199,7 +204,7 @@ def zernike1(j, return_indices=False, **kwargs):
 
 
 def zernike_list(nterms=15, npix=512, **kwargs):
-    """ Return a list of Zernicke terms from 1 to N
+    """ Return a list of Zernike terms from 1 to N
     each as a 2D array showing the value at each point.
 
     Parameters
@@ -262,7 +267,7 @@ def noll_indices(j):
 
         m = row_m[resid] * sign
 
-    _log.debug("J=%d:\t(%d, %d)" % (j, n, m))
+    _log.debug("J=%d:\t(n=%d, m=%d)" % (j, n, m))
     return n, m
 
 
@@ -415,75 +420,6 @@ def hexike_list(nterms=11, npix=500):
     return H[1:]
 
 
-#--------------------------------------------------------------------------------
-# "JWST-exikes"?, "jwexikes"? Something else?
-
-_basepath = os.path.dirname(os.path.abspath(__file__))
-
-
-def derive_jwexikes(nterms=11, npix=1024, pupilfile=None):
-    """ Derive a set of orthonormal polynomials over the JWST pupil, following the
-    method of Mahajan and Dai 2006 """
-    if pupilfile is None:
-        pupilfile = _basepath + os.sep + 'JWpupil_%d.fits' % npix
-
-    if not os.path.exists(pupilfile):
-        raise IOError("Requested JWST pupil file '%s' does not exist." % pupilfile)
-    aperture = np.array(fits.getdata(pupilfile), float)
-    if npix != aperture.shape[0]:
-        raise ValueError("For JWexikes the pupil size is fixed by the aperture "
-                         "array at %d pix." % aperture.shape[0])
-    A = aperture.sum()
-
-    # precompute zernikes
-    shape = (npix, npix)
-    Z = [np.zeros(shape)]
-    for j in range(nterms + 1):
-        Z.append(zernike1(j + 1, npix=npix, outside=0., mask_outside=False))
-
-    G = [np.zeros(shape), np.ones(shape)]  # array of G_i etc. intermediate fn
-    H = [np.zeros(shape), np.ones(shape) * aperture]  # array of hexikes
-    c = {}  # coefficients hash
-
-    for j in np.arange(nterms - 1) + 1:  # can do one less since we already have the piston term
-        _log.debug("  j = " + str(j))
-        # Compute the j'th G, then H
-        nextG = Z[j + 1] * aperture
-        for k in np.arange(j) + 1:
-            c[(j + 1, k)] = -1 / A * (Z[j + 1] * H[k] * aperture).sum()
-            if c[(j + 1, k)] != 0:
-                nextG += c[(j + 1, k)] * H[k]
-
-            _log.debug("    c[%s] = %f", str((j + 1, k)), c[(j + 1, k)])
-
-        #print "   nextG integral: %f" % sqrt((nextG**2).sum() / A )
-        nextH = nextG / sqrt((nextG ** 2).sum() / A)
-
-        G.append(nextG)
-        H.append(nextH)
-
-        #TODO - contemplate whether the above algorithm is numerically stable
-        # cf. modified gram-schmidt algorithm discussion on wikipedia.
-
-    # drop the 0th null element, return the rest
-    return H[1:], c, aperture
-
-
-def jwexike_list(nterms=15, npix=1024, **kwargs):
-    """ Return a list of orthonormal polynomials 1-N over the provided pupil (e.g. JWST)
-
-    Results are cached in memory, so there is no penalty for calling this multiple times
-    in rapid succession.
-    """
-
-    if ('JW', nterms, npix) in _ZCACHE.keys():
-        return _ZCACHE[('JW', nterms, npix)]
-    else:
-        H, x, aperture = derive_jwexikes(nterms=nterms, npix=npix, **kwargs)
-        _ZCACHE[('JW', nterms, npix)] = H
-        return H
-
-
 def make_basis(kind, *args, **kwargs):
     bases = {ZERNIKE: zernike_list, HEXIKE: hexike_list, JWEXIKE: jwexike_list}
     if kind not in bases:
@@ -597,31 +533,6 @@ def test_wf_expand(npix=512, kind='zernike', term=3, npixout=1024):
 
     print "Totals (should be equal (roughly?)): {}\t{} ".format(np.nansum(myOPD) / myOPD.size,
                                                                 np.nansum(new) / new.size)
-
-
-def test_plot_jwexikes(nterms=20, npix=1024, **kwargs):
-    """ Test the jwexikes functions and display the results """
-    plotny = int(np.floor(np.sqrt(nterms)))
-    plotnx = int(nterms / plotny)
-
-    fig = plt.gcf()
-    fig.clf()
-
-    H, c, ap = derive_jwexikes(nterms=nterms, npix=npix, **kwargs)
-
-    wgood = np.where(ap != 0)
-    ap[np.where(ap == 0)] = np.nan
-
-    for j in np.arange(nterms):
-        ax = fig.add_subplot(plotny, plotnx, j + 1, frameon=False, xticks=[], yticks=[])
-
-        n, m = noll_indices(j + 1)
-
-        ax.imshow(H[j] * ap, vmin=-3, vmax=3.0)
-        ax.text(npix * 0.7, npix * 0.1, "$JW_%d^{%d}$" % (n, m), fontsize=20)
-        print "Term %d:   std dev is %f. (should be near 1)" % (j + 1, H[j][wgood].std())
-
-    plt.draw()
 
 
 def test_plot_hexikes(nterms=20, npix=500):
@@ -766,12 +677,3 @@ def test_noll_indices():
 def test_str_zernike():
     """Test str_zernike """
     assert str_zernike(4, -2) == '\\sqrt{10}* ( 4 r^4  -3 r^2  ) * \sin(2 \\theta)'
-
-#--------------------------------------------------------------------------------
-
-if __name__ == "__main__":
-    pass
-
-    #test_plot_hexikes(25)
-    # you will need a JWST pupil file to run this next one.
-    #test_plot_jwexikes(25, pupilfile='JWpupil.fits')

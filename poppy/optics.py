@@ -12,6 +12,7 @@ import logging
 
 _log = logging.getLogger('poppy')
 
+from poppy import zernike
 from .poppy_core import OpticalElement, Wavefront, _PUPIL, _IMAGE, _RADIANStoARCSEC
 
 __all__ = ['AnalyticOpticalElement',
@@ -1376,6 +1377,58 @@ class ThinLens(AnalyticOpticalElement):
         return lens_phasor
 
 
+class ZernikeThinLens(AnalyticOpticalElement):
+    """ An idealized thin lens, implemented as a Zernike defocus term.
+
+    Parameters
+    -------------
+    nwaves : float
+        The number of waves of defocus, peak to valley. May be positive or negative.
+        This is applied as a normalization over an area defined by the circumscribing circle
+        of the input wavefront. That is, there will be nwaves defocus peak-to-valley
+        over the region of the pupil that has nonzero input intensity.
+    reference_wavelength : float
+        Wavelength, in meters, at which that number of waves of defocus is specified.
+
+    """
+
+    def __init__(self, name='Thin lens', nwaves=4.0, reference_wavelength=2e-6,
+                 pupil_radius=None, **kwargs):
+        AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
+
+        self.nwaves = nwaves
+        self.reference_wavelength = reference_wavelength
+        self.pupil_radius = pupil_radius
+        self.max_phase_delay = reference_wavelength * nwaves
+
+
+    def getPhasor(self, wave):
+        y, x = wave.coordinates()
+        if self.pupil_radius is None:
+            _log.warn("No pupil radius specified, using a heuristic to guess the radius where "
+                      "rho = 1 for Zernike computation.")
+            r = np.sqrt(x ** 2 + y ** 2)
+        # get the normalized radius, assuming the input wave
+        # is a square
+            max_r = r[np.where(wave.intensity > np.percentile(wave.intensity, 0.01))].max()
+            r_norm = r / max_r
+        else:
+            r = np.sqrt(x ** 2 + y ** 2)
+            r_norm = r / self.pupil_radius
+
+        _log.warn('r_norm min {} max {} shape {}'.format(np.min(r_norm), np.max(r_norm), r_norm.shape))
+        #r_norm = r / (wave.shape[0]/2.*wave.pixelscale)
+
+        #defocus_zernike = np.sqrt(3)* (2* r_norm**2 - 1)  *  (self.nwaves
+        # *self.reference_wavelength/wave.wavelength)
+        # don't forget the factor of 0.5 to make the scaling factor apply as peak-to-valley
+        # rather than center-to-peak
+        defocus_zernike = zernike.R(2, 0, r_norm) * (
+            0.5 * self.nwaves * self.reference_wavelength / wave.wavelength)
+        lens_phasor = np.exp(1.j * 2 * np.pi * defocus_zernike)
+        #stop()
+        return lens_phasor
+
 #------ generic analytic optics ------
 
 class CompoundAnalyticOptic(AnalyticOpticalElement):
@@ -1440,13 +1493,9 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
         ampl = np.ones(wave.shape)
         opd = np.zeros(wave.shape)
         for optic in self.opticslist:
-            #nextphasor = optic.getPhasor(wave)
-            #phasor *= nextphasor #FIXME this does not work... for instance if you have an aperture mask (so all the phase is zero)
-            # then you really want to multiply the amplitude transmissions and add the phases.
-            # simpler to just multiply the wave instead here:
             wave *= optic
 
-            #revised version: handle amplitude and OPD both explictly here
+            # handle amplitude and OPD both explictly here
             nextphasor = optic.getPhasor(wave)
             nextamp = np.abs(nextphasor)
             nextopd = np.angle(nextphasor) * 2 * np.pi * wave.wavelength
@@ -1454,8 +1503,6 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
             opd *= nextopd
 
         phasor = ampl * np.exp(1.j * 2 * np.pi * opd / wave.wavelength)
-        # and just hand back the last one to the calling routine:
-        #return self.opticslist[-1].getPhasor(wave)
         return phasor
 
 
