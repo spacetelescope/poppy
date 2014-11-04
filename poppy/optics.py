@@ -1376,6 +1376,20 @@ class ThinLens(AnalyticOpticalElement):
         #stop()
         return lens_phasor
 
+
+def _guess_pupil_radius(wave, rho):
+    _log.warn("No pupil radius specified, using a heuristic to guess the radius where "
+              "rho = 1 for Zernike computation.")
+    intensity_cutoff = (np.min(wave.intensity) +
+                        0.01 * (np.max(wave.intensity) - np.min(wave.intensity)))
+    _log.warn("Intensity cutoff for illuminated pupil pixels: >{:.3e} ({}% of max)".format(
+        intensity_cutoff, 100 * intensity_cutoff / np.max(wave.intensity)
+    ))
+    max_rho = rho[np.where(wave.intensity > intensity_cutoff)].max()
+    _log.warn("Estimated pupil radius = {:.3f} m".format(max_rho))
+    return max_rho
+
+
 class ZernikeOptic(AnalyticOpticalElement):
     def __init__(self, name="Zernike Optic", coefficients=None, pupil_radius=None, **kwargs):
         self.pupil_radius = pupil_radius
@@ -1399,20 +1413,12 @@ class ZernikeOptic(AnalyticOpticalElement):
         self.coefficients = coefficients
         AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
 
-    def _guess_radius(self, wave, rho):
-        _log.warn("No pupil radius specified, using a heuristic to guess the radius where "
-                  "rho = 1 for Zernike computation.")
-        intensity_cutoff = (np.min(wave.intensity) +
-                            0.01 * (np.max(wave.intensity) - np.min(wave.intensity)))
-        max_rho = rho[np.where(wave.intensity > intensity_cutoff)].max()
-        return max_rho
-
     def _wave_to_rho_theta(self, wave):
         y, x = wave.coordinates()
         r = np.sqrt(x ** 2 + y ** 2)
 
         if self.pupil_radius is None:
-            max_r = self._guess_radius(wave, r)
+            max_r = _guess_pupil_radius(wave, r)
             rho = r / max_r
             theta = np.arctan2(y / max_r, x / max_r)
         else:
@@ -1460,11 +1466,7 @@ class ZernikeThinLens(AnalyticOpticalElement):
         y, x = wave.coordinates()
         r = np.sqrt(x ** 2 + y ** 2)
         if self.pupil_radius is None:
-            _log.warn("No pupil radius specified, using a heuristic to guess the radius where "
-                      "rho = 1 for Zernike computation.")
-            intensity_cutoff = (np.min(wave.intensity) +
-                    0.01 * (np.max(wave.intensity) - np.min(wave.intensity)))
-            max_r = r[np.where(wave.intensity > intensity_cutoff)].max()
+            max_r = _guess_pupil_radius(wave, r)
             r_norm = r / max_r
             theta = np.arctan2(y / max_r, x / max_r)
         else:
