@@ -97,7 +97,8 @@ def R(n_, m_, rho):
         return output
 
 
-def zernike(n, m, npix=100, r=None, theta=None, mask_outside=True, outside=np.nan):
+def zernike(n, m, npix=100, r=None, theta=None, mask_outside=True,
+            outside=np.nan, noll_normalize=True):
     """ Return the Zernike polynomial Z[m,n] for a given pupil.
 
     For this function the desired Zernike is specified by 2 indices m and n.
@@ -126,7 +127,10 @@ def zernike(n, m, npix=100, r=None, theta=None, mask_outside=True, outside=np.na
     outside : float
         Value for pixels outside the circular aperture. Default is NaN, but you may also
         find it useful for this to be zero sometimes.
-
+    noll_normalize : bool
+        As defined in Noll et al. JOSA 1976, the Zernikes are normalized such that
+        the integral of Z[n, m] * Z[n, m] over the unit disk is pi exactly. To omit
+        the normalization constant, set this to False. Default is True.
     Returns
     -------
     zern : 2D numpy array
@@ -158,16 +162,18 @@ def zernike(n, m, npix=100, r=None, theta=None, mask_outside=True, outside=np.na
                              "r with the corresponding radii for each point.")
         # if user explicitly provides r and theta, assume they are handling the aperture.
         aperture = 1  # (for all r, theta)
-
     if m == 0:
         if n == 0:
             return np.ones(r.shape) * aperture
         else:
-            return sqrt(n + 1) * R(n, m, r) * aperture
+            norm_coeff = sqrt(n + 1) if noll_normalize else 1
+            return norm_coeff * R(n, m, r) * aperture
     elif m > 0:
-        return (sqrt(2) * sqrt(n + 1)) * R(n, m, r) * np.cos(np.abs(m) * theta) * aperture
+        norm_coeff = sqrt(2) * sqrt(n + 1) if noll_normalize else 1
+        return norm_coeff * R(n, m, r) * np.cos(np.abs(m) * theta) * aperture
     else:
-        return (sqrt(2) * sqrt(n + 1)) * R(n, m, r) * np.sin(np.abs(m) * theta) * aperture
+        norm_coeff = sqrt(2) * sqrt(n + 1) if noll_normalize else 1
+        return norm_coeff * R(n, m, r) * np.sin(np.abs(m) * theta) * aperture
 
 
 def zernike1(j, return_indices=False, **kwargs):

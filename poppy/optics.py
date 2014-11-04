@@ -1376,6 +1376,61 @@ class ThinLens(AnalyticOpticalElement):
         #stop()
         return lens_phasor
 
+class ZernikeOptic(AnalyticOpticalElement):
+    def __init__(self, name="Zernike Optic", coefficients=None, pupil_radius=None, **kwargs):
+        self.pupil_radius = pupil_radius
+
+        def _validate_coefficients():
+            if coefficients is None:
+                return False
+            for coeff_tuple in coefficients:
+                if len(coeff_tuple) != 3:
+                    return False
+                if not int(coeff_tuple[0]) == coeff_tuple[0] \
+                        or not int(coeff_tuple[1]) == coeff_tuple[1]:
+                    return False
+            return True
+
+        if not _validate_coefficients():
+            raise ValueError("Coefficients must be supplied as a sequence of tuples with (n, m, k) "
+                             "where n, m are the indices of the Zernike, and k is a leading "
+                             "coefficient in meters of wavefront error. "
+                             "e.g. coefficients=[(2, 0, 0.214), (2, -2, 0.02)]")
+        self.coefficients = coefficients
+        AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
+
+    def _guess_radius(self, wave, rho):
+        _log.warn("No pupil radius specified, using a heuristic to guess the radius where "
+                  "rho = 1 for Zernike computation.")
+        intensity_cutoff = (np.min(wave.intensity) +
+                            0.01 * (np.max(wave.intensity) - np.min(wave.intensity)))
+        max_rho = rho[np.where(wave.intensity > intensity_cutoff)].max()
+        return max_rho
+
+    def _wave_to_rho_theta(self, wave):
+        y, x = wave.coordinates()
+        r = np.sqrt(x ** 2 + y ** 2)
+
+        if self.pupil_radius is None:
+            max_r = self._guess_radius(wave, r)
+            rho = r / max_r
+            theta = np.arctan2(y / max_r, x / max_r)
+        else:
+            rho = r / self.pupil_radius
+            theta = np.arctan2(y / self.pupil_radius, x / self.pupil_radius)
+
+        return rho, theta
+
+    def getPhasor(self, wave):
+        rho, theta = self._wave_to_rho_theta(wave)
+        combined_zernikes = np.zeros(wave.shape, dtype=np.float64)
+        for n, m, k in self.coefficients:
+            combined_zernikes += k * zernike.zernike(n, m, r=rho, theta=theta, mask_outside=False)
+
+        lens_phasor = np.exp(1.j * 2 * np.pi * combined_zernikes)
+
+        return lens_phasor
+
 
 class ZernikeThinLens(AnalyticOpticalElement):
     """ An idealized thin lens, implemented as a Zernike defocus term.
@@ -1401,32 +1456,27 @@ class ZernikeThinLens(AnalyticOpticalElement):
         self.pupil_radius = pupil_radius
         self.max_phase_delay = reference_wavelength * nwaves
 
-
     def getPhasor(self, wave):
         y, x = wave.coordinates()
+        r = np.sqrt(x ** 2 + y ** 2)
         if self.pupil_radius is None:
             _log.warn("No pupil radius specified, using a heuristic to guess the radius where "
                       "rho = 1 for Zernike computation.")
-            r = np.sqrt(x ** 2 + y ** 2)
-        # get the normalized radius, assuming the input wave
-        # is a square
-            max_r = r[np.where(wave.intensity > np.percentile(wave.intensity, 0.01))].max()
+            intensity_cutoff = (np.min(wave.intensity) +
+                    0.01 * (np.max(wave.intensity) - np.min(wave.intensity)))
+            max_r = r[np.where(wave.intensity > intensity_cutoff)].max()
             r_norm = r / max_r
+            theta = np.arctan2(y / max_r, x / max_r)
         else:
-            r = np.sqrt(x ** 2 + y ** 2)
+            theta = np.arctan2(y / self.pupil_radius, x / self.pupil_radius)
             r_norm = r / self.pupil_radius
 
-        _log.warn('r_norm min {} max {} shape {}'.format(np.min(r_norm), np.max(r_norm), r_norm.shape))
-        #r_norm = r / (wave.shape[0]/2.*wave.pixelscale)
-
-        #defocus_zernike = np.sqrt(3)* (2* r_norm**2 - 1)  *  (self.nwaves
-        # *self.reference_wavelength/wave.wavelength)
-        # don't forget the factor of 0.5 to make the scaling factor apply as peak-to-valley
-        # rather than center-to-peak
-        defocus_zernike = zernike.R(2, 0, r_norm) * (
-            0.5 * self.nwaves * self.reference_wavelength / wave.wavelength)
-        lens_phasor = np.exp(1.j * 2 * np.pi * defocus_zernike)
-        #stop()
+        # Divide by 2 to apply peak-to-valley scaling (instead of center-to-peak), divide by sqrt(3)
+        # to undo the normalization from Noll 1976 that comes with calculating through zernike()
+        defocus_zernike = zernike.zernike(2, 0, r=r_norm, theta=theta, mask_outside=False)
+        scale_factor = (self.nwaves * self.reference_wavelength /
+                        (2 * np.sqrt(3) * wave.wavelength))
+        lens_phasor = np.exp(1.j * 2 * np.pi * scale_factor * defocus_zernike)
         return lens_phasor
 
 #------ generic analytic optics ------
