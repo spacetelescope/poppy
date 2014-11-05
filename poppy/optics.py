@@ -15,14 +15,12 @@ _log = logging.getLogger('poppy')
 from poppy import zernike
 from .poppy_core import OpticalElement, Wavefront, _PUPIL, _IMAGE, _RADIANStoARCSEC
 
-__all__ = ['AnalyticOpticalElement',
-           'ScalarTransmission', 'InverseTransmission', 'ThinLens', 'BandLimitedCoron',
-           'FQPM_FFT_aligner', 'IdealFQPM', 'SquareFieldStop', 'RectangularFieldStop',
-           'CircularOcculter',
-           'BarOcculter', 'CircularAperture', 'HexagonAperture',
-           'MultiHexagonAperture', 'NgonAperture', 'SquareAperture', 'RectangleAperture',
-           'SecondaryObscuration',
-           'AsymmetricSecondaryObscuration', 'CompoundAnalyticOptic']
+__all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'InverseTransmission',
+           'BandLimitedCoron', 'IdealFQPM', 'RectangularFieldStop', 'SquareFieldStop',
+           'CircularOcculter', 'BarOcculter', 'FQPM_FFT_aligner',  'CircularAperture',
+           'HexagonAperture', 'MultiHexagonAperture', 'NgonAperture', 'RectangleAperture',
+           'SquareAperture', 'SecondaryObscuration', 'AsymmetricSecondaryObscuration',
+           'ThinLens', 'ZernikeOptic', 'CompoundAnalyticOptic']
 
 # ------ Generic Analytic elements -----
 
@@ -1369,7 +1367,7 @@ class ThinLens(AnalyticOpticalElement):
         Pupil radius, in meters, over which the Zernike defocus term should be computed
         such that rho = 1 at r = pupil_radius. Default is None, which falls back on
         guessing the pupil radius from the incoming wavefront. (Note: this is provided
-        for backward compatibility, and it is recommended to specify pupil_radius directly.)
+        for backward compatibility, and it is recommended to specify pupil_radius explicitly.)
     """
 
     def __init__(self, name='Thin lens', nwaves=4.0, reference_wavelength=2e-6,
@@ -1402,6 +1400,22 @@ class ThinLens(AnalyticOpticalElement):
 
 
 class ZernikeOptic(AnalyticOpticalElement):
+    """
+    Define an optical element in terms of its Zernike components by providing coefficients
+    for each Zernike term modeled by the analytic optical element.
+
+    Parameters
+    ----------
+    coefficients : iterable of 3-tuples
+        Each 3-tuple in coefficients must be of the form (n, m, k), where n and m are the integer
+        radial degree and azimuthal frequency indices of the Zernike, and k is the RMS wavefront
+        aberration over the pupil in meters for that Zernike component.
+    pupil_radius : float
+        Pupil radius, in meters, over which the Zernike terms should be computed such that
+        rho = 1 at r = pupil_radius. Default is None, which falls back on guessing the pupil radius
+        from the incoming wavefront. (Note: this is provided for backward compatibility,
+        and it is recommended to specify pupil_radius explicitly.)
+    """
     def __init__(self, name="Zernike Optic", coefficients=None, pupil_radius=None, **kwargs):
         self.pupil_radius = pupil_radius
 
@@ -1446,50 +1460,6 @@ class ZernikeOptic(AnalyticOpticalElement):
 
         lens_phasor = np.exp(1.j * 2 * np.pi * combined_zernikes)
 
-        return lens_phasor
-
-
-class ZernikeThinLens(AnalyticOpticalElement):
-    """ An idealized thin lens, implemented as a Zernike defocus term.
-
-    Parameters
-    -------------
-    nwaves : float
-        The number of waves of defocus, peak to valley. May be positive or negative.
-        This is applied as a normalization over an area defined by the circumscribing circle
-        of the input wavefront. That is, there will be nwaves defocus peak-to-valley
-        over the region of the pupil that has nonzero input intensity.
-    reference_wavelength : float
-        Wavelength, in meters, at which that number of waves of defocus is specified.
-
-    """
-
-    def __init__(self, name='Thin lens', nwaves=4.0, reference_wavelength=2e-6,
-                 pupil_radius=None, **kwargs):
-        AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
-
-        self.nwaves = nwaves
-        self.reference_wavelength = reference_wavelength
-        self.pupil_radius = pupil_radius
-        self.max_phase_delay = reference_wavelength * nwaves
-
-    def getPhasor(self, wave):
-        y, x = wave.coordinates()
-        r = np.sqrt(x ** 2 + y ** 2)
-        if self.pupil_radius is None:
-            max_r = _guess_pupil_radius(wave, r)
-            r_norm = r / max_r
-            theta = np.arctan2(y / max_r, x / max_r)
-        else:
-            theta = np.arctan2(y / self.pupil_radius, x / self.pupil_radius)
-            r_norm = r / self.pupil_radius
-
-        # Divide by 2 to apply peak-to-valley scaling (instead of center-to-peak), divide by sqrt(3)
-        # to undo the normalization from Noll 1976 that comes with calculating through zernike()
-        defocus_zernike = zernike.zernike(2, 0, r=r_norm, theta=theta, mask_outside=False)
-        scale_factor = (self.nwaves * self.reference_wavelength /
-                        (2 * np.sqrt(3) * wave.wavelength))
-        lens_phasor = np.exp(1.j * 2 * np.pi * scale_factor * defocus_zernike)
         return lens_phasor
 
 
