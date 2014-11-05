@@ -24,10 +24,6 @@ __all__ = ['AnalyticOpticalElement',
            'SecondaryObscuration',
            'AsymmetricSecondaryObscuration', 'CompoundAnalyticOptic']
 
-
-
-
-
 # ------ Generic Analytic elements -----
 
 class AnalyticOpticalElement(OpticalElement):
@@ -35,9 +31,8 @@ class AnalyticOpticalElement(OpticalElement):
         by an input OPD or pupil file.
 
         This class is useless on its own; instead use its various subclasses that implement
-        appropriate getPhasor functions.
-        It exists mostly to provide some behaviors & initialization common to all analytic
-        optical elements.
+        appropriate getPhasor functions. It exists mostly to provide some behaviors &
+        initialization common to all analytic optical elements.
 
         Parameters
         ----------
@@ -128,18 +123,16 @@ class AnalyticOpticalElement(OpticalElement):
             elif phase_unit == 'meters':
                 output_array = np.angle(phasor) / (2 * np.pi) * wavelength
             else:
-                raise ValueError(
-                    'Invalid/unknown phase_unit: ' + phase_unit + ". Must be one of [radians, "
-                                                                  "waves, meters]")
+                raise ValueError('Invalid/unknown phase_unit: {}. Must be one of '
+                                 '[radians, waves, meters]'.format(phase_unit))
         elif what == 'complex':
             output_array = phasor
         else:
-            raise ValueError(
-                'Invalid/unknown what to sample: ' + what + ". Must be one of [amplitude, "
-                                                            "intensity, phase, complex]")
+            raise ValueError('Invalid/unknown what to sample: {}. Must be one of '
+                             '[amplitude, intensity, phase, complex]'.format(what))
 
         if return_scale:
-            return (output_array, pixel_scale)
+            return output_array, pixel_scale
         else:
             return output_array
 
@@ -188,8 +181,8 @@ class AnalyticOpticalElement(OpticalElement):
         #then call parent class display
         OpticalElement.display(self, nrows=nrows, row=row, **kwargs)
 
-        # now un-set all the temporary attributes back, since this is analytic and these are
-        # unneeded
+        # now un-set all the temporary attributes back, since this is analytic and
+        # these are unneeded
         self.pixelscale = None
         self.opd = None
         self.amplitude = None
@@ -246,8 +239,8 @@ class ScalarTransmission(AnalyticOpticalElement):
 
     def __init__(self, name=None, transmission=1.0, **kwargs):
         if name is None:
-            name = "-empty-" if transmission == 1.0 else "Scalar Transmission of {0}".format(
-                transmission)
+            name = ("-empty-" if transmission == 1.0 else
+                    "Scalar Transmission of {0}".format(transmission))
         AnalyticOpticalElement.__init__(self, name=name, **kwargs)
         self.transmission = float(transmission)
 
@@ -309,8 +302,8 @@ class BandLimitedCoron(AnalyticOpticalElement):
             raise ValueError("Invalid kind of BLC: " + self.kind)
         self.sigma = float(sigma)  # size parameter. See section 2.1 of Krist et al. SPIE 2007, 2009
         if wavelength is not None:
-            self.wavelength = float(
-                wavelength)  # wavelength, for selecting the linear wedge option only
+            self.wavelength = float(wavelength)  # wavelength, for selecting the
+                                                 # linear wedge option only
         self._default_display_size = 20.  # default size for onscreen display, sized for NIRCam
 
     def getPhasor(self, wave):
@@ -321,10 +314,9 @@ class BandLimitedCoron(AnalyticOpticalElement):
 
         Note that the equations in Krist et al specify the intensity transmission of the occulter,
         but what we want to return here is the amplitude transmittance. That is the square root
-        of the
-        intensity, of course, so the equations as implemented here all differ from those written in
-        Krist's SPIE paper by lacking an exponential factor of 2. Thanks to John Krist for
-        pointing this out.
+        of the intensity, of course, so the equations as implemented here all differ from those
+        written in Krist's SPIE paper by lacking an exponential factor of 2. Thanks to John Krist
+        for pointing this out.
 
         """
         if not isinstance(wave, Wavefront):
@@ -353,29 +345,35 @@ class BandLimitedCoron(AnalyticOpticalElement):
             # corongraph regions
             # Also add in the opaque border of the coronagraph mask holder.
             if self.sigma > 4:
-                wnd = np.where((y > 5) & (((x < -5) & (x > -10)) | ((x > 7.5) & (
-                x < 12.5))))  # MASK210R has one in the corner and one half in the other corner
-                wborder = np.where((np.abs(y) > 10) | (x < -10))  #left end of mask holder
+                # MASK210R has one in the corner and one half in the other corner
+                wnd = np.where(
+                    (y > 5) &
+                    (
+                        ((x < -5) & (x > -10)) |
+                        ((x > 7.5) & (x < 12.5))
+                    )
+                )
+                wborder = np.where((np.abs(y) > 10) | (x < -10))  # left end of mask holder
             else:
-                wnd = np.where((y > 5) & (np.abs(x) > 7.5) & (
-                np.abs(x) < 12.5))  # the others have two halves on in each corner.
+                # the others have two halves on in each corner.
+                wnd = np.where(
+                    (y > 5) &
+                    (np.abs(x) > 7.5) &
+                    (np.abs(x) < 12.5)
+                )
                 wborder = np.where(np.abs(y) > 10)
 
             self.transmission[wnd] = np.sqrt(1e-3)
             self.transmission[wborder] = 0
-
-
         elif self.kind == 'linear':
             #raise(NotImplemented("Generic linear not implemented"))
             sigmar = self.sigma * np.abs(y)
             sigmar.clip(np.finfo(sigmar.dtype).tiny, out=sigmar)  # avoid divide by zero -> NaNs
             self.transmission = (1 - (np.sin(sigmar) / sigmar) ** 2)
-
-
         elif self.kind == 'nircamwedge':
             # This is hard-coded to the wedge-plus-flat-regions shape for NIRCAM
 
-            # we want a scale factor that goes from  2 to 6 with 1/5th of it as a fixed part on
+            # we want a scale factor that goes from 2 to 6 with 1/5th of it as a fixed part on
             # either end
             #scalefact = np.linspace(1,7, x.shape[1]).clip(2,6)
 
@@ -410,17 +408,27 @@ class BandLimitedCoron(AnalyticOpticalElement):
             woutside = np.where(np.abs(x) > 10)
             self.transmission[woutside] = 1.0
 
-
             # add in the ND squares. Note the positions are not exactly the same in the two wedges.
-            # See the figures  in Krist et al. of how the 6 ND squares are spaced among the 5
-            # corongraph regions
-            # Also add in the opaque border of the coronagraph mask holder.
+            # See the figures in Krist et al. of how the 6 ND squares are spaced among the 5
+            # corongraph regions. Also add in the opaque border of the coronagraph mask holder.
             if np.abs(self.wavelength - 2.1e-6) < 0.1e-6:
-                wnd = np.where((y > 5) & (
-                ((x < -5) & (x > -10)) | ((x > 7.5) & (x < 12.5))))  # half ND square on each side
+                # half ND square on each side
+                wnd = np.where(
+                    (y > 5) &
+                    (
+                        ((x < -5) & (x > -10)) |
+                        ((x > 7.5) & (x < 12.5))
+                    )
+                )
                 wborder = np.where(np.abs(y) > 10)
             elif np.abs(self.wavelength - 4.6e-6) < 0.1e-6:
-                wnd = np.where((y > 5) & (((x < -7.5) & (x > -12.5)) | (x > 5)))
+                wnd = np.where(
+                    (y > 5) &
+                    (
+                        ((x < -7.5) & (x > -12.5)) |
+                        (x > 5)
+                    )
+                )
                 wborder = np.where((np.abs(y) > 10) | (x > 10))  # right end of mask holder
 
             self.transmission[wnd] = np.sqrt(1e-3)
@@ -508,8 +516,8 @@ class RectangularFieldStop(AnalyticOpticalElement):
         """ Compute the transmission inside/outside of the field stop.
         """
         if not isinstance(wave, Wavefront):
-            raise ValueError(
-                "IdealFieldStop getPhasor must be called with a Wavefront to define the spacing")
+            raise ValueError("IdealFieldStop getPhasor must be called with a Wavefront "
+                             "to define the spacing")
         assert (wave.planetype == _IMAGE)
 
         y, x = wave.coordinates()
@@ -517,7 +525,10 @@ class RectangularFieldStop(AnalyticOpticalElement):
         ynew = -x * np.sin(np.deg2rad(self.angle)) + y * np.cos(np.deg2rad(self.angle))
         x, y = xnew, ynew
 
-        w_outside = np.where((abs(y) > (self.height / 2)) | (abs(x) > (self.width / 2)))
+        w_outside = np.where(
+            (abs(y) > (self.height / 2)) |
+            (abs(x) > (self.width / 2))
+        )
         del x  # for large arrays, cleanup very promptly, before allocating self.transmission
         del y
         self.transmission = np.ones(wave.shape)
@@ -548,42 +559,8 @@ class SquareFieldStop(RectangularFieldStop):
         self.angle = angle
         self._default_display_size = size * 1.2
 
-
-#    def getPhasor(self,wave):
-#        """ Compute the transmission inside/outside of the field stop.
-#        """
-#
-#        if not isinstance(wave, Wavefront):
-#            raise ValueError("IdealFieldStop getPhasor must be called with a Wavefront to define
-#  the spacing")
-#        assert (wave.planetype == _IMAGE)
-#
-#        #phasor = np.zeros(wave.shape)
-#        y, x= wave.coordinates()
-#        #y, x = np.indices(wave.shape)
-#        #y -= wave.shape[0]/2
-#        #x -= wave.shape[1]/2
-#        xnew =  x*np.cos(np.deg2rad(self.angle)) + y*np.sin(np.deg2rad(self.angle))
-#        ynew = -x*np.sin(np.deg2rad(self.angle)) + y*np.cos(np.deg2rad(self.angle))
-#        x,y = xnew, ynew
-#        #del xnew
-#        #del ynew
-#
-#
-#        halfsize = self.size   / 2
-#        w_outside = np.where( (abs(y) > halfsize)  | (abs(x) > halfsize))
-#        del x # for large arrays, cleanup very promptly, before allocating self.transmission
-#        del y
-#        self.transmission = np.ones(wave.shape)
-#        self.transmission[w_outside] = 0
-#
-#        return self.transmission
-#
-
 class CircularOcculter(AnalyticOpticalElement):
     """ Defines an ideal circular occulter (opaque circle)
-
-
 
     Parameters
     ----------
@@ -686,8 +663,9 @@ class FQPM_FFT_aligner(AnalyticOpticalElement):
     def __init__(self, name="FQPM FFT aligner", direction='forward', **kwargs):
         AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
         direction = direction.lower()
-        if direction != 'forward' and direction != 'backward': raise ValueError(
-            "Invalid direction %s, must be either forward or backward." % direction)
+        if direction != 'forward' and direction != 'backward':
+            raise ValueError("Invalid direction %s, must be either"
+                             "forward or backward." % direction)
         self.direction = direction
         self._suppress_display = True
         #self.displayable = False
@@ -699,7 +677,7 @@ class FQPM_FFT_aligner(AnalyticOpticalElement):
 
         if not isinstance(wave, Wavefront):
             raise ValueError("FQPM getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL )
+        assert (wave.planetype == _PUPIL)
 
         fft_im_pixelscale = wave.wavelength / wave.diam / wave.oversample * _RADIANStoARCSEC
         required_offset = -fft_im_pixelscale * 0.5
@@ -739,16 +717,15 @@ class ParityTestAperture(AnalyticOpticalElement):
         if name is None: name = "Circle, radius=%.2f m" % radius
         AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
         self.radius = radius
-        self.pupil_diam = pad_factor * 2 * self.radius  # for creating input wavefronts - let's
-        # pad a bit
-
+        # for creating input wavefronts - let's pad a bit:
+        self.pupil_diam = pad_factor * 2 * self.radius
 
     def getPhasor(self, wave):
         """ Compute the transmission inside/outside of the occulter.
         """
         if not isinstance(wave, Wavefront):
-            raise ValueError(
-                "CircularAperture getPhasor must be called with a Wavefront to define the spacing")
+            raise ValueError("CircularAperture getPhasor must be called with a Wavefront "
+                             "to define the spacing")
         assert (wave.planetype == _PUPIL)
 
         y, x = wave.coordinates()
@@ -758,8 +735,16 @@ class ParityTestAperture(AnalyticOpticalElement):
         self.transmission = np.ones(wave.shape)
         self.transmission[w_outside] = 0
 
-        w_box1 = np.where((r > (self.radius * 0.5)) & (np.abs(x) < self.radius * 0.1) & (y < 0))
-        w_box2 = np.where((r > (self.radius * 0.75)) & (np.abs(y) < self.radius * 0.2) & (x < 0))
+        w_box1 = np.where(
+            (r > (self.radius * 0.5)) &
+            (np.abs(x) < self.radius * 0.1) &
+            (y < 0)
+        )
+        w_box2 = np.where(
+            (r > (self.radius * 0.75)) &
+            (np.abs(y) < self.radius * 0.2) &
+            (x < 0)
+        )
         self.transmission[w_box1] = 0
         self.transmission[w_box2] = 0
 
@@ -788,16 +773,16 @@ class CircularAperture(AnalyticOpticalElement):
         if name is None: name = "Circle, radius=%.2f m" % radius
         AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
         self.radius = radius
-        self.pupil_diam = pad_factor * 2 * self.radius  # for creating input wavefronts - let's
-        # pad a bit
+        # for creating input wavefronts - let's pad a bit:
+        self.pupil_diam = pad_factor * 2 * self.radius
 
 
     def getPhasor(self, wave):
         """ Compute the transmission inside/outside of the occulter.
         """
         if not isinstance(wave, Wavefront):
-            raise ValueError(
-                "CircularAperture getPhasor must be called with a Wavefront to define the spacing")
+            raise ValueError("CircularAperture getPhasor must be called with a Wavefront "
+                             "to define the spacing")
         assert (wave.planetype == _PUPIL)
 
         y, x = wave.coordinates()
@@ -813,8 +798,7 @@ class CircularAperture(AnalyticOpticalElement):
         self.transmission = np.ones(wave.shape)
         self.transmission[w_outside] = 0
 
-        #_log.debug("Circle: radius = %.3f m = %.3f pixels " % (self.radius,
-        # self.radius/wave.pixelscale))
+        #_log.debug("Circle: radius = %.3f m = %.3f pixels " % (self.radius, self.radius/wave.pixelscale))
         #_log.debug("        center = %f" % (wave.shape[0]/2 ))
         #w_inside = np.where( r <= self.radius)
         #_log.debug("        minx: %d" % w_inside[0].min())
@@ -847,7 +831,8 @@ class HexagonAperture(AnalyticOpticalElement):
         else:
             self.side = float(flattoflat) / np.sqrt(3.)
         self.pupil_diam = 2 * self.side  # for creating input wavefronts
-        if name is None: name = "Hexagon, side length= %.1f m" % self.side
+        if name is None:
+            name = "Hexagon, side length= %.1f m" % self.side
 
         AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
 
@@ -856,8 +841,8 @@ class HexagonAperture(AnalyticOpticalElement):
         """ Compute the transmission inside/outside of the occulter.
         """
         if not isinstance(wave, Wavefront):
-            raise ValueError(
-                "CircularAperture getPhasor must be called with a Wavefront to define the spacing")
+            raise ValueError("HexagonAperture getPhasor must be called with a Wavefront "
+                             "to define the spacing")
         assert (wave.planetype == _PUPIL)
 
         y, x = wave.coordinates()
@@ -865,11 +850,20 @@ class HexagonAperture(AnalyticOpticalElement):
 
         self.transmission = np.zeros(wave.shape)
 
-        w_rect = np.where((np.abs(x) <= 0.5 * self.side) & (absy <= np.sqrt(3) / 2 * self.side))
-        w_left_tri = np.where((x <= -0.5 * self.side) & (x >= -1 * self.side) & (
-        absy <= (x + 1 * self.side) * np.sqrt(3)))
-        w_right_tri = np.where((x >= 0.5 * self.side) & (x <= 1 * self.side) & (
-        absy <= (1 * self.side - x) * np.sqrt(3)))
+        w_rect = np.where(
+            (np.abs(x) <= 0.5 * self.side) &
+            (absy <= np.sqrt(3) / 2 * self.side)
+        )
+        w_left_tri = np.where(
+            (x <= -0.5 * self.side) &
+            (x >= -1 * self.side) &
+            (absy <= (x + 1 * self.side) * np.sqrt(3))
+        )
+        w_right_tri = np.where(
+            (x >= 0.5 * self.side) &
+            (x <= 1 * self.side) &
+            (absy <= (1 * self.side - x) * np.sqrt(3))
+        )
         self.transmission[w_rect] = 1
         self.transmission[w_left_tri] = 1
         self.transmission[w_right_tri] = 1
@@ -944,17 +938,18 @@ class MultiHexagonAperture(AnalyticOpticalElement):
 
     def _hexInRing(self, hex_index):
         """ What ring is a given hexagon in?"""
-        interior_rings = 0
-        if hex_index == 0: return 0
+        if hex_index == 0:
+            return 0
         for i in range(100):
-            if self._nHexesInsideRing(i) <= hex_index and self._nHexesInsideRing(i + 1) > hex_index:
+            if self._nHexesInsideRing(i) <= hex_index < self._nHexesInsideRing(i + 1):
                 return i
         return "Loop exceeded!"
 
     def _hexRadius(self, hex_index):
-        " Radius of a given hexagon from the center "
+        """ Radius of a given hexagon from the center """
         ring = self._hexInRing(hex_index)
-        if ring <= 1: return (self.flattoflat + self.gap) * ring
+        if ring <= 1:
+            return (self.flattoflat + self.gap) * ring
 
     def _hexCenter(self, hex_index):
         """ Center coordinates of a given hexagon 
@@ -980,8 +975,7 @@ class MultiHexagonAperture(AnalyticOpticalElement):
             if np.mod(index_in_ring, 2) == 1:
                 radius = (self.flattoflat + self.gap) * ring  # JWST 'B' segments
             else:
-                radius = radius = self.side * 3 + self.gap * np.sqrt(
-                    3.) / 2 * 2  # JWST 'C' segments
+                radius = self.side * 3 + self.gap * np.sqrt(3.) / 2 * 2  # JWST 'C' segments
             angle = angle_per_hex * (index_in_ring - 1)
         elif ring == 3:
             if np.mod(index_in_ring, ring) == 1:
@@ -990,8 +984,7 @@ class MultiHexagonAperture(AnalyticOpticalElement):
             else:  # C-like segments (in pairs)
                 ypos = 2.5 * (self.flattoflat + self.gap)
                 xpos = 1.5 * self.side + self.gap * np.sqrt(3) / 4
-                radius = np.sqrt(
-                    xpos ** 2 + ypos ** 2)  # (self.flattoflat+self.gap) * ring # JWST 'B' segments
+                radius = np.sqrt(xpos ** 2 + ypos ** 2)
                 Cangle = np.arctan2(xpos, ypos)
 
                 if np.mod(index_in_ring, 3) == 2:
@@ -999,12 +992,12 @@ class MultiHexagonAperture(AnalyticOpticalElement):
                     angle = last_B_angle + Cangle * np.mod(index_in_ring - 1, 3)
                 else:
                     next_B_angle = (((index_in_ring - 1) // 3) * 3 + 3) * angle_per_hex
-                    angle = next_B_angle - Cangle  #* np.mod(index_in_ring-1,3)
+                    angle = next_B_angle - Cangle
                 xpos = None
         else:  # generalized code!
             # the above are actuall now redundant given that this exists, but
-            # I'll leave them alone for now. 
-
+            # I'll leave them alone for now.
+            # TODO:jlong: remove redundant code paths?
             whichside = (index_in_ring - 1) // ring  # which of the sides are we on?
 
             if np.mod(index_in_ring, ring) == 1:
@@ -1073,11 +1066,20 @@ class MultiHexagonAperture(AnalyticOpticalElement):
         x -= cenx
         absy = np.abs(y)
 
-        w_rect = np.where((np.abs(x) <= 0.5 * self.side) & (absy <= np.sqrt(3) / 2 * self.side))
-        w_left_tri = np.where((x <= -0.5 * self.side) & (x >= -1 * self.side) & (
-        absy <= (x + 1 * self.side) * np.sqrt(3)))
-        w_right_tri = np.where((x >= 0.5 * self.side) & (x <= 1 * self.side) & (
-        absy <= (1 * self.side - x) * np.sqrt(3)))
+        w_rect = np.where(
+            (np.abs(x) <= 0.5 * self.side) &
+            (absy <= np.sqrt(3) / 2 * self.side)
+        )
+        w_left_tri = np.where(
+            (x <= -0.5 * self.side) &
+            (x >= -1 * self.side) &
+            (absy <= (x + 1 * self.side) * np.sqrt(3))
+        )
+        w_right_tri = np.where(
+            (x >= 0.5 * self.side) &
+            (x <= 1 * self.side) &
+            (absy <= (1 * self.side - x) * np.sqrt(3))
+        )
 
         #val = np.sqrt(float(index)) if self._label_values else 1
         val = 1
@@ -1118,9 +1120,10 @@ class NgonAperture(AnalyticOpticalElement):
         y, x = wave.coordinates()
 
         phase = self.rotation * np.pi / 180
-        vertices = np.array([[np.cos(i * 2 * np.pi / self.nsides + phase),
-                              np.sin(i * 2 * np.pi / self.nsides + phase)] for i in
-                             range(self.nsides)], float)
+        vertices = np.zeros((self.nsides, 2), dtype=np.float64)
+        for i in range(self.nsides):
+            vertices[i] = [np.cos(i * 2 * np.pi / self.nsides + phase),
+                           np.sin(i * 2 * np.pi / self.nsides + phase)]
 
         self.transmission = np.zeros(wave.shape)
         for row in range(wave.shape[0]):
@@ -1152,12 +1155,11 @@ class RectangleAperture(AnalyticOpticalElement):
         self.width = width
         self.height = height
         self.rotation = rotation
-        if name is None: name = "Rectangle, size= {s.width:.1f} m wide * {s.height:.1f} m " \
-                                "high".format(
-            s=self)
+        if name is None:
+            name = "Rectangle, size= {s.width:.1f} m wide * {s.height:.1f} m high".format(s=self)
         AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
-        self.pupil_diam = np.sqrt(
-            self.height ** 2 + self.width ** 2)  # for creating input wavefronts
+        # for creating input wavefronts:
+        self.pupil_diam = np.sqrt(self.height ** 2 + self.width ** 2)
 
     def getPhasor(self, wave):
         """ Compute the transmission inside/outside of the occulter.
@@ -1176,7 +1178,10 @@ class RectangleAperture(AnalyticOpticalElement):
             x = xp
             y = yp
 
-        w_outside = np.where((abs(y) > (self.height / 2)) | (abs(x) > (self.width / 2)))
+        w_outside = np.where(
+            (abs(y) > (self.height / 2)) |
+            (abs(x) > (self.width / 2))
+        )
         del y
         del x
 
@@ -1202,8 +1207,9 @@ class SquareAperture(RectangleAperture):
 
     def __init__(self, name=None, size=1.0, **kwargs):
         self._size = size
-        if name is None: name = "Square, side length= %.1f m" % size * 2
-        RectangleAperture.__init__(self, width=size, height=size, **kwargs)
+        if name is None:
+            name = "Square, side length= %.1f m" % size * 2
+        RectangleAperture.__init__(self, name=name, width=size, height=size, **kwargs)
         self.size = size
         self.pupil_diam = 2 * self.size  # for creating input wavefronts
 
@@ -1241,15 +1247,16 @@ class SecondaryObscuration(AnalyticOpticalElement):
 
     def __init__(self, name=None, secondary_radius=0.5, n_supports=4, support_width=0.01,
                  support_angle_offset=0.0, **kwargs):
-        if name is None: name = "Secondary Obscuration with {0} supports".format(n_supports)
+        if name is None:
+            name = "Secondary Obscuration with {0} supports".format(n_supports)
         AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
         self.secondary_radius = secondary_radius
         self.n_supports = n_supports
         self.support_width = support_width
         self.support_angle_offset = support_angle_offset
 
-        self.pupil_diam = 4 * self.secondary_radius  # for creating input wavefronts if this is
-        # the first optic in a opticalsystem
+        # for creating input wavefronts if this is the first optic in a opticalsystem:
+        self.pupil_diam = 4 * self.secondary_radius
 
     def getPhasor(self, wave):
         """ Compute the transmission inside/outside of the obscuration
@@ -1296,11 +1303,12 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
         Widths in meters. Default is 0.01 m = 1 cm.
     """
 
-    def __init__(self, support_angle=[0, 90, 240], support_width=0.01, **kwargs):
+    def __init__(self, support_angle=(0, 90, 240), support_width=0.01, **kwargs):
         SecondaryObscuration.__init__(self, n_supports=len(support_angle), **kwargs)
 
         self.support_angle = np.asarray(support_angle)
-        if np.isscalar(support_width): support_width = np.zeros(len(support_angle)) + support_width
+        if np.isscalar(support_width):
+            support_width = np.zeros(len(support_angle)) + support_width
         self.support_width = support_width
 
     def getPhasor(self, wave):
@@ -1332,6 +1340,19 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
         return self.transmission
 
 
+def _guess_pupil_radius(wave, rho):
+    _log.warn("No pupil radius specified, using a heuristic to guess the radius where "
+              "rho = 1 for Zernike computation.")
+    intensity_cutoff = (np.min(wave.intensity) +
+                        0.01 * (np.max(wave.intensity) - np.min(wave.intensity)))
+    _log.warn("Intensity cutoff for illuminated pupil pixels: >{:.3e} ({}% of max)".format(
+        intensity_cutoff, 100 * intensity_cutoff / np.max(wave.intensity)
+    ))
+    max_rho = rho[np.where(wave.intensity > intensity_cutoff)].max()
+    _log.warn("Estimated pupil radius = {:.3f} m".format(max_rho))
+    return max_rho
+
+
 class ThinLens(AnalyticOpticalElement):
     """ An idealized thin lens, implemented as a Zernike defocus term.
 
@@ -1360,34 +1381,16 @@ class ThinLens(AnalyticOpticalElement):
         r = np.sqrt(x ** 2 + y ** 2)
         # get the normalized radius, assuming the input wave
         # is a square
-        #if wave.shape[0] != wave.shape[1]:
-        #raise NotImplemented("ThinLens only implemented for square wavefronts.")
-        max_r = r[np.where(wave.intensity > 0)].max()
+        max_r = _guess_pupil_radius(wave, r)
         r_norm = r / max_r
-        #r_norm = r / (wave.shape[0]/2.*wave.pixelscale)
 
-        #defocus_zernike = np.sqrt(3)* (2* r_norm**2 - 1)  *  (self.nwaves
-        # *self.reference_wavelength/wave.wavelength)
         # don't forget the factor of 0.5 to make the scaling factor apply as peak-to-valley
         # rather than center-to-peak
-        defocus_zernike = (2 * r_norm ** 2 - 1) * (
-        0.5 * self.nwaves * self.reference_wavelength / wave.wavelength)
+        defocus_zernike = ((2 * r_norm ** 2 - 1) *
+                           (0.5 * self.nwaves * self.reference_wavelength / wave.wavelength))
         lens_phasor = np.exp(1.j * 2 * np.pi * defocus_zernike)
-        #stop()
+
         return lens_phasor
-
-
-def _guess_pupil_radius(wave, rho):
-    _log.warn("No pupil radius specified, using a heuristic to guess the radius where "
-              "rho = 1 for Zernike computation.")
-    intensity_cutoff = (np.min(wave.intensity) +
-                        0.01 * (np.max(wave.intensity) - np.min(wave.intensity)))
-    _log.warn("Intensity cutoff for illuminated pupil pixels: >{:.3e} ({}% of max)".format(
-        intensity_cutoff, 100 * intensity_cutoff / np.max(wave.intensity)
-    ))
-    max_rho = rho[np.where(wave.intensity > intensity_cutoff)].max()
-    _log.warn("Estimated pupil radius = {:.3f} m".format(max_rho))
-    return max_rho
 
 
 class ZernikeOptic(AnalyticOpticalElement):
@@ -1481,6 +1484,7 @@ class ZernikeThinLens(AnalyticOpticalElement):
         lens_phasor = np.exp(1.j * 2 * np.pi * scale_factor * defocus_zernike)
         return lens_phasor
 
+
 #------ generic analytic optics ------
 
 class CompoundAnalyticOptic(AnalyticOpticalElement):
@@ -1502,6 +1506,19 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
 
     """
 
+    def _validate_only_analytic_optics(self, optics_list):
+        for optic in optics_list:
+            if isinstance(optic, AnalyticOpticalElement):
+                continue  # analytic elements are allowed
+            elif isinstance(optic, InverseTransmission):
+                if isinstance(optic.uninverted_optic, AnalyticOpticalElement):
+                    continue  # inverted elements are allowed, as long as they're analytic elements
+                else:
+                    return False  # inverted non-analytic elements aren't allowed, skip the rest
+            else:
+                return False  # no other types allowed, skip the rest of the list
+        return True
+
     def __init__(self, opticslist=None, name="unnamed", verbose=True, **kwargs):
         if opticslist is None:
             raise ValueError("Missing required opticslist argument to CompoundAnalyticOptic")
@@ -1511,14 +1528,11 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
         self.opticslist = []
         self._default_display_size = 3
         self.planetype = None
-        for optic in opticslist:
 
-            if not (isinstance(optic, AnalyticOpticalElement)
-                    or (
-                    isinstance(optic, InverseTransmission) and isinstance(optic.uninverted_optic,
-                                                                          AnalyticOpticalElement))):  #an inverted analytic element is also OK here
-                raise ValueError(
-                    "Supplied optics list to CompoundAnalyticOptic can only contain AnalyticOptics")
+        for optic in opticslist:
+            if not self._validate_only_analytic_optics(opticslist):
+                raise ValueError("Supplied optics list to CompoundAnalyticOptic can "
+                                 "only contain AnalyticOptics")
             else:
                 # if we are adding the first optic in the list, check what type of optical plane
                 # it has
@@ -1526,9 +1540,8 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
                 if len(self.opticslist) == 0:
                     self.planetype = optic.planetype
                 elif self.planetype != optic.planetype:
-                    raise ValueError(
-                        "Cannot mix image plane and pupil plane optics in the same "
-                        "CompoundAnalyticOptic")
+                    raise ValueError("Cannot mix image plane and pupil plane optics in "
+                                     "the same CompoundAnalyticOptic")
 
                 self.opticslist.append(optic)
                 if hasattr(optic, '_default_display_size'):
