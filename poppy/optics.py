@@ -1365,23 +1365,31 @@ class ThinLens(AnalyticOpticalElement):
         over the region of the pupil that has nonzero input intensity.
     reference_wavelength : float
         Wavelength, in meters, at which that number of waves of defocus is specified. 
-
+    pupil_radius : float
+        Pupil radius, in meters, over which the Zernike defocus term should be computed
+        such that rho = 1 at r = pupil_radius. Default is None, which falls back on
+        guessing the pupil radius from the incoming wavefront. (Note: this is provided
+        for backward compatibility, and it is recommended to specify pupil_radius directly.)
     """
 
-    def __init__(self, name='Thin lens', nwaves=4.0, reference_wavelength=2e-6, **kwargs):
+    def __init__(self, name='Thin lens', nwaves=4.0, reference_wavelength=2e-6,
+                 pupil_radius=None, **kwargs):
         AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
 
         self.reference_wavelength = reference_wavelength
         self.nwaves = nwaves
         self.max_phase_delay = reference_wavelength * nwaves
-
+        self.pupil_radius = pupil_radius
 
     def getPhasor(self, wave):
         y, x = wave.coordinates()
         r = np.sqrt(x ** 2 + y ** 2)
         # get the normalized radius, assuming the input wave
         # is a square
-        max_r = _guess_pupil_radius(wave, r)
+        if self.pupil_radius is None:
+            max_r = _guess_pupil_radius(wave, r)
+        else:
+            max_r = self.pupil_radius
         r_norm = r / max_r
 
         # don't forget the factor of 0.5 to make the scaling factor apply as peak-to-valley
