@@ -1457,9 +1457,8 @@ class ZernikeOptic(AnalyticOpticalElement):
         combined_zernikes = np.zeros(wave.shape, dtype=np.float64)
         for n, m, k in self.coefficients:
             combined_zernikes += k * zernike.zernike(n, m, r=rho, theta=theta, mask_outside=False)
-
-        lens_phasor = np.exp(1.j * 2 * np.pi * combined_zernikes)
-
+        opd_as_phase = 2 * np.pi * combined_zernikes / wave.wavelength
+        lens_phasor = np.exp(1.j * opd_as_phase)
         return lens_phasor
 
 
