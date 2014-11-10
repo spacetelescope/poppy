@@ -1399,6 +1399,66 @@ class ThinLens(AnalyticOpticalElement):
         return lens_phasor
 
 
+def temp_zernike_basis_factory(n, m, k, wave=None, pupil_radius=None):
+    assert wave is not None, "Called without input wavefront!"
+    assert pupil_radius is not None, "Called without explicit pupil_radius!"
+    y, x = wave.coordinates()
+    r = np.sqrt(x ** 2 + y ** 2)
+    rho = r / pupil_radius
+    theta = np.arctan2(y / pupil_radius, x / pupil_radius)
+
+    opd = k * zernike.zernike(n, m, r=rho, theta=theta, mask_outside=False)
+    return opd
+
+
+
+class ParameterizedDistortion(AnalyticOpticalElement):
+    """
+    Define an optical element in terms of its distortion as decomposed into a set or orthonormal
+    basis functions (e.g. Zernikes, Hexikes, etc.). Included basis functions are normalized
+    such that user-provided coefficients correspond to meters RMS wavefront aberration for that
+    basis function.
+
+    Parameters
+    ----------
+    params : iterable of tuples
+        Each tuple in `params` will be passed as positional arguments to the `basis_factory`
+        callable
+    pupil_radius : float
+        Pupil radius, in meters. Provided to the `basis_factory` callable to enable normalizing
+        to the size of the pupil.
+    basis_factory : callable
+        basis_factory will be called with each tuple from `params` as positional arguments,
+        as well as keyword arguments `wave` (the input Wavefront in the pupil domain) and
+        `pupil_radius` (the maximum radius of the pupil).
+
+        It must return a `numpy.array` shaped like `wave.shape`, containing OPD in meters
+        for the basis element specified by the corresponding params tuple.
+    """
+    def __init__(self, name="Parameterized Distortion", params=None, pupil_radius=None,
+                 basis_factory=None, **kwargs):
+        if basis_factory is None:
+            raise ValueError("'basis_factory' must be a callable that can "
+                             "calculate basis functions")
+        self.pupil_radius = pupil_radius
+        self.params = params
+        self.basis_factory = basis_factory
+        AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
+
+    def getPhasor(self, wave):
+        combined_distortion = np.zeros(wave.shape, dtype=np.float64)
+        for parameters in self.params:
+            combined_distortion += self.basis_factory(
+                *parameters,
+                wave=wave,
+                pupil_radius=self.pupil_radius
+            )
+
+        opd_as_phase = 2 * np.pi * combined_distortion / wave.wavelength
+        return np.exp(1.0j * opd_as_phase)
+
+
+
 class ZernikeOptic(AnalyticOpticalElement):
     """
     Define an optical element in terms of its Zernike components by providing coefficients
