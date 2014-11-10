@@ -1340,7 +1340,7 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
 
 def _guess_pupil_radius(wave, rho):
     _log.warn("No pupil radius specified, using a heuristic to guess the radius where "
-              "rho = 1 for Zernike computation.")
+              "rho = 1 for polar distortion polynomial computation.")
     intensity_cutoff = (np.min(wave.intensity) +
                         0.01 * (np.max(wave.intensity) - np.min(wave.intensity)))
     _log.warn("Intensity cutoff for illuminated pupil pixels: >{:.3e} ({}% of max)".format(
@@ -1411,7 +1411,6 @@ def temp_zernike_basis_factory(n, m, k, wave=None, pupil_radius=None):
     return opd
 
 
-
 class ParameterizedDistortion(AnalyticOpticalElement):
     """
     Define an optical element in terms of its distortion as decomposed into a set or orthonormal
@@ -1421,43 +1420,72 @@ class ParameterizedDistortion(AnalyticOpticalElement):
 
     Parameters
     ----------
-    params : iterable of tuples
-        Each tuple in `params` will be passed as positional arguments to the `basis_factory`
-        callable
+    coefficients : iterable of numbers
+        The contribution of each term to the final distortion, in meters RMS wavefront error.
+        The coefficients are interpreted as indices in the order of Noll et al. 1976: the first
+        term corresponds to j=1, second to j=2, and so on.
     pupil_radius : float
-        Pupil radius, in meters. Provided to the `basis_factory` callable to enable normalizing
-        to the size of the pupil.
+        Pupil radius, in meters. Defines the region of the input wavefront array over which
+        the distortion terms will be evaluated. For non-circular pupils, this should be the
+        circle circumscribing the actual pupil shape.
     basis_factory : callable
-        basis_factory will be called with each tuple from `params` as positional arguments,
-        as well as keyword arguments `wave` (the input Wavefront in the pupil domain) and
-        `pupil_radius` (the maximum radius of the pupil).
-
-        It must return a `numpy.array` shaped like `wave.shape`, containing OPD in meters
-        for the basis element specified by the corresponding params tuple.
+        basis_factory will be called with the arguments `nterms` and `npix`. `nterms` specifies
+        how many terms to compute, starting with the j=1 term in the Noll indexing convention
+        for `nterms` = 1 and counting up. `npix` is the side length in pixels of a square array
+        over which the function should be evaluated. (`npix` pixels are equivalent to
+        `pupil_radius` meters in the pupil plane.)
     """
-    def __init__(self, name="Parameterized Distortion", params=None, pupil_radius=None,
+    def __init__(self, name="Parameterized Distortion", coefficients=None, pupil_radius=None,
                  basis_factory=None, **kwargs):
         if basis_factory is None:
             raise ValueError("'basis_factory' must be a callable that can "
                              "calculate basis functions")
+        if pupil_radius is None:
+            raise ValueError("'pupil_radius' must be the radius of a circular aperture in"
+                             "meters (optionally circumscribing a pupil of another shape)")
         self.pupil_radius = pupil_radius
-        self.params = params
+        self.coefficients = coefficients
         self.basis_factory = basis_factory
         AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
 
     def getPhasor(self, wave):
-        combined_distortion = np.zeros(wave.shape, dtype=np.float64)
-        for parameters in self.params:
-            combined_distortion += self.basis_factory(
-                *parameters,
-                wave=wave,
-                pupil_radius=self.pupil_radius
-            )
+        # get extent of illuminated pupil in pixels
+        y, x = wave.coordinates()
+        illuminated_x_idxs = np.argwhere(np.abs(x) <= self.pupil_radius)[:, 1]  # take x part
+        illuminated_y_idxs = np.argwhere(np.abs(y) <= self.pupil_radius)[:, 0]  # take y part
+        min_idx = min(np.min(illuminated_x_idxs), np.min(illuminated_y_idxs))
+        max_idx = max(np.max(illuminated_x_idxs), np.max(illuminated_y_idxs))
 
-        opd_as_phase = 2 * np.pi * combined_distortion / wave.wavelength
+        # square array that neatly covers the pixels within the pupil
+        combined_distortion = np.zeros((max_idx - min_idx + 1, max_idx - min_idx + 1))
+
+        nterms = len(self.coefficients)
+        computed_terms = self.basis_factory(nterms=nterms, npix=combined_distortion.shape[0])
+
+        for idx, coefficient in enumerate(self.coefficients):
+            combined_distortion += coefficient * computed_terms[idx]
+
+        # zero-padding to match size of distortion array with size of wave array
+        wavefront_error = np.zeros(wave.shape, dtype=np.float64)
+        wavefront_error[min_idx:max_idx + 1, min_idx:max_idx + 1] = combined_distortion
+
+        opd_as_phase = 2 * np.pi * wavefront_error / wave.wavelength
         return np.exp(1.0j * opd_as_phase)
 
 
+def _wave_to_rho_theta(wave, pupil_radius=None):
+    y, x = wave.coordinates()
+    r = np.sqrt(x ** 2 + y ** 2)
+
+    if pupil_radius is None:
+        max_r = _guess_pupil_radius(wave, r)
+        rho = r / max_r
+        theta = np.arctan2(y / max_r, x / max_r)
+    else:
+        rho = r / self.pupil_radius
+        theta = np.arctan2(y / pupil_radius, x / pupil_radius)
+
+    return rho, theta
 
 class ZernikeOptic(AnalyticOpticalElement):
     """

@@ -146,7 +146,6 @@ def zernike(n, m, npix=100, r=None, theta=None, mask_outside=True,
     if theta is None:
 
         x = (np.arange(npix, dtype=np.float64) - (npix - 1) / 2.) / ((npix - 1) / 2.)
-        _log.warn("coords range for zern: {} to {}".format(np.min(x), np.max(x)))
         y = x
         xx, yy = np.meshgrid(x, y)
 
