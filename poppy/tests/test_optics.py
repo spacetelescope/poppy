@@ -296,13 +296,24 @@ def test_ThinLens(display=False):
     assert np.abs(wave.phase[wave.intensity> 0].max() - np.pi/2) < 1e-6
     assert np.abs(wave.phase[wave.intensity> 0].min() + np.pi/2) < 1e-6
 
-    
-    return wave
- 
-#    osys = poppy_core.OpticalSystem()
-#
-#    osys.addDetector(pixelscale=0.030,fov_pixels=512, oversample=1)
-#    if display: osys.display()
-#    numeric = osys.calcPSF(wavelength=1.0e-6, display=False)
-#
+    osys = poppy_core.OpticalSystem()
+    osys.addPupil(optics.CircularAperture(radius=1))
+    for i in range(10):
+        osys.addImage()
+        osys.addPupil()
 
+    osys.addPupil(optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6))
+    osys.addDetector(pixelscale=0.01, fov_arcsec=3.0)
+    psf = osys.calcPSF(wavelength=1e-6)
+
+    osys2 = poppy_core.OpticalSystem()
+    osys2.addPupil(optics.CircularAperture(radius=1))
+    osys2.addPupil(optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6))
+    osys2.addDetector(pixelscale=0.01, fov_arcsec=3.0)
+    psf2 = osys2.calcPSF()
+
+    THRESHOLD = 1e-19
+    assert np.std(psf[0].data - psf2[0].data) < THRESHOLD, (
+        "ThinLens shouldn't be affected by null optical elements! Introducing extra image planes "
+        "raised std(psf_with_extras - psf_without_extras) above {}".format(THRESHOLD)
+    )
