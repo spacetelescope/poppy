@@ -1390,25 +1390,18 @@ class ThinLens(AnalyticOpticalElement):
             max_r = self.pupil_radius
         r_norm = r / max_r
 
+        # the thin lens, being circular, is implicitly also a circular aperture:
+        aperture = CircularAperture(radius=max_r)
+        aperture_intensity = aperture.getPhasor(wave)
+
         # don't forget the factor of 0.5 to make the scaling factor apply as peak-to-valley
         # rather than center-to-peak
         defocus_zernike = ((2 * r_norm ** 2 - 1) *
                            (0.5 * self.nwaves * self.reference_wavelength / wave.wavelength))
-        lens_phasor = np.exp(1.j * 2 * np.pi * defocus_zernike)
+
+        lens_phasor = np.exp(1.j * 2 * np.pi * defocus_zernike * aperture_intensity)
 
         return lens_phasor
-
-
-def temp_zernike_basis_factory(n, m, k, wave=None, pupil_radius=None):
-    assert wave is not None, "Called without input wavefront!"
-    assert pupil_radius is not None, "Called without explicit pupil_radius!"
-    y, x = wave.coordinates()
-    r = np.sqrt(x ** 2 + y ** 2)
-    rho = r / pupil_radius
-    theta = np.arctan2(y / pupil_radius, x / pupil_radius)
-
-    opd = k * zernike.zernike(n, m, r=rho, theta=theta, mask_outside=False)
-    return opd
 
 
 class ParameterizedDistortion(AnalyticOpticalElement):
@@ -1429,11 +1422,13 @@ class ParameterizedDistortion(AnalyticOpticalElement):
         the distortion terms will be evaluated. For non-circular pupils, this should be the
         circle circumscribing the actual pupil shape.
     basis_factory : callable
-        basis_factory will be called with the arguments `nterms` and `npix`. `nterms` specifies
-        how many terms to compute, starting with the j=1 term in the Noll indexing convention
-        for `nterms` = 1 and counting up. `npix` is the side length in pixels of a square array
-        over which the function should be evaluated. (`npix` pixels are equivalent to
-        `pupil_radius` meters in the pupil plane.)
+        basis_factory will be called with the arguments `nterms`, `rho`, and `theta`.
+        `nterms` specifies how many terms to compute, starting with the j=1 term in the
+        Noll indexing convention for `nterms` = 1 and counting up. `rho` and `theta` are square
+        arrays holding the rho and theta coordinates at each pixel in the pupil plane.
+
+        `rho` is normalized such that `rho` == 1.0 for pixels at `pupil_radius` meters from
+        the center.
     """
     def __init__(self, name="Parameterized Distortion", coefficients=None, pupil_radius=None,
                  basis_factory=None, **kwargs):
@@ -1448,28 +1443,43 @@ class ParameterizedDistortion(AnalyticOpticalElement):
         self.basis_factory = basis_factory
         AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
 
+    def _wave_to_rho_theta(self, wave):
+        y, x = wave.coordinates()
+        r = np.sqrt(x ** 2 + y ** 2)
+
+        if self.pupil_radius is None:
+            max_r = _guess_pupil_radius(wave, r)
+        else:
+            max_r = self.pupil_radius
+        rho = r / max_r
+        theta = np.arctan2(y / max_r, x / max_r)
+
+        return rho, theta, max_r
+
     def getPhasor(self, wave):
         # get extent of illuminated pupil in pixels
         y, x = wave.coordinates()
-        illuminated_x_idxs = np.argwhere(np.abs(x) <= self.pupil_radius)[:, 1]  # take x part
-        illuminated_y_idxs = np.argwhere(np.abs(y) <= self.pupil_radius)[:, 0]  # take y part
-        min_idx = min(np.min(illuminated_x_idxs), np.min(illuminated_y_idxs))
-        max_idx = max(np.max(illuminated_x_idxs), np.max(illuminated_y_idxs))
+        # illuminated_x_idxs = np.argwhere(np.abs(x) <= self.pupil_radius)[:, 1]  # take x part
+        # illuminated_y_idxs = np.argwhere(np.abs(y) <= self.pupil_radius)[:, 0]  # take y part
+        # min_idx = min(np.min(illuminated_x_idxs), np.min(illuminated_y_idxs))
+        # max_idx = max(np.max(illuminated_x_idxs), np.max(illuminated_y_idxs))
 
         # square array that neatly covers the pixels within the pupil
-        combined_distortion = np.zeros((max_idx - min_idx + 1, max_idx - min_idx + 1))
+        # combined_distortion = np.zeros((max_idx - min_idx + 1, max_idx - min_idx + 1))
+        rho, theta, _ = self._wave_to_rho_theta(wave)
+        combined_distortion = np.zeros(rho.shape)
 
         nterms = len(self.coefficients)
-        computed_terms = self.basis_factory(nterms=nterms, npix=combined_distortion.shape[0])
+        computed_terms = self.basis_factory(nterms=nterms, rho=rho, theta=theta)
 
         for idx, coefficient in enumerate(self.coefficients):
             combined_distortion += coefficient * computed_terms[idx]
 
         # zero-padding to match size of distortion array with size of wave array
-        wavefront_error = np.zeros(wave.shape, dtype=np.float64)
-        wavefront_error[min_idx:max_idx + 1, min_idx:max_idx + 1] = combined_distortion
+        # wavefront_error = np.zeros(wave.shape, dtype=np.float64)
+        # wavefront_error[min_idx:max_idx + 1, min_idx:max_idx + 1] = combined_distortion
 
-        opd_as_phase = 2 * np.pi * wavefront_error / wave.wavelength
+        opd_as_phase = 2 * np.pi * combined_distortion / wave.wavelength
         return np.exp(1.0j * opd_as_phase)
 
 
@@ -1486,6 +1496,7 @@ def _wave_to_rho_theta(wave, pupil_radius=None):
         theta = np.arctan2(y / pupil_radius, x / pupil_radius)
 
     return rho, theta
+
 
 class ZernikeOptic(AnalyticOpticalElement):
     """
@@ -1532,19 +1543,26 @@ class ZernikeOptic(AnalyticOpticalElement):
 
         if self.pupil_radius is None:
             max_r = _guess_pupil_radius(wave, r)
-            rho = r / max_r
-            theta = np.arctan2(y / max_r, x / max_r)
         else:
-            rho = r / self.pupil_radius
-            theta = np.arctan2(y / self.pupil_radius, x / self.pupil_radius)
+            max_r = self.pupil_radius
+        rho = r / max_r
+        theta = np.arctan2(y / max_r, x / max_r)
 
-        return rho, theta
+        return rho, theta, max_r
 
     def getPhasor(self, wave):
-        rho, theta = self._wave_to_rho_theta(wave)
+        rho, theta, pupil_radius = self._wave_to_rho_theta(wave)
+        # the zernike optic, being circular, is implicitly also a circular aperture:
+        aperture = CircularAperture(radius=pupil_radius)
+        aperture_intensity = aperture.getPhasor(wave)
+
         combined_zernikes = np.zeros(wave.shape, dtype=np.float64)
         for n, m, k in self.coefficients:
-            combined_zernikes += k * zernike.zernike(n, m, r=rho, theta=theta, mask_outside=False)
+            combined_zernikes += k * zernike.zernike(n, m, rho=rho, theta=theta,
+                                                     mask_outside=True, outside=0.0)
+
+        combined_zernikes *= aperture_intensity
+
         opd_as_phase = 2 * np.pi * combined_zernikes / wave.wavelength
         lens_phasor = np.exp(1.j * opd_as_phase)
         return lens_phasor

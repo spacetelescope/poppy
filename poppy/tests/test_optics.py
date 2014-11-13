@@ -7,6 +7,7 @@ import astropy.io.fits as fits
 
 from .. import poppy_core 
 from .. import optics
+from .. import zernike
 from .test_core import check_wavefront
 
 
@@ -282,7 +283,6 @@ def test_AsymmetricObscuredAperture(display=False):
         utils.display_PSF(numeric, vmin=1e-8, vmax=1e-2, colorbar=False)
         #pl.title("Numeric")
 
-#
 
 def test_ThinLens(display=False):
 
@@ -296,6 +296,8 @@ def test_ThinLens(display=False):
     assert np.abs(wave.phase[wave.intensity> 0].max() - np.pi/2) < 1e-6
     assert np.abs(wave.phase[wave.intensity> 0].min() + np.pi/2) < 1e-6
 
+    # test to ensure null optical elements don't change ThinLens behavior
+    # https://github.com/mperrin/poppy/issues/14
     osys = poppy_core.OpticalSystem()
     osys.addPupil(optics.CircularAperture(radius=1))
     for i in range(10):
@@ -317,3 +319,67 @@ def test_ThinLens(display=False):
         "ThinLens shouldn't be affected by null optical elements! Introducing extra image planes "
         "raised std(psf_with_extras - psf_without_extras) above {}".format(THRESHOLD)
     )
+
+def test_ZernikeOptic():
+    # verify that we can reproduce the same behavior as ThinLens
+    # using ZernikeOptic
+    NWAVES = 0.5
+    WAVELENGTH = 1e-6
+    RADIUS = 1.0
+
+    pupil = optics.CircularAperture(radius=1)
+    lens = optics.ThinLens(nwaves=NWAVES, reference_wavelength=WAVELENGTH, pupil_radius=RADIUS)
+    tl_wave = poppy_core.Wavefront(npix=101, diam=3.0, wavelength=WAVELENGTH)  # 10x10 meter square
+    tl_wave *= pupil
+    tl_wave *= lens
+
+    zern_wave = poppy_core.Wavefront(npix=101, diam=3.0, wavelength=WAVELENGTH)  # 10x10 meter square
+    zernike_lens = optics.ZernikeOptic(
+        coefficients=[
+            (2, 0, NWAVES * WAVELENGTH / (2 * np.sqrt(3))),
+        ],
+        pupil_radius=RADIUS
+    )
+    zern_wave *= pupil
+    zern_wave *= zernike_lens
+
+    stddev = np.std(zern_wave.phase - tl_wave.phase)
+
+    assert stddev < 1e-16, ("ZernikeOptic disagrees with ThinLens! stddev {}".format(stddev))
+
+def test_ParameterizedDistortion():
+    # verify that we can reproduce the same behavior as ZernikeOptic
+    # using ParameterizedDistortion
+    NWAVES = 0.5
+    WAVELENGTH = 1e-6
+    RADIUS = 1.0
+
+    pupil = optics.CircularAperture(radius=1)
+
+    zern_wave = poppy_core.Wavefront(npix=101, diam=3.0, wavelength=1e-6)  # 10x10 meter square
+    zernike_lens = optics.ZernikeOptic(
+        coefficients=[
+            (2, 0, NWAVES * WAVELENGTH / (2 * np.sqrt(3))),
+            (1, -1, 2e-7),
+            (2, 2, 3e-8)
+        ],
+        pupil_radius=RADIUS
+    )
+    zern_wave *= pupil
+    zern_wave *= zernike_lens
+
+    parameterized_distortion = optics.ParameterizedDistortion(
+        coefficients=[0, 0, 2e-7, NWAVES * WAVELENGTH / (2 * np.sqrt(3)), 0, 3e-8],
+        basis_factory=zernike.zernike_basis,
+        pupil_radius=RADIUS
+    )
+
+    pd_wave = poppy_core.Wavefront(npix=101, diam=3.0, wavelength=1e-6) # 10x10 meter square
+    pd_wave *= pupil
+    pd_wave *= parameterized_distortion
+
+    stddev = np.std(pd_wave.phase - zern_wave.phase)
+
+    assert stddev < 1e-16, ("ParameterizedDistortion disagrees with "
+                            "ZernikeOptic! stddev {}".format(stddev))
+
