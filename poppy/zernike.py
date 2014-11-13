@@ -384,8 +384,7 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None, vertical=False, **kw
     # precompute zernikes
     Z = np.zeros((nterms + 1,) + shape)
     Z[1:] = zernike_basis(nterms=nterms, npix=npix, rho=rho, theta=theta)
-    # for j in range(nterms + 1):
-    #     Z.append(zernike1(j + 1, npix=npix, rho=rho, theta=theta, mask_outside=True, outside=0.))
+
 
     G = [np.zeros(shape), np.ones(shape)]  # array of G_i etc. intermediate fn
     H = [np.zeros(shape), np.ones(shape) * aperture]  # array of hexikes

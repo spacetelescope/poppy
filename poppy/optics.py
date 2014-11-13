@@ -1459,13 +1459,8 @@ class ParameterizedDistortion(AnalyticOpticalElement):
     def getPhasor(self, wave):
         # get extent of illuminated pupil in pixels
         y, x = wave.coordinates()
-        # illuminated_x_idxs = np.argwhere(np.abs(x) <= self.pupil_radius)[:, 1]  # take x part
-        # illuminated_y_idxs = np.argwhere(np.abs(y) <= self.pupil_radius)[:, 0]  # take y part
-        # min_idx = min(np.min(illuminated_x_idxs), np.min(illuminated_y_idxs))
-        # max_idx = max(np.max(illuminated_x_idxs), np.max(illuminated_y_idxs))
 
         # square array that neatly covers the pixels within the pupil
-        # combined_distortion = np.zeros((max_idx - min_idx + 1, max_idx - min_idx + 1))
         rho, theta, _ = self._wave_to_rho_theta(wave)
         combined_distortion = np.zeros(rho.shape)
 
@@ -1474,10 +1469,6 @@ class ParameterizedDistortion(AnalyticOpticalElement):
 
         for idx, coefficient in enumerate(self.coefficients):
             combined_distortion += coefficient * computed_terms[idx]
-
-        # zero-padding to match size of distortion array with size of wave array
-        # wavefront_error = np.zeros(wave.shape, dtype=np.float64)
-        # wavefront_error[min_idx:max_idx + 1, min_idx:max_idx + 1] = combined_distortion
 
         opd_as_phase = 2 * np.pi * combined_distortion / wave.wavelength
         return np.exp(1.0j * opd_as_phase)
