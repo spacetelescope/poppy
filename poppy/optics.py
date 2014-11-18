@@ -1312,6 +1312,19 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
 
 
 def _guess_pupil_radius(wave, rho):
+    """
+    Returns the radius (in meters) for a circle circumscribing the illuminated part of the pupil
+
+    The heuristic includes all pixels in the intensity array with values greater than
+    0.01 * (max_intensity - min_intensity) + min_intensity
+
+    Parameters
+    ----------
+    wave : Wavefront
+        Wavefront after a pupil (e.g. after CircularAperture or HexagonAperture)
+    rho : array
+        Array of radii for each element in the wavefront
+    """
     _log.warn("No pupil radius specified, using a heuristic to guess the radius where "
               "rho = 1 for polar distortion polynomial computation.")
     intensity_cutoff = (np.min(wave.intensity) +
@@ -1319,7 +1332,11 @@ def _guess_pupil_radius(wave, rho):
     _log.warn("Intensity cutoff for illuminated pupil pixels: >{:.3e} ({}% of max)".format(
         intensity_cutoff, 100 * intensity_cutoff / np.max(wave.intensity)
     ))
-    max_rho = rho[np.where(wave.intensity > intensity_cutoff)].max()
+    try:
+        max_rho = rho[np.where(wave.intensity > intensity_cutoff)].max()
+    except ValueError:
+        raise ValueError("Could not guess pupil radius from input wavefront (try specifying a "
+                         "pupil radius explicitly for the optic?)")
     _log.warn("Estimated pupil radius = {:.3f} m".format(max_rho))
     return max_rho
 
@@ -1416,25 +1433,8 @@ class ParameterizedDistortion(AnalyticOpticalElement):
         self.basis_factory = basis_factory
         AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
 
-    def _wave_to_rho_theta(self, wave):
-        y, x = wave.coordinates()
-        r = np.sqrt(x ** 2 + y ** 2)
-
-        if self.pupil_radius is None:
-            max_r = _guess_pupil_radius(wave, r)
-        else:
-            max_r = self.pupil_radius
-        rho = r / max_r
-        theta = np.arctan2(y / max_r, x / max_r)
-
-        return rho, theta, max_r
-
     def getPhasor(self, wave):
-        # get extent of illuminated pupil in pixels
-        y, x = wave.coordinates()
-
-        # square array that neatly covers the pixels within the pupil
-        rho, theta, _ = self._wave_to_rho_theta(wave)
+        rho, theta, _ = _wave_to_rho_theta(wave, self.pupil_radius)
         combined_distortion = np.zeros(rho.shape)
 
         nterms = len(self.coefficients)
@@ -1448,6 +1448,20 @@ class ParameterizedDistortion(AnalyticOpticalElement):
 
 
 def _wave_to_rho_theta(wave, pupil_radius=None):
+    """
+    Return wave coordinates in (rho, theta) for a Wavefront object normalized such that
+    rho == 1.0 at the pupil radius
+
+    Parameters
+    ----------
+    wave : Wavefront
+        Wavefront object with a `coordinates` method that returns (y, x)
+        coordinate arrays in meters in the pupil plane
+    pupil_radius : float, optional
+        Radius (in meters) of a circle circumscribing the pupil.
+        If `None`, this function will attempt to guess the radius from the wave
+        intensity array using `_guess_pupil_radius`.
+    """
     y, x = wave.coordinates()
     r = np.sqrt(x ** 2 + y ** 2)
 
@@ -1456,10 +1470,11 @@ def _wave_to_rho_theta(wave, pupil_radius=None):
         rho = r / max_r
         theta = np.arctan2(y / max_r, x / max_r)
     else:
-        rho = r / self.pupil_radius
+        max_r = pupil_radius
+        rho = r / pupil_radius
         theta = np.arctan2(y / pupil_radius, x / pupil_radius)
 
-    return rho, theta
+    return rho, theta, max_r
 
 
 class ZernikeOptic(AnalyticOpticalElement):
@@ -1501,21 +1516,8 @@ class ZernikeOptic(AnalyticOpticalElement):
         self.coefficients = coefficients
         AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
 
-    def _wave_to_rho_theta(self, wave):
-        y, x = wave.coordinates()
-        r = np.sqrt(x ** 2 + y ** 2)
-
-        if self.pupil_radius is None:
-            max_r = _guess_pupil_radius(wave, r)
-        else:
-            max_r = self.pupil_radius
-        rho = r / max_r
-        theta = np.arctan2(y / max_r, x / max_r)
-
-        return rho, theta, max_r
-
     def getPhasor(self, wave):
-        rho, theta, pupil_radius = self._wave_to_rho_theta(wave)
+        rho, theta, pupil_radius = _wave_to_rho_theta(wave, self.pupil_radius)
         # the zernike optic, being circular, is implicitly also a circular aperture:
         aperture = CircularAperture(radius=pupil_radius)
         aperture_intensity = aperture.getPhasor(wave)
