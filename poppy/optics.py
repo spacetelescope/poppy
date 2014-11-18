@@ -737,11 +737,11 @@ class CircularAperture(AnalyticOpticalElement):
         This is in practice not very useful, but it provides a straightforward way
         of verifying during code testing that the amount of padding (or size of the circle)
         does not make any numerical difference in the final result.
-
     """
 
     def __init__(self, name=None, radius=1.0, pad_factor=1.5, **kwargs):
-        if name is None: name = "Circle, radius=%.2f m" % radius
+        if name is None:
+            name = "Circle, radius=%.2f m" % radius
         AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
         self.radius = radius
         # for creating input wavefronts - let's pad a bit:
@@ -757,10 +757,7 @@ class CircularAperture(AnalyticOpticalElement):
         assert (wave.planetype == _PUPIL)
 
         y, x = wave.coordinates()
-        #y, x = np.indices(wave.shape)
-        #y -= wave.shape[0]/2
-        #x -= wave.shape[1]/2
-        r = np.sqrt(x ** 2 + y ** 2)  #* wave.pixelscale
+        r = np.sqrt(x ** 2 + y ** 2)
         del x
         del y
 
@@ -768,13 +765,6 @@ class CircularAperture(AnalyticOpticalElement):
         del r
         self.transmission = np.ones(wave.shape)
         self.transmission[w_outside] = 0
-
-        #_log.debug("Circle: radius = %.3f m = %.3f pixels " % (self.radius, self.radius/wave.pixelscale))
-        #_log.debug("        center = %f" % (wave.shape[0]/2 ))
-        #w_inside = np.where( r <= self.radius)
-        #_log.debug("        minx: %d" % w_inside[0].min())
-        #stop()
-
         return self.transmission
 
 
