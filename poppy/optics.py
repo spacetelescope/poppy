@@ -1409,13 +1409,14 @@ class ParameterizedDistortion(AnalyticOpticalElement):
     """
     def __init__(self, name="Parameterized Distortion", coefficients=None, pupil_radius=None,
                  basis_factory=None, **kwargs):
-        if basis_factory is None:
+        if not callable(basis_factory):
             raise ValueError("'basis_factory' must be a callable that can "
                              "calculate basis functions")
-        if pupil_radius is None:
+        try:
+            self.pupil_radius = float(pupil_radius)
+        except TypeError:
             raise ValueError("'pupil_radius' must be the radius of a circular aperture in"
                              "meters (optionally circumscribing a pupil of another shape)")
-        self.pupil_radius = pupil_radius
         self.coefficients = coefficients
         self.basis_factory = basis_factory
         AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
