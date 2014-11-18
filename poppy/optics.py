@@ -1368,28 +1368,11 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
                 self.pupil_diam = np.asarray( [o.pupil_diam for o in self.opticslist]).max()
 
     def getPhasor(self,wave):
-        #phasor = self.opticslist[0].getPhasor(wave)
 
-        ampl = np.ones(wave.shape)
-        opd = np.zeros(wave.shape)
+        phasor = np.ones(wave.shape, dtype=np.complex)
         for optic in self.opticslist:
-            #nextphasor = optic.getPhasor(wave)
-            #phasor *= nextphasor #FIXME this does not work... for instance if you have an aperture mask (so all the phase is zero)
-                                  # then you really want to multiply the amplitude transmissions and add the phases.
-                                  # simpler to just multiply the wave instead here:
-            wave *= optic
-
-            #revised version: handle amplitude and OPD both explictly here
             nextphasor = optic.getPhasor(wave)
-            nextamp = np.abs(nextphasor)
-            nextopd = np.angle(nextphasor) * 2*np.pi *wave.wavelength
-            ampl *= nextamp
-            opd  *= nextopd
-
-
-        phasor = ampl * np.exp(1.j * 2* np.pi * opd/wave.wavelength)
-        # and just hand back the last one to the calling routine:
-        #return self.opticslist[-1].getPhasor(wave)
+            phasor *= nextphasor
         return phasor
 
 
