@@ -1641,13 +1641,14 @@ class OpticalElement():
         either poppy._IMAGE or poppy._PUPIL
     oversample : int
         how much to oversample beyond Nyquist.
-
+    interp_order : int
+        the order (0 to 5) of the spline interpolation used if the optic is resized.
     """
     #pixelscale = None
     #"float attribute. Pixelscale in arcsec or meters per pixel. Will be 'None' for null or analytic optics."
 
 
-    def __init__(self, name="unnamed optic", verbose=True, planetype=None, oversample=1, opdunits="meters"):
+    def __init__(self, name="unnamed optic", verbose=True, planetype=None, oversample=1, opdunits="meters",interp_order=3):
 
         self.name = name
         """ string. Descriptive Name of this optic"""
@@ -1662,7 +1663,7 @@ class OpticalElement():
         self.amplitude = np.asarray([1.])
         self.opd = np.asarray([0.])
         self.pixelscale = None
- 
+        self.interp_order=interp_order
     def getPhasor(self,wave):
         """ Compute a complex phasor from an OPD, given a wavelength.
 
@@ -1695,9 +1696,9 @@ class OpticalElement():
             else:
                 #raise NotImplementedError("Need to implement resampling.")
                 zoom=self.pixelscale/wave.pixelscale
-                resampled_opd = scipy.ndimage.interpolation.zoom(self.opd,zoom,output=self.opd.dtype,order=3)
-                resampled_amplitude = scipy.ndimage.interpolation.zoom(self.amplitude,zoom,output=self.amplitude.dtype,order=3)
-                _log.debug("resampled optic to match wavefront via spline interpolation by a zoom factor of %.2g"%(zoom))
+                resampled_opd = scipy.ndimage.interpolation.zoom(self.opd,zoom,output=self.opd.dtype,order=self.interp_order)
+                resampled_amplitude = scipy.ndimage.interpolation.zoom(self.amplitude,zoom,output=self.amplitude.dtype,order=self.interp_order)
+                _log.debug("resampled optic to match wavefront via spline interpolation by a zoom factor of %.3g"%(zoom))
 
                 lx,ly=resampled_amplitude.shape
                 #crop down to match size of wavefront:
@@ -1712,12 +1713,12 @@ class OpticalElement():
 
                     self._resampled_opd[border_x:border_x+resampled_opd.shape[0],border_y:border_y+resampled_opd.shape[1]] = resampled_opd
                     self._resampled_amplitude[border_x:border_x+resampled_opd.shape[0],border_y:border_y+resampled_opd.shape[1]]=resampled_amplitude
-                    _log.debug("padded a optic with a %.2g x %.2g border to optic to match the wavefront"%(border_x,border_y))
+                    _log.debug("padded an optic with a %i x %i border to optic to match the wavefront"%(border_x,border_y))
 
                 else:
                     self._resampled_opd = resampled_opd[border_x:border_x+lx_w,border_y:border_y+ly_w]
                     self._resampled_amplitude = resampled_amplitude[border_x:border_x+lx_w,border_y:border_y+ly_w]
-                    _log.debug("trimmed a border of %.2g x %.2g pixels from optic to match the wavefront"%(border_x,border_y))
+                    _log.debug("trimmed a border of %i x %i pixels from optic to match the wavefront"%(border_x,border_y))
 
                 self.phasor = self._resampled_amplitude * np.exp (1.j * self._resampled_opd * scale)
 
