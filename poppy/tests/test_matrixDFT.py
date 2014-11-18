@@ -143,7 +143,7 @@ def test_MFT_fluxconsv_all_types(centering=None, **kwargs):
 
 
 
-def test_DFT_rect(centering='FFTRECT', outdir='.', outname='DFT1R_', npix=None, sampling=10., nlamd=None):
+def test_DFT_rect(centering='FFTRECT', outdir=None, outname='DFT1R_', npix=None, sampling=10., nlamd=None):
     """
     Test matrix DFT, including non-square arrays, in both the
     forward and inverse directions.
@@ -196,7 +196,8 @@ def test_DFT_rect(centering='FFTRECT', outdir='.', outname='DFT1R_', npix=None, 
     plt.imshow(pupil, vmin=0, vmax=pmx*1.5)
 
 
-    fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
+    if outdir is not None:
+        fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
 
     a = mft1.perform(pupil, u, npix)
 
@@ -212,14 +213,13 @@ def test_DFT_rect(centering='FFTRECT', outdir='.', outname='DFT1R_', npix=None, 
 
 
     complexinfo(a, str=",ft1 asf")
-    #print 
     asf = a.real.copy()
-    #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"asf.fits", data=asf.astype(np.float32), clobber='y')
-    fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
+    if outdir is not None:
+        fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
     cpsf = a * a.conjugate()
     psf = cpsf.real.copy()
-    #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), clobber='y')
-    fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
+    if outdir is not None:
+        fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
 
     ax=plt.subplot(142)
     plt.imshow(asf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
@@ -248,7 +248,7 @@ def test_DFT_rect_adj():
     """
     test_DFT_rect(centering='ADJUSTIBLE', outname='DFT1Radj_')
 
-def test_DFT_center( npix=100, outdir='.', outname='DFT1'):
+def test_DFT_center( npix=100, outdir=None, outname='DFT1'):
     centering='ADJUSTIBLE'
 
     npupil = 156
@@ -267,7 +267,8 @@ def test_DFT_center( npix=100, outdir='.', outname='DFT1'):
 
     pupil /= np.sqrt(pupil.sum())
 
-    fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
+    if outdir is not None:
+        fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
 
     a = mft1.perform(pupil, u, npix)
 
@@ -285,13 +286,13 @@ def test_DFT_center( npix=100, outdir='.', outname='DFT1'):
     complexinfo(a, str="mft1 asf")
     #print 
     asf = a.real.copy()
-    #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"asf.fits", data=asf.astype(np.float32), clobber='y')
-    fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
     cpsf = a * a.conjugate()
     psf = cpsf.real.copy()
     #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), clobber='y')
-    fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
-
+    if outdir is not None:
+        fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
+        fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
+ 
 
 
 def test_inverse( centering='SYMMETRIC'):
@@ -354,7 +355,7 @@ def test_inverse( centering='SYMMETRIC'):
     plt.imshow(psf2, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
 
 
-def run_all_MFS_tests_DFT(outdir='.', outname='DFT1'):
+def run_all_MFS_tests_DFT(outdir=None, outname='DFT1'):
     npupil = 156
     pctr = int(npupil/2)
     npix = 1024
@@ -371,7 +372,8 @@ def run_all_MFS_tests_DFT(outdir='.', outname='DFT1'):
     pupil = makedisk(s=s, c=ctr, r=float(npupil)/2.00, t=np.float32, grey=0)
     pupil /= np.sqrt(pupil.sum())
 
-    fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
+    if outdir is not None:
+        fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
 
     npix=512
     a1 = DFT_combined(pupil, u, npix, centering='FFTSTYLE')
@@ -380,11 +382,12 @@ def run_all_MFS_tests_DFT(outdir='.', outname='DFT1'):
     a4 = DFT_fftstyle(pupil, u, npix)
     a5 = DFT_symmetric(pupil, u, npix)
 
-    fits.writeto(outdir+os.sep+outname+"_a1_fft.fits",(a1*a1.conjugate()).real, clobber=True) 
-    fits.writeto(outdir+os.sep+outname+"_a2_sym.fits",(a2*a2.conjugate()).real, clobber=True) 
-    fits.writeto(outdir+os.sep+outname+"_a3_adj.fits",(a3*a3.conjugate()).real, clobber=True) 
-    fits.writeto(outdir+os.sep+outname+"_a4_fftr.fits",(a4*a4.conjugate()).real, clobber=True) 
-    fits.writeto(outdir+os.sep+outname+"_a5_symr.fits",(a5*a5.conjugate()).real, clobber=True) 
+    if outdir is not None:
+        fits.writeto(outdir+os.sep+outname+"_a1_fft.fits",(a1*a1.conjugate()).real, clobber=True) 
+        fits.writeto(outdir+os.sep+outname+"_a2_sym.fits",(a2*a2.conjugate()).real, clobber=True) 
+        fits.writeto(outdir+os.sep+outname+"_a3_adj.fits",(a3*a3.conjugate()).real, clobber=True) 
+        fits.writeto(outdir+os.sep+outname+"_a4_fftr.fits",(a4*a4.conjugate()).real, clobber=True) 
+        fits.writeto(outdir+os.sep+outname+"_a5_symr.fits",(a5*a5.conjugate()).real, clobber=True) 
 
     npix=513
     b1 = DFT_combined(pupil, u, npix, centering='FFTSTYLE')
@@ -394,11 +397,12 @@ def run_all_MFS_tests_DFT(outdir='.', outname='DFT1'):
     b5 = DFT_symmetric(pupil, u, npix)
 
 
-    fits.writeto(outdir+os.sep+outname+"_b1_fft.fits",(b1*b1.conjugate()).real, clobber=True) 
-    fits.writeto(outdir+os.sep+outname+"_b2_sym.fits",(b2*b2.conjugate()).real, clobber=True) 
-    fits.writeto(outdir+os.sep+outname+"_b3_adj.fits",(b3*b3.conjugate()).real, clobber=True) 
-    fits.writeto(outdir+os.sep+outname+"_b4_fftr.fits",(b4*b4.conjugate()).real, clobber=True) 
-    fits.writeto(outdir+os.sep+outname+"_b5_symr.fits",(b5*b5.conjugate()).real, clobber=True) 
+    if outdir is not None:
+        fits.writeto(outdir+os.sep+outname+"_b1_fft.fits",(b1*b1.conjugate()).real, clobber=True) 
+        fits.writeto(outdir+os.sep+outname+"_b2_sym.fits",(b2*b2.conjugate()).real, clobber=True) 
+        fits.writeto(outdir+os.sep+outname+"_b3_adj.fits",(b3*b3.conjugate()).real, clobber=True) 
+        fits.writeto(outdir+os.sep+outname+"_b4_fftr.fits",(b4*b4.conjugate()).real, clobber=True) 
+        fits.writeto(outdir+os.sep+outname+"_b5_symr.fits",(b5*b5.conjugate()).real, clobber=True) 
 
 
     u2 = (u, u/4)
@@ -409,11 +413,12 @@ def run_all_MFS_tests_DFT(outdir='.', outname='DFT1'):
     c4 = DFT_fftstyle_rect(pupil, u2, npix2)
     c5 = DFT_adjustible_rect(pupil, u2, npix2)
 
-    fits.writeto(outdir+os.sep+outname+"_c1_fft.fits",(c1*c1.conjugate()).real, clobber=True) 
-    fits.writeto(outdir+os.sep+outname+"_c2_sym.fits",(c2*c2.conjugate()).real, clobber=True) 
-    fits.writeto(outdir+os.sep+outname+"_c3_adj.fits",(c3*c3.conjugate()).real, clobber=True) 
-    fits.writeto(outdir+os.sep+outname+"_c4_fftr.fits",(c4*c4.conjugate()).real, clobber=True) 
-    fits.writeto(outdir+os.sep+outname+"_c5_adjr.fits",(c5*c5.conjugate()).real, clobber=True) 
+    if outdir is not None:
+        fits.writeto(outdir+os.sep+outname+"_c1_fft.fits",(c1*c1.conjugate()).real, clobber=True) 
+        fits.writeto(outdir+os.sep+outname+"_c2_sym.fits",(c2*c2.conjugate()).real, clobber=True) 
+        fits.writeto(outdir+os.sep+outname+"_c3_adj.fits",(c3*c3.conjugate()).real, clobber=True) 
+        fits.writeto(outdir+os.sep+outname+"_c4_fftr.fits",(c4*c4.conjugate()).real, clobber=True) 
+        fits.writeto(outdir+os.sep+outname+"_c5_adjr.fits",(c5*c5.conjugate()).real, clobber=True) 
 
 
     for c, label in zip([c1, c2, c3, c4,c5], ['comb-fft', 'comb-sym', 'comb-adj', 'fft_rect', 'adj_rect']) :
