@@ -1695,8 +1695,8 @@ class OpticalElement():
             else:
                 #raise NotImplementedError("Need to implement resampling.")
                 zoom=self.pixelscale/wave.pixelscale
-                resampled_opd = scipy.ndimage.interpolation.zoom(self.opd,zoom,output=self.opd.dtype,order=0)
-                resampled_amplitude = scipy.ndimage.interpolation.zoom(self.amplitude,zoom,output=self.amplitude.dtype,order=0)
+                resampled_opd = scipy.ndimage.interpolation.zoom(self.opd,zoom,output=self.opd.dtype,order=3)
+                resampled_amplitude = scipy.ndimage.interpolation.zoom(self.amplitude,zoom,output=self.amplitude.dtype,order=3)
                 _log.debug("resampled optic to match wavefront via spline interpolation by a zoom factor of %.2g"%(zoom))
 
                 lx,ly=resampled_amplitude.shape
