@@ -1428,6 +1428,8 @@ class ParameterizedDistortion(AnalyticOpticalElement):
         computed_terms = self.basis_factory(nterms=nterms, rho=rho, theta=theta)
 
         for idx, coefficient in enumerate(self.coefficients):
+            if coefficient == 0.0:
+                continue  # save the trouble of a multiply-and-add of zeros
             combined_distortion += coefficient * computed_terms[idx]
 
         opd_as_phase = 2 * np.pi * combined_distortion / wave.wavelength
