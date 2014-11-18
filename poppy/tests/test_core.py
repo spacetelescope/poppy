@@ -239,3 +239,31 @@ def test_inverse_MFT():
     assert(   np.abs(psf1[0].data - psf[0].data).max()  < 1e-7 )
 
 
+import pytest
+
+try:
+    import scipy
+    HAS_SCIPY = True
+except ImportError:
+    HAS_SCIPY = False
+@pytest.mark.skipif('not HAS_SCIPY')
+def test_optic_resizing():
+    '''
+    Tests the rescaling functionality of OpticalElement.getPhasor(),
+    first by creating an (empty) optic with a small pixel scale and then by
+    creating an optic with a large pixel scale, and asserting the returned
+    phasor has the dimensions of the input wavefront.
+        '''
+    osys = poppy_core.OpticalSystem("test", oversample=1)
+    test_optic_small=fits.HDUList([fits.PrimaryHDU(np.zeros([1000,1000]))])
+    test_optic_small[0].header["PIXSCALE"]=.001
+
+    test_optic_small_element=poppy_core.FITSOpticalElement(transmission=test_optic_small)
+
+    test_optic_large=fits.HDUList([fits.PrimaryHDU(np.zeros([1000,1000]))])
+    test_optic_large[0].header["PIXSCALE"]=.1
+    test_optic_large_element=poppy_core.FITSOpticalElement(transmission=test_optic_large)
+
+    osys.addPupil(optics.CircularAperture(radius=3.25))
+    assert(test_optic_small_element.getPhasor(osys.inputWavefront()).shape ==osys.inputWavefront().shape )
+    assert(test_optic_large_element.getPhasor(osys.inputWavefront()).shape ==osys.inputWavefront().shape )
