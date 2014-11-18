@@ -1301,37 +1301,7 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
         return self.transmission
 
 
-def _guess_pupil_radius(wave, rho):
-    """
-    Returns the radius (in meters) for a circle circumscribing the illuminated part of the pupil
-
-    The heuristic includes all pixels in the intensity array with values greater than
-    0.01 * (max_intensity - min_intensity) + min_intensity
-
-    Parameters
-    ----------
-    wave : Wavefront
-        Wavefront after a pupil (e.g. after CircularAperture or HexagonAperture)
-    rho : array
-        Array of radii for each element in the wavefront
-    """
-    _log.warn("No pupil radius specified, using a heuristic to guess the radius where "
-              "rho = 1 for polar distortion polynomial computation.")
-    intensity_cutoff = (np.min(wave.intensity) +
-                        0.01 * (np.max(wave.intensity) - np.min(wave.intensity)))
-    _log.warn("Intensity cutoff for illuminated pupil pixels: >{:.3e} ({}% of max)".format(
-        intensity_cutoff, 100 * intensity_cutoff / np.max(wave.intensity)
-    ))
-    try:
-        max_rho = rho[np.where(wave.intensity > intensity_cutoff)].max()
-    except ValueError:
-        raise ValueError("Could not guess pupil radius from input wavefront (try specifying a "
-                         "pupil radius explicitly for the optic?)")
-    _log.warn("Estimated pupil radius = {:.3f} m".format(max_rho))
-    return max_rho
-
-
-class ThinLens(AnalyticOpticalElement):
+class ThinLens(CircularAperture):
     """ An idealized thin lens, implemented as a Zernike defocus term.
 
     Parameters
@@ -1343,33 +1313,29 @@ class ThinLens(AnalyticOpticalElement):
         over the region of the pupil that has nonzero input intensity.
     reference_wavelength : float
         Wavelength, in meters, at which that number of waves of defocus is specified. 
-    pupil_radius : float
+    radius : float
         Pupil radius, in meters, over which the Zernike defocus term should be computed
-        such that rho = 1 at r = pupil_radius. Default is None, which falls back on
-        guessing the pupil radius from the incoming wavefront. (Note: this is provided
-        for backward compatibility, and it is recommended to specify pupil_radius explicitly.)
+        such that rho = 1 at r = `radius`.
     """
 
     def __init__(self, name='Thin lens', nwaves=4.0, reference_wavelength=2e-6,
-                 pupil_radius=None, **kwargs):
-        AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
-
+                 radius=None, **kwargs):
         self.reference_wavelength = reference_wavelength
         self.nwaves = nwaves
         self.max_phase_delay = reference_wavelength * nwaves
         try:
-            self.pupil_radius = float(pupil_radius)
+            self.radius = float(radius)
         except TypeError:
-            raise ValueError("Argument 'pupil_radius' must be the radius of the pupil in meters")
+            raise ValueError("Argument 'radius' must be the radius of the pupil in meters")
+        CircularAperture.__init__(self, name=name, radius=radius, **kwargs)
 
     def getPhasor(self, wave):
         y, x = wave.coordinates()
         r = np.sqrt(x ** 2 + y ** 2)
-        r_norm = r / self.pupil_radius
+        r_norm = r / self.radius
 
         # the thin lens, being circular, is implicitly also a circular aperture:
-        aperture = CircularAperture(radius=self.pupil_radius)
-        aperture_intensity = aperture.getPhasor(wave)
+        aperture_intensity = CircularAperture.getPhasor(self, wave)
 
         # don't forget the factor of 0.5 to make the scaling factor apply as peak-to-valley
         # rather than center-to-peak
@@ -1394,7 +1360,7 @@ class ParameterizedDistortion(AnalyticOpticalElement):
         The contribution of each term to the final distortion, in meters RMS wavefront error.
         The coefficients are interpreted as indices in the order of Noll et al. 1976: the first
         term corresponds to j=1, second to j=2, and so on.
-    pupil_radius : float
+    radius : float
         Pupil radius, in meters. Defines the region of the input wavefront array over which
         the distortion terms will be evaluated. For non-circular pupils, this should be the
         circle circumscribing the actual pupil shape.
@@ -1404,25 +1370,25 @@ class ParameterizedDistortion(AnalyticOpticalElement):
         Noll indexing convention for `nterms` = 1 and counting up. `rho` and `theta` are square
         arrays holding the rho and theta coordinates at each pixel in the pupil plane.
 
-        `rho` is normalized such that `rho` == 1.0 for pixels at `pupil_radius` meters from
+        `rho` is normalized such that `rho` == 1.0 for pixels at `radius` meters from
         the center.
     """
-    def __init__(self, name="Parameterized Distortion", coefficients=None, pupil_radius=None,
+    def __init__(self, name="Parameterized Distortion", coefficients=None, radius=None,
                  basis_factory=None, **kwargs):
         if not callable(basis_factory):
             raise ValueError("'basis_factory' must be a callable that can "
                              "calculate basis functions")
         try:
-            self.pupil_radius = float(pupil_radius)
+            self.radius = float(radius)
         except TypeError:
-            raise ValueError("'pupil_radius' must be the radius of a circular aperture in"
-                             "meters (optionally circumscribing a pupil of another shape)")
+            raise ValueError("'radius' must be the radius of a circular aperture in meters"
+                             "(optionally circumscribing a pupil of another shape)")
         self.coefficients = coefficients
         self.basis_factory = basis_factory
         AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
 
     def getPhasor(self, wave):
-        rho, theta, _ = _wave_to_rho_theta(wave, self.pupil_radius)
+        rho, theta = _wave_to_rho_theta(wave, self.radius)
         combined_distortion = np.zeros(rho.shape)
 
         nterms = len(self.coefficients)
@@ -1437,7 +1403,7 @@ class ParameterizedDistortion(AnalyticOpticalElement):
         return np.exp(1.0j * opd_as_phase)
 
 
-def _wave_to_rho_theta(wave, pupil_radius=None):
+def _wave_to_rho_theta(wave, pupil_radius):
     """
     Return wave coordinates in (rho, theta) for a Wavefront object normalized such that
     rho == 1.0 at the pupil radius
@@ -1455,19 +1421,13 @@ def _wave_to_rho_theta(wave, pupil_radius=None):
     y, x = wave.coordinates()
     r = np.sqrt(x ** 2 + y ** 2)
 
-    if pupil_radius is None:
-        max_r = _guess_pupil_radius(wave, r)
-        rho = r / max_r
-        theta = np.arctan2(y / max_r, x / max_r)
-    else:
-        max_r = pupil_radius
-        rho = r / pupil_radius
-        theta = np.arctan2(y / pupil_radius, x / pupil_radius)
+    rho = r / pupil_radius
+    theta = np.arctan2(y / pupil_radius, x / pupil_radius)
 
-    return rho, theta, max_r
+    return rho, theta
 
 
-class ZernikeOptic(AnalyticOpticalElement):
+class ZernikeOptic(CircularAperture):
     """
     Define an optical element in terms of its Zernike components by providing coefficients
     for each Zernike term modeled by the analytic optical element.
@@ -1478,14 +1438,16 @@ class ZernikeOptic(AnalyticOpticalElement):
         Each 3-tuple in coefficients must be of the form (n, m, k), where n and m are the integer
         radial degree and azimuthal frequency indices of the Zernike, and k is the RMS wavefront
         aberration over the pupil in meters for that Zernike component.
-    pupil_radius : float
+    radius : float
         Pupil radius, in meters, over which the Zernike terms should be computed such that
-        rho = 1 at r = pupil_radius. Default is None, which falls back on guessing the pupil radius
-        from the incoming wavefront. (Note: this is provided for backward compatibility,
-        and it is recommended to specify pupil_radius explicitly.)
+        rho = 1 at r = `radius`.
     """
-    def __init__(self, name="Zernike Optic", coefficients=None, pupil_radius=None, **kwargs):
-        self.pupil_radius = pupil_radius
+    def __init__(self, name="Zernike Optic", coefficients=None, radius=None, **kwargs):
+        try:
+            self.radius = float(radius)
+        except TypeError:
+            raise ValueError("'radius' must be the radius of a circular aperture in meters"
+                             "(optionally circumscribing a pupil of another shape)")
 
         def _validate_coefficients():
             if coefficients is None:
@@ -1504,13 +1466,13 @@ class ZernikeOptic(AnalyticOpticalElement):
                              "coefficient in meters of wavefront error. "
                              "e.g. coefficients=[(2, 0, 0.214), (2, -2, 0.02)]")
         self.coefficients = coefficients
-        AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
+        CircularAperture.__init__(self, name=name, radius=self.radius, **kwargs)
 
     def getPhasor(self, wave):
-        rho, theta, pupil_radius = _wave_to_rho_theta(wave, self.pupil_radius)
-        # the zernike optic, being circular, is implicitly also a circular aperture:
-        aperture = CircularAperture(radius=pupil_radius)
-        aperture_intensity = aperture.getPhasor(wave)
+        rho, theta = _wave_to_rho_theta(wave, self.radius)
+
+        # the Zernike optic, being circular, is implicitly also a circular aperture:
+        aperture_intensity = CircularAperture.getPhasor(self, wave)
 
         combined_zernikes = np.zeros(wave.shape, dtype=np.float64)
         for n, m, k in self.coefficients:

@@ -254,7 +254,7 @@ def test_CompoundAnalyticOptic(display=False):
         optics.CompoundAnalyticOptic([
             optics.CircularAperture(radius=r),
             optics.ThinLens(nwaves=nwaves, reference_wavelength=wavelen,
-                            pupil_radius=r)
+                            radius=r)
         ])
     )
     osys_compound.addDetector(pixelscale=0.010, fov_pixels=512, oversample=1)
@@ -263,7 +263,7 @@ def test_CompoundAnalyticOptic(display=False):
     osys_separate = poppy_core.OpticalSystem()
     osys_separate.addPupil(optics.CircularAperture(radius=r))    # pupil radius in meters
     osys_separate.addPupil(optics.ThinLens(nwaves=nwaves, reference_wavelength=wavelen,
-                                           pupil_radius=r))
+                                           radius=r))
     osys_separate.addDetector(pixelscale=0.01, fov_pixels=512, oversample=1)
     psf_separate = osys_separate.calcPSF(wavelength=wavelen, display=False)
 
@@ -324,7 +324,7 @@ def test_ThinLens(display=False):
 
     pupil = optics.CircularAperture(radius=pupil_radius)
     # let's add < 1 wave here so we don't have to worry about wrapping
-    lens = optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6, pupil_radius=pupil_radius)
+    lens = optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6, radius=pupil_radius)
     wave = poppy_core.Wavefront(npix=1024, diam=3.0, wavelength=1e-6)
     wave *= pupil
     wave *= lens
@@ -346,14 +346,14 @@ def test_ThinLens(display=False):
         osys.addPupil()
 
     osys.addPupil(optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6,
-                                  pupil_radius=pupil_radius))
+                                  radius=pupil_radius))
     osys.addDetector(pixelscale=0.01, fov_arcsec=3.0)
     psf = osys.calcPSF(wavelength=1e-6)
 
     osys2 = poppy_core.OpticalSystem()
     osys2.addPupil(optics.CircularAperture(radius=1))
     osys2.addPupil(optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6,
-                                   pupil_radius=pupil_radius))
+                                   radius=pupil_radius))
     osys2.addDetector(pixelscale=0.01, fov_arcsec=3.0)
     psf2 = osys2.calcPSF()
 
@@ -371,7 +371,7 @@ def test_ZernikeOptic():
     RADIUS = 1.0
 
     pupil = optics.CircularAperture(radius=1)
-    lens = optics.ThinLens(nwaves=NWAVES, reference_wavelength=WAVELENGTH, pupil_radius=RADIUS)
+    lens = optics.ThinLens(nwaves=NWAVES, reference_wavelength=WAVELENGTH, radius=RADIUS)
     tl_wave = poppy_core.Wavefront(npix=101, diam=3.0, wavelength=WAVELENGTH)  # 10x10 meter square
     tl_wave *= pupil
     tl_wave *= lens
@@ -381,7 +381,7 @@ def test_ZernikeOptic():
         coefficients=[
             (2, 0, NWAVES * WAVELENGTH / (2 * np.sqrt(3))),
         ],
-        pupil_radius=RADIUS
+        radius=RADIUS
     )
     zern_wave *= pupil
     zern_wave *= zernike_lens
@@ -406,7 +406,7 @@ def test_ParameterizedDistortion():
             (1, -1, 2e-7),
             (2, 2, 3e-8)
         ],
-        pupil_radius=RADIUS
+        radius=RADIUS
     )
     zern_wave *= pupil
     zern_wave *= zernike_lens
@@ -414,7 +414,7 @@ def test_ParameterizedDistortion():
     parameterized_distortion = optics.ParameterizedDistortion(
         coefficients=[0, 0, 2e-7, NWAVES * WAVELENGTH / (2 * np.sqrt(3)), 0, 3e-8],
         basis_factory=zernike.zernike_basis,
-        pupil_radius=RADIUS
+        radius=RADIUS
     )
 
     pd_wave = poppy_core.Wavefront(npix=101, diam=3.0, wavelength=1e-6) # 10x10 meter square
