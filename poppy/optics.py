@@ -1627,21 +1627,8 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
                 self.pupil_diam = np.asarray([o.pupil_diam for o in self.opticslist]).max()
 
     def getPhasor(self, wave):
-        #phasor = self.opticslist[0].getPhasor(wave)
-
-        ampl = np.ones(wave.shape)
-        opd = np.zeros(wave.shape)
+        phasor = np.ones(wave.shape, dtype=np.complex)
         for optic in self.opticslist:
-            wave *= optic
-
-            # handle amplitude and OPD both explictly here
             nextphasor = optic.getPhasor(wave)
-            nextamp = np.abs(nextphasor)
-            nextopd = np.angle(nextphasor) * 2 * np.pi * wave.wavelength
-            ampl *= nextamp
-            opd *= nextopd
-
-        phasor = ampl * np.exp(1.j * 2 * np.pi * opd / wave.wavelength)
+            phasor *= nextphasor
         return phasor
-
-

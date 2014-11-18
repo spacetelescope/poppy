@@ -247,6 +247,44 @@ def test_ObscuredCircularAperture_Airy(display=False):
 #print a2.max()
 
 
+def test_CompoundAnalyticOptic(display=False):
+    wavelen=2e-6
+    nwaves=2
+    r=3
+
+    osys_compound = poppy_core.OpticalSystem()
+    osys_compound.addPupil(
+        poppy.CompoundAnalyticOptic( [
+            poppy.CircularAperture(radius=r), 
+            poppy.ThinLens(nwaves=nwaves, reference_wavelength=wavelen)]) )
+    osys_compound.addDetector(pixelscale=0.010,fov_pixels=512, oversample=1)
+    psf_compound = osys_separate.calcPSF(wavelength=wavelen, display=False)
+
+    #if display:
+        #osys.planes[0].display(what='both')
+
+
+    osys_separate = poppy.OpticalSystem()
+    osys_separate.addPupil( poppy.CircularAperture(radius=r))    # pupil radius in meters
+    osys_separate.addPupil( poppy.ThinLens(nwaves=nwaves, reference_wavelength=wavelen))
+    osys_separate.addDetector(pixelscale=0.01, fov_pixels=512, oversample=1)
+    #osys.display(what='both')
+    
+
+    psf_separate= osys_separate.calcPSF(wavelength=wavelen, display=False)
+
+    if display:
+        plt.subplot(1,2,1)
+        utils.display_PSF(psf_separate, title='From Separate Optics')
+        plt.subplot(1,2,2)
+        utils.display_PSF(psf_compound, title='From Compound Optics')
+
+    difference = psf_compound.data - psf_separate.data
+
+    assert np.all(np.abs(difference) < (1e-3* psf_compound.data))
+
+
+
 def test_AsymmetricObscuredAperture(display=False):
     """  Test that we can run the code with asymmetric spiders
     """

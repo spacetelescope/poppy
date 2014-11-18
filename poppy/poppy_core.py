@@ -29,14 +29,16 @@ __all__ = ['Wavefront',  'OpticalSystem', 'SemiAnalyticCoronagraph', 'OpticalEle
 # Setup infrastructure for FFTW
 _FFTW_INIT = {}  # dict of array sizes for which we have already performed the required FFTW planning step
 _FFTW_FLAGS = ['measure']
-if conf.use_fftw:
-    try:
-        # try to import FFTW and use it
-        import pyfftw
-    except:
-        _log.debug("conf.use_fftw is set to True, but we cannot import pyfftw. Therefore overriding the config setting to False. Everything will work fine using numpy.fft, it just may be slightly slower.")
-        # we tried but failed to import it. 
-        conf.use_fftw = False
+try:
+    # try to import FFTW and use it
+    import pyfftw
+    _FFTW_AVAILABLE = True
+except:
+    _FFTW_AVAILABLE = False
+    # True
+    #_log.debug("conf.use_fftw is set to True, but we cannot import pyfftw. Therefore overriding the config setting to False. Everything will work fine using numpy.fft, it just may be slightly slower.")
+    # we tried but failed to import it. 
+    #conf.use_fftw = False
 
 # internal constants for types of plane
 _PUPIL = 'PUPIL'
@@ -71,8 +73,8 @@ def _wrap_propagate_for_multiprocessing(args):
     instrument_object, wavelength, weight, kwargs, usefftwflag = args
     conf.use_fftw = usefftwflag  #passed in from parent process
 
-    if conf.use_fftw:             # we're in a different Python interprepter process so we 
-        utils.fftw_load_wisdom()  # need to load the wisdom here too
+    if conf.use_fftw and _FFTW_AVAILABLE: # we're in a different Python interprepter process so we 
+        utils.fftw_load_wisdom()          # need to load the wisdom here too
 
     return instrument_object.propagate_mono(wavelength, poly_weight=weight, save_intermediates=False, **kwargs)
 
@@ -547,7 +549,8 @@ class Wavefront(object):
             The optic to propagate to. Used for determining the appropriate optical plane.
 
         """
-
+        # To use FFTW, it must both be enabled and the library itself has to be present
+        _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
 
         if self.oversample > 1 and not self.ispadded: #add padding for oversampling, if necessary
             assert self.oversample == optic.oversample
@@ -556,17 +559,15 @@ class Wavefront(object):
             if optic.verbose: _log.debug("    Padded WF array for oversampling by %dx" % self.oversample)
             self.history.append("    Padded WF array for oversampling by %dx" % self.oversample)
 
-        method = 'pyfftw' if conf.use_fftw else 'numpy' # for logging
+        method = 'pyfftw' if _USE_FFTW  else 'numpy' # for logging
         _log.info("using {1} FFT of {0} array".format(str(self.wavefront.shape), method))
         # Set up for computation - figure out direction & normalization
         if self.planetype == _PUPIL and optic.planetype == _IMAGE:
             FFT_direction = 'forward'
             normalization_factor = 1./ self.wavefront.shape[0] # correct for numpy fft
 
-            do_fft = pyfftw.interfaces.numpy_fft.fft2 if conf.use_fftw else np.fft.fft2 
-            do_fftshift = np.fft.fftshift
-                #numpy_fft = np.fft.fft2
-                #numpy_fftshift = np.fft.fftshift
+            do_fft = pyfftw.interfaces.numpy_fft.fft2 if _USE_FFTW else np.fft.fft2 
+
             #(pre-)update state:
             self.planetype=_IMAGE
             self.pixelscale = self.wavelength/ self.diam / self.oversample * _RADIANStoARCSEC
@@ -575,14 +576,9 @@ class Wavefront(object):
 
         elif self.planetype == _IMAGE and optic.planetype ==_PUPIL:
             FFT_direction = 'backward'
-            #if conf.use_fftw: #_USE_FFTW:
-            #    normalization_factor =  1./self.wavefront.shape[0] # correct for FFTW3 FFT
-            #    # TODO check this for pyfftw
-            #else:
             normalization_factor =  self.wavefront.shape[0] # correct for numpy fft
-            do_fft = pyfftw.interfaces.numpy_fft.ifft2 if conf.use_fftw else np.fft.ifft2 
-                #numpy_fft = np.fft.ifft2
-                #numpy_ifftshift = np.fft.ifftshift
+            do_fft = pyfftw.interfaces.numpy_fft.ifft2 if _USE_FFTW else np.fft.ifft2 
+
             #(pre-)update state:
             self.planetype=_PUPIL
             self.pixelscale = self.diam *self.oversample / self.wavefront.shape[0]
@@ -596,7 +592,7 @@ class Wavefront(object):
         if FFT_direction =='backward': self.wavefront = np.fft.ifftshift(self.wavefront)
 
         _log.debug("using {2} FFT of {0} array, direction={1}".format(str(self.wavefront.shape), FFT_direction, method))
-        if conf.use_fftw : # _USE_FFTW:
+        if _USE_FFTW:
             # Benchmarking on a Mac Pro (8 cores) indicated that the fastest performance comes from
             # in-place FFTs, and that it is safe to ignore byte alignment issues for these arrays
             # (indeed, even beneficial in many cases) contrary to the suggestion of the FFTW docs
@@ -1296,12 +1292,13 @@ class OpticalSystem():
         normwts =  np.asarray(weight, dtype=float)
         normwts /= normwts.sum()
 
-        if conf.use_fftw:
+        _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
+        if _USE_FFTW:
             utils.fftw_load_wisdom()
 
 
         if conf.use_multiprocessing and len(wavelength) > 1 : ######### Parallellized computation ############
-            if conf.use_fftw: 
+            if _USE_FFTW: 
                 _log.warn('IMPORTANT WARNING: Python multiprocessing and fftw3 do not appear to play well together. This may crash intermittently')
                 _log.warn('   We suggest you set   poppy.conf.use_fftw to False   if you want to use multiprocessing().')
             if display:
@@ -1323,7 +1320,7 @@ class OpticalSystem():
 
             # build a single iterable containing the required function arguments
             _log.info("Beginning multiprocessor job using {0} processes".format(nproc))
-            iterable = [(self, wavelen, wt, kwargs, conf.use_fftw) for wavelen, wt in zip(wavelength, normwts)]
+            iterable = [(self, wavelen, wt, kwargs, _USE_FFTW) for wavelen, wt in zip(wavelength, normwts)]
             results = pool.map(_wrap_propagate_for_multiprocessing, iterable)
             _log.info("Finished multiprocessor job")
             pool.close()
@@ -1381,7 +1378,7 @@ class OpticalSystem():
 
 
 
-        if conf.use_fftw and conf.autosave_fftw_wisdom:
+        if _USE_FFTW and conf.autosave_fftw_wisdom:
             utils.fftw_save_wisdom()
 
         # TODO update FITS header for oversampling here if detector is different from regular?
@@ -1393,7 +1390,7 @@ class OpticalSystem():
         for i in range(waves.size):
             outFITS[0].header['WAVE'+str(i)] = ( waves[i], "Wavelength "+str(i))
             outFITS[0].header['WGHT'+str(i)] = ( wts[i], "Wavelength weight "+str(i))
-        ffttype = "pyFFTW" if conf.use_fftw else "numpy.fft"
+        ffttype = "pyFFTW" if _USE_FFTW else "numpy.fft"
         outFITS[0].header['FFTTYPE'] = (ffttype, 'Algorithm for FFTs: numpy or fftw')
         outFITS[0].header['NORMALIZ'] = (normalize, 'PSF normalization method')
 
