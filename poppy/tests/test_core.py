@@ -250,10 +250,10 @@ except ImportError:
 def test_optic_resizing():
     '''
     Tests the rescaling functionality of OpticalElement.getPhasor(),
-    first by creating an (empty) optic with a small pixel scale and then by
-    creating an optic with a large pixel scale, and asserting the returned
-    phasor has the dimensions of the input wavefront.
-        '''
+    by first creating an optic with a small pixel scale and then
+    creating an optic with a large pixel scale, and checking the returned
+    phasor of each has the dimensions of the input wavefront.
+    '''
     osys = poppy_core.OpticalSystem("test", oversample=1)
     test_optic_small=fits.HDUList([fits.PrimaryHDU(np.zeros([1000,1000]))])
     test_optic_small[0].header["PIXSCALE"]=.001
