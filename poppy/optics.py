@@ -193,33 +193,6 @@ class AnalyticOpticalElement(OpticalElement):
 
         output_array, pixelscale = self.sample(wavelength=wavelength, npix=npix, what=what,
                                                return_scale=True)
-
-
-        #        if self.planetype is _PUPIL:
-        #            unit="meters"
-        #            if hasattr(self, 'pupil_diam'): self.diam = self.pupil_diam
-        #            else : self.diam = 6.5
-        #            halffov = self.diam/2
-        #            w = Wavefront(wavelength=wavelength, npix=npix,  diam = self.diam)
-        #            self.pupil_scale = self.diam/npix
-        #            self.pixelscale = self.pupil_scale
-        #
-        #        else:
-        #            unit="arcsec"
-        #            if hasattr(self, '_default_display_size'):
-        #                halffov = self._default_display_size/2
-        #            else:
-        #                halffov = 2.0
-        #            self.pixelscale = 2.*halffov/npix
-        #            w = Wavefront(wavelength=wavelength, npix=npix,  pixelscale = self.pixelscale)
-        #
-        #
-        #        # set attributes appropriately as if this were a regular OPticalElement
-        #        phasor = self.getPhasor(w)
-        #        self.amplitude = np.abs(phasor)
-        #        phase = np.angle(phasor) * 2*np.pi
-        #        self.opd = phase *wavelength
-
         phdu = fits.PrimaryHDU(output_array)
         phdu.header['OPTIC'] = self.name
         phdu.header['SOURCE'] = 'Computed with POPPY'
