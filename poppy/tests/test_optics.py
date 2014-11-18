@@ -253,7 +253,8 @@ def test_CompoundAnalyticOptic(display=False):
     osys_compound.addPupil(
         optics.CompoundAnalyticOptic([
             optics.CircularAperture(radius=r),
-            optics.ThinLens(nwaves=nwaves, reference_wavelength=wavelen)
+            optics.ThinLens(nwaves=nwaves, reference_wavelength=wavelen,
+                            pupil_radius=r)
         ])
     )
     osys_compound.addDetector(pixelscale=0.010, fov_pixels=512, oversample=1)
@@ -261,7 +262,8 @@ def test_CompoundAnalyticOptic(display=False):
 
     osys_separate = poppy.OpticalSystem()
     osys_separate.addPupil( poppy.CircularAperture(radius=r))    # pupil radius in meters
-    osys_separate.addPupil( poppy.ThinLens(nwaves=nwaves, reference_wavelength=wavelen))
+    osys_separate.addPupil( poppy.ThinLens(nwaves=nwaves, reference_wavelength=wavelen,
+                                           pupil_radius=r))
     osys_separate.addDetector(pixelscale=0.01, fov_pixels=512, oversample=1)
     psf_separate = osys_separate.calcPSF(wavelength=wavelen, display=False)
 
