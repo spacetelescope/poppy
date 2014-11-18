@@ -20,7 +20,7 @@ __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'InverseTransmission'
            'CircularOcculter', 'BarOcculter', 'FQPM_FFT_aligner',  'CircularAperture',
            'HexagonAperture', 'MultiHexagonAperture', 'NgonAperture', 'RectangleAperture',
            'SquareAperture', 'SecondaryObscuration', 'AsymmetricSecondaryObscuration',
-           'ThinLens', 'ZernikeOptic', 'CompoundAnalyticOptic']
+           'ThinLens', 'ZernikeOptic', 'ParameterizedDistortion', 'CompoundAnalyticOptic']
 
 # ------ Generic Analytic elements -----
 
