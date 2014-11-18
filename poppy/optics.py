@@ -1367,21 +1367,18 @@ class ThinLens(AnalyticOpticalElement):
         self.reference_wavelength = reference_wavelength
         self.nwaves = nwaves
         self.max_phase_delay = reference_wavelength * nwaves
-        self.pupil_radius = pupil_radius
+        try:
+            self.pupil_radius = float(pupil_radius)
+        except TypeError:
+            raise ValueError("Argument 'pupil_radius' must be the radius of the pupil in meters")
 
     def getPhasor(self, wave):
         y, x = wave.coordinates()
         r = np.sqrt(x ** 2 + y ** 2)
-        # get the normalized radius, assuming the input wave
-        # is a square
-        if self.pupil_radius is None:
-            max_r = _guess_pupil_radius(wave, r)
-        else:
-            max_r = self.pupil_radius
-        r_norm = r / max_r
+        r_norm = r / self.pupil_radius
 
         # the thin lens, being circular, is implicitly also a circular aperture:
-        aperture = CircularAperture(radius=max_r)
+        aperture = CircularAperture(radius=self.pupil_radius)
         aperture_intensity = aperture.getPhasor(wave)
 
         # don't forget the factor of 0.5 to make the scaling factor apply as peak-to-valley

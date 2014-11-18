@@ -320,16 +320,22 @@ def test_AsymmetricObscuredAperture(display=False):
 
 
 def test_ThinLens(display=False):
+    pupil_radius = 1
 
-    pupil = optics.CircularAperture(radius=1) 
+    pupil = optics.CircularAperture(radius=pupil_radius)
     # let's add < 1 wave here so we don't have to worry about wrapping
-    lens = optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6)
-    wave = poppy_core.Wavefront(npix=101, diam=3.0, wavelength=1e-6) # 10x10 meter square
-    wave*= pupil
-    wave*= lens
+    lens = optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6, pupil_radius=pupil_radius)
+    wave = poppy_core.Wavefront(npix=1024, diam=3.0, wavelength=1e-6)
+    wave *= pupil
+    wave *= lens
 
-    assert np.abs(wave.phase[wave.intensity> 0].max() - np.pi/2) < 1e-6
-    assert np.abs(wave.phase[wave.intensity> 0].min() + np.pi/2) < 1e-6
+    # The Zernike is normalized so rho == 1.0 at pupil_radius, and evaluated at pixels where
+    # rho <= 1.0. If there is no pixel centered exactly at pupil_radius (not unlikely), the
+    # resulting phase array will only get within a fraction of a percent of pi/2. That is why
+    # the threshold is comparatively high versus the one used below to compare two optical systems
+    # that should have "exactly" the same output.
+    assert np.abs(wave.phase.max() - np.pi/2) < 2e-4
+    assert np.abs(wave.phase.min() + np.pi/2) < 2e-4
 
     # test to ensure null optical elements don't change ThinLens behavior
     # https://github.com/mperrin/poppy/issues/14
@@ -339,13 +345,15 @@ def test_ThinLens(display=False):
         osys.addImage()
         osys.addPupil()
 
-    osys.addPupil(optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6))
+    osys.addPupil(optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6,
+                                  pupil_radius=pupil_radius))
     osys.addDetector(pixelscale=0.01, fov_arcsec=3.0)
     psf = osys.calcPSF(wavelength=1e-6)
 
     osys2 = poppy_core.OpticalSystem()
     osys2.addPupil(optics.CircularAperture(radius=1))
-    osys2.addPupil(optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6))
+    osys2.addPupil(optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6,
+                                   pupil_radius=pupil_radius))
     osys2.addDetector(pixelscale=0.01, fov_arcsec=3.0)
     psf2 = osys2.calcPSF()
 
