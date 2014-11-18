@@ -260,22 +260,25 @@ def test_CompoundAnalyticOptic(display=False):
     osys_compound.addDetector(pixelscale=0.010, fov_pixels=512, oversample=1)
     psf_compound = osys_compound.calcPSF(wavelength=wavelen, display=False)
 
-    osys_separate = poppy.OpticalSystem()
-    osys_separate.addPupil( poppy.CircularAperture(radius=r))    # pupil radius in meters
-    osys_separate.addPupil( poppy.ThinLens(nwaves=nwaves, reference_wavelength=wavelen,
+    osys_separate = poppy_core.OpticalSystem()
+    osys_separate.addPupil(optics.CircularAperture(radius=r))    # pupil radius in meters
+    osys_separate.addPupil(optics.ThinLens(nwaves=nwaves, reference_wavelength=wavelen,
                                            pupil_radius=r))
     osys_separate.addDetector(pixelscale=0.01, fov_pixels=512, oversample=1)
     psf_separate = osys_separate.calcPSF(wavelength=wavelen, display=False)
 
     if display:
+        from matplotlib import pyplot as plt
+        from poppy import utils
+        plt.figure()
         plt.subplot(1, 2, 1)
         utils.display_PSF(psf_separate, title='From Separate Optics')
         plt.subplot(1, 2, 2)
         utils.display_PSF(psf_compound, title='From Compound Optics')
 
-    difference = psf_compound.data - psf_separate.data
+    difference = psf_compound[0].data - psf_separate[0].data
 
-    assert np.all(np.abs(difference) < (1e-3 * psf_compound.data))
+    assert np.all(np.abs(difference) < 1e-3)
 
 
 
