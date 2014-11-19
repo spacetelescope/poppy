@@ -19,7 +19,7 @@
 
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
-from .poppy_core import AnalyticOpticalElement
+from .optics import AnalyticOpticalElement
 
 
 class WavefrontError(AnalyticOpticalElement):

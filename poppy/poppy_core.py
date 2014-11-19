@@ -466,13 +466,17 @@ class Wavefront(object):
             plt.imshow(amp,extent=extent,cmap=cmap)
             plt.title("Wavefront amplitude")
             plt.ylabel(unit)
+            plt.xlabel(unit)
+
             if colorbar: plt.colorbar(orientation='vertical',shrink=0.8)
 
             plt.subplot(nrows,2,row*2)
-            plt.imshow(self.phase,extent=extent, cmap=cmap)
-            plt.ylabel(unit)
-            plt.title("Wavefront phase")
+            plt.imshow(phase,extent=extent, cmap=cmap)
+            if colorbar: plt.colorbar(orientation='vertical',shrink=0.8)
 
+            plt.xlabel(unit)
+            plt.title("Wavefront phase [radians]")
+                
         ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5))
         ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5))
 
@@ -1634,13 +1638,14 @@ class OpticalElement():
         either poppy._IMAGE or poppy._PUPIL
     oversample : int
         how much to oversample beyond Nyquist.
-
+    interp_order : int
+        the order (0 to 5) of the spline interpolation used if the optic is resized.
     """
     #pixelscale = None
     #"float attribute. Pixelscale in arcsec or meters per pixel. Will be 'None' for null or analytic optics."
 
 
-    def __init__(self, name="unnamed optic", verbose=True, planetype=None, oversample=1, opdunits="meters"):
+    def __init__(self, name="unnamed optic", verbose=True, planetype=None, oversample=1, opdunits="meters",interp_order=3):
 
         self.name = name
         """ string. Descriptive Name of this optic"""
@@ -1655,7 +1660,7 @@ class OpticalElement():
         self.amplitude = np.asarray([1.])
         self.opd = np.asarray([0.])
         self.pixelscale = None
- 
+        self.interp_order=interp_order
     def getPhasor(self,wave):
         """ Compute a complex phasor from an OPD, given a wavelength.
 
@@ -1681,13 +1686,38 @@ class OpticalElement():
         float_tolerance = 0.001  #how big of a relative scale mismatch before resampling?
         if self.pixelscale is not None and hasattr(wave,'pixelscale') and abs(wave.pixelscale -self.pixelscale)/self.pixelscale >= float_tolerance:
             _log.debug("Pixelscales: wave %f, optic %f" % (wave.pixelscale, self.pixelscale))
-
-            raise ValueError("Non-matching pixel scale for wavefront and optic! Need to add interpolation / rescaling ")
-            if self.has_attr('_resampled_scale') and abs(self._resampled_scale-wave.pixelscale)/self._resampled_scale >= float_tolerance:
+            #raise ValueError("Non-matching pixel scale for wavefront and optic! Need to add interpolation / ing ")
+            if hasattr(self,'_resampled_scale') and abs(self._resampled_scale-wave.pixelscale)/self._resampled_scale >= float_tolerance:
                 # we already did this same resampling, so just re-use it!
                 self.phasor = self._resampled_amplitude * np.exp (1.j * self._resampled_opd * scale)
             else:
-                raise NotImplementedError("Need to implement resampling.")
+                #raise NotImplementedError("Need to implement resampling.")
+                zoom=self.pixelscale/wave.pixelscale
+                resampled_opd = scipy.ndimage.interpolation.zoom(self.opd,zoom,output=self.opd.dtype,order=self.interp_order)
+                resampled_amplitude = scipy.ndimage.interpolation.zoom(self.amplitude,zoom,output=self.amplitude.dtype,order=self.interp_order)
+                _log.debug("resampled optic to match wavefront via spline interpolation by a zoom factor of %.3g"%(zoom))
+
+                lx,ly=resampled_amplitude.shape
+                #crop down to match size of wavefront:
+                lx_w,ly_w = wave.amplitude.shape
+                border_x = np.abs(np.floor((lx-lx_w)/2))
+                border_y = np.abs(np.floor((ly-ly_w)/2))
+                if (self.pixelscale*self.amplitude.shape[0] < wave.pixelscale*wave.amplitude.shape[0]) or (self.pixelscale*self.amplitude.shape[1] < wave.pixelscale*wave.amplitude.shape[0]):
+                    #raise ValueError("Optic is smaller than input wavefront")
+                    _log.warn("Optic"+str(np.shape(resampled_opd))+" is smaller than input wavefront"+str([lx_w,ly_w])+", will attempt to zero-pad the rescaled array")
+                    self._resampled_opd = np.zeros([lx_w,ly_w])
+                    self._resampled_amplitude = np.zeros([lx_w,ly_w])
+
+                    self._resampled_opd[border_x:border_x+resampled_opd.shape[0],border_y:border_y+resampled_opd.shape[1]] = resampled_opd
+                    self._resampled_amplitude[border_x:border_x+resampled_opd.shape[0],border_y:border_y+resampled_opd.shape[1]]=resampled_amplitude
+                    _log.debug("padded an optic with a %i x %i border to optic to match the wavefront"%(border_x,border_y))
+
+                else:
+                    self._resampled_opd = resampled_opd[border_x:border_x+lx_w,border_y:border_y+ly_w]
+                    self._resampled_amplitude = resampled_amplitude[border_x:border_x+lx_w,border_y:border_y+ly_w]
+                    _log.debug("trimmed a border of %i x %i pixels from optic to match the wavefront"%(border_x,border_y))
+
+                self.phasor = self._resampled_amplitude * np.exp (1.j * self._resampled_opd * scale)
 
         else:
             # compute the phasor directly, without any need to rescale.
