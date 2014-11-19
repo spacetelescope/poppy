@@ -904,7 +904,7 @@ class MultiHexagonAperture(AnalyticOpticalElement):
         for i in range(100):
             if self._nHexesInsideRing(i) <= hex_index and self._nHexesInsideRing(i+1) > hex_index:
                 return i
-        return "Loop exceeded!"
+        raise ValueError("Loop exceeded! MultiHexagonAperture is limited to <100 rings of hexagons.")
 
     def _hexRadius(self, hex_index):
         " Radius of a given hexagon from the center "
