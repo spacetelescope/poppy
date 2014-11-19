@@ -242,9 +242,6 @@ def test_ObscuredCircularAperture_Airy(display=False):
         ax2=pl.imshow(np.abs(numeric[0].data-analytic) < 1e-4)
         pl.title("Difference <1e-4")
 
-#fits.writeto("test.fits", numeric[0].data-analytic)
-#print a2.max()
-
 
 def test_CompoundAnalyticOptic(display=False):
     wavelen=2e-6
@@ -254,8 +251,8 @@ def test_CompoundAnalyticOptic(display=False):
     osys_compound = poppy_core.OpticalSystem()
     osys_compound.addPupil(
         poppy.CompoundAnalyticOptic( [
-            poppy.CircularAperture(radius=r), 
-            poppy.ThinLens(nwaves=nwaves, reference_wavelength=wavelen)]) )
+            poppy_core.CircularAperture(radius=r), 
+            poppy_core.ThinLens(nwaves=nwaves, reference_wavelength=wavelen)]) )
     osys_compound.addDetector(pixelscale=0.010,fov_pixels=512, oversample=1)
     psf_compound = osys_separate.calcPSF(wavelength=wavelen, display=False)
 
@@ -327,7 +324,12 @@ def test_ThinLens(display=False):
     pupil = optics.CircularAperture(radius=1) 
     # let's add < 1 wave here so we don't have to worry about wrapping
     lens = optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6)
-    wave = poppy_core.Wavefront(npix=101, diam=3.0, wavelength=1e-6) # 10x10 meter square
+
+    # The following npix must be an odd multiple of 3, such that there are
+    # pixels with radius exactly equal to 0.0 and 1.0
+    # Otherwise the strict test against half a wave min max doesn't work
+    # because we're missing some (tiny but nonzero) part of the aperture
+    wave = poppy_core.Wavefront(npix=99, diam=3.0, wavelength=1e-6) 
     wave*= pupil
     wave*= lens
 
