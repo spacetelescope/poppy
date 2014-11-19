@@ -2222,6 +2222,7 @@ class Detector(OpticalElement):
             #self.shape = self.fov_pixels[0:2]  # rectangular
         #else:
             #self.shape = (self.fov_pixels, self.fov_pixels) # square
+        if np.any(self.fov_pixels <= 0): raise ValueError("FOV in pixels must be a positive quantity. Invalid: "+str(self.fov_pixels))
 
 
         self.amplitude = 1
