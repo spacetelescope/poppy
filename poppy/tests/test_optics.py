@@ -155,67 +155,10 @@ def test_HexagonAperture(display=False):
 
 def test_MultiHexagonAperture(display=False):
     # should make multihexagon PSF and compare to analytic expression
-    optic = optics.MultiHexagonAperture(side=1, rings=3)
-
-    def _old_hexCenter(hex_index):
-        ring = optic._hexInRing(hex_index)
-
-        # now count around from the starting point:
-        index_in_ring = hex_index - optic._nHexesInsideRing(ring) + 1  # 1-based
-        #print("hex %d is %dth in its ring" % (hex_index, index_in_ring))
-
-        angle_per_hex = 2 * np.pi / optic._nHexesInRing(ring)  # angle in radians
-        # Check generalized _hexCenter using older non-general code for first 3 rings
-        xpos = None
-        if ring <= 1:
-            radius = (optic.flattoflat + optic.gap) * ring
-            angle = angle_per_hex * (index_in_ring - 1)
-        elif ring == 2:
-            if np.mod(index_in_ring, 2) == 1:
-                radius = (optic.flattoflat + optic.gap) * ring  # JWST 'B' segments
-            else:
-                radius = optic.side * 3 + optic.gap * np.sqrt(3.) / 2 * 2  # JWST 'C' segments
-            angle = angle_per_hex * (index_in_ring - 1)
-        elif ring == 3:
-            if np.mod(index_in_ring, ring) == 1:
-                radius = (optic.flattoflat + optic.gap) * ring  # JWST 'B' segments
-                angle = angle_per_hex * (index_in_ring - 1)
-            else:  # C-like segments (in pairs)
-                ypos = 2.5 * (optic.flattoflat + optic.gap)
-                xpos = 1.5 * optic.side + optic.gap * np.sqrt(3) / 4
-                radius = np.sqrt(xpos ** 2 + ypos ** 2)
-                Cangle = np.arctan2(xpos, ypos)
-
-                if np.mod(index_in_ring, 3) == 2:
-                    last_B_angle = ((index_in_ring - 1) // 3) * 3 * angle_per_hex
-                    angle = last_B_angle + Cangle * np.mod(index_in_ring - 1, 3)
-                else:
-                    next_B_angle = (((index_in_ring - 1) // 3) * 3 + 3) * angle_per_hex
-                    angle = next_B_angle - Cangle
-                xpos = None
-        # now clock clockwise around the ring (for rings <=3 only)
-        if xpos is None:
-            ypos = radius * np.cos(angle)
-            xpos = radius * np.sin(angle)
-        return ypos, xpos
-
-    for i in optic.segmentlist:
-            oldy, oldx = _old_hexCenter(i)
-            newy, newx = optic._hexCenter(i)
-            diffy, diffx = oldy - newy, oldx - newx
-            assert oldy - newy == diffy, "wtf?"
-            _err_msg = "Disagreement between general case and existing special-case code for " \
-                   "MultiHexagonAperture._hexCenter (old - new = ({}, {}), seg={}, ring={})"
-            assert np.isclose(oldy, newy) and np.isclose(oldx, newx), _err_msg.format(
-                oldy - newy,
-                oldx - newx,
-                i,
-                optic._hexInRing(i)
-            )
+    optic= optics.MultiHexagonAperture(side=1, rings=2)
     wave = poppy_core.Wavefront(npix=100, diam=10.0, wavelength=1e-6) # 10x10 meter square
-    wave *= optic
-    if display:
-        optic.display()
+    wave*= optic
+    if display: optic.display()
 
 
 def test_NgonAperture(display=False):

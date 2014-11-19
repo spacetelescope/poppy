@@ -929,42 +929,72 @@ class MultiHexagonAperture(AnalyticOpticalElement):
 
         # Now figure out what the radius is:
         xpos = None
-        ypos = None
-
-        whichside = (index_in_ring - 1) // ring  # which of the sides are we on?
-
-        if np.mod(index_in_ring, ring) == 1:
-            radius = (self.flattoflat + self.gap) * ring  # JWST 'B' segments
+        if ring <= 1:
+            radius = (self.flattoflat + self.gap) * ring
             angle = angle_per_hex * (index_in_ring - 1)
+        elif ring == 2:
+            if np.mod(index_in_ring, 2) == 1:
+                radius = (self.flattoflat + self.gap) * ring  # JWST 'B' segments
+            else:
+                radius = self.side * 3 + self.gap * np.sqrt(3.) / 2 * 2  # JWST 'C' segments
+            angle = angle_per_hex * (index_in_ring - 1)
+        elif ring == 3:
+            if np.mod(index_in_ring, ring) == 1:
+                radius = (self.flattoflat + self.gap) * ring  # JWST 'B' segments
+                angle = angle_per_hex * (index_in_ring - 1)
+            else:  # C-like segments (in pairs)
+                ypos = 2.5 * (self.flattoflat + self.gap)
+                xpos = 1.5 * self.side + self.gap * np.sqrt(3) / 4
+                radius = np.sqrt(xpos ** 2 + ypos ** 2)
+                Cangle = np.arctan2(xpos, ypos)
+
+                if np.mod(index_in_ring, 3) == 2:
+                    last_B_angle = ((index_in_ring - 1) // 3) * 3 * angle_per_hex
+                    angle = last_B_angle + Cangle * np.mod(index_in_ring - 1, 3)
+                else:
+                    next_B_angle = (((index_in_ring - 1) // 3) * 3 + 3) * angle_per_hex
+                    angle = next_B_angle - Cangle
+                xpos = None
+        else:  # generalized code!
+            # the above are actuall now redundant given that this exists, but
+            # I'll leave them alone for now.
+            # TODO:jlong: remove redundant code paths?
+            whichside = (index_in_ring - 1) // ring  # which of the sides are we on?
+
+            if np.mod(index_in_ring, ring) == 1:
+                radius = (self.flattoflat + self.gap) * ring  # JWST 'B' segments
+                angle = angle_per_hex * (index_in_ring - 1)
+            else:
+                # find position of previous 'B' type segment.
+                radius0 = (self.flattoflat + self.gap) * ring  # JWST 'B' segments
+                last_B_angle = ((index_in_ring - 1) // ring) * ring * angle_per_hex
+                #angle0 = angle_per_hex * (index_in_ring-1)
+                ypos0 = radius0 * np.cos(last_B_angle)
+                xpos0 = radius0 * np.sin(last_B_angle)
+
+                da = (self.flattoflat + self.gap) * np.cos(30 * np.pi / 180)
+                db = (self.flattoflat + self.gap) * np.sin(30 * np.pi / 180)
+
+                if whichside == 0:
+                    dx, dy = da, -db
+                elif whichside == 1:
+                    dx, dy = 0, -(self.flattoflat + self.gap)
+                elif whichside == 2:
+                    dx, dy = -da, -db
+                elif whichside == 3:
+                    dx, dy = -da, db
+                elif whichside == 4:
+                    dx, dy = 0, (self.flattoflat + self.gap)
+                elif whichside == 5:
+                    dx, dy = da, db
+
+                xpos = xpos0 + dx * np.mod(index_in_ring - 1, ring)
+                ypos = ypos0 + dy * np.mod(index_in_ring - 1, ring)
+
+        # now clock clockwise around the ring (for rings <=3 only)
+        if xpos is None:
             ypos = radius * np.cos(angle)
             xpos = radius * np.sin(angle)
-
-        else:
-            # find position of previous 'B' type segment.
-            radius0 = (self.flattoflat + self.gap) * ring  # JWST 'B' segments
-            last_B_angle = ((index_in_ring - 1) // ring) * ring * angle_per_hex
-            #angle0 = angle_per_hex * (index_in_ring-1)
-            ypos0 = radius0 * np.cos(last_B_angle)
-            xpos0 = radius0 * np.sin(last_B_angle)
-
-            da = (self.flattoflat + self.gap) * np.cos(30 * np.pi / 180)
-            db = (self.flattoflat + self.gap) * np.sin(30 * np.pi / 180)
-
-            if whichside == 0:
-                dx, dy = da, -db
-            elif whichside == 1:
-                dx, dy = 0, -(self.flattoflat + self.gap)
-            elif whichside == 2:
-                dx, dy = -da, -db
-            elif whichside == 3:
-                dx, dy = -da, db
-            elif whichside == 4:
-                dx, dy = 0, (self.flattoflat + self.gap)
-            elif whichside == 5:
-                dx, dy = da, db
-
-            xpos = xpos0 + dx * np.mod(index_in_ring - 1, ring)
-            ypos = ypos0 + dy * np.mod(index_in_ring - 1, ring)
 
         return ypos, xpos
 
