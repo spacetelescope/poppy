@@ -325,20 +325,17 @@ def test_ThinLens(display=False):
     pupil = optics.CircularAperture(radius=pupil_radius)
     # let's add < 1 wave here so we don't have to worry about wrapping
     lens = optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6, radius=pupil_radius)
-    wave = poppy_core.Wavefront(npix=1024, diam=3.0, wavelength=1e-6)
+    # n.b. npix is 99 so that there are an integer number of pixels per meter (hence multiple of 3)
+    # and there is a central pixel at 0,0 (hence odd npix)
+    wave = poppy_core.Wavefront(npix=99, diam=3.0, wavelength=1e-6)
     wave *= pupil
     wave *= lens
 
-    # The Zernike is normalized so rho == 1.0 at pupil_radius, and evaluated at pixels where
-    # rho <= 1.0. If there is no pixel centered exactly at pupil_radius (not unlikely), the
-    # resulting phase array will only get within a fraction of a percent of pi/2. That is why
-    # the threshold is comparatively high versus the one used below to compare two optical systems
-    # that should have "exactly" the same output.
-    assert np.abs(wave.phase.max() - np.pi/2) < 2e-4
-    assert np.abs(wave.phase.min() + np.pi/2) < 2e-4
+    assert np.abs(wave.phase.max() - np.pi/2) < 1e-19
+    assert np.abs(wave.phase.min() + np.pi/2) < 1e-19
 
-    # test to ensure null optical elements don't change ThinLens behavior
-    # https://github.com/mperrin/poppy/issues/14
+    # regression test to ensure null optical elements don't change ThinLens behavior
+    # see https://github.com/mperrin/poppy/issues/14
     osys = poppy_core.OpticalSystem()
     osys.addPupil(optics.CircularAperture(radius=1))
     for i in range(10):
