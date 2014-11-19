@@ -20,7 +20,7 @@ __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'InverseTransmission'
            'CircularOcculter', 'BarOcculter', 'FQPM_FFT_aligner',  'CircularAperture',
            'HexagonAperture', 'MultiHexagonAperture', 'NgonAperture', 'RectangleAperture',
            'SquareAperture', 'SecondaryObscuration', 'AsymmetricSecondaryObscuration',
-           'ThinLens', 'ZernikeOptic', 'ParameterizedDistortion', 'CompoundAnalyticOptic']
+           'ThinLens', 'ZernikeAberration', 'ParameterizedAberration', 'CompoundAnalyticOptic']
 
 # ------ Generic Analytic elements -----
 
@@ -1347,7 +1347,7 @@ class ThinLens(CircularAperture):
         return lens_phasor
 
 
-class ParameterizedDistortion(AnalyticOpticalElement):
+class ParameterizedAberration(AnalyticOpticalElement):
     """
     Define an optical element in terms of its distortion as decomposed into a set or orthonormal
     basis functions (e.g. Zernikes, Hexikes, etc.). Included basis functions are normalized
@@ -1427,7 +1427,7 @@ def _wave_to_rho_theta(wave, pupil_radius):
     return rho, theta
 
 
-class ZernikeOptic(CircularAperture):
+class ZernikeAberration(CircularAperture):
     """
     Define an optical element in terms of its Zernike components by providing coefficients
     for each Zernike term modeled by the analytic optical element.

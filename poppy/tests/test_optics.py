@@ -363,9 +363,9 @@ def test_ThinLens(display=False):
         "raised std(psf_with_extras - psf_without_extras) above {}".format(THRESHOLD)
     )
 
-def test_ZernikeOptic():
+def test_ZernikeAberration():
     # verify that we can reproduce the same behavior as ThinLens
-    # using ZernikeOptic
+    # using ZernikeAberration
     NWAVES = 0.5
     WAVELENGTH = 1e-6
     RADIUS = 1.0
@@ -377,7 +377,7 @@ def test_ZernikeOptic():
     tl_wave *= lens
 
     zern_wave = poppy_core.Wavefront(npix=101, diam=3.0, wavelength=WAVELENGTH)  # 10x10 meter square
-    zernike_lens = optics.ZernikeOptic(
+    zernike_lens = optics.ZernikeAberration(
         coefficients=[
             (2, 0, NWAVES * WAVELENGTH / (2 * np.sqrt(3))),
         ],
@@ -388,11 +388,11 @@ def test_ZernikeOptic():
 
     stddev = np.std(zern_wave.phase - tl_wave.phase)
 
-    assert stddev < 1e-16, ("ZernikeOptic disagrees with ThinLens! stddev {}".format(stddev))
+    assert stddev < 1e-16, ("ZernikeAberration disagrees with ThinLens! stddev {}".format(stddev))
 
-def test_ParameterizedDistortion():
-    # verify that we can reproduce the same behavior as ZernikeOptic
-    # using ParameterizedDistortion
+def test_ParameterizedAberration():
+    # verify that we can reproduce the same behavior as ZernikeAberration
+    # using ParameterizedAberration
     NWAVES = 0.5
     WAVELENGTH = 1e-6
     RADIUS = 1.0
@@ -400,7 +400,7 @@ def test_ParameterizedDistortion():
     pupil = optics.CircularAperture(radius=1)
 
     zern_wave = poppy_core.Wavefront(npix=101, diam=3.0, wavelength=1e-6)  # 10x10 meter square
-    zernike_lens = optics.ZernikeOptic(
+    zernike_lens = optics.ZernikeAberration(
         coefficients=[
             (2, 0, NWAVES * WAVELENGTH / (2 * np.sqrt(3))),
             (1, -1, 2e-7),
@@ -411,7 +411,7 @@ def test_ParameterizedDistortion():
     zern_wave *= pupil
     zern_wave *= zernike_lens
 
-    parameterized_distortion = optics.ParameterizedDistortion(
+    parameterized_distortion = optics.ParameterizedAberration(
         coefficients=[0, 0, 2e-7, NWAVES * WAVELENGTH / (2 * np.sqrt(3)), 0, 3e-8],
         basis_factory=zernike.zernike_basis,
         radius=RADIUS
@@ -423,6 +423,6 @@ def test_ParameterizedDistortion():
 
     stddev = np.std(pd_wave.phase - zern_wave.phase)
 
-    assert stddev < 1e-16, ("ParameterizedDistortion disagrees with "
-                            "ZernikeOptic! stddev {}".format(stddev))
+    assert stddev < 1e-16, ("ParameterizedAberration disagrees with "
+                            "ZernikeAberration! stddev {}".format(stddev))
 
