@@ -4,6 +4,7 @@ from __future__ import (absolute_import, division, print_function, unicode_liter
 import matplotlib.pyplot as pl
 import numpy as np
 import astropy.io.fits as fits
+import pytest
 
 from .. import poppy_core 
 from .. import optics
@@ -153,6 +154,7 @@ def test_HexagonAperture(display=False):
     wave*= optic
     if display: optic.display()
 
+@pytest.mark.xfail
 def test_MultiHexagonAperture(display=False):
     # should make multihexagon PSF and compare to analytic expression
     optic = optics.MultiHexagonAperture(side=1, rings=3)
