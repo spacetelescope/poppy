@@ -946,6 +946,11 @@ class OpticalSystem():
         opd, transmission : string, optional
             Filenames of FITS files describing the desired optic.
 
+        Returns
+        -------
+        poppy.OpticalElement subclass
+            The pupil optic added (either `optic` passed in, or a new OpticalElement created)
+
 
         Note: Now you can use the optic argument for either an OpticalElement or a string function name,
         and it will do the right thing depending on type.  Both existing arguments are left for compatibility for now.
@@ -982,6 +987,8 @@ class OpticalSystem():
         self.planes.append(optic)
         if self.verbose: _log.info("Added pupil plane: "+self.planes[-1].name)
 
+        return optic
+
     def addImage(self, optic=None, function=None, **kwargs):
         """ Add an image plane optic to the optical system
 
@@ -1006,7 +1013,10 @@ class OpticalSystem():
         opd, transmission : string
             Filenames of FITS files describing the desired optic.
 
-
+        Returns
+        -------
+        poppy.OpticalElement subclass
+            The pupil optic added (either `optic` passed in, or a new OpticalElement created)
 
         Notes
         ------
@@ -1049,13 +1059,25 @@ class OpticalSystem():
             optic.oversample = self.oversample # these need to match...
 
         self.planes.append(optic)
-        if self.verbose: _log.info("Added image plane: "+self.planes[-1].name)
+        if self.verbose:
+            _log.info("Added image plane: " + self.planes[-1].name)
+        return optic
 
     def addRotation(self, *args, **kwargs):
-        """ Add a clockwise or counterclockwise rotation around the optical axis """
+        """
+        Add a clockwise or counterclockwise rotation around the optical axis
 
-        self.planes.append(Rotation(*args, **kwargs))
-        if self.verbose: _log.info("Added rotation plane: "+self.planes[-1].name)
+
+        Returns
+        -------
+        poppy.Rotation
+            The rotation added to the optical system
+        """
+        rotation = Rotation(*args, **kwargs)
+        self.planes.append(rotation)
+        if self.verbose:
+            _log.info("Added rotation plane: " + self.planes[-1].name)
+        return rotation
 
 
     def addDetector(self, pixelscale, oversample=None, **kwargs):
@@ -1074,15 +1096,25 @@ class OpticalSystem():
             Oversampling factor for *this detector*, relative to hardware pixel size.
             Optionally distinct from the default oversampling parameter of the OpticalSystem.
 
+        Returns
+        -------
+        poppy.Detector
+            The detector added to the optical system
+
         """
 
         if oversample is None:
             oversample = self.oversample
-        self.planes.append(Detector(pixelscale, oversample=oversample, **kwargs))
-        if self.verbose: _log.info("Added detector: %s, with pixelscale=%f arcsec/pixel and oversampling=%d" % (self.planes[-1].name,pixelscale,oversample) )
+        detector = Detector(pixelscale, oversample=oversample, **kwargs)
+        self.planes.append(detector)
+        if self.verbose:
+            _log.info("Added detector: %s, with pixelscale=%f arcsec/pixel and oversampling=%d" % (
+                self.planes[-1].name,
+                pixelscale,
+                oversample
+            ))
 
-
-        #return "Optical system '%s' containing %d optics" % (self.name, len(self.planes))
+        return detector
 
     def describe(self):
         """ Print out a string table describing all planes in an optical system"""
