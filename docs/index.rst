@@ -34,7 +34,7 @@ near-field (Fresnel) calculations as well, if interest and usage warrant that.
 
 .. admonition:: Quickstart IPython Notebook
 
-       This documentation is complemented by an `IPython Notebook format quickstart tutorial <http://nbviewer.ipython.org/github/mperrin/poppy/blob/master/POPPY_tutorial.ipynb>`_.
+       This documentation is complemented by an `IPython Notebook quickstart tutorial <http://nbviewer.ipython.org/github/mperrin/poppy/blob/master/notebooks/POPPY_tutorial.ipynb>`_.
 
        Downloading and running that notebook is a great way to get started using POPPY. The documentation following here provides greater details on the algorithms and API.
 
@@ -52,13 +52,12 @@ Contents
   options.rst
   classes.rst
   extending.rst
+  about.rst
 
 
 Getting Help
 -------------------
-POPPY is developed and maintained primarily by Marshall Perrin. Questions, comments, and
-code additions always welcome.
-
-The source code is available `on Github <https://github.com/mperrin/poppy>`_.
+POPPY is developed and maintained by :ref:`Marshall Perrin, Joseph Long, and collaborators <about_team>`. Questions, comments, and
+pull requests always welcome, either via the `Github repository <https://github.com/mperrin/poppy>`_ or email. 
 
 

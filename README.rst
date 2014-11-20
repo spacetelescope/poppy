@@ -20,14 +20,15 @@ Telescope, but is more broadly applicable to many kinds of imaging simulations.
 It is not, however, a substitute for high fidelity physical optical design
 software such as Zemax or Code V, but rather is intended as a lightweight
 alternative for cases for which far-field diffraction is sufficient and which
-require portability between platforms. 
+require portability between platforms or ease of scripting. 
 
 
 For documentation, see https://pythonhosted.org/poppy/
 
 
-Most code by Marshall Perrin, with some contributions from 
-Anand Sivaramakrishnan, Remi Soummer, Ewan Douglas, Christine Slocum, and others.
+Code by Marshall Perrin, Joseph Long, Ewan Douglas, with additional
+contributions from Anand Sivaramakrishnan, Remi Soummer, Christine Slocum, 
+and others on the Astropy team. 
 
 
 

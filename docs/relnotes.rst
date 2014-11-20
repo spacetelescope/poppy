@@ -5,8 +5,18 @@ Release Notes
 0.3.3
 -------------------
 
- * Added normalize='exit_pupil' option; added documentation for normalization options.
- * Bug fix for "FQPM on an obscured aperture" example. Thanks to Github user qisaiman for the bug report.
+:ref:`Bigger team!<about_team>`. This release log now includes github usernames of contributors: 
+ 
+ * New classes for wavefront aberrations parameterized by Zernike polynomials (@josephoenix, @mperrin)
+ * ThinLens class now reworked to require explicitly setting an outer radius over which the wavefront is normalized. *Note this is an API change for this class, and will require minor changes in code using this class*. ThinLens is now a subclass of CircularAperture.
+ * Implement resizing of phasors to allow use of FITSOpticalElements with Wavefronts that have different spatial sampling. (@douglase)
+ * Installation improvements and streamlining (@josephoenix, @cslocum)
+ * Code cleanup and formatting (@josephoenix)
+ * Improvements in unit testing (@mperrin, @josephoenix, @douglase)
+ * Added normalize='exit_pupil' option; added documentation for normalization options. (@mperrin)
+ * Bug fix for "FQPM on an obscured aperture" example. Thanks to Github user qisaiman for the bug report. (@mperrin)
+ * Bug fix to compound optic display (@mperrin)
+ * Documentation improvements (team)
 
 0.3.2
 -------------------
@@ -69,4 +79,4 @@ Released April 7, 2014
 Contributors
 ================
 
-Marshall Perrin, Anand Sivaramakrishnan, Erik Bray, Christine Slocum, Mark Sienkiewicz, Ewan Douglas
+See :ref:`about`.
