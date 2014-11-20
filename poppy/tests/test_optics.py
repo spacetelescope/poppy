@@ -7,6 +7,7 @@ import astropy.io.fits as fits
 
 from .. import poppy_core 
 from .. import optics
+from .. import zernike
 from .test_core import check_wavefront
 
 
@@ -242,45 +243,42 @@ def test_ObscuredCircularAperture_Airy(display=False):
         ax2=pl.imshow(np.abs(numeric[0].data-analytic) < 1e-4)
         pl.title("Difference <1e-4")
 
-#fits.writeto("test.fits", numeric[0].data-analytic)
-#print a2.max()
-
 
 def test_CompoundAnalyticOptic(display=False):
-    wavelen=2e-6
-    nwaves=2
-    r=3
+    wavelen = 2e-6
+    nwaves = 2
+    r = 3
 
     osys_compound = poppy_core.OpticalSystem()
     osys_compound.addPupil(
-        poppy.CompoundAnalyticOptic( [
-            poppy.CircularAperture(radius=r), 
-            poppy.ThinLens(nwaves=nwaves, reference_wavelength=wavelen)]) )
-    osys_compound.addDetector(pixelscale=0.010,fov_pixels=512, oversample=1)
-    psf_compound = osys_separate.calcPSF(wavelength=wavelen, display=False)
+        optics.CompoundAnalyticOptic([
+            optics.CircularAperture(radius=r),
+            optics.ThinLens(nwaves=nwaves, reference_wavelength=wavelen,
+                            radius=r)
+        ])
+    )
+    osys_compound.addDetector(pixelscale=0.010, fov_pixels=512, oversample=1)
+    psf_compound = osys_compound.calcPSF(wavelength=wavelen, display=False)
 
-    #if display:
-        #osys.planes[0].display(what='both')
-
-
-    osys_separate = poppy.OpticalSystem()
-    osys_separate.addPupil( poppy.CircularAperture(radius=r))    # pupil radius in meters
-    osys_separate.addPupil( poppy.ThinLens(nwaves=nwaves, reference_wavelength=wavelen))
+    osys_separate = poppy_core.OpticalSystem()
+    osys_separate.addPupil(optics.CircularAperture(radius=r))    # pupil radius in meters
+    osys_separate.addPupil(optics.ThinLens(nwaves=nwaves, reference_wavelength=wavelen,
+                                           radius=r))
     osys_separate.addDetector(pixelscale=0.01, fov_pixels=512, oversample=1)
-    #osys.display(what='both')
-    
-
-    psf_separate= osys_separate.calcPSF(wavelength=wavelen, display=False)
+    psf_separate = osys_separate.calcPSF(wavelength=wavelen, display=False)
 
     if display:
-        plt.subplot(1,2,1)
+        from matplotlib import pyplot as plt
+        from poppy import utils
+        plt.figure()
+        plt.subplot(1, 2, 1)
         utils.display_PSF(psf_separate, title='From Separate Optics')
-        plt.subplot(1,2,2)
+        plt.subplot(1, 2, 2)
         utils.display_PSF(psf_compound, title='From Compound Optics')
 
-    difference = psf_compound.data - psf_separate.data
+    difference = psf_compound[0].data - psf_separate[0].data
 
-    assert np.all(np.abs(difference) < (1e-3* psf_compound.data))
+    assert np.all(np.abs(difference) < 1e-3)
 
 
 
@@ -320,27 +318,108 @@ def test_AsymmetricObscuredAperture(display=False):
         utils.display_PSF(numeric, vmin=1e-8, vmax=1e-2, colorbar=False)
         #pl.title("Numeric")
 
-#
 
 def test_ThinLens(display=False):
+    pupil_radius = 1
 
-    pupil = optics.CircularAperture(radius=1) 
+    pupil = optics.CircularAperture(radius=pupil_radius)
     # let's add < 1 wave here so we don't have to worry about wrapping
-    lens = optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6)
-    wave = poppy_core.Wavefront(npix=101, diam=3.0, wavelength=1e-6) # 10x10 meter square
-    wave*= pupil
-    wave*= lens
+    lens = optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6, radius=pupil_radius)
+    # n.b. npix is 99 so that there are an integer number of pixels per meter (hence multiple of 3)
+    # and there is a central pixel at 0,0 (hence odd npix)
+    wave = poppy_core.Wavefront(npix=99, diam=3.0, wavelength=1e-6)
+    wave *= pupil
+    wave *= lens
 
-    assert np.abs(wave.phase[wave.intensity> 0].max() - np.pi/2) < 1e-6
-    assert np.abs(wave.phase[wave.intensity> 0].min() + np.pi/2) < 1e-6
+    assert np.abs(wave.phase.max() - np.pi/2) < 1e-19
+    assert np.abs(wave.phase.min() + np.pi/2) < 1e-19
 
-    
-    return wave
- 
-#    osys = poppy_core.OpticalSystem()
-#
-#    osys.addDetector(pixelscale=0.030,fov_pixels=512, oversample=1)
-#    if display: osys.display()
-#    numeric = osys.calcPSF(wavelength=1.0e-6, display=False)
-#
+    # regression test to ensure null optical elements don't change ThinLens behavior
+    # see https://github.com/mperrin/poppy/issues/14
+    osys = poppy_core.OpticalSystem()
+    osys.addPupil(optics.CircularAperture(radius=1))
+    for i in range(10):
+        osys.addImage()
+        osys.addPupil()
+
+    osys.addPupil(optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6,
+                                  radius=pupil_radius))
+    osys.addDetector(pixelscale=0.01, fov_arcsec=3.0)
+    psf = osys.calcPSF(wavelength=1e-6)
+
+    osys2 = poppy_core.OpticalSystem()
+    osys2.addPupil(optics.CircularAperture(radius=1))
+    osys2.addPupil(optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6,
+                                   radius=pupil_radius))
+    osys2.addDetector(pixelscale=0.01, fov_arcsec=3.0)
+    psf2 = osys2.calcPSF()
+
+    THRESHOLD = 1e-19
+    assert np.std(psf[0].data - psf2[0].data) < THRESHOLD, (
+        "ThinLens shouldn't be affected by null optical elements! Introducing extra image planes "
+        "raised std(psf_with_extras - psf_without_extras) above {}".format(THRESHOLD)
+    )
+
+def test_ZernikeAberration():
+    # verify that we can reproduce the same behavior as ThinLens
+    # using ZernikeAberration
+    NWAVES = 0.5
+    WAVELENGTH = 1e-6
+    RADIUS = 1.0
+
+    pupil = optics.CircularAperture(radius=1)
+    lens = optics.ThinLens(nwaves=NWAVES, reference_wavelength=WAVELENGTH, radius=RADIUS)
+    tl_wave = poppy_core.Wavefront(npix=101, diam=3.0, wavelength=WAVELENGTH)  # 10x10 meter square
+    tl_wave *= pupil
+    tl_wave *= lens
+
+    zern_wave = poppy_core.Wavefront(npix=101, diam=3.0, wavelength=WAVELENGTH)  # 10x10 meter square
+    zernike_lens = optics.ZernikeAberration(
+        coefficients=[
+            (2, 0, NWAVES * WAVELENGTH / (2 * np.sqrt(3))),
+        ],
+        radius=RADIUS
+    )
+    zern_wave *= pupil
+    zern_wave *= zernike_lens
+
+    stddev = np.std(zern_wave.phase - tl_wave.phase)
+
+    assert stddev < 1e-16, ("ZernikeAberration disagrees with ThinLens! stddev {}".format(stddev))
+
+def test_ParameterizedAberration():
+    # verify that we can reproduce the same behavior as ZernikeAberration
+    # using ParameterizedAberration
+    NWAVES = 0.5
+    WAVELENGTH = 1e-6
+    RADIUS = 1.0
+
+    pupil = optics.CircularAperture(radius=1)
+
+    zern_wave = poppy_core.Wavefront(npix=101, diam=3.0, wavelength=1e-6)  # 10x10 meter square
+    zernike_lens = optics.ZernikeAberration(
+        coefficients=[
+            (2, 0, NWAVES * WAVELENGTH / (2 * np.sqrt(3))),
+            (1, -1, 2e-7),
+            (2, 2, 3e-8)
+        ],
+        radius=RADIUS
+    )
+    zern_wave *= pupil
+    zern_wave *= zernike_lens
+
+    parameterized_distortion = optics.ParameterizedAberration(
+        coefficients=[0, 0, 2e-7, NWAVES * WAVELENGTH / (2 * np.sqrt(3)), 0, 3e-8],
+        basis_factory=zernike.zernike_basis,
+        radius=RADIUS
+    )
+
+    pd_wave = poppy_core.Wavefront(npix=101, diam=3.0, wavelength=1e-6) # 10x10 meter square
+    pd_wave *= pupil
+    pd_wave *= parameterized_distortion
+
+    stddev = np.std(pd_wave.phase - zern_wave.phase)
+
+    assert stddev < 1e-16, ("ParameterizedAberration disagrees with "
+                            "ZernikeAberration! stddev {}".format(stddev))
 
