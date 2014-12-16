@@ -9,6 +9,7 @@ import matplotlib
 import astropy.io.fits as fits
 
 from . import poppy_core
+from . import optics
 from . import utils
 
 
@@ -51,7 +52,7 @@ class Instrument(object):
     """
     def __init__(self, name="", *args, **kwargs):
         self.name=name
-        self.pupil = poppy_core.CircularAperture( *args, **kwargs)
+        self.pupil = optics.CircularAperture( *args, **kwargs)
         "Aperture for this optical system. May be a FITS filename, FITS HDUList object, or poppy.OpticalElement"
         self.pupilopd = None   # This can optionally be set to a tuple indicating (filename, slice in datacube)
         """Pupil OPD for this optical system. May be a FITS filename, or FITS HDUList. 
