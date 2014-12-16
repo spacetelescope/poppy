@@ -690,6 +690,12 @@ class Instrument(object):
             if verbose: _log.info( " Wavelengths and weights computed from pysynphot: "+str( newsource))
             self._spectra_cache[ self._getSpecCacheKey(source,nlambda)] = newsource
             return newsource
+        elif isinstance(source, dict) and ('wavelengths' in source) and ('weights' in source):
+            # Allow providing directly a set of specific weights and wavelengths, as in poppy.calcPSF source option #2
+            return (source['wavelengths'], source['weights'])
+        elif isinstance(source, tuple) and len(source) == 2:
+            # Allow user to provide directly a tuple, as in poppy.calcPSF source option #3
+            return source
 
         else:  #Fallback simple code for if we don't have pysynphot.
             poppy_core._log.warning("Pysynphot unavailable (or invalid source supplied)!   Assuming flat # of counts versus wavelength.")
