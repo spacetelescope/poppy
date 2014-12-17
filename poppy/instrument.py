@@ -36,16 +36,17 @@ class Instrument(object):
 
     You will at a minimum want to override the following class methods:
 
-        _getOpticalSystem
-        _getFilterList
-        _getDefaultNLambda
-        _getDefaultFOV
-        _getFITSHeader
+        * _getOpticalSystem
+        * _getFilterList
+        * _getDefaultNLambda
+        * _getDefaultFOV
+        * _getFITSHeader
 
-    For more complicated systems you may also want to override: 
-        _validateConfig
-        _getSynphotBandpass
-        _applyJitter
+    For more complicated systems you may also want to override:
+
+        * _validate_config
+        * _getSynphotBandpass
+        * _applyJitter
 
 
     """
@@ -77,7 +78,10 @@ class Instrument(object):
             For output files, write an additional FITS extension including a version of the output array 
             rebinned down to the actual detector pixel scale?
         jitter : string
-            Type of jitter model to apply. Currently the only
+            Type of jitter model to apply. Currently only convolution with a Gaussian kernel of specified
+            width `jitter_sigma` is implemented.
+        jitter_sigma : float
+            Width of the jitter kernel in arcseconds (default: 0.007 arcsec)
         parity : string "even" or "odd"
             You may wish to ensure that the output PSF grid has either an odd or even number of pixels.
             Setting this option will force that to be the case by increasing npix by one if necessary.
@@ -107,7 +111,7 @@ class Instrument(object):
     # create properties with error checking
     @property
     def filter(self):
-        'Currently selected filter name (e.g. "F200W")'
+        """Currently selected filter name (e.g. 'F200W)"""
         return self._filter
     @filter.setter
     def filter(self, value):
