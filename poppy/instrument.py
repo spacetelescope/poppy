@@ -115,7 +115,7 @@ class Instrument(object):
     # create properties with error checking
     @property
     def filter(self):
-        """Currently selected filter name (e.g. 'F200W)"""
+        """Currently selected filter name (e.g. F200W)"""
         return self._filter
     @filter.setter
     def filter(self, value):
