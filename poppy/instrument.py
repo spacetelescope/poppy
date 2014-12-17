@@ -50,60 +50,64 @@ class Instrument(object):
 
 
     """
+
+    name = "Instrument"
+    pupil = None
+    "Aperture for this optical system. May be a FITS filename, FITS HDUList object, or poppy.OpticalElement"
+    pupilopd = None
+    """Pupil OPD for this optical system. May be a FITS filename, or FITS HDUList.
+    If the file contains a datacube, you may set this to a tuple (filename, slice) to select a given slice, or else
+    the first slice will be used."""
+    options = {}
+    """
+    A dictionary capable of storing other arbitrary options, for extensibility. The following are all optional, and
+    may or may not be meaningful depending on which instrument is selected.
+
+    Parameters
+    ----------
+    source_offset_r : float
+        Radial offset of the target from the center, in arcseconds
+    source_offset_theta : float
+        Position angle for that offset
+    pupil_shift_x, pupil_shift_y : float
+        Relative shift of a coronagraphic pupil in X and Y, expressed as a decimal between 0.0-1.0
+        Note that shifting an array too much will wrap around to the other side unphysically, but
+        for reasonable values of shift this is a non-issue.
+    rebin : bool
+        For output files, write an additional FITS extension including a version of the output array
+        rebinned down to the actual detector pixel scale?
+    jitter : string
+        Type of jitter model to apply. Currently only convolution with a Gaussian kernel of specified
+        width `jitter_sigma` is implemented.
+    jitter_sigma : float
+        Width of the jitter kernel in arcseconds (default: 0.007 arcsec)
+    parity : string "even" or "odd"
+        You may wish to ensure that the output PSF grid has either an odd or even number of pixels.
+        Setting this option will force that to be the case by increasing npix by one if necessary.
+
+    """
+    filter_list = None
+    """List of available filter names for this instrument"""
+    pixelscale = 0.025
+    """Detector pixel scale, in arcseconds/pixel (default: 0.025)"""
+
+
     def __init__(self, name="", *args, **kwargs):
         self.name=name
         self.pupil = poppy_core.CircularAperture( *args, **kwargs)
-        "Aperture for this optical system. May be a FITS filename, FITS HDUList object, or poppy.OpticalElement"
-        self.pupilopd = None   # This can optionally be set to a tuple indicating (filename, slice in datacube)
-        """Pupil OPD for this optical system. May be a FITS filename, or FITS HDUList. 
-        If the file contains a datacube, you may set this to a tuple (filename, slice) to select a given slice, or else
-        the first slice will be used."""
-
-
-        self.options = {} # dict for storing other arbitrary options. 
-        """ A dictionary capable of storing other arbitrary options, for extensibility. The following are all optional, and
-        may or may not be meaningful depending on which instrument is selected.
-
-        Parameters
-        ----------
-        source_offset_r : float
-            Radial offset of the target from the center, in arcseconds
-        source_offset_theta : float
-            Position angle for that offset
-        pupil_shift_x, pupil_shift_y : float
-            Relative shift of a coronagraphic pupil in X and Y, expressed as a decimal between 0.0-1.0
-            Note that shifting an array too much will wrap around to the other side unphysically, but
-            for reasonable values of shift this is a non-issue.
-        rebin : bool
-            For output files, write an additional FITS extension including a version of the output array 
-            rebinned down to the actual detector pixel scale?
-        jitter : string
-            Type of jitter model to apply. Currently only convolution with a Gaussian kernel of specified
-            width `jitter_sigma` is implemented.
-        jitter_sigma : float
-            Width of the jitter kernel in arcseconds (default: 0.007 arcsec)
-        parity : string "even" or "odd"
-            You may wish to ensure that the output PSF grid has either an odd or even number of pixels.
-            Setting this option will force that to be the case by increasing npix by one if necessary.
-
-        """
-
+        self.pupilopd = None
+        self.options = {}
+        self.pixelscale = 0.025
         self.filter_list, self._synphot_bandpasses = self._getFilterList() # List of available filter names
 
 
-        #create private instance variables. These will be
+        # create private instance variables. These will be
         # wrapped just below to create properties with validation.
-        self._filter=None
+        self._filter = None
         self._rotation = None
-
-        self.pixelscale = 0.025
-        """ Detector pixel scale, in arcseconds/pixel """
-
-        self._spectra_cache = {}  # for caching pysynphot results.
-
-
+        # for caching pysynphot results.
+        self._spectra_cache = {}
         self.filter = self.filter_list[0]
-
 
     def __str__(self):
         return "Instrument name="+self.name
