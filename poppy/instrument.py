@@ -75,9 +75,9 @@ class Instrument(object):
     rebin : bool
         For output files, write an additional FITS extension including a version of the output array
         rebinned down to the actual detector pixel scale?
-    jitter : string
+    jitter : string "gaussian" or None
         Type of jitter model to apply. Currently only convolution with a Gaussian kernel of specified
-        width `jitter_sigma` is implemented.
+        width `jitter_sigma` is implemented. (default: None)
     jitter_sigma : float
         Width of the jitter kernel in arcseconds (default: 0.007 arcsec)
     parity : string "even" or "odd"
@@ -492,7 +492,7 @@ class Instrument(object):
 
         if local_options['jitter'] is None:
             return
-        elif 'gauss' in local_options['jitter'].lower():
+        elif local_options['jitter'].lower() == 'gaussian':
             import scipy.ndimage
 
             try:
