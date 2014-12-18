@@ -9,6 +9,7 @@ import matplotlib
 import astropy.io.fits as fits
 
 from . import poppy_core
+from . import optics
 from . import utils
 
 
@@ -47,8 +48,6 @@ class Instrument(object):
         * _validate_config
         * _getSynphotBandpass
         * _applyJitter
-
-
     """
 
     name = "Instrument"
@@ -91,7 +90,6 @@ class Instrument(object):
     pixelscale = 0.025
     """Detector pixel scale, in arcseconds/pixel (default: 0.025)"""
 
-
     def __init__(self, name="", *args, **kwargs):
         self.name=name
         self.pupil = poppy_core.CircularAperture( *args, **kwargs)
@@ -99,7 +97,6 @@ class Instrument(object):
         self.options = {}
         self.pixelscale = 0.025
         self.filter_list, self._synphot_bandpasses = self._getFilterList() # List of available filter names
-
 
         # create private instance variables. These will be
         # wrapped just below to create properties with validation.
@@ -124,7 +121,6 @@ class Instrument(object):
             raise ValueError("Instrument %s doesn't have a filter called %s." % (self.name, value))
         self._filter = value
         self._validate_config()
-
 
     #----- actual optical calculations follow here -----
     def calcPSF(self, outfile=None, source=None, nlambda=None, monochromatic=None ,
@@ -698,6 +694,12 @@ class Instrument(object):
             if verbose: _log.info( " Wavelengths and weights computed from pysynphot: "+str( newsource))
             self._spectra_cache[ self._getSpecCacheKey(source,nlambda)] = newsource
             return newsource
+        elif isinstance(source, dict) and ('wavelengths' in source) and ('weights' in source):
+            # Allow providing directly a set of specific weights and wavelengths, as in poppy.calcPSF source option #2
+            return (source['wavelengths'], source['weights'])
+        elif isinstance(source, tuple) and len(source) == 2:
+            # Allow user to provide directly a tuple, as in poppy.calcPSF source option #3
+            return source
 
         else:  #Fallback simple code for if we don't have pysynphot.
             poppy_core._log.warning("Pysynphot unavailable (or invalid source supplied)!   Assuming flat # of counts versus wavelength.")
