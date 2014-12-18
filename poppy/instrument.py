@@ -495,9 +495,8 @@ class Instrument(object):
         elif local_options['jitter'].lower() == 'gaussian':
             import scipy.ndimage
 
-            try:
-                sigma = local_options['jitter_sigma']
-            except:
+            sigma = local_options.get('jitter_sigma')
+            if sigma is None:
                 poppy_core._log.warn("Gaussian jitter model requested, but no width for jitter distribution specified. Assuming jitter_sigma = 0.007 arcsec by default")
                 sigma = 0.007
 
