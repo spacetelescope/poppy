@@ -49,19 +49,15 @@ from __future__ import (absolute_import, division, print_function, unicode_liter
 __all__ = ['MatrixFourierTransform']
 
 import numpy as np
-import astropy.io.fits as fits
 
 import logging
 _log = logging.getLogger('poppy')
 
-
-
 # master routine combining all centering types
 def DFT_combined(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, centering='FFTSTYLE', **kwargs):
     """
-
     This function attempts to merge and unify the behaviors of all the other DFT routines
-    into one master, flexible routines. It thus should subsume:
+    into one master, flexible routine. It thus should subsume:
         DFT_fftstyle
         DFT_fftstyle_rect
         DFT_adjustible
@@ -90,9 +86,6 @@ def DFT_combined(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, centering=
     centering : string
         What type of centering convention should be used for this FFT? 
         'FFTYSTYLE', 'SYMMETRIC', 'ADJUSTIBLE'
-
-
-
     """
 
     npupY, npupX = pupil.shape[0:2]
@@ -118,13 +111,6 @@ def DFT_combined(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, centering=
         dX = 1.0/float(npupX)
         dY = 1.0/float(npupY)
 
-#
-#    du = nlamD / float(npix)
-#    dv = nlamD / float(npix)
-#
-#    dx = 1.0/float(npup)
-#    dy = 1.0/float(npup)
-#
     if centering.upper() == 'FFTSTYLE':
         Xs = (np.arange(npupX) - (npupX/2)) * dX
         Ys = (np.arange(npupY) - (npupY/2)) * dY
@@ -144,20 +130,11 @@ def DFT_combined(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, centering=
         Us = (np.arange(npixY) - float(npixX)/2.0 + 0.5) * dU
         Vs = (np.arange(npixX) - float(npixY)/2.0 + 0.5) * dV
 
-
-
-
-
     XU = np.outer(Xs, Us)
     YV = np.outer(Ys, Vs)
 
-
     expXU = np.exp(-2.0 * np.pi * 1j * XU)
     expYV = np.exp(-2.0 * np.pi * 1j * YV)
-
-    #print("")
-    #print dx, dy, du, dv
-    #print("")
 
     if inverse:
         expYV = expYV.T.copy()
@@ -168,17 +145,12 @@ def DFT_combined(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, centering=
         t1 = np.dot(expXU, pupil)
         t2 = np.dot(t1, expYV)
 
-    #return  nlamD/(npup*npix) *   t2 * dx * dy
-    norm_coeff = np.sqrt(  ( nlamDY* nlamDX) / (npupY*npupX*npixY*npixX))
-    #return  float(nlamD)/(npup*npix) *   t2 
-    return  norm_coeff *   t2 
-
-
+    norm_coeff = np.sqrt((nlamDY * nlamDX) / (npupY * npupX * npixY * npixX))
+    return norm_coeff * t2
 
 # FFTSTYLE centering
 def DFT_fftstyle(pupil, nlamD, npix, inverse=False, **kwargs):
     """
-
     Compute an "FFTSTYLE" matrix fourier transform.
     This means that the zero-order term is put all in a 
     single pixel.
@@ -193,8 +165,6 @@ def DFT_fftstyle(pupil, nlamD, npix, inverse=False, **kwargs):
     npix
         number of pixels per side side of focal plane array
         (corresponds to 'N_B' in Soummer et al. 2007 4.2)
-
-
     """
 
     npup = pupil.shape[0]
@@ -214,13 +184,8 @@ def DFT_fftstyle(pupil, nlamD, npix, inverse=False, **kwargs):
     XU = np.outer(Xs, Us)
     YV = np.outer(Ys, Vs)
 
-
     expXU = np.exp(-2.0 * np.pi * 1j * XU)
     expYV = np.exp(-2.0 * np.pi * 1j * YV)
-
-    #print("")
-    #print( dx, dy, du, dv)
-    #print("")
 
     if inverse:
         expYV = expYV.T.copy()
@@ -231,14 +196,12 @@ def DFT_fftstyle(pupil, nlamD, npix, inverse=False, **kwargs):
         t1 = np.dot(expXU, pupil)
         t2 = np.dot(t1, expYV)
 
-    #return  nlamD/(npup*npix) *   t2 * dx * dy
-    return  float(nlamD)/(npup*npix) *   t2 
+    return float(nlamD) / (npup*npix) * t2
 
 
 # FFTSTYLE centering, rectangular pupils supported
 def DFT_fftstyle_rect(pupil, nlamD, npix, inverse=False):
     """
-
     Compute an "FFTSTYLE" matrix fourier transform.
     This means that the zero-order term is put all in a 
     single pixel.
@@ -257,18 +220,16 @@ def DFT_fftstyle_rect(pupil, nlamD, npix, inverse=False):
     npix
         number of pixels per side side of focal plane array
         (corresponds to 'N_B' in Soummer et al. 2007 4.2)
-
-
     """
 
     npupY, npupX = pupil.shape[0:2]
 
-    if np.isscalar(npix): #hasattr(npix, '__getitem__'):
+    if np.isscalar(npix):
         npixY, npixX = npix, npix
     else:
         npixY, npixX = npix[0:2]   
 
-    if np.isscalar(nlamD): # hasattr(nlamD, '__getitem__'):
+    if np.isscalar(nlamD):
         nlamDY, nlamDX = nlamD, nlamD
     else:
         nlamDY, nlamDX = nlamD[0:2]
@@ -302,22 +263,10 @@ def DFT_fftstyle_rect(pupil, nlamD, npix, inverse=False):
     t2 = np.dot(t1, expXU)
 
     if inverse:
-        #print expYV.shape, pupil.shape, expXU.shape
         t2 = t2[::-1, ::-1]
-    #else:
-        #expYV = expYV.T.copy()                          # matrix npixY * npupY
-        #t1 = np.dot(expYV, pupil)                       # matrix npixY * npupX?     dot prod combined last axis of expYV and first axis of pupil.
-        #t2 = np.dot(t1, expXU)                          # matrix npixY * npixX
-        #print expYV.shape, pupil.shape, expXU.shape
-
-    #print ""
-
-    #return  nlamD/(npup*npix) *   t2 * dx * dy
     # normalization here is almost certainly wrong:
-    norm_coeff = np.sqrt(  float( nlamDY* nlamDX) / (npupY*npupX*npixY*npixX))
-    #mean_npup = np.sqrt(npupY**2+npupX**2)
-    #mean_npix = np.sqrt(npixY**2+npixX**2)
-    return  norm_coeff *   t2 
+    norm_coeff = np.sqrt(float(nlamDY * nlamDX) / (npupY * npupX * npixY * npixX))
+    return norm_coeff * t2
 
 
 # SYMMETRIC centering : PSF centered between 4 pixels
@@ -340,8 +289,6 @@ def DFT_symmetric(pupil, nlamD, npix, **kwargs):
 
 
     """
-
-
 
     npup = pupil.shape[0]
 
@@ -367,77 +314,11 @@ def DFT_symmetric(pupil, nlamD, npix, **kwargs):
 
     t1 = np.dot(expXU, pupil)
     t2 = np.dot(t1, expYV)
-    #print ""
-    #print dx, dy, du, dv
-    #print ""
 
-
-    #return t2 * dx * dy
-    return  float(nlamD)/(npup*npix) *   t2 
-
-## --- OBSOLETED BY DFT_adjustible_rect just below ----
-## 
-## # ADJUSTIBLE centering: PSF centered on array regardless of parity
-## def DFT_adjustible(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **kwargs):
-##     """
-##     Compute an adjustible-center matrix fourier transform. 
-## 
-##     For an output array with ODD size n,
-##     the PSF center will be at the center of pixel (n-1)/2
-##     
-##     For an output array with EVEN size n, 
-##     the PSF center will be in the corner between pixel (n/2-1,n/2-1) and (n/2,n/2)
-## 
-##     Those coordinates all assume Python/IDL style pixel coordinates running from
-##     (0,0) up to (n-1, n-1). 
-## 
-##     Parameters
-##     ----------
-##     pupil : array
-##         pupil array (n by n)
-##     nlamD : float or tuple
-##         size of focal plane array, in units of lam/D
-##         (corresponds to 'm' in Soummer et al. 2007 4.2)
-##     npix : float or tuple
-##         number of pixels per side side of focal plane array
-##         (corresponds to 'N_B' in Soummer et al. 2007 4.2)
-##     offset: tuple
-##         an offset in pixels relative to the above
-## 
-##     """
-## 
-## 
-##     npup = pupil.shape[0]
-## 
-##     du = nlamD / float(npix)
-##     dv = nlamD / float(npix)
-## 
-##     dx = 1.0/float(npup)
-##     dy = 1.0/float(npup)
-## 
-##     Xs = (np.arange(npup) - float(npup)/2.0 - offset[1] + 0.5) * dx
-##     Ys = (np.arange(npup) - float(npup)/2.0 - offset[0] + 0.5) * dy
-## 
-##     Us = (np.arange(npix) - float(npix)/2.0 - offset[1] + 0.5) * du
-##     Vs = (np.arange(npix) - float(npix)/2.0 - offset[0] + 0.5) * dv
-## 
-##     XU = np.outer(Xs, Us)
-##     YV = np.outer(Ys, Vs)
-## 
-## 
-##     expXU = np.exp(-2.0 * np.pi * 1j * XU)
-##     expYV = np.exp(-2.0 * np.pi * 1j * YV)
-##     expXU = expXU.T.copy()
-## 
-##     t1 = np.dot(expXU, pupil)
-##     t2 = np.dot(t1, expYV)
-## 
-##     #return t2 * dx * dy
-##     return  float(nlamD)/(npup*npix) *   t2 
-## 
+    return float(nlamD) / (npup * npix) * t2
 
 # ADJUSTIBLE centering:PSF centered on array regardless of parity, with rectangular pupils allowed
-def DFT_adjustible_rect(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **kwargs):
+def DFT_adjustible_rect(pupil, nlamD, npix, offset=(0.0, 0.0), inverse=False, **kwargs):
     """
     Compute an adjustible-center matrix fourier transform. 
 
@@ -445,33 +326,28 @@ def DFT_adjustible_rect(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **k
     the PSF center will be at the center of pixel (n-1)/2
     
     For an output array with EVEN size n, 
-    the PSF center will be in the corner between pixel (n/2-1,n/2-1) and (n/2,n/2)
+    the PSF center will be in the corner between pixel (n/2-1, n/2-1) and (n/2, n/2)
 
     Those coordinates all assume Python/IDL style pixel coordinates running from
     (0,0) up to (n-1, n-1). 
 
-
     This version supports rectangular, non-square arrays,
     in which case nlamD and npix should be 2-element
-    tuples or lists, using the usual Pythonic order (Y,X)
-
-
+    tuples or lists, using the usual Pythonic order (Y, X)
 
     Parameters
     ----------
     pupil : array
         pupil array (n by n)
     nlamD : float or tuple
-        size of focal plane array, in units of lam/D
+        size of focal plane array, in units of lamda / D
         (corresponds to 'm' in Soummer et al. 2007 4.2)
     npix : float or tuple
         number of pixels per side side of focal plane array
         (corresponds to 'N_B' in Soummer et al. 2007 4.2)
     offset: tuple
         an offset in pixels relative to the above
-
     """
-
 
     npupY, npupX = pupil.shape[0:2]
 
@@ -484,7 +360,6 @@ def DFT_adjustible_rect(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **k
         nlamDY, nlamDX = nlamD, nlamD
     else:
         nlamDY, nlamDX = nlamD[0:2]
-
 
     if inverse:
         dX = nlamDX / float(npupX)
@@ -506,7 +381,6 @@ def DFT_adjustible_rect(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **k
     YV = np.outer(Ys, Vs)
     XU = np.outer(Xs, Us)
 
-
     expXU = np.exp(-2.0 * np.pi * 1j * XU)
     expYV = np.exp(-2.0 * np.pi * 1j * YV)
 
@@ -515,19 +389,10 @@ def DFT_adjustible_rect(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **k
     t2 = np.dot(t1, expXU)
 
     if inverse:
-        #print expYV.shape, pupil.shape, expXU.shape
         t2 = t2[::-1, ::-1]
 
-    norm_coeff = np.sqrt(  float( nlamDY* nlamDX) / (npupY*npupX*npixY*npixX))
-    return  norm_coeff *   t2 
-
-# back compatibility aliases for older/more confusing terminology: 
-## SFT1 = DFT_fftstyle 
-## SFT1rect = DFT_fftstyle_rect 
-## SFT2 = DFT_symmetric
-## SFT3 = DFT_adjustible
-## SFT3rect = DFT_adjustible_rect
-
+    norm_coeff = np.sqrt(float(nlamDY * nlamDX) / (npupY * npupX * npixY * npixX))
+    return norm_coeff * t2
 
 
 class MatrixFourierTransform:
@@ -561,16 +426,20 @@ class MatrixFourierTransform:
     """
 
     def __init__(self, centering="FFTSTYLE", verbose=False):
+        self.verbose = verbose
+        self._dft_fns = {
+            'FFTSTYLE': DFT_fftstyle,
+            'SYMMETRIC': DFT_symmetric,
+            'ADJUSTIBLE': DFT_adjustible_rect,
+            'FFTRECT': DFT_fftstyle_rect
+        }
 
-        self.verbose=verbose
-
-        self._dft_fns = {'FFTSTYLE':DFT_fftstyle, "SYMMETRIC":DFT_symmetric, "ADJUSTIBLE":DFT_adjustible_rect, 'FFTRECT': DFT_fftstyle_rect}
-        #self.centering_methods= ("FFTSTYLE", "SYMMETRIC", "ADJUSTIBLE", 'FFTRECT')
         centering = centering.upper()
         if centering not in self._dft_fns.keys():
-            raise ValueError("Error: centering method must be one of [%s]" % ', '.join(self._dft_fns.keys()))
+            raise ValueError("Error: centering method must be one of [{}]".format(
+                ', '.join(self._dft_fns.keys())
+            ))
         self.centering = centering
-
 
         if self.verbose:
             _log.info("This instance of MatrixFourierTransform is a(n) {0}  set-up calling {1} ".format(centering, self._dft_fns[centering]))
@@ -591,7 +460,6 @@ class MatrixFourierTransform:
             Number of pixels to use for representing across that region lambda/D units in size.
 
         Returns a 2D complex valued Fourier transform array.
-
         """
 
         dft_fn_to_call = self._dft_fns[self.centering]
@@ -623,22 +491,3 @@ class MatrixFourierTransform:
 
         """
         return self.perform(image, nlamD, npix, inverse=True)
-
-#  This function is used nowhere in poppy or webbpsf, and it really
-#  does not do much of anything useful - so let's delete it. Aug 2014.
-#    def performFITS(hdulist, focalplane_size, focalplane_npix):
-#        """ Perform an MFT, and return the result as a fits.HDUlist """
-#        newHDUlist = hdulist.copy()
-#        newim = self.perform(hdulist[0].data, focalplane_size, focalplane_npix)
-#
-#        newHDUlist[0].data = newim
-#        #TODO fits header keyword updates
-#
-#        return newHDUlist
-
-## SlowFourierTransform = MatrixFourierTransform  # back compatible name
-
-#---------------------------------------------------------------------
-#  Test functions 
-#  are now in tests/test_matrixDFT.py
-
