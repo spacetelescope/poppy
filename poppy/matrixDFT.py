@@ -1,4 +1,3 @@
-#! /usr/bin/env  python 
 """
     MatrixDFT: Matrix-based discrete Fourier transforms for computing PSFs. 
 
@@ -15,7 +14,6 @@
 
     'ADJUSTIBLE' is the default.
 
-
     This module was originally called "Slow Fourier Transform", and this
     terminology still appears in some places in the code.  Note that this is
     'slow' only in the sense that if you perform the exact same calculation as
@@ -24,15 +22,10 @@
     you replace "fast calculations on very large arrays" with "relatively slow
     calculations on much smaller ones". 
 
-
-
     Example
     -------
     mf = matrixDFT.MatrixFourierTransform()
     result = mf.perform(pupilArray, focalplane_size, focalplane_npix)
-
-
-
 
     History
     -------
@@ -340,7 +333,7 @@ def DFT_adjustible_rect(pupil, nlamD, npix, offset=(0.0, 0.0), inverse=False, **
     pupil : array
         pupil array (n by n)
     nlamD : float or tuple
-        size of focal plane array, in units of lamda / D
+        size of focal plane array, in units of lambda / D
         (corresponds to 'm' in Soummer et al. 2007 4.2)
     npix : float or tuple
         number of pixels per side side of focal plane array
