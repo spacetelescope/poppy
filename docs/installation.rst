@@ -1,46 +1,27 @@
-
-
 Installation
 ==================
 
 POPPY may be installed from PyPI in the usual manner for Python packages::
 
-  % pip install poppy --upgrade
+   % pip install poppy --upgrade
 
+The source code is hosted in `this repository on GitHub <https://github.com/mperrin/poppy>`_. It is also possible to directly install the latest development version from git::
 
-The source code is hosted in `this repository on GitHub <https://github.com/mperrin/poppy>`_.
+   % git clone https://github.com/mperrin/poppy.git
+   % cd poppy
+   % pip install -e .
 
 .. note::
-                                                                                                                                             Users at STScI may also access POPPY through the standard `SSB software distributions <http://ssb.stsci.edu/ssb_software.shtml>`_.
-
-
-
-
-.. comment:
-        .. caution::
-        Some users have reported problems installing on recent versions of Mac OS, due to a known issue with
-        Mac OS no longer defining certain environment variables by default for text encoding format.
-        If you have trouble installing ``poppy``, try setting the following::
-                # set if on OSX (tcsh shell syntax)
-                setenv LANG "en_US.UTF-8"
-                setenv LC_ALL "en_US.UTF-8"
-                setenv LC_CTYPE "en_US.UTF-8"
-                # set if on OSX (bash shell syntax)
-                export LANG="en_US.UTF-8"
-                export LC_ALL="en_US.UTF-8"
-                export LC_CTYPE="en_US.UTF-8"
-        For more information see http://stackoverflow.com/questions/7165108/in-osx-lion-lang-is-not-set-to-utf8-how-fix
-
-
+   Users at STScI may also access POPPY through the standard `SSB software distributions <http://ssb.stsci.edu/ssb_software.shtml>`_.
 
 Requirements
 --------------
 
-* The standard Python scientific stack: ``numpy``, ``scipy``, ``matplotlib``
-* `astropy <http://astropy.org>`_, 0.4 or more recent.
+* The standard Python scientific stack: :py:mod:`numpy`, :py:mod:`scipy`, :py:mod:`matplotlib`
+* :py:mod:`astropy`, 0.4 or more recent, from http://astropy.org
 
 The following are *optional*.
-The first, ``pysynphot``, is recommended for most users. The other optional installs are only worth adding for speed improvements if you are spending substantial time running calculations.
+The first, :py:mod:`pysynphot`, is recommended for most users. The other optional installs are only worth adding for speed improvements if you are spending substantial time running calculations.
 
 * `pysynphot <https://pypi.python.org/pypi/pysynphot>`_ enables the simulation of PSFs with proper spectral response to realistic source spectra.  Without this, PSF fidelity is reduced. See below for :ref:`installation instructions for pysynphot <pysynphot_install>`. 
 * `psutil <https://pypi.python.org/pypi/psutil>`_ enables slightly better automatic selection of numbers of processes for multiprocess calculations.
@@ -49,28 +30,17 @@ The first, ``pysynphot``, is recommended for most users. The other optional inst
 .. _pysynphot_install:
 
 Installing or updating pysynphot
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`Pysynphot <https://pypi.python.org/pypi/pysynphot>`_ is an optional dependency, but as noted above is highly recommended. 
+Pysynphot is an optional dependency, but is highly recommended.
 
+To install or update to the latest version of :py:mod:`pysynphot`, simply invoke ``pip install -U pysynphot``.
 
+If you already have the CDBS data package installed, or are using a machine at STScI, then you can simply set the ``PYSYN_CDBS`` environment variable to point to the CDBS files.
 
-.. comment 
-        To install or update ``pysynphot``, do the following. (See also http://stsdas.stsci.edu/pysynphot/ and https://trac6.assembla.com/astrolib). WebbPSF has most recently been tested using pysynphot 0.9.5 but is known to work well with earlier versions as well.
-        .. warning::
-   You may have trouble installing pysynphot, as the zip file of the source on pypi is broken. This has been
-   communicated upstream but not yet fixed. You may have more luck installing from an updated zip file 
-   on testpypi: https://testpypi.python.org/pypi/pysynphot/0.9.5
-        work without this update but computations will be slower than the current version, so we recommend updating it. 
-    1. Download the most recent version of pysynphot from https://trac6.assembla.com/astrolib. 
-    2. Untar that file into a temporary working directory. 
-    3. run ``python setup.py install`` in that directory.  You can delete the setup files there after you do this step. 
+If this is your initial installation of :py:mod:`pysynphot`, you will need to install the CDBS files. These are available from STScI in DMG form for Mac users, as well as in gzipped tar format.
 
-Pysynphot is now also available from PyPI::
+**Installing CDBS on Mac:** To obtain the DMG, consult the "Installing CDBS locally on a Mac" section of http://ssb.stsci.edu/ssb_software.shtml. Download the DMG and open it to find ``cdbs.pkg``. Running this graphical installer will place the CDBS files in ``/usr/stsci/stdata``. Set the environment variable ``PYSYN_CDBS`` to point to that directory, e.g. ``setenv PYSYN_CDBS /usr/stsci/stdata`` for tcsh/csh or ``export PYSYN_CDBS="/usr/stsci/stdata"`` for bash.
 
-   %  pip install pysynphot
-
-If this is your initial installation of ``pysynphot`` you need to install the CDBS files. See the `pysynphot installation guide <https://trac6.assembla.com/astrolib/wiki/PysynphotInstallationGuide>`_. The necessary files are available from http://www.stsci.edu/hst/observatory/crds/cdbs_throughput.html; follow the download links for "throughput files" and "Castelli and Kurucz spectral atlast". If you already have CDBS installed, then you're all set and can skip this step.
-
-
-
+**Installing CDBS from tar archives**: To obtain the tar files, consult http://www.stsci.edu/hst/observatory/crds/cdbs_throughput.html. Download the archives numbered ``synphot[1-6].tar.gz`` and extract them to a directory such as ``$HOME/data/CDBS``.
+Set the environment variable ``PYSYN_CDBS`` to point to that directory. e.g. ``setenv PYSYN_CDBS $HOME/data/CDBS`` for tcsh/csh or ``export PYSYN_CDBS="$HOME/data/CDBS"``.

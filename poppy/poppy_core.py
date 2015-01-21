@@ -230,11 +230,13 @@ class Wavefront(object):
         Parameters
         -----------
         what : string
-            what kind of data to write. Must be one of 'parts', 'intensity', 'complex'.
-            The default is to write a file containing intensity.
+            what kind of data to write. Must be one of 'all', 'parts', 'intensity', or 'complex'.
+            The default is to write a file containing intensity, amplitude, and phase in a data cube
+            of shape (3, N, N). 'parts' omits intensity and produces a (2, N, N) array.
+            'intensity' and 'phase' write out 2D arrays with the corresponding values.
+            'complex' writes the wavefront phasor as a 2D array of complex numbers.
         includepadding : bool
             include any "padding" region, if present, in the returned FITS file?
-
         """
         # make copies in case we need to unpad - don't want to mess up actual wavefront data in memory
         # FIXME this is somewhat inefficient but easiest to code for now
