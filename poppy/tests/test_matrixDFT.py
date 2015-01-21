@@ -137,7 +137,7 @@ def test_MFT_fluxconsv_all_types(centering=None, **kwargs):
 
     test_MFT_flux_conservation(centering='FFTSTYLE', **kwargs)
     test_MFT_flux_conservation(centering='SYMMETRIC', **kwargs)
-    test_MFT_flux_conservation(centering='ADJUSTIBLE', **kwargs)
+    test_MFT_flux_conservation(centering='ADJUSTABLE', **kwargs)
     test_MFT_flux_conservation(centering='FFTRECT', **kwargs)
 
 
@@ -244,12 +244,12 @@ def test_DFT_rect(centering='FFTRECT', outdir=None, outname='DFT1R_', npix=None,
     plt.savefig('test_DFT_rectangular_results_{0}.pdf'.format(centering))
 
 def test_DFT_rect_adj():
-    """ Repeat DFT rectangle check, but for am adjustible FFT centering 
+    """ Repeat DFT rectangle check, but for adjustable FFT centering
     """
-    test_DFT_rect(centering='ADJUSTIBLE', outname='DFT1Radj_')
+    test_DFT_rect(centering='ADJUSTABLE', outname='DFT1Radj_')
 
 def test_DFT_center( npix=100, outdir=None, outname='DFT1'):
-    centering='ADJUSTIBLE'
+    centering='ADJUSTABLE'
 
     npupil = 156
     pctr = int(npupil/2)
@@ -378,7 +378,7 @@ def run_all_MFS_tests_DFT(outdir=None, outname='DFT1'):
     npix=512
     a1 = DFT_combined(pupil, u, npix, centering='FFTSTYLE')
     a2 = DFT_combined(pupil, u, npix, centering='SYMMETRIC')
-    a3 = DFT_combined(pupil, u, npix, centering='ADJUSTIBLE')
+    a3 = DFT_combined(pupil, u, npix, centering='ADJUSTABLE')
     a4 = DFT_fftstyle(pupil, u, npix)
     a5 = DFT_symmetric(pupil, u, npix)
 
@@ -392,7 +392,7 @@ def run_all_MFS_tests_DFT(outdir=None, outname='DFT1'):
     npix=513
     b1 = DFT_combined(pupil, u, npix, centering='FFTSTYLE')
     b2 = DFT_combined(pupil, u, npix, centering='SYMMETRIC')
-    b3 = DFT_combined(pupil, u, npix, centering='ADJUSTIBLE')
+    b3 = DFT_combined(pupil, u, npix, centering='ADJUSTABLE')
     b4 = DFT_fftstyle(pupil, u, npix)
     b5 = DFT_symmetric(pupil, u, npix)
 
@@ -409,9 +409,9 @@ def run_all_MFS_tests_DFT(outdir=None, outname='DFT1'):
     npix2=(512, 128)
     c1 = DFT_combined(pupil, u2, npix2, centering='FFTSTYLE')
     c2 = DFT_combined(pupil, u2, npix2, centering='SYMMETRIC')
-    c3 = DFT_combined(pupil, u2, npix2, centering='ADJUSTIBLE')
+    c3 = DFT_combined(pupil, u2, npix2, centering='ADJUSTABLE')
     c4 = DFT_fftstyle_rect(pupil, u2, npix2)
-    c5 = DFT_adjustible_rect(pupil, u2, npix2)
+    c5 = DFT_adjustable_rect(pupil, u2, npix2)
 
     if outdir is not None:
         fits.writeto(outdir+os.sep+outname+"_c1_fft.fits",(c1*c1.conjugate()).real, clobber=True) 
@@ -437,7 +437,7 @@ def test_check_invalid_centering():
 
     with pytest.raises(ValueError) as excinfo:
         mft = matrixDFT.MatrixFourierTransform(centering='some garbage value', verbose=True)
-    assert excinfo.value.message == 'Error: centering method must be one of [SYMMETRIC, ADJUSTIBLE, FFTRECT, FFTSTYLE]'
+    assert excinfo.value.message == 'Error: centering method must be one of [SYMMETRIC, ADJUSTABLE, FFTRECT, FFTSTYLE]'
 
 
 

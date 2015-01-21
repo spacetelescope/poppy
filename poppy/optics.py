@@ -1189,7 +1189,7 @@ class SecondaryObscuration(AnalyticOpticalElement):
     """ Defines the central obscuration of an on-axis telescope including secondary mirror and
     supports
 
-    The number of supports is adjustible but they are always radially symmetric around the center.
+    The number of supports is adjustable but they are always radially symmetric around the center.
     See AsymmetricSecondaryObscuration if you need more flexibility. 
 
     Parameters

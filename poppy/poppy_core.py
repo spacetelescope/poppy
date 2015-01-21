@@ -1,7 +1,3 @@
-#!/usr/bin/env python
-# package doc string now in __init__.py in this directory!
-
-
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 import multiprocessing
 import copy
@@ -680,7 +676,7 @@ class Wavefront(object):
         det_fov_lamD = det.fov_arcsec / lamD
         det_calc_size_pixels = det.fov_pixels * det.oversample
 
-        mft = MatrixFourierTransform(centering='ADJUSTIBLE', verbose=False)
+        mft = MatrixFourierTransform(centering='ADJUSTABLE', verbose=False)
         if not np.isscalar(det_fov_lamD): #hasattr(det_fov_lamD,'__len__'):
             msg= '    Propagating w/ MFT: %.4f"/pix     fov=[%.3f,%.3f] lam/D    npix=%d x %d' %  (det.pixelscale/det.oversample, det_fov_lamD[0], det_fov_lamD[1], det_calc_size_pixels[0], det_calc_size_pixels[1])
         else:
@@ -743,7 +739,7 @@ class Wavefront(object):
             else:
                 pupil_npix = self._preMFT_pupil_shape[0]
 
-        mft = MatrixFourierTransform(centering='ADJUSTIBLE', verbose=False)
+        mft = MatrixFourierTransform(centering='ADJUSTABLE', verbose=False)
         if not np.isscalar(det_fov_lamD): #hasattr(det_fov_lamD,'__len__'):
             msg= '    Propagating w/ InvMFT: %.4f"/pix     fov=[%.3f,%.3f] lam/D    npix=%d x %d' %  (self.pixelscale[0], det_fov_lamD[0], det_fov_lamD[1], pupil_npix, pupil_npix)
         else:

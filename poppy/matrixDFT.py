@@ -10,9 +10,9 @@
 
         - 'FFTSTYLE' centered on one pixel
         - 'SYMMETRIC' centerd on crosshairs between middle pixel
-        - 'ADJUSTIBLE', always centered in output array depending on whether it is even/odd
+        - 'ADJUSTABLE', always centered in output array depending on whether it is even/odd
 
-    'ADJUSTIBLE' is the default.
+    'ADJUSTABLE' is the default.
 
     This module was originally called "Slow Fourier Transform", and this
     terminology still appears in some places in the code.  Note that this is
@@ -53,7 +53,7 @@ def DFT_combined(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, centering=
     into one master, flexible routine. It thus should subsume:
         DFT_fftstyle
         DFT_fftstyle_rect
-        DFT_adjustible
+        DFT_adjustable
         DFT_symmetric
 
     As of Jan 2013, this works OK for even-sized arrays, but for odd-sized arrays it
@@ -78,7 +78,7 @@ def DFT_combined(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, centering=
         Is this a forward or inverse transformation?
     centering : string
         What type of centering convention should be used for this FFT? 
-        'FFTYSTYLE', 'SYMMETRIC', 'ADJUSTIBLE'
+        'FFTYSTYLE', 'SYMMETRIC', 'ADJUSTABLE'
     """
 
     npupY, npupX = pupil.shape[0:2]
@@ -110,7 +110,7 @@ def DFT_combined(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, centering=
 
         Us = (np.arange(npixY) - npixX/2) * dU
         Vs = (np.arange(npixX) - npixY/2) * dV
-    elif centering.upper() == 'ADJUSTIBLE':
+    elif centering.upper() == 'ADJUSTABLE':
         Xs = (np.arange(npupX) - float(npupX)/2.0 - offset[1] + 0.5) * dX
         Ys = (np.arange(npupY) - float(npupY)/2.0 - offset[0] + 0.5) * dY
 
@@ -310,10 +310,10 @@ def DFT_symmetric(pupil, nlamD, npix, **kwargs):
 
     return float(nlamD) / (npup * npix) * t2
 
-# ADJUSTIBLE centering:PSF centered on array regardless of parity, with rectangular pupils allowed
-def DFT_adjustible_rect(pupil, nlamD, npix, offset=(0.0, 0.0), inverse=False, **kwargs):
+# ADJUSTABLE centering: PSF centered on array regardless of parity, with rectangular pupils allowed
+def DFT_adjustable_rect(pupil, nlamD, npix, offset=(0.0, 0.0), inverse=False, **kwargs):
     """
-    Compute an adjustible-center matrix fourier transform. 
+    Compute an adjustable-center matrix fourier transform.
 
     For an output array with ODD size n,
     the PSF center will be at the center of pixel (n-1)/2
@@ -396,10 +396,10 @@ class MatrixFourierTransform:
     Parameters
     ----------
     centering : string
-        Either 'SYMMETRIC', 'FFTSTYLE', or 'ADJUSTIBLE'. 
+        Either 'SYMMETRIC', 'FFTSTYLE', or 'ADJUSTABLE'.
         Sets whether the DFT result is centered at pixel n/2+1 (FFTSTYLE) 
         or on the crosshairs between the central pixels (SYMMETRIC),
-        or exactly centered in the array no matter what (ADJUSTIBLE). 
+        or exactly centered in the array no matter what (ADJUSTABLE).
         Default is FFTSTYLE. 
 
 
@@ -423,7 +423,7 @@ class MatrixFourierTransform:
         self._dft_fns = {
             'FFTSTYLE': DFT_fftstyle,
             'SYMMETRIC': DFT_symmetric,
-            'ADJUSTIBLE': DFT_adjustible_rect,
+            'ADJUSTABLE': DFT_adjustable_rect,
             'FFTRECT': DFT_fftstyle_rect
         }
 
