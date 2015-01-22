@@ -601,24 +601,6 @@ class Wavefront(object):
 
         _log.debug("using {2} FFT of {0} array, direction={1}".format(str(self.wavefront.shape), FFT_direction, method))
         if _USE_FFTW:
-            # Benchmarking on a Mac Pro (8 cores) indicated that the fastest performance comes from
-            # in-place FFTs, and that it is safe to ignore byte alignment issues for these arrays
-            # (indeed, even beneficial in many cases) contrary to the suggestion of the FFTW docs
-            # which say that aligning arrays helps. Not sure why, but it's true!
-            # See the discussion of FFTs in the documentation.
-            #wfold = self.copy()
-            #    if (self.wavefront.shape, FFT_direction) not in _FFTW_INIT.keys():
-            #        # The first time you run FFTW to transform a given size, it does a speed test to determine optimal algorithm
-            #        # that is destructive to your chosen array. So only do that test on a copy, not the real array:
-            #        _log.info("Evaluating FFT optimal algorithm for %s, direction=%s" % (str(self.wavefront.shape), FFT_direction))
-            #        fftplan = fftw3.Plan(self.wavefront.copy(), None, nthreads = multiprocessing.cpu_count(),direction=FFT_direction, flags=_FFTW_FLAGS)
-            #        _FFTW_INIT[(self.wavefront.shape, FFT_direction)] = True
-            #
-            #    fftplan = fftw3.Plan(self.wavefront, None, nthreads = multiprocessing.cpu_count(),direction=FFT_direction, flags=_FFTW_FLAGS)
-            #    fftplan.execute() # execute the plan
-            #        #print("After  FFTW Flux 2: %f" % (abs(outarr)**2).sum())
-            #    # due to FFTW normalization convention, must divide by number of pixels per side.
-            #        #print("After  FFTW Flux 1: %f" % (self.totalIntensity))
             if (self.wavefront.shape, FFT_direction) not in _FFTW_INIT.keys():
                 # The first time you run FFTW to transform a given size, it does a speed test to determine optimal algorithm
                 # that is destructive to your chosen array. So only do that test on a copy, not the real array:
@@ -633,10 +615,7 @@ class Wavefront(object):
 
                 _FFTW_INIT[(self.wavefront.shape, FFT_direction)] = True
 
-
             self.wavefront = do_fft(self.wavefront, overwrite_input=True, planner_effort='FFTW_MEASURE', threads=multiprocessing.cpu_count())
-
-
         else:
             self.wavefront = do_fft(self.wavefront)
 
