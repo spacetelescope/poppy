@@ -1,7 +1,3 @@
-#!/usr/bin/env python
-# package doc string now in __init__.py in this directory!
-
-
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 import multiprocessing
 import copy
@@ -516,6 +512,10 @@ class Wavefront(object):
         """Propagates a wavefront object to the next optic in the list.
         Modifies this wavefront object itself.
 
+        Transformations between pupil and detector planes use MFT or inverse MFT.
+        Transformations between pupil and other (non-detector) image planes use FFT or inverse FFT.
+        Transformations from any frame through a rotation plane simply rotate the wavefront accordingly.
+
         Parameters
         -----------
         optic : OpticalElement
@@ -538,6 +538,8 @@ class Wavefront(object):
             self._propagateMFT(optic)
             self.location='before '+optic.name
         elif optic.planetype == _PUPIL and self.planetype ==_IMAGE and self._last_transform_type =='MFT': # inverse MFT detector to pupil
+            # n.b. transforming _PUPIL -> _DETECTOR results in self.planetype == _IMAGE
+            # while setting _last_transform_type to MFT
             self._propagateMFTinverse(optic)
             self.location='before '+optic.name
         elif self.planetype==_IMAGE and optic.planetype == _DETECTOR:
@@ -599,24 +601,6 @@ class Wavefront(object):
 
         _log.debug("using {2} FFT of {0} array, direction={1}".format(str(self.wavefront.shape), FFT_direction, method))
         if _USE_FFTW:
-            # Benchmarking on a Mac Pro (8 cores) indicated that the fastest performance comes from
-            # in-place FFTs, and that it is safe to ignore byte alignment issues for these arrays
-            # (indeed, even beneficial in many cases) contrary to the suggestion of the FFTW docs
-            # which say that aligning arrays helps. Not sure why, but it's true!
-            # See the discussion of FFTs in the documentation.
-            #wfold = self.copy()
-            #    if (self.wavefront.shape, FFT_direction) not in _FFTW_INIT.keys():
-            #        # The first time you run FFTW to transform a given size, it does a speed test to determine optimal algorithm
-            #        # that is destructive to your chosen array. So only do that test on a copy, not the real array:
-            #        _log.info("Evaluating FFT optimal algorithm for %s, direction=%s" % (str(self.wavefront.shape), FFT_direction))
-            #        fftplan = fftw3.Plan(self.wavefront.copy(), None, nthreads = multiprocessing.cpu_count(),direction=FFT_direction, flags=_FFTW_FLAGS)
-            #        _FFTW_INIT[(self.wavefront.shape, FFT_direction)] = True
-            #
-            #    fftplan = fftw3.Plan(self.wavefront, None, nthreads = multiprocessing.cpu_count(),direction=FFT_direction, flags=_FFTW_FLAGS)
-            #    fftplan.execute() # execute the plan
-            #        #print("After  FFTW Flux 2: %f" % (abs(outarr)**2).sum())
-            #    # due to FFTW normalization convention, must divide by number of pixels per side.
-            #        #print("After  FFTW Flux 1: %f" % (self.totalIntensity))
             if (self.wavefront.shape, FFT_direction) not in _FFTW_INIT.keys():
                 # The first time you run FFTW to transform a given size, it does a speed test to determine optimal algorithm
                 # that is destructive to your chosen array. So only do that test on a copy, not the real array:
@@ -631,10 +615,7 @@ class Wavefront(object):
 
                 _FFTW_INIT[(self.wavefront.shape, FFT_direction)] = True
 
-
             self.wavefront = do_fft(self.wavefront, overwrite_input=True, planner_effort='FFTW_MEASURE', threads=multiprocessing.cpu_count())
-
-
         else:
             self.wavefront = do_fft(self.wavefront)
 
@@ -682,7 +663,7 @@ class Wavefront(object):
         det_fov_lamD = det.fov_arcsec / lamD
         det_calc_size_pixels = det.fov_pixels * det.oversample
 
-        mft = MatrixFourierTransform(centering='ADJUSTIBLE', verbose=False)
+        mft = MatrixFourierTransform(centering='ADJUSTABLE', verbose=False)
         if not np.isscalar(det_fov_lamD): #hasattr(det_fov_lamD,'__len__'):
             msg= '    Propagating w/ MFT: %.4f"/pix     fov=[%.3f,%.3f] lam/D    npix=%d x %d' %  (det.pixelscale/det.oversample, det_fov_lamD[0], det_fov_lamD[1], det_calc_size_pixels[0], det_calc_size_pixels[1])
         else:
@@ -745,7 +726,7 @@ class Wavefront(object):
             else:
                 pupil_npix = self._preMFT_pupil_shape[0]
 
-        mft = MatrixFourierTransform(centering='ADJUSTIBLE', verbose=False)
+        mft = MatrixFourierTransform(centering='ADJUSTABLE', verbose=False)
         if not np.isscalar(det_fov_lamD): #hasattr(det_fov_lamD,'__len__'):
             msg= '    Propagating w/ InvMFT: %.4f"/pix     fov=[%.3f,%.3f] lam/D    npix=%d x %d' %  (self.pixelscale[0], det_fov_lamD[0], det_fov_lamD[1], pupil_npix, pupil_npix)
         else:
