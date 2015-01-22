@@ -867,7 +867,7 @@ class Wavefront(object):
 
 #------  Optical System classes -------
 
-class OpticalSystem():
+class OpticalSystem(object):
     """ A class representing a series of optical elements,
     either Pupil, Image, or Detector planes, through which light
     can be propagated.
@@ -1619,7 +1619,7 @@ class SemiAnalyticCoronagraph(OpticalSystem):
 
 
 #------ core Optical Element Classes ------
-class OpticalElement():
+class OpticalElement(object):
     """ Base class for all optical elements, whether from FITS files or analytic functions. 
 
     If instantiated on its own, this just produces a null optical element (empty space, 

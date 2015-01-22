@@ -46,8 +46,12 @@ class AnalyticOpticalElement(OpticalElement):
     def __init__(self, **kwargs):
         OpticalElement.__init__(self, **kwargs)
 
-        self.shape = None  # no explicit shape required
+        #self.shape = None  # no explicit shape required
         self.pixelscale = None
+
+    @property
+    def shape(self):  # Analytic elements don't have shape
+        return None
 
     def __str__(self):
         if self.planetype is _PUPIL:
@@ -234,9 +238,12 @@ class InverseTransmission(OpticalElement):
         self.uninverted_optic = optic
         self.name = "1 - " + optic.name
         self.planetype = optic.planetype
-        self.shape = optic.shape
+        #self.shape = optic.shape
         self.pixelscale = optic.pixelscale
         self.oversample = optic.oversample
+
+    def shape(self): # override parent class shape function
+        return optic.shape
 
     def getPhasor(self, wave):
         return 1 - self.uninverted_optic.getPhasor(wave)
