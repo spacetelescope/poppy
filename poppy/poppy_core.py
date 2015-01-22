@@ -933,18 +933,15 @@ class OpticalSystem():
 
           1) from file(s) giving transmission and/or OPD
                 [set arguments `transmission=filename` and/or `opd=filename`]
-          2) from an analytic function
-                [set `function='Circle', 'Square'`
-                and set additional kwargs to define shape etc.
-          3) from an already-created OpticalElement object
+          2) from an already-created :py:class:`OpticalElement` object
                 [set `optic=that object`]
 
         Parameters
         ----------
         optic : poppy.OpticalElement, optional
-            An already-created OpticalElement object you would like to add
-        function: string, optional
-            The name of some analytic function you would like to use.
+            An already-created :py:class:`OpticalElement` object you would like to add
+        function : string, optional
+            Deprecated. The name of some analytic function you would like to use.
             Optional `kwargs` can be used to set the parameters of that function.
             Allowable function names are Circle, Square, Hexagon, Rectangle, and FQPM_FFT_Aligner
         opd, transmission : string, optional
@@ -960,7 +957,7 @@ class OpticalSystem():
         and it will do the right thing depending on type.  Both existing arguments are left for compatibility for now.
 
 
-        Any provided parameters are passed to :ref:`OpticalElement`.
+        Any provided parameters are passed to :py:class:`OpticalElement`.
 
 
         """
