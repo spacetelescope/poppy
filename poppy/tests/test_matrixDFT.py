@@ -176,6 +176,7 @@ def test_DFT_rect(centering='FFTRECT', outdir=None, outname='DFT1R_', npix=None,
 
 
     # FFT style
+    print 'init with centering=', centering
     mft1 = matrixDFT.MatrixFourierTransform(centering=centering)
 
     #ctr = (float(npupil)/2.0 + mft1.offset(), float(npupil)/2.0 + mft1.offset())
@@ -199,7 +200,8 @@ def test_DFT_rect(centering='FFTRECT', outdir=None, outname='DFT1R_', npix=None,
     if outdir is not None:
         fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
 
-    a = mft1.perform(pupil, u, npix)
+    print 'perform with pupil shape', pupil.shape, 'nlamd', nlamd, 'npix', npix
+    a = mft1.perform(pupil, nlamd, npix)
 
     pre = (abs(pupil)**2).sum() 
     post = (abs(a)**2).sum() 
@@ -223,18 +225,18 @@ def test_DFT_rect(centering='FFTRECT', outdir=None, outname='DFT1R_', npix=None,
 
     ax=plt.subplot(142)
     plt.imshow(asf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
-    ax.set_title='ASF'
+    ax.set_title('ASF')
 
     ax=plt.subplot(143)
     plt.imshow(psf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
-    ax.set_title='PSF'
+    ax.set_title('PSF')
 
     plt.subplot(144)
 
     pupil2 = mft1.inverse(a, u, npupil)
     pupil2r = (pupil2 * pupil2.conjugate()).real
-    plt.imshow( pupil2r, vmin=0,vmax=pmx*1.5*0.01) # FIXME flux normalization is not right?? I think this has to do with squaring the pupil here, that's all.
-    plt.gca().set_title='back to pupil'
+    plt.imshow(np.abs(pupil2))
+    plt.gca().set_title('back to pupil')
     plt.draw()
     print "Post-inverse FFT total: "+str( abs(pupil2r).sum() )
     print "Post-inverse pupil max: "+str(pupil2r.max())
@@ -437,7 +439,7 @@ def test_check_invalid_centering():
 
     with pytest.raises(ValueError) as excinfo:
         mft = matrixDFT.MatrixFourierTransform(centering='some garbage value', verbose=True)
-    assert excinfo.value.message == 'Error: centering method must be one of [SYMMETRIC, ADJUSTABLE, FFTRECT, FFTSTYLE]'
+    assert excinfo.value.message == "'centering' must be one of [ADJUSTABLE, SYMMETRIC, FFTSTYLE]"
 
 
 
