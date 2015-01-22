@@ -146,20 +146,6 @@ def matrix_dft(pupil, nlamD, npix,
 
         Us = (np.arange(npixX) - npixX / 2) * dU
         Vs = (np.arange(npixY) - npixY / 2) * dV
-    # elif centering == FFTRECT:
-    #     print('FIXME delete this line')
-    #     # FIXME this shouldn't be special cased
-    #     # it should fold into FFTSTYLE
-    #     Xs = (np.arange(npupX) - (npupX/2)) * dX
-    #     Ys = (np.arange(npupY) - (npupY/2)) * dY
-    #
-    #     print( 'Xs shape', Xs.shape)
-    #     print('Ys shape', Ys.shape)
-    #
-    #     Us = (np.arange(npixX) - npixX/2) * dU
-    #     Vs = (np.arange(npixY) - npixY/2) * dV
-    #     print ('Us shape', Us.shape)
-    #     print ('Vs shape', Vs.shape)
     elif centering == ADJUSTABLE:
         if offset is None:
             offsetY, offsetX = 0.0, 0.0
@@ -187,21 +173,15 @@ def matrix_dft(pupil, nlamD, npix,
 
     XU = np.outer(Xs, Us)
     YV = np.outer(Ys, Vs)
-    print ('XU shape', XU.shape)
-    print ('YV shape', YV.shape)
 
     if inverse:
         expYV = np.exp(-2.0 * np.pi * -1j * YV).T
         expXU = np.exp(-2.0 * np.pi * -1j * XU)
-        print ('expYV shape', expYV.shape)
-        print ('expXU shape', expXU.shape)
         t1 = np.dot(expYV, pupil)
         t2 = np.dot(t1, expXU)
     else:
         expXU = np.exp(-2.0 * np.pi * 1j * XU)
         expYV = np.exp(-2.0 * np.pi * 1j * YV).T
-        print ('expXU shape', expXU.shape)
-        print ('expYV shape', expYV.shape)
         t1 = np.dot(expYV, pupil)
         t2 = np.dot(t1, expXU)
 
