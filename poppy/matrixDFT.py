@@ -57,7 +57,7 @@ ADJUSTABLE = 'ADJUSTABLE'
 CENTERING_CHOICES = (FFTSTYLE, SYMMETRIC, ADJUSTABLE, FFTRECT)
 
 
-def matrix_dft(pupil, nlamD, npix,
+def matrix_dft(plane, nlamD, npix,
                offset=None, inverse=False, centering=FFTSTYLE):
     """Perform a matrix discrete Fourier transform with selectable
     output sampling and centering.
@@ -69,7 +69,7 @@ def matrix_dft(pupil, nlamD, npix,
 
     Parameters
     ----------
-    pupil : 2D ndarray
+    plane : 2D ndarray
         2D array (either real or complex) representing the input image plane or
         pupil plane to transform.
     nlamD : float or 2-tuple of floats (nlamDY, nlamDX)
@@ -103,7 +103,7 @@ def matrix_dft(pupil, nlamD, npix,
         (offsetY, offsetX).
     """
 
-    npupY, npupX = pupil.shape
+    npupY, npupX = plane.shape
 
     if np.isscalar(npix): 
         npixY, npixX = npix, npix
@@ -177,12 +177,12 @@ def matrix_dft(pupil, nlamD, npix,
     if inverse:
         expYV = np.exp(-2.0 * np.pi * -1j * YV).T
         expXU = np.exp(-2.0 * np.pi * -1j * XU)
-        t1 = np.dot(expYV, pupil)
+        t1 = np.dot(expYV, plane)
         t2 = np.dot(t1, expXU)
     else:
         expXU = np.exp(-2.0 * np.pi * 1j * XU)
         expYV = np.exp(-2.0 * np.pi * 1j * YV).T
-        t1 = np.dot(expYV, pupil)
+        t1 = np.dot(expYV, plane)
         t2 = np.dot(t1, expXU)
 
     norm_coeff = np.sqrt((nlamDY * nlamDX) / (npupY * npupX * npixY * npixX))
@@ -190,13 +190,13 @@ def matrix_dft(pupil, nlamD, npix,
 
 
 def matrix_idft(*args, **kwargs):
-    __doc__ = matrix_dft.__doc__.replace(
-        'Perform a matrix discrete Fourier transform',
-        'Perform an inverse matrix discrete Fourier transform'
-    )
     kwargs['inverse'] = True
     return matrix_dft(*args, **kwargs)
 
+matrix_idft.__doc__ = matrix_dft.__doc__.replace(
+    'Perform a matrix discrete Fourier transform',
+    'Perform an inverse matrix discrete Fourier transform'
+)
 
 class MatrixFourierTransform:
     """Implements a discrete matrix Fourier transform for optical propagation,
