@@ -443,3 +443,64 @@ def test_check_invalid_centering():
 
 
 
+def test_parity_MFT_forward_inverse(display = False):
+    """ Test that transforming from a pupil, to an image, and back to the pupil
+    leaves you with the same pupil as you had in the first place.
+
+    In other words it doesn't flip left/right or up/down etc.
+
+    See https://github.com/mperrin/webbpsf/issues/35
+
+    **  See also: test_fft.test_parity_FFT_forward_inverse() for a  **
+    **  parallel function to this.                                  **
+
+
+    """
+    from .test_core import ParityTestAperture
+
+    # set up optical system with 2 pupil planes and 2 image planes
+
+    # use the same exact image plane sampling as in the FFT case
+    # This is a bit slower but ensures quantitative agreement.
+
+    pixscale = 0.03437746770784939 
+    npix=2048
+    sys = poppy_core.OpticalSystem()
+    sys.addPupil(ParityTestAperture())
+    sys.addDetector(pixelscale=pixscale, fov_pixels=npix)
+    sys.addPupil()
+    sys.addDetector(pixelscale=pixscale, fov_pixels=npix)
+
+    psf, planes = sys.calcPSF(display=display, oversample=1, return_intermediates=True)
+
+    # the wavefronts are padded by 0s. With the current API the most convenient
+    # way to ensure we get unpadded versions is via the asFITS function.
+    p0 = planes[0].asFITS(what='intensity', includepadding=False)
+    p2 = planes[2].asFITS(what='intensity', includepadding=False)
+
+    # for checking the overall parity it's sufficient to check the intensity.
+    # we can have arbitrarily large differences in phase for regions with 
+    # intensity =0, so don't check the complex field or phase here. 
+
+
+    absdiff = (np.abs(p0[0].data - p2[0].data))
+    maxabsdiff = np.max(absdiff)
+    assert (maxabsdiff < 1e-10)
+
+    if display:
+        nplanes = len(planes)
+        for i, plane in enumerate(planes):
+            ax = plt.subplot(2,nplanes,i+1)
+            plane.display(ax = ax)
+            plt.title("Plane {0}".format(i))
+
+
+        plt.subplot(2,nplanes,nplanes+1)
+        plt.imshow(absdiff)
+        plt.title("Abs(Pupil0-Pupil2)")
+        plt.colorbar()
+        print maxabsdiff
+
+
+
+

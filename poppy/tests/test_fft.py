@@ -158,6 +158,63 @@ def test_SAMC(oversample=4):
 
     assert np.abs(psf_sam[0].data.sum() - psf_fft[0].data.sum()) < thresh
 
+
+
+def test_parity_FFT_forward_inverse(display = False):
+    """ Test that transforming from a pupil, to an image, and back to the pupil
+    leaves you with the same pupil as you had in the first place.
+    
+    In other words it doesn't flip left/right or up/down etc. 
+    
+    See https://github.com/mperrin/webbpsf/issues/35
+    That was for the MFT, but for thoroughness let's test both FFT and MFT 
+    to demonstrate proper behavior
+
+    **  See also: test_matrixDFT.test_parity_MFT_forward_inverse() for a  **
+    **  parallel function to this.                                        **
+
+    """
+
+    from .test_core import ParityTestAperture 
+    
+    # set up optical system with 2 pupil planes and 2 image planes
+    sys = poppy_core.OpticalSystem()
+    sys.addPupil(ParityTestAperture())
+    sys.addImage()
+    sys.addPupil()
+    sys.addDetector(pixelscale=0.010, fov_arcsec=1)
+
+    psf, planes = sys.calcPSF(display=display, oversample=1, return_intermediates=True)    
+
+    # the wavefronts are padded by 0s. With the current API the most convenient
+    # way to ensure we get unpadded versions is via the asFITS function.
+    p0 = planes[0].asFITS(what='intensity', includepadding=False)
+    p2 = planes[2].asFITS(what='intensity', includepadding=False)
+
+    # for checking the overall parity it's sufficient to check the intensity.
+    # we can have arbitrarily large differences in phase for regions with 
+    # intensity =0, so don't check the complex field or phase here. 
+    
+    absdiff = (np.abs(p0[0].data - p2[0].data))
+    maxabsdiff = np.max(absdiff)
+    assert (maxabsdiff < 1e-10)
+
+    if display:
+        nplanes = len(planes)
+        for i, plane in enumerate(planes):
+            ax = plt.subplot(2,nplanes,i+1)
+            plane.display(ax = ax)
+            plt.title("Plane {0}".format(i))
+        plt.subplot(2,nplanes,nplanes+1)
+        plt.imshow(absdiff)
+        plt.title("Abs(Pupil0-Pupil2)")
+        plt.colorbar()
+        print("Max abs(difference) = "+str(maxabsdiff))
+        
+
+
+
+
 if conf.use_fftw:
     # The following test is only applicable if fftw is present. 
 
