@@ -67,6 +67,12 @@ def matrix_dft(plane, nlamD, npix,
     X dimension. This ordering matches that of numpy.ndarray.shape attributes
     and that of Python indexing.
 
+    To achieve exact correspondence to the FFT set nlamD and npix to the size
+    of the input array in pixels and use 'FFTSTYLE' centering. (n.b. When
+    using `numpy.fft.fft2` you must `numpy.fft.fftshift` the input pupil both
+    before and after applying fft2 or else it will introduce a checkerboard
+    pattern in the signs of alternating pixels!)
+
     Parameters
     ----------
     plane : 2D ndarray
