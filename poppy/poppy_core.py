@@ -512,6 +512,10 @@ class Wavefront(object):
         """Propagates a wavefront object to the next optic in the list.
         Modifies this wavefront object itself.
 
+        Transformations between pupil and detector planes use MFT or inverse MFT.
+        Transformations between pupil and other (non-detector) image planes use FFT or inverse FFT.
+        Transformations from any frame through a rotation plane simply rotate the wavefront accordingly.
+
         Parameters
         -----------
         optic : OpticalElement
@@ -534,6 +538,8 @@ class Wavefront(object):
             self._propagateMFT(optic)
             self.location='before '+optic.name
         elif optic.planetype == _PUPIL and self.planetype ==_IMAGE and self._last_transform_type =='MFT': # inverse MFT detector to pupil
+            # n.b. transforming _PUPIL -> _DETECTOR results in self.planetype == _IMAGE
+            # while setting _last_transform_type to MFT
             self._propagateMFTinverse(optic)
             self.location='before '+optic.name
         elif self.planetype==_IMAGE and optic.planetype == _DETECTOR:
