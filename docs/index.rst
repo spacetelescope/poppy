@@ -1,3 +1,5 @@
+.. _poppy_home:
+
 Documentation for POPPY
 =========================
 
