@@ -293,10 +293,10 @@ class MatrixFourierTransform:
         """
         self._validate_args(nlamD, npix, offset)
         _log.debug(
-            "Forward MatrixFourierTransform: array shape {},"
+            "Forward MatrixFourierTransform: array shape {}, "
             "centering style {}, "
             "output region size {} in lambda / D units, "
-            "{} pixels outputarray size, "
+            "output array size {} pixels, "
             "offset {}".format(pupil.shape, self.centering, nlamD, npix, offset)
         )
         return matrix_dft(pupil, nlamD, npix,
@@ -335,10 +335,10 @@ class MatrixFourierTransform:
         """
         self._validate_args(nlamD, npix, offset)
         _log.debug(
-            "Inverse MatrixFourierTransform: array shape {},"
+            "Inverse MatrixFourierTransform: array shape {}, "
             "centering style {}, "
             "output region size {} in lambda / D units, "
-            "{} pixels outputarray size, "
+            "output array size {} pixels, "
             "offset {}".format(image.shape, self.centering, nlamD, npix, offset)
         )
         return matrix_idft(image, nlamD, npix,
