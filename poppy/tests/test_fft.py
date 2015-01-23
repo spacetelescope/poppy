@@ -163,9 +163,9 @@ def test_SAMC(oversample=4):
 def test_parity_FFT_forward_inverse(display = False):
     """ Test that transforming from a pupil, to an image, and back to the pupil
     leaves you with the same pupil as you had in the first place.
-    
+
     In other words it doesn't flip left/right or up/down etc. 
-    
+
     See https://github.com/mperrin/webbpsf/issues/35
     That was for the MFT, but for thoroughness let's test both FFT and MFT 
     to demonstrate proper behavior

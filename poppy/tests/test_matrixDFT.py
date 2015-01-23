@@ -143,17 +143,21 @@ def test_MFT_fluxconsv_all_types(centering=None, **kwargs):
 
 
 
-def test_DFT_rect(centering='FFTRECT', outdir=None, outname='DFT1R_', npix=None, sampling=10., nlamd=None):
+def test_DFT_rect(centering='FFTSTYLE', outdir=None, outname='DFT1R_', npix=None, sampling=10., nlamd=None, display=False):
     """
     Test matrix DFT, including non-square arrays, in both the
     forward and inverse directions.
 
-    This is an exact equivalent (in Python) of test_matrix_DFT in matrix_dft.pro (in IDL)
-    They should give identical results.
+    This is an exact equivalent (in Python) of Marshall Perrin's
+    test_matrix_DFT in matrix_dft.pro (in IDL) 
+    They should give identical results. However, this function doesn't actually
+    check that since that would require having IDL...
+    Instead it just checks that the sizes of the output arrays
+    are as requested. 
 
     """
 
-    print "Testing DFT, style = "+centering
+    _log.info("Testing DFT, style = "+centering)
 
 
     npupil = 156
@@ -170,13 +174,14 @@ def test_DFT_rect(centering='FFTRECT', outdir=None, outname='DFT1R_', npix=None,
     elif nlamd is None:
         nlamd = [val/sampling for val in npix]
     u = nlamd
-    print u
+    _log.info("Requested sampling in pixels: "+str(npix))
+    _log.info("Requested sampling in lam/D units: "+str(u))
     #(u, float(u)/npix[0]*npix[1])
     #npix = (npix, 2*npix)
 
 
     # FFT style
-    print 'init with centering=', centering
+    _log.info('init with centering='+ centering)
     mft1 = matrixDFT.MatrixFourierTransform(centering=centering)
 
     #ctr = (float(npupil)/2.0 + mft1.offset(), float(npupil)/2.0 + mft1.offset())
@@ -189,32 +194,42 @@ def test_DFT_rect(centering='FFTRECT', outdir=None, outname='DFT1R_', npix=None,
 
     pupil /= np.sqrt(pupil.sum())
 
-    plt.clf()
-    plt.subplots_adjust(left=0.02, right=0.98)
-    plt.subplot(141)
+    if display:
+        plt.clf()
+        plt.subplots_adjust(left=0.02, right=0.98)
+        plt.subplot(141)
 
-    pmx = pupil.max()
-    plt.imshow(pupil, vmin=0, vmax=pmx*1.5)
+        pmx = pupil.max()
+        plt.imshow(pupil, vmin=0, vmax=pmx*1.5)
 
 
     if outdir is not None:
         fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
 
-    print 'perform with pupil shape', pupil.shape, 'nlamd', nlamd, 'npix', npix
+    _log.info('performing MFT with pupil shape: '+ str(pupil.shape)+ ' nlamd: '+ str( nlamd)+ '  npix: '+ str(npix))
     a = mft1.perform(pupil, nlamd, npix)
+
+
+    _log.info('Shape of MFT result: '+str(a.shape))
+
+    assert( a.shape[0] == npix[0] )
+    assert( a.shape[1] == npix[1] )
+
+
+
 
     pre = (abs(pupil)**2).sum() 
     post = (abs(a)**2).sum() 
     ratio = post / pre
     calcr = 1./(1.0*u[0]*u[1] *npix[0]*npix[1])     # multiply post by this to make them equal
-    print "Pre-FFT  total: "+str( pre)
-    print "Post-FFT total: "+str( post )
-    print "Ratio:          "+str( ratio)
-    #print "Calc ratio  :   "+str( calcr)
-    #print "uncorrected:    "+str( ratio/calcr)
+    _log.info( "Pre-FFT  total: "+str( pre))
+    _log.info( "Post-FFT total: "+str( post ))
+    _log.info( "Ratio:          "+str( ratio))
+    #_log.info( "Calc ratio  :   "+str( calcr))
+    #_log.info( "uncorrected:    "+str( ratio/calcr))
 
 
-    complexinfo(a, str=",ft1 asf")
+    #_log.info(complexinfo(a, str=",ft1 asf"))
     asf = a.real.copy()
     if outdir is not None:
         fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
@@ -223,27 +238,35 @@ def test_DFT_rect(centering='FFTRECT', outdir=None, outname='DFT1R_', npix=None,
     if outdir is not None:
         fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
 
-    ax=plt.subplot(142)
-    plt.imshow(asf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
-    ax.set_title('ASF')
-
-    ax=plt.subplot(143)
-    plt.imshow(psf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
-    ax.set_title('PSF')
-
-    plt.subplot(144)
-
+    # Inverse transform:
     pupil2 = mft1.inverse(a, u, npupil)
     pupil2r = (pupil2 * pupil2.conjugate()).real
-    plt.imshow(np.abs(pupil2))
-    plt.gca().set_title('back to pupil')
-    plt.draw()
-    print "Post-inverse FFT total: "+str( abs(pupil2r).sum() )
-    print "Post-inverse pupil max: "+str(pupil2r.max())
 
-    plt.suptitle('Matrix DFT with rectangular arrays using centering={0}'.format(centering))
+    assert(pupil2.shape[0] == pupil.shape[0] )
+    assert(pupil2.shape[1] == pupil.shape[1] )
 
-    plt.savefig('test_DFT_rectangular_results_{0}.pdf'.format(centering))
+
+    if display:
+        ax=plt.subplot(142)
+        plt.imshow(asf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
+        ax.set_title('ASF')
+
+        ax=plt.subplot(143)
+        plt.imshow(psf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
+        ax.set_title('PSF')
+
+        plt.subplot(144)
+
+        plt.imshow(np.abs(pupil2))
+        plt.gca().set_title('back to pupil')
+        plt.draw()
+        plt.suptitle('Matrix DFT with rectangular arrays using centering={0}'.format(centering))
+
+        plt.savefig('test_DFT_rectangular_results_{0}.pdf'.format(centering))
+
+    _log.info( "Post-inverse FFT total: "+str( abs(pupil2r).sum() ))
+    _log.info( "Post-inverse pupil max: "+str(pupil2r.max()))
+
 
 def test_DFT_rect_adj():
     """ Repeat DFT rectangle check, but for adjustable FFT centering

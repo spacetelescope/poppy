@@ -135,6 +135,10 @@ def matrix_dft(plane, nlamD, npix,
 
     centering = centering.upper()
 
+
+    # In the following: X and Y are coordinates in the input plane 
+    #                   U and V are coordinates in the output plane 
+
     if inverse:
         dX = nlamDX / float(npupX)
         dY = nlamDY / float(npupY)
@@ -166,14 +170,14 @@ def matrix_dft(plane, nlamD, npix,
         Xs = (np.arange(npupX) - float(npupX) / 2.0 - offsetX + 0.5) * dX
         Ys = (np.arange(npupY) - float(npupY) / 2.0 - offsetY + 0.5) * dY
 
-        Us = (np.arange(npixY) - float(npixX) / 2.0 - offsetX + 0.5) * dU
-        Vs = (np.arange(npixX) - float(npixY) / 2.0 - offsetY + 0.5) * dV
+        Us = (np.arange(npixX) - float(npixX) / 2.0 - offsetX + 0.5) * dU
+        Vs = (np.arange(npixY) - float(npixY) / 2.0 - offsetY + 0.5) * dV
     elif centering == SYMMETRIC:
         Xs = (np.arange(npupX) - float(npupX) / 2.0 + 0.5) * dX
         Ys = (np.arange(npupY) - float(npupY) / 2.0 + 0.5) * dY
 
-        Us = (np.arange(npixY) - float(npixX) / 2.0 + 0.5) * dU
-        Vs = (np.arange(npixX) - float(npixY) / 2.0 + 0.5) * dV
+        Us = (np.arange(npixX) - float(npixX) / 2.0 + 0.5) * dU
+        Vs = (np.arange(npixY) - float(npixY) / 2.0 + 0.5) * dV
     else:
         raise ValueError("Invalid centering style")
 
