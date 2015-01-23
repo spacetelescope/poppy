@@ -2162,12 +2162,6 @@ class FITSOpticalElement(OpticalElement):
                 except:
                     raise ValueError("pixelscale=%s is neither a FITS keyword string nor a floating point value." % str(pixelscale))
 
-
-            if self.planetype == _PUPIL:
-                self.pupil_diam = self.pixelscale * self.amplitude.shape[0] # needed to keep track of pupil array size, for now. Revisit in future versions?
-            elif self.planetype == _IMAGE:
-                pass
-
     @property
     def pupil_diam(self):
         return self.pixelscale * self.amplitude.shape[0]
