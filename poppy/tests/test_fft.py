@@ -175,8 +175,8 @@ def test_parity_FFT_forward_inverse(display = False):
 
     """
 
-    from .test_core import ParityTestAperture 
-    
+    from .test_core import ParityTestAperture
+
     # set up optical system with 2 pupil planes and 2 image planes
     sys = poppy_core.OpticalSystem()
     sys.addPupil(ParityTestAperture())

@@ -465,6 +465,62 @@ def test_check_invalid_centering():
     assert excinfo.value.message == "'centering' must be one of [ADJUSTABLE, SYMMETRIC, FFTSTYLE]"
 
 
+def test_MFT_FFT_equivalence(display=False, displaycrop=None):
+    centering='FFTSTYLE' # needed if you want near-exact agreement!
+
+    from poppy.tests.test_core import ParityTestAperture
+    imgin = ParityTestAperture().sample(wavelength=1e-6, npix=256) 
+
+    npix = imgin.shape
+    nlamD = np.asarray(imgin.shape)
+    mft = matrixDFT.MatrixFourierTransform(centering=centering)
+    mftout = mft.perform(imgin, nlamD, npix)
+
+    fftout = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(imgin))) / np.sqrt(imgin.shape[0] * imgin.shape[1])
+
+
+    norm_factor = abs(mftout).sum()
+
+    absdiff = abs(mftout-fftout) / norm_factor
+
+    assert(np.all(absdiff < 1e-10))
+
+    if display:
+        plt.figure(figsize=(18,3))
+
+        plt.subplot(141)
+        plt.imshow(np.abs(imgin))
+        plt.colorbar()
+        if displaycrop is not None:
+            plt.xlim(*displaycrop)
+            plt.ylim(*displaycrop)
+        print 'img input sum =', np.sum(imgin)
+
+        plt.subplot(142)
+        plt.imshow(np.abs(mftout))
+        plt.colorbar()
+        if displaycrop is not None:
+            plt.xlim(*displaycrop)
+            plt.ylim(*displaycrop)
+        print 'mft output sum =', np.sum(np.abs(mftout))
+
+        plt.subplot(143)
+        plt.imshow(np.abs(fftout))
+        plt.colorbar()
+        if displaycrop is not None:
+            plt.xlim(*displaycrop)
+            plt.ylim(*displaycrop)
+        print 'fft output sum =', np.sum(np.abs(fftout))
+
+        plt.subplot(144)
+        plt.imshow(np.abs(mftout - fftout))
+        plt.colorbar()
+        if displaycrop is not None:
+            plt.xlim(*displaycrop)
+            plt.ylim(*displaycrop)
+        print '(mft - fft) output sum =', np.sum(np.abs(mftout - fftout))
+
+        return mftout, fftout
 
 def test_parity_MFT_forward_inverse(display = False):
     """ Test that transforming from a pupil, to an image, and back to the pupil
