@@ -7,6 +7,13 @@ import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
 import matplotlib
 import astropy.io.fits as fits
+try:
+    import pysynphot
+    _HAS_PYSYNPHOT = True
+except:
+    pysynphot = None
+    _HAS_PYSYNPHOT = False
+
 
 from . import poppy_core
 from . import optics
@@ -92,7 +99,7 @@ class Instrument(object):
 
     def __init__(self, name="", *args, **kwargs):
         self.name=name
-        self.pupil = poppy_core.CircularAperture( *args, **kwargs)
+        self.pupil = optics.CircularAperture(*args, **kwargs)
         self.pupilopd = None
         self.options = {}
         self.pixelscale = 0.025
@@ -566,17 +573,19 @@ class Instrument(object):
         a pysynphot.ObsBandpass object for that filter. 
 
         """
+        if not _HAS_PYSYNPHOT:
+            raise RuntimeError("PySynphot not found")
 
         if filtername.lower().startswith('f'):
             # attempt to treat it as an HST filter name?
             bpname = ('wfc3,uvis1,%s'%(filtername)).lower()
         else:
-            bpname=filtername
+            bpname = self._synphot_bandpasses[filtername]
 
         try:
-            band = pysynphot.ObsBandpass( bpname)
-        except:
-            raise LookupError("Don't know how to compute pysynphot.ObsBandpass for a filter named "+filtername)
+            band = pysynphot.ObsBandpass(bpname)
+        except ValueError:
+            raise LookupError("Don't know how to compute pysynphot.ObsBandpass for a filter named "+bpname)
 
         return band
 
@@ -606,11 +615,16 @@ class Instrument(object):
 
         """
 
-        filterlist =  ['V','R','I', 'F606W']
-        bandpasslist = { 'V':"V",'R':"R",'I':"I", "F606W":'acs,wfc,f606w'}
+        filterlist =  ['B', 'I', 'R', 'U', 'V']
+        bandpasslist = {
+            'B': 'johnson,b',
+            'I': 'johnson,i',
+            'R': 'johnson,r',
+            'U': 'johnson,u',
+            'V': 'johnson,v',
+        }
 
-        return (filterlist, bandpasslist)
-
+        return filterlist, bandpasslist
 
     #def _getJitterKernel(self, type='Gaussian', sigma=10):
 
@@ -621,13 +635,6 @@ class Instrument(object):
         Uses pysynphot (if installed), otherwise assumes simple-minded flat spectrum
 
         """
-        try:
-            import pysynphot
-            _HAS_PYSYNPHOT = True
-        except:
-            _HAS_PYSYNPHOT = False
-
-
         if monochromatic is not None:
             poppy_core._log.info(" monochromatic calculation requested.")
             return (np.asarray([monochromatic]),  np.asarray([1]) )
