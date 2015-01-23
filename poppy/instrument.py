@@ -504,7 +504,7 @@ class Instrument(object):
                 sigma = 0.007
 
             # that will be in arcseconds, we need to convert to pixels:
-            
+
             poppy_core._log.info("Jitter: Convolving with Gaussian with sigma=%.2f arcsec" % sigma)
             out = scipy.ndimage.gaussian_filter(result[0].data, sigma/self.pixelscale)
             peak = result[0].data.max()
@@ -536,7 +536,7 @@ class Instrument(object):
             self.options['no_sam'] = True
         except:
             old_no_sam = None
-        
+
         optsys = self._getOpticalSystem()
         optsys.display(what='both')
         if old_no_sam is not None: self.options['no_sam'] = old_no_sam
@@ -664,14 +664,6 @@ class Instrument(object):
             minwave = band.wave[w_above10].min()
             maxwave = band.wave[w_above10].max()
             poppy_core._log.debug("Min, max wavelengths = %f, %f" % (minwave/1e4, maxwave/1e4))
-            # special case: ignore red leak for MIRI F560W, which has a negligible effect in practice
-            # this is lousy test data rather than a bad filter?
-            if self.filter == 'F560W':
-                poppy_core._log.debug("Special case: setting max wavelength to 6.38 um to ignore red leak")
-                maxwave = 63800.0
-            elif self.filter == 'F1280W':
-                poppy_core._log.debug("Special case: setting max wavelength to 14.32 um to ignore red leak")
-                maxwave = 143200.0
 
             wave_bin_edges =  np.linspace(minwave,maxwave,nlambda+1)
             wavesteps = (wave_bin_edges[:-1] +  wave_bin_edges[1:])/2
@@ -725,14 +717,11 @@ class Instrument(object):
             if waveunit != 'Angstrom': raise ValueError("The supplied file, %s, does not have WAVEUNIT = Angstrom as expected." % self._filter_files[wf] )
             poppy_core._log.warn("CAUTION: Just interpolating rather than integrating filter profile, over %d steps" % nlambda)
             wtrans = np.where(filterdata.THROUGHPUT > 0.4)
-            if self.filter == 'FND':  # special case MIRI's ND filter since it is < 0.1% everywhere...
-                wtrans = np.where(  ( filterdata.THROUGHPUT > 0.0005)  & (filterdata.WAVELENGTH > 7e-6*1e10) & (filterdata.WAVELENGTH < 26e-6*1e10 ))
             lrange = filterdata.WAVELENGTH[wtrans] *1e-10  # convert from Angstroms to Meters
             lambd = np.linspace(np.min(lrange), np.max(lrange), nlambda)
             filter_fn = scipy.interpolate.interp1d(filterdata.WAVELENGTH*1e-10, filterdata.THROUGHPUT,kind='cubic', bounds_error=False)
             weights = filter_fn(lambd)
             return (lambd,weights)
-            #source = {'wavelengths': lambd, 'weights': weights}
 
 
 
