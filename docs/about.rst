@@ -13,7 +13,7 @@ if you could include the following acknowledgment:
 
   This research made use of POPPY, an open-source optical propagation Python
   package originally developed for the James Webb Space Telescope project
-  (`Perrin, 2012 <http://adsabs.harvard.edu/abs/2012SPIE.8442E..3DP>`_). 
+  (`Perrin, 2012 <http://adsabs.harvard.edu/abs/2012SPIE.8442E..3DP>`_).
 
 .. _about_team:
 
@@ -22,7 +22,7 @@ The Team
 
 POPPY is developed primarily by a team of astronomers at the `Space Telescope
 Science Insitute <http://www.stsci.edu/>`_, but is open to contributions from
-scientists and software developers around the world. 
+scientists and software developers around the world.
 
 Direct contributors to POPPY code
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -96,4 +96,3 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGE.
-

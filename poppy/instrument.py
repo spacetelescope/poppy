@@ -37,70 +37,74 @@ class Instrument(object):
 
     You will at a minimum want to override the following class methods:
 
-        _getOpticalSystem
-        _getFilterList
-        _getDefaultNLambda
-        _getDefaultFOV
-        _getFITSHeader
+        * _getOpticalSystem
+        * _getFilterList
+        * _getDefaultNLambda
+        * _getDefaultFOV
+        * _getFITSHeader
 
-    For more complicated systems you may also want to override: 
-        _validateConfig
-        _getSynphotBandpass
-        _applyJitter
+    For more complicated systems you may also want to override:
 
+        * _validate_config
+        * _getSynphotBandpass
+        * _applyJitter
+    """
+
+    name = "Instrument"
+    pupil = None
+    "Aperture for this optical system. May be a FITS filename, FITS HDUList object, or poppy.OpticalElement"
+    pupilopd = None
+    """Pupil OPD for this optical system. May be a FITS filename, or FITS HDUList.
+    If the file contains a datacube, you may set this to a tuple (filename, slice) to select a given slice, or else
+    the first slice will be used."""
+    options = {}
+    """
+    A dictionary capable of storing other arbitrary options, for extensibility. The following are all optional, and
+    may or may not be meaningful depending on which instrument is selected.
+
+    Parameters
+    ----------
+    source_offset_r : float
+        Radial offset of the target from the center, in arcseconds
+    source_offset_theta : float
+        Position angle for that offset
+    pupil_shift_x, pupil_shift_y : float
+        Relative shift of a coronagraphic pupil in X and Y, expressed as a decimal between 0.0-1.0
+        Note that shifting an array too much will wrap around to the other side unphysically, but
+        for reasonable values of shift this is a non-issue.
+    rebin : bool
+        For output files, write an additional FITS extension including a version of the output array
+        rebinned down to the actual detector pixel scale?
+    jitter : string "gaussian" or None
+        Type of jitter model to apply. Currently only convolution with a Gaussian kernel of specified
+        width `jitter_sigma` is implemented. (default: None)
+    jitter_sigma : float
+        Width of the jitter kernel in arcseconds (default: 0.007 arcsec)
+    parity : string "even" or "odd"
+        You may wish to ensure that the output PSF grid has either an odd or even number of pixels.
+        Setting this option will force that to be the case by increasing npix by one if necessary.
 
     """
+    filter_list = None
+    """List of available filter names for this instrument"""
+    pixelscale = 0.025
+    """Detector pixel scale, in arcseconds/pixel (default: 0.025)"""
+
     def __init__(self, name="", *args, **kwargs):
         self.name=name
-        self.pupil = optics.CircularAperture( *args, **kwargs)
-        "Aperture for this optical system. May be a FITS filename, FITS HDUList object, or poppy.OpticalElement"
-        self.pupilopd = None   # This can optionally be set to a tuple indicating (filename, slice in datacube)
-        """Pupil OPD for this optical system. May be a FITS filename, or FITS HDUList. 
-        If the file contains a datacube, you may set this to a tuple (filename, slice) to select a given slice, or else
-        the first slice will be used."""
-
-
-        self.options = {} # dict for storing other arbitrary options. 
-        """ A dictionary capable of storing other arbitrary options, for extensibility. The following are all optional, and
-        may or may not be meaningful depending on which instrument is selected.
-
-        Parameters
-        ----------
-        source_offset_r : float
-            Radial offset of the target from the center, in arcseconds
-        source_offset_theta : float
-            Position angle for that offset
-        pupil_shift_x, pupil_shift_y : float
-            Relative shift of a coronagraphic pupil in X and Y, expressed as a decimal between 0.0-1.0
-            Note that shifting an array too much will wrap around to the other side unphysically, but
-            for reasonable values of shift this is a non-issue.
-        rebin : bool
-            For output files, write an additional FITS extension including a version of the output array 
-            rebinned down to the actual detector pixel scale?
-        jitter : string
-            Type of jitter model to apply. Currently the only
-        parity : string "even" or "odd"
-            You may wish to ensure that the output PSF grid has either an odd or even number of pixels.
-            Setting this option will force that to be the case by increasing npix by one if necessary.
-
-        """
-
+        self.pupil = poppy_core.CircularAperture( *args, **kwargs)
+        self.pupilopd = None
+        self.options = {}
+        self.pixelscale = 0.025
         self.filter_list, self._synphot_bandpasses = self._getFilterList() # List of available filter names
 
-
-        #create private instance variables. These will be
+        # create private instance variables. These will be
         # wrapped just below to create properties with validation.
-        self._filter=None
+        self._filter = None
         self._rotation = None
-
-        self.pixelscale = 0.025
-        """ Detector pixel scale, in arcseconds/pixel """
-
-        self._spectra_cache = {}  # for caching pysynphot results.
-
-
+        # for caching pysynphot results.
+        self._spectra_cache = {}
         self.filter = self.filter_list[0]
-
 
     def __str__(self):
         return "Instrument name="+self.name
@@ -108,7 +112,7 @@ class Instrument(object):
     # create properties with error checking
     @property
     def filter(self):
-        'Currently selected filter name (e.g. "F200W")'
+        """Currently selected filter name (e.g. F200W)"""
         return self._filter
     @filter.setter
     def filter(self, value):
@@ -117,7 +121,6 @@ class Instrument(object):
             raise ValueError("Instrument %s doesn't have a filter called %s." % (self.name, value))
         self._filter = value
         self._validate_config()
-
 
     #----- actual optical calculations follow here -----
     def calcPSF(self, outfile=None, source=None, nlambda=None, monochromatic=None ,
@@ -492,12 +495,11 @@ class Instrument(object):
 
         if local_options['jitter'] is None:
             return
-        elif 'gauss' in local_options['jitter'].lower():
+        elif local_options['jitter'].lower() == 'gaussian':
             import scipy.ndimage
 
-            try:
-                sigma = local_options['jitter_sigma']
-            except:
+            sigma = local_options.get('jitter_sigma')
+            if sigma is None:
                 poppy_core._log.warn("Gaussian jitter model requested, but no width for jitter distribution specified. Assuming jitter_sigma = 0.007 arcsec by default")
                 sigma = 0.007
 

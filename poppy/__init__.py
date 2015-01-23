@@ -37,11 +37,11 @@ class Conf(_config.ConfigNamespace):
     """
 
     use_multiprocessing = _config.ConfigItem(False, 
-            'Should PSF calculations run in parallel using multiple processers'+
-            'using the Python multiprocessing framework (if True; faster but '+
-            'does not allow display of each wavelength) or run serially in a '+
-            'single process(if False; slower but shows the calculation in '+
-            'progress. Also a bit more robust.?)')
+            'Should PSF calculations run in parallel using multiple processors'
+            'using the Python multiprocessing framework (if True; faster but '
+            'does not allow display of each wavelength) or run serially in a '
+            'single process (if False; slower but shows the calculation in '
+            'progress. Also a bit more robust.)')
 
 
     # Caution: Do not make this next too large on high-CPU-count machines

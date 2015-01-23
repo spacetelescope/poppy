@@ -56,6 +56,9 @@ setup_cfg = dict(conf.items('metadata'))
 # major.minor, call `check_sphinx_version("x.y.z")` here.
 # check_sphinx_version("1.2.1")
 
+# Remove buggy astropy extension
+extensions.remove('astropy_helpers.sphinx.ext.astropyautosummary')
+
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 exclude_patterns.append('_templates')
