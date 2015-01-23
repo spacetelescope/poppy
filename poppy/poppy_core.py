@@ -2271,12 +2271,14 @@ class Detector(OpticalElement):
             # consistent with having an integer number of pixels
             self.fov_pixels = np.round(np.asarray(fov_arcsec) / self.pixelscale)
             self.fov_arcsec = self.fov_pixels * self.pixelscale
-        #if not np.isscalar(self.fov_pixels): # hasattr(self.fov_pixels, '__len__'):
-            #self.shape = self.fov_pixels[0:2]  # rectangular
-        #else:
-            #self.shape = (self.fov_pixels, self.fov_pixels) # square
         if np.any(self.fov_pixels <= 0): raise ValueError("FOV in pixels must be a positive quantity. Invalid: "+str(self.fov_pixels))
 
+
+        if offset is not None:
+            try:
+                self.det_offset = np.asarray(offset)[0:2] 
+            except:
+                raise ValueError("The offset parameter must be a 2-element iterable")
 
         self.amplitude = 1
         self.opd = 0
