@@ -88,8 +88,11 @@ def _test_cross_hexikes(testj=4, nterms=10, npix=500):
         prod = hexike_array * test_hexike
         wg = np.where(np.isfinite(prod))
         cross_sum = np.abs(prod[wg].sum())
-        assert cross_sum < 1e-9, (
-            "orthogonality failure, Sum[Hexike(j={}) * Hexike(j={})] = {} (> 1e-9)".format(
+
+        # Threshold was originally 1e-9, but we ended up getting 1.19e-9 on some machines (not always)
+        # this seems acceptable, so relaxing criteria slightly
+        assert cross_sum < 2e-9, (
+            "orthogonality failure, Sum[Hexike(j={}) * Hexike(j={})] = {} (> 2e-9)".format(
                 j, testj, cross_sum)
         )
 

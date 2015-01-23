@@ -137,7 +137,7 @@ def test_MFT_fluxconsv_all_types(centering=None, **kwargs):
 
     test_MFT_flux_conservation(centering='FFTSTYLE', **kwargs)
     test_MFT_flux_conservation(centering='SYMMETRIC', **kwargs)
-    test_MFT_flux_conservation(centering='ADJUSTIBLE', **kwargs)
+    test_MFT_flux_conservation(centering='ADJUSTABLE', **kwargs)
     test_MFT_flux_conservation(centering='FFTRECT', **kwargs)
 
 
@@ -176,6 +176,7 @@ def test_DFT_rect(centering='FFTRECT', outdir=None, outname='DFT1R_', npix=None,
 
 
     # FFT style
+    print 'init with centering=', centering
     mft1 = matrixDFT.MatrixFourierTransform(centering=centering)
 
     #ctr = (float(npupil)/2.0 + mft1.offset(), float(npupil)/2.0 + mft1.offset())
@@ -199,7 +200,8 @@ def test_DFT_rect(centering='FFTRECT', outdir=None, outname='DFT1R_', npix=None,
     if outdir is not None:
         fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
 
-    a = mft1.perform(pupil, u, npix)
+    print 'perform with pupil shape', pupil.shape, 'nlamd', nlamd, 'npix', npix
+    a = mft1.perform(pupil, nlamd, npix)
 
     pre = (abs(pupil)**2).sum() 
     post = (abs(a)**2).sum() 
@@ -223,18 +225,18 @@ def test_DFT_rect(centering='FFTRECT', outdir=None, outname='DFT1R_', npix=None,
 
     ax=plt.subplot(142)
     plt.imshow(asf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
-    ax.set_title='ASF'
+    ax.set_title('ASF')
 
     ax=plt.subplot(143)
     plt.imshow(psf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
-    ax.set_title='PSF'
+    ax.set_title('PSF')
 
     plt.subplot(144)
 
     pupil2 = mft1.inverse(a, u, npupil)
     pupil2r = (pupil2 * pupil2.conjugate()).real
-    plt.imshow( pupil2r, vmin=0,vmax=pmx*1.5*0.01) # FIXME flux normalization is not right?? I think this has to do with squaring the pupil here, that's all.
-    plt.gca().set_title='back to pupil'
+    plt.imshow(np.abs(pupil2))
+    plt.gca().set_title('back to pupil')
     plt.draw()
     print "Post-inverse FFT total: "+str( abs(pupil2r).sum() )
     print "Post-inverse pupil max: "+str(pupil2r.max())
@@ -244,12 +246,12 @@ def test_DFT_rect(centering='FFTRECT', outdir=None, outname='DFT1R_', npix=None,
     plt.savefig('test_DFT_rectangular_results_{0}.pdf'.format(centering))
 
 def test_DFT_rect_adj():
-    """ Repeat DFT rectangle check, but for am adjustible FFT centering 
+    """ Repeat DFT rectangle check, but for adjustable FFT centering
     """
-    test_DFT_rect(centering='ADJUSTIBLE', outname='DFT1Radj_')
+    test_DFT_rect(centering='ADJUSTABLE', outname='DFT1Radj_')
 
 def test_DFT_center( npix=100, outdir=None, outname='DFT1'):
-    centering='ADJUSTIBLE'
+    centering='ADJUSTABLE'
 
     npupil = 156
     pctr = int(npupil/2)
@@ -378,7 +380,7 @@ def run_all_MFS_tests_DFT(outdir=None, outname='DFT1'):
     npix=512
     a1 = DFT_combined(pupil, u, npix, centering='FFTSTYLE')
     a2 = DFT_combined(pupil, u, npix, centering='SYMMETRIC')
-    a3 = DFT_combined(pupil, u, npix, centering='ADJUSTIBLE')
+    a3 = DFT_combined(pupil, u, npix, centering='ADJUSTABLE')
     a4 = DFT_fftstyle(pupil, u, npix)
     a5 = DFT_symmetric(pupil, u, npix)
 
@@ -392,7 +394,7 @@ def run_all_MFS_tests_DFT(outdir=None, outname='DFT1'):
     npix=513
     b1 = DFT_combined(pupil, u, npix, centering='FFTSTYLE')
     b2 = DFT_combined(pupil, u, npix, centering='SYMMETRIC')
-    b3 = DFT_combined(pupil, u, npix, centering='ADJUSTIBLE')
+    b3 = DFT_combined(pupil, u, npix, centering='ADJUSTABLE')
     b4 = DFT_fftstyle(pupil, u, npix)
     b5 = DFT_symmetric(pupil, u, npix)
 
@@ -409,9 +411,9 @@ def run_all_MFS_tests_DFT(outdir=None, outname='DFT1'):
     npix2=(512, 128)
     c1 = DFT_combined(pupil, u2, npix2, centering='FFTSTYLE')
     c2 = DFT_combined(pupil, u2, npix2, centering='SYMMETRIC')
-    c3 = DFT_combined(pupil, u2, npix2, centering='ADJUSTIBLE')
+    c3 = DFT_combined(pupil, u2, npix2, centering='ADJUSTABLE')
     c4 = DFT_fftstyle_rect(pupil, u2, npix2)
-    c5 = DFT_adjustible_rect(pupil, u2, npix2)
+    c5 = DFT_adjustable_rect(pupil, u2, npix2)
 
     if outdir is not None:
         fits.writeto(outdir+os.sep+outname+"_c1_fft.fits",(c1*c1.conjugate()).real, clobber=True) 
@@ -437,7 +439,68 @@ def test_check_invalid_centering():
 
     with pytest.raises(ValueError) as excinfo:
         mft = matrixDFT.MatrixFourierTransform(centering='some garbage value', verbose=True)
-    assert excinfo.value.message == 'Error: centering method must be one of [SYMMETRIC, ADJUSTIBLE, FFTRECT, FFTSTYLE]'
+    assert excinfo.value.message == "'centering' must be one of [ADJUSTABLE, SYMMETRIC, FFTSTYLE]"
+
+
+
+def test_parity_MFT_forward_inverse(display = False):
+    """ Test that transforming from a pupil, to an image, and back to the pupil
+    leaves you with the same pupil as you had in the first place.
+
+    In other words it doesn't flip left/right or up/down etc.
+
+    See https://github.com/mperrin/webbpsf/issues/35
+
+    **  See also: test_fft.test_parity_FFT_forward_inverse() for a  **
+    **  parallel function to this.                                  **
+
+
+    """
+    from .test_core import ParityTestAperture
+
+    # set up optical system with 2 pupil planes and 2 image planes
+
+    # use the same exact image plane sampling as in the FFT case
+    # This is a bit slower but ensures quantitative agreement.
+
+    pixscale = 0.03437746770784939 
+    npix=2048
+    sys = poppy_core.OpticalSystem()
+    sys.addPupil(ParityTestAperture())
+    sys.addDetector(pixelscale=pixscale, fov_pixels=npix)
+    sys.addPupil()
+    sys.addDetector(pixelscale=pixscale, fov_pixels=npix)
+
+    psf, planes = sys.calcPSF(display=display, oversample=1, return_intermediates=True)
+
+    # the wavefronts are padded by 0s. With the current API the most convenient
+    # way to ensure we get unpadded versions is via the asFITS function.
+    p0 = planes[0].asFITS(what='intensity', includepadding=False)
+    p2 = planes[2].asFITS(what='intensity', includepadding=False)
+
+    # for checking the overall parity it's sufficient to check the intensity.
+    # we can have arbitrarily large differences in phase for regions with 
+    # intensity =0, so don't check the complex field or phase here. 
+
+
+    absdiff = (np.abs(p0[0].data - p2[0].data))
+    maxabsdiff = np.max(absdiff)
+    assert (maxabsdiff < 1e-10)
+
+    if display:
+        nplanes = len(planes)
+        for i, plane in enumerate(planes):
+            ax = plt.subplot(2,nplanes,i+1)
+            plane.display(ax = ax)
+            plt.title("Plane {0}".format(i))
+
+
+        plt.subplot(2,nplanes,nplanes+1)
+        plt.imshow(absdiff)
+        plt.title("Abs(Pupil0-Pupil2)")
+        plt.colorbar()
+        print maxabsdiff
+
 
 
 

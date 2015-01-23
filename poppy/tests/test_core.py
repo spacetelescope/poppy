@@ -52,7 +52,7 @@ class ParityTestAperture(optics.AnalyticOpticalElement):
 
     def __init__(self, name=None,  radius=1.0, pad_factor = 1.5, **kwargs):
         if name is None: name = "Circle, radius=%.2f m" % radius
-        poppy_core.AnalyticOpticalElement.__init__(self,name=name, **kwargs)
+        super(ParityTestAperture,self).__init__(name=name, **kwargs)
         self.radius = radius
         self.pupil_diam = pad_factor * 2* self.radius # for creating input wavefronts - let's pad a bit
 
@@ -72,7 +72,7 @@ class ParityTestAperture(optics.AnalyticOpticalElement):
         self.transmission[w_outside] = 0
 
         w_box1 = np.where( (r> self.radius*0.5) & (np.abs(x) < self.radius*0.1 ) & ( y < 0 ))
-        w_box2 = np.where( (r> self.radius*0.75) & (np.abs(y) < self.radius*0.2) & ( x < 0 ))
+        w_box2 = np.where( (r> self.radius*0.65) & (np.abs(y) < self.radius*0.4) & ( x < 0 ))
         self.transmission[w_box1] = 0
         self.transmission[w_box2] = 0
 
