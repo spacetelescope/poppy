@@ -72,7 +72,7 @@ def _wrap_propagate_for_multiprocessing(args):
     if conf.use_fftw and _FFTW_AVAILABLE: # we're in a different Python interprepter process so we 
         utils.fftw_load_wisdom()          # need to load the wisdom here too
 
-    return instrument_object.propagate_mono(wavelength, poly_weight=weight, save_intermediates=False, **kwargs)
+    return instrument_object.propagate_mono(wavelength, poly_weight=weight, retain_intermediates=False, **kwargs)
 
 
 #------ Wavefront class -----
@@ -1148,7 +1148,7 @@ class OpticalSystem(object):
             _log.debug("Tilted input wavefront by theta_X=%f, theta_Y=%f arcsec" % (offset_x, offset_y))
         return inwave
 
-    def propagate_mono(self, wavelength=2e-6, normalize='first', save_intermediates=False, display_intermediates=False, intermediate_fn='wave_step_%03d.fits', poly_weight=None, **kwargs):
+    def propagate_mono(self, wavelength=2e-6, normalize='first', retain_intermediates=False, display_intermediates=False, poly_weight=None):
         """ Propagate a monochromatic wavefront through the optical system. Called from within calcPSF.
         Returns a fits.HDUList object.
 
@@ -1163,7 +1163,7 @@ class OpticalSystem(object):
             * 'first=2' = set total flux = 2 after the first optic (used for debugging only)
         display_intermediates : bool
             Should intermediate steps in the calculation be displayed on screen? Default False
-        save_intermediates : bool
+        save_intermediates : bool TODO FIX NAME
             Should intermediate steps in the calculation be saved to disk? Default False.
             If this is True, then setting `poly_weight` controls whether intermediate optical planes are actually saved to *disk* by this routine
             (for the monochromatic case) or are passed back up via memory and handled in `calcPSF` (for the polychromatic case).
@@ -1181,16 +1181,10 @@ class OpticalSystem(object):
         if self.verbose: _log.info(" Propagating wavelength = %g meters %s" % (wavelength, "" if poly_weight is None else " with weight=%.2f" % poly_weight))
         wavefront = self.inputWavefront(wavelength)
 
-        if save_intermediates and poly_weight is None:
-            self.intermediate_wfs=[]
+        if retain_intermediates and poly_weight is None:
+            self.intermediate_wfs = []
             _log.warning("User requested saving intermediates, but no weight for this wavelength is provided - cannot properly calculate intermediate wavefront")
             _log.debug("reset intermediates")
-
-        # do the propagation:
-        #if display_intermediates:
-            #suptitle = plt.suptitle( "propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6), size='x-large')
-
-            #wavefront.display(what='best',nrows=nrows,row=1, colorbar=False, title="propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6))
 
         current_plane_index = 0  # note: 0 is 'before first optical plane; 1 = 'after first plane and before second plane' and so on
         for optic in self.planes:
@@ -1219,14 +1213,9 @@ class OpticalSystem(object):
             # Optional outputs:
             if conf.enable_flux_tests: _log.debug("  Flux === "+str(wavefront.totalIntensity))
 
-            if save_intermediates: # save intermediate wavefront, summed for polychromatic if needed
-                if len(self.intermediate_wfs) < current_plane_index: 
-                    self.intermediate_wfs.append(wavefront.copy())
-                else:
-                    self.intermediate_wfs[current_plane_index-1] += wavefront.copy()*poly_weight
-                    _log.info("    Storing intermediate wavefront plane %d with weight %f" % (current_plane_index-1, poly_weight))
-                # if only one wavelength, write these out to disk right away. If polychromatic this happens later.
-                if poly_weight is None: self.intermediate_wfs[current_plane_index-1].writeto(intermediate_fn % current_plane_index, what='parts')
+            if retain_intermediates: # save intermediate wavefront, summed for polychromatic if needed
+                self._storeIntermediate(current_plane_index, wavefront, poly_weight)
+
             if display_intermediates:
                 if conf.enable_speed_tests: t0 = time.time()
                 title = None if current_plane_index > 1 else "propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6)
@@ -1237,17 +1226,26 @@ class OpticalSystem(object):
                     t1 = time.time()
                     _log.debug("\tTIME %f s\t for displaying the wavefront." % (t1-t0))
 
-
         if conf.enable_speed_tests:
             t_stop = time.time()
             _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop-t_start))
 
         return wavefront.asFITS()  # this returns the intensity, by default. 
 
+    def _storeIntermediate(self, plane_index, wavefront, weight):
+        if weight is None:
+            intermediate_wf = wavefront.copy()
+        else:
+            intermediate_wf = weight * wavefront.copy()
+        if len(self.intermediate_wfs) < current_plane_index:
+            self.intermediate_wfs.append(intermediate_wf)
+        else:
+            self.intermediate_wfs[plane_index - 1] += intermediate_wf
+        _log.info("    Storing intermediate wavefront plane %d with weight %f" % (plane_index - 1, weight))
 
-    def calcPSF(self, wavelength=1e-6, weight=None,
-        save_intermediates=False, save_intermediates_what='all', display= False, return_intermediates=False, source=None, 
-        normalize='first', **kwargs):
+    def calcPSF(self, wavelength=1e-6, weight=None, display=False, display_intermediates=False,
+        save_intermediates=False, save_intermediates_what='all', return_intermediates=False,
+        source=None, normalize='first'):
         """Calculate a PSF, either multi-wavelength or monochromatic.
 
         The wavelength coverage computed will be:
@@ -1263,10 +1261,12 @@ class OpticalSystem(object):
             *TBD - replace w/ pysynphot observation object*
         wavelen : float, optional
             wavelength in meters for monochromatic calculation.
+        display_intermediates : bool, optional
+            whether to show the intermediate optical planes. Default is False
         save_intermediates : bool, optional
             whether to output intermediate optical planes to disk. Default is False
         save_intermediate_what : string, optional
-            What to save - phase, intensity, amplitude, complex, parts, all. default is all.
+            What to save - phase, intensity, amplitude, complex, parts, all. Default is all.
         return_intermediates: bool, optional
             return intermediate wavefronts as well as PSF?
         display : bool, optional
@@ -1327,8 +1327,6 @@ class OpticalSystem(object):
 
             if save_intermediates:
                 raise NotImplementedError("Can't save intermediate steps if using parallelized code")
-                save_intermediates = False
-                self.intermediate_wfs = []
 
             # do *NOT* just blindly try to create as many processes as one has CPUs, or one per wavelength either
             # This is a memory-intensive task so that can end up swapping to disk and thrashing IO
@@ -1353,22 +1351,19 @@ class OpticalSystem(object):
                 outFITS[0].data += results[i][0].data * normwts[i]
             outFITS[0].header.add_history("Multiwavelength PSF calc on %d processors completed." % conf.n_processes)
 
-
-
-
         else:  ########## single-threaded computations (may still use multi cores if FFTW enabled ######
-
-
             for wavelen, wave_weight in zip(wavelength, normwts):
             #for wavelen, weight in zip(source['wavelengths'], normwts):
-                mono_psf = self.propagate_mono(wavelen, poly_weight=wave_weight, save_intermediates=save_intermediates or return_intermediates, normalize=normalize, **kwargs)
+                mono_psf = self.propagate_mono(wavelen, poly_weight=wave_weight,
+                                               retain_intermediates=save_intermediates or return_intermediates,
+                                               display_intermediates=display_intermediates, normalize=normalize)
                 # add mono_psf into the output array:
 
                 if outFITS is None:
                     outFITS = mono_psf
-                    outFITS[0].data = mono_psf[0].data*wave_weight
+                    outFITS[0].data = mono_psf[0].data * wave_weight
                 else:
-                    outFITS[0].data += mono_psf[0].data *wave_weight
+                    outFITS[0].data += mono_psf[0].data * wave_weight
 
             if save_intermediates:
                 for i in range(len(self.intermediate_wfs)):
@@ -1527,7 +1522,8 @@ class SemiAnalyticCoronagraph(OpticalSystem):
 
         self.occulter_det = Detector(self.detector.pixelscale/self.oversample, fov_arcsec = self.occulter_box*2, name='Oversampled Occulter Plane')
 
-    def propagate_mono(self, wavelength=2e-6, normalize='first', save_intermediates=False, display_intermediates=False, intermediate_fn=None, poly_weight=None):
+    def propagate_mono(self, wavelength=2e-6, normalize='first', poly_weight=None,
+                       retain_intermediates=False, display_intermediates=False):
         """
 
         Parameters
@@ -1542,28 +1538,31 @@ class SemiAnalyticCoronagraph(OpticalSystem):
 
 
         save_intermediates, display_intermediates, intermediate_fn, poly_weight : bools
-            Ignored in current version of code?
+            TODO document like OpticalSystem.propagate_mono
 
         """
         if conf.enable_speed_tests: t_start = time.time()
         if self.verbose: _log.info(" Propagating wavelength = {0:g} meters {1}, using Fast Semi-Analytic Coronagraph method".format(wavelength, "" if poly_weight is None else " with weight=%.2f" % poly_weight))
         wavefront = self.inputWavefront(wavelength)
+        current_plane_index = 0
 
-        if save_intermediates:
-            raise NotImplemented("not yet")
+        if retain_intermediates and poly_weight is None:
+            self.intermediate_wfs = []
+            _log.warning("User requested retaining intermediates, but no weight for this wavelength is provided - "
+                         "cannot properly calculate intermediate wavefront")
+            _log.debug("reset intermediates")
 
         #------- differences from regular propagation begin here --------------
         wavefront *= self.inputpupil
+        current_plane_index += 1
 
-        if normalize.lower()=='first':
+        if normalize.lower() == 'first':
             wavefront.normalize()
-
+        if retain_intermediates:
+            self._storeIntermediate(current_plane_index, wavefront, poly_weight)
 
         if display_intermediates:
-            #suptitle = plt.suptitle( "propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6), size='x-large')
-
             nrows = 6
-            #plt.clf()
             wavefront.display(what='best',nrows=nrows,row=1, colorbar=False, title="propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6))
 
 
@@ -1572,38 +1571,54 @@ class SemiAnalyticCoronagraph(OpticalSystem):
         # calculate the MFT to the N_B x N_B occulting region.
         wavefront_cor = wavefront.copy()
         wavefront_cor.propagateTo(self.occulter_det)
+        current_plane_index += 1
+        if retain_intermediates:
+            self._storeIntermediate(current_plane_index, wavefront_cor, poly_weight)
 
-        if display_intermediates: wavefront_cor.display(what='best',nrows=nrows,row=2, colorbar=False)
-
+        if display_intermediates:
+            wavefront_cor.display(what='best',nrows=nrows,row=2, colorbar=False)
 
         # Multiply that by M(r) =  1 - the occulting plane mask function
         wavefront_cor *= self.mask_function
+        current_plane_index += 1
+        if retain_intermediates:
+            self._storeIntermediate(current_plane_index, wavefront_cor, poly_weight)
 
-        if display_intermediates: wavefront_cor.display(what='best',nrows=nrows,row=3, colorbar=False)
+        if display_intermediates:
+            wavefront_cor.display(what='best',nrows=nrows,row=3, colorbar=False)
 
         # calculate the MFT from that small region back to the full Lyot plane
 
         wavefront_lyot = wavefront_cor.copy()
         wavefront_lyot.propagateTo(self.lyotplane)
+        current_plane_index += 1
+        if retain_intermediates:
+            self._storeIntermediate(current_plane_index, wavefront_lyot, poly_weight)
 
-        if display_intermediates: wavefront_lyot.display(what='best',nrows=nrows,row=4, colorbar=False)
+        if display_intermediates:
+            wavefront_lyot.display(what='best',nrows=nrows,row=4, colorbar=False)
+
         # combine that with the original pupil function
         wavefront_combined = wavefront + (-1)*wavefront_lyot
-
         wavefront_combined *= self.lyotplane
         wavefront_combined.location = 'after combined Lyot pupil'
+        current_plane_index += 1
+        if retain_intermediates:
+            self._storeIntermediate(current_plane_index, wavefront_combined, poly_weight)
 
-        if display_intermediates: wavefront_combined.display(what='best',nrows=nrows,row=5, colorbar=False)
+        if display_intermediates:
+            wavefront_combined.display(what='best',nrows=nrows,row=5, colorbar=False)
 
         # propagate to the real detector in the final image plane.
         wavefront_combined.propagateTo(self.detector)
+        current_plane_index += 1
+        if retain_intermediates:
+            self._storeIntermediate(current_plane_index, wavefront_combined, poly_weight)
 
         if display_intermediates: 
             wavefront_combined.display(what='best',nrows=nrows,row=6, colorbar=False)
             #suptitle.remove() #  does not work due to some matplotlib limitation, so work arount:
             #plt.suptitle.set_text('') # clean up before next iteration to avoid ugly overwriting
-
-
 
         #------- differences from regular propagation end here --------------
 
