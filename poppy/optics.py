@@ -46,8 +46,12 @@ class AnalyticOpticalElement(OpticalElement):
     def __init__(self, **kwargs):
         OpticalElement.__init__(self, **kwargs)
 
-        self.shape = None  # no explicit shape required
+        #self.shape = None  # no explicit shape required
         self.pixelscale = None
+
+    @property
+    def shape(self):  # Analytic elements don't have shape
+        return None
 
     def __str__(self):
         if self.planetype is _PUPIL:
@@ -185,22 +189,44 @@ class AnalyticOpticalElement(OpticalElement):
         self.opd = None
         self.amplitude = None
 
-    def toFITS(self, outname=None, what='amplitude', wavelength=2e-6, npix=512):
-        """ Save an analytic optic computed onto a grid to a FITS file """
+    def toFITS(self, outname=None, what='amplitude', wavelength=2e-6, npix=512, **kwargs):
+        """ Save an analytic optic computed onto a grid to a FITS file 
+        
+        The FITS file is returned to the calling function, and may optionally be 
+        saved directly to disk.
 
-        if outname is None:
-            raise ValueError("You must supply an output filename to write a FITS file.")
+        Parameters
+        ------------
+        what : string
+            What quantity to save. See the sample function of this class
+        wavelength : float
+            Wavelength in meters. 
+        npix : integer
+            Number of pixels.
+        outname : string, optional
+            Filename to write out a FITS file to disk
+
+        See the sample() function for additional optional parameters.
+
+        """
+
+        kwargs['return_scale'] = True
 
         output_array, pixelscale = self.sample(wavelength=wavelength, npix=npix, what=what,
-                                               return_scale=True)
+                                               **kwargs)
         phdu = fits.PrimaryHDU(output_array)
         phdu.header['OPTIC'] = self.name
         phdu.header['SOURCE'] = 'Computed with POPPY'
         phdu.header['CONTENTS'] = what
-        phdu.header['PIXELSCL'] = pixelscale
-        phdu.writeto(outname, clobber=True)
-        _log.info("Output written to " + outname)
+        phdu.header['PIXSCALE'] = pixelscale
 
+        hdul = fits.HDUList(hdus=[phdu])
+
+        if outname is not None:
+            phdu.writeto(outname, clobber=True)
+            _log.info("Output written to " + outname)
+
+        return hdul
 
 class ScalarTransmission(AnalyticOpticalElement):
     """ Uniform transmission between 0 and 1.0 in intensity. 
@@ -234,9 +260,12 @@ class InverseTransmission(OpticalElement):
         self.uninverted_optic = optic
         self.name = "1 - " + optic.name
         self.planetype = optic.planetype
-        self.shape = optic.shape
+        #self.shape = optic.shape
         self.pixelscale = optic.pixelscale
         self.oversample = optic.oversample
+
+    def shape(self): # override parent class shape function
+        return optic.shape
 
     def getPhasor(self, wave):
         return 1 - self.uninverted_optic.getPhasor(wave)
@@ -1189,7 +1218,7 @@ class SecondaryObscuration(AnalyticOpticalElement):
     """ Defines the central obscuration of an on-axis telescope including secondary mirror and
     supports
 
-    The number of supports is adjustible but they are always radially symmetric around the center.
+    The number of supports is adjustable but they are always radially symmetric around the center.
     See AsymmetricSecondaryObscuration if you need more flexibility. 
 
     Parameters

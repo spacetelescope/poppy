@@ -1,7 +1,3 @@
-#!/usr/bin/env python
-# package doc string now in __init__.py in this directory!
-
-
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 import multiprocessing
 import copy
@@ -234,11 +230,13 @@ class Wavefront(object):
         Parameters
         -----------
         what : string
-            what kind of data to write. Must be one of 'parts', 'intensity', 'complex'.
-            The default is to write a file containing intensity.
+            what kind of data to write. Must be one of 'all', 'parts', 'intensity', or 'complex'.
+            The default is to write a file containing intensity, amplitude, and phase in a data cube
+            of shape (3, N, N). 'parts' omits intensity and produces a (2, N, N) array.
+            'intensity' and 'phase' write out 2D arrays with the corresponding values.
+            'complex' writes the wavefront phasor as a 2D array of complex numbers.
         includepadding : bool
             include any "padding" region, if present, in the returned FITS file?
-
         """
         # make copies in case we need to unpad - don't want to mess up actual wavefront data in memory
         # FIXME this is somewhat inefficient but easiest to code for now
@@ -514,6 +512,10 @@ class Wavefront(object):
         """Propagates a wavefront object to the next optic in the list.
         Modifies this wavefront object itself.
 
+        Transformations between pupil and detector planes use MFT or inverse MFT.
+        Transformations between pupil and other (non-detector) image planes use FFT or inverse FFT.
+        Transformations from any frame through a rotation plane simply rotate the wavefront accordingly.
+
         Parameters
         -----------
         optic : OpticalElement
@@ -536,6 +538,8 @@ class Wavefront(object):
             self._propagateMFT(optic)
             self.location='before '+optic.name
         elif optic.planetype == _PUPIL and self.planetype ==_IMAGE and self._last_transform_type =='MFT': # inverse MFT detector to pupil
+            # n.b. transforming _PUPIL -> _DETECTOR results in self.planetype == _IMAGE
+            # while setting _last_transform_type to MFT
             self._propagateMFTinverse(optic)
             self.location='before '+optic.name
         elif self.planetype==_IMAGE and optic.planetype == _DETECTOR:
@@ -597,24 +601,6 @@ class Wavefront(object):
 
         _log.debug("using {2} FFT of {0} array, direction={1}".format(str(self.wavefront.shape), FFT_direction, method))
         if _USE_FFTW:
-            # Benchmarking on a Mac Pro (8 cores) indicated that the fastest performance comes from
-            # in-place FFTs, and that it is safe to ignore byte alignment issues for these arrays
-            # (indeed, even beneficial in many cases) contrary to the suggestion of the FFTW docs
-            # which say that aligning arrays helps. Not sure why, but it's true!
-            # See the discussion of FFTs in the documentation.
-            #wfold = self.copy()
-            #    if (self.wavefront.shape, FFT_direction) not in _FFTW_INIT.keys():
-            #        # The first time you run FFTW to transform a given size, it does a speed test to determine optimal algorithm
-            #        # that is destructive to your chosen array. So only do that test on a copy, not the real array:
-            #        _log.info("Evaluating FFT optimal algorithm for %s, direction=%s" % (str(self.wavefront.shape), FFT_direction))
-            #        fftplan = fftw3.Plan(self.wavefront.copy(), None, nthreads = multiprocessing.cpu_count(),direction=FFT_direction, flags=_FFTW_FLAGS)
-            #        _FFTW_INIT[(self.wavefront.shape, FFT_direction)] = True
-            #
-            #    fftplan = fftw3.Plan(self.wavefront, None, nthreads = multiprocessing.cpu_count(),direction=FFT_direction, flags=_FFTW_FLAGS)
-            #    fftplan.execute() # execute the plan
-            #        #print("After  FFTW Flux 2: %f" % (abs(outarr)**2).sum())
-            #    # due to FFTW normalization convention, must divide by number of pixels per side.
-            #        #print("After  FFTW Flux 1: %f" % (self.totalIntensity))
             if (self.wavefront.shape, FFT_direction) not in _FFTW_INIT.keys():
                 # The first time you run FFTW to transform a given size, it does a speed test to determine optimal algorithm
                 # that is destructive to your chosen array. So only do that test on a copy, not the real array:
@@ -629,10 +615,7 @@ class Wavefront(object):
 
                 _FFTW_INIT[(self.wavefront.shape, FFT_direction)] = True
 
-
             self.wavefront = do_fft(self.wavefront, overwrite_input=True, planner_effort='FFTW_MEASURE', threads=multiprocessing.cpu_count())
-
-
         else:
             self.wavefront = do_fft(self.wavefront)
 
@@ -680,7 +663,7 @@ class Wavefront(object):
         det_fov_lamD = det.fov_arcsec / lamD
         det_calc_size_pixels = det.fov_pixels * det.oversample
 
-        mft = MatrixFourierTransform(centering='ADJUSTIBLE', verbose=False)
+        mft = MatrixFourierTransform(centering='ADJUSTABLE', verbose=False)
         if not np.isscalar(det_fov_lamD): #hasattr(det_fov_lamD,'__len__'):
             msg= '    Propagating w/ MFT: %.4f"/pix     fov=[%.3f,%.3f] lam/D    npix=%d x %d' %  (det.pixelscale/det.oversample, det_fov_lamD[0], det_fov_lamD[1], det_calc_size_pixels[0], det_calc_size_pixels[1])
         else:
@@ -743,14 +726,14 @@ class Wavefront(object):
             else:
                 pupil_npix = self._preMFT_pupil_shape[0]
 
-        mft = MatrixFourierTransform(centering='ADJUSTIBLE', verbose=False)
+        mft = MatrixFourierTransform(centering='ADJUSTABLE', verbose=False)
         if not np.isscalar(det_fov_lamD): #hasattr(det_fov_lamD,'__len__'):
             msg= '    Propagating w/ InvMFT: %.4f"/pix     fov=[%.3f,%.3f] lam/D    npix=%d x %d' %  (self.pixelscale[0], det_fov_lamD[0], det_fov_lamD[1], pupil_npix, pupil_npix)
         else:
             msg= '    Propagating w/ InvMFT: %.4f"/pix     fov=%.3f lam/D    pupil npix=%d' %  (self.pixelscale, det_fov_lamD, pupil_npix)
         _log.debug(msg)
         self.history.append(msg)
-        det_offset = (0,0)  # det_offset not supported for InvMFT
+        det_offset = (0,0)  # det_offset not supported for InvMFT (yet...)
 
         self.wavefront = mft.inverse(self.wavefront, det_fov_lamD, pupil_npix)
         self._last_transform_type = 'InvMFT'
@@ -884,7 +867,7 @@ class Wavefront(object):
 
 #------  Optical System classes -------
 
-class OpticalSystem():
+class OpticalSystem(object):
     """ A class representing a series of optical elements,
     either Pupil, Image, or Detector planes, through which light
     can be propagated.
@@ -1633,7 +1616,7 @@ class SemiAnalyticCoronagraph(OpticalSystem):
 
 
 #------ core Optical Element Classes ------
-class OpticalElement():
+class OpticalElement(object):
     """ Base class for all optical elements, whether from FITS files or analytic functions. 
 
     If instantiated on its own, this just produces a null optical element (empty space, 
@@ -2176,12 +2159,6 @@ class FITSOpticalElement(OpticalElement):
                 except:
                     raise ValueError("pixelscale=%s is neither a FITS keyword string nor a floating point value." % str(pixelscale))
 
-
-            if self.planetype == _PUPIL:
-                self.pupil_diam = self.pixelscale * self.amplitude.shape[0] # needed to keep track of pupil array size, for now. Revisit in future versions?
-            elif self.planetype == _IMAGE:
-                pass
-
     @property
     def pupil_diam(self):
         return self.pixelscale * self.amplitude.shape[0]
@@ -2238,7 +2215,16 @@ class Rotation(OpticalElement):
 
 class Detector(OpticalElement):
     """ A Detector is a specialized type of OpticalElement that forces a wavefront
-    onto a specific fixed pixelization.
+    onto a specific fixed pixelization of an Image plane.  
+    
+    This class is in effect just a metadata container for the desired sampling;
+    all the machinery for transformation of a wavefront to that sampling happens
+    within Wavefront. 
+
+    Note that this is *not* in any way a representation of real noisy detectors;
+    no model for read noise, imperfect sensitivity, etc is included whatsoever.
+
+
 
     Parameters
     ----------
@@ -2247,19 +2233,21 @@ class Detector(OpticalElement):
     pixelscale : float
         Pixel scale in arcsec/pixel
     fov_pixels, fov_arcsec : float
-        The field of view may be specified either in arcseconds or by a number of pixels. Either is acceptable
-        and the pixel scale is used to convert as needed. You may specify a non-square FOV by providing two elements in an iterable.
-        Note that this follows the usual Python convention of ordering axes (Y,X), so put your desired Y axis size first. 
+        The field of view may be specified either in arcseconds or by a number
+        of pixels. Either is acceptable and the pixel scale is used to convert
+        as needed. You may specify a non-square FOV by providing two elements in
+        an iterable.  Note that this follows the usual Python convention of
+        ordering axes (Y,X), so put your desired Y axis size first. 
     oversample : int
         Oversampling factor beyond the detector pixel scale
     offset : tuple (X,Y)
-        Offset for the detector center relative to a hypothetical off-axis PSF. Specifying this lets you
-        pick a different sub-region for the detector to compute, if for some reason you are computing a small
-        subarray around an off-axis source. (Has not been tested!)
+        Offset for the detector center relative to a hypothetical off-axis PSF.
+        Specifying this lets you pick a different sub-region for the detector
+        to compute, if for some reason you are computing a small subarray
+        around an off-axis source. (Has not been tested!)
 
     """
     def __init__(self, pixelscale, fov_pixels=None, fov_arcsec=None, oversample=1, name="Detector", offset=None, **kwargs):
-
         OpticalElement.__init__(self,name=name, planetype=_DETECTOR, **kwargs)
         self.pixelscale = float(pixelscale)
         self.oversample = oversample
@@ -2274,12 +2262,14 @@ class Detector(OpticalElement):
             # consistent with having an integer number of pixels
             self.fov_pixels = np.round(np.asarray(fov_arcsec) / self.pixelscale)
             self.fov_arcsec = self.fov_pixels * self.pixelscale
-        #if not np.isscalar(self.fov_pixels): # hasattr(self.fov_pixels, '__len__'):
-            #self.shape = self.fov_pixels[0:2]  # rectangular
-        #else:
-            #self.shape = (self.fov_pixels, self.fov_pixels) # square
         if np.any(self.fov_pixels <= 0): raise ValueError("FOV in pixels must be a positive quantity. Invalid: "+str(self.fov_pixels))
 
+
+        if offset is not None:
+            try:
+                self.det_offset = np.asarray(offset)[0:2] 
+            except:
+                raise ValueError("The offset parameter must be a 2-element iterable")
 
         self.amplitude = 1
         self.opd = 0

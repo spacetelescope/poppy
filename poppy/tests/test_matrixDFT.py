@@ -137,23 +137,27 @@ def test_MFT_fluxconsv_all_types(centering=None, **kwargs):
 
     test_MFT_flux_conservation(centering='FFTSTYLE', **kwargs)
     test_MFT_flux_conservation(centering='SYMMETRIC', **kwargs)
-    test_MFT_flux_conservation(centering='ADJUSTIBLE', **kwargs)
+    test_MFT_flux_conservation(centering='ADJUSTABLE', **kwargs)
     test_MFT_flux_conservation(centering='FFTRECT', **kwargs)
 
 
 
 
-def test_DFT_rect(centering='FFTRECT', outdir=None, outname='DFT1R_', npix=None, sampling=10., nlamd=None):
+def test_DFT_rect(centering='FFTSTYLE', outdir=None, outname='DFT1R_', npix=None, sampling=10., nlamd=None, display=False):
     """
     Test matrix DFT, including non-square arrays, in both the
     forward and inverse directions.
 
-    This is an exact equivalent (in Python) of test_matrix_DFT in matrix_dft.pro (in IDL)
-    They should give identical results.
+    This is an exact equivalent (in Python) of Marshall Perrin's
+    test_matrix_DFT in matrix_dft.pro (in IDL) 
+    They should give identical results. However, this function doesn't actually
+    check that since that would require having IDL...
+    Instead it just checks that the sizes of the output arrays
+    are as requested. 
 
     """
 
-    print "Testing DFT, style = "+centering
+    _log.info("Testing DFT, style = "+centering)
 
 
     npupil = 156
@@ -170,12 +174,14 @@ def test_DFT_rect(centering='FFTRECT', outdir=None, outname='DFT1R_', npix=None,
     elif nlamd is None:
         nlamd = [val/sampling for val in npix]
     u = nlamd
-    print u
+    _log.info("Requested sampling in pixels: "+str(npix))
+    _log.info("Requested sampling in lam/D units: "+str(u))
     #(u, float(u)/npix[0]*npix[1])
     #npix = (npix, 2*npix)
 
 
     # FFT style
+    _log.info('init with centering='+ centering)
     mft1 = matrixDFT.MatrixFourierTransform(centering=centering)
 
     #ctr = (float(npupil)/2.0 + mft1.offset(), float(npupil)/2.0 + mft1.offset())
@@ -188,31 +194,42 @@ def test_DFT_rect(centering='FFTRECT', outdir=None, outname='DFT1R_', npix=None,
 
     pupil /= np.sqrt(pupil.sum())
 
-    plt.clf()
-    plt.subplots_adjust(left=0.02, right=0.98)
-    plt.subplot(141)
+    if display:
+        plt.clf()
+        plt.subplots_adjust(left=0.02, right=0.98)
+        plt.subplot(141)
 
-    pmx = pupil.max()
-    plt.imshow(pupil, vmin=0, vmax=pmx*1.5)
+        pmx = pupil.max()
+        plt.imshow(pupil, vmin=0, vmax=pmx*1.5)
 
 
     if outdir is not None:
         fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
 
-    a = mft1.perform(pupil, u, npix)
+    _log.info('performing MFT with pupil shape: '+ str(pupil.shape)+ ' nlamd: '+ str( nlamd)+ '  npix: '+ str(npix))
+    a = mft1.perform(pupil, nlamd, npix)
+
+
+    _log.info('Shape of MFT result: '+str(a.shape))
+
+    assert( a.shape[0] == npix[0] )
+    assert( a.shape[1] == npix[1] )
+
+
+
 
     pre = (abs(pupil)**2).sum() 
     post = (abs(a)**2).sum() 
     ratio = post / pre
     calcr = 1./(1.0*u[0]*u[1] *npix[0]*npix[1])     # multiply post by this to make them equal
-    print "Pre-FFT  total: "+str( pre)
-    print "Post-FFT total: "+str( post )
-    print "Ratio:          "+str( ratio)
-    #print "Calc ratio  :   "+str( calcr)
-    #print "uncorrected:    "+str( ratio/calcr)
+    _log.info( "Pre-FFT  total: "+str( pre))
+    _log.info( "Post-FFT total: "+str( post ))
+    _log.info( "Ratio:          "+str( ratio))
+    #_log.info( "Calc ratio  :   "+str( calcr))
+    #_log.info( "uncorrected:    "+str( ratio/calcr))
 
 
-    complexinfo(a, str=",ft1 asf")
+    #_log.info(complexinfo(a, str=",ft1 asf"))
     asf = a.real.copy()
     if outdir is not None:
         fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
@@ -221,35 +238,43 @@ def test_DFT_rect(centering='FFTRECT', outdir=None, outname='DFT1R_', npix=None,
     if outdir is not None:
         fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
 
-    ax=plt.subplot(142)
-    plt.imshow(asf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
-    ax.set_title='ASF'
-
-    ax=plt.subplot(143)
-    plt.imshow(psf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
-    ax.set_title='PSF'
-
-    plt.subplot(144)
-
+    # Inverse transform:
     pupil2 = mft1.inverse(a, u, npupil)
     pupil2r = (pupil2 * pupil2.conjugate()).real
-    plt.imshow( pupil2r, vmin=0,vmax=pmx*1.5*0.01) # FIXME flux normalization is not right?? I think this has to do with squaring the pupil here, that's all.
-    plt.gca().set_title='back to pupil'
-    plt.draw()
-    print "Post-inverse FFT total: "+str( abs(pupil2r).sum() )
-    print "Post-inverse pupil max: "+str(pupil2r.max())
 
-    plt.suptitle('Matrix DFT with rectangular arrays using centering={0}'.format(centering))
+    assert(pupil2.shape[0] == pupil.shape[0] )
+    assert(pupil2.shape[1] == pupil.shape[1] )
 
-    plt.savefig('test_DFT_rectangular_results_{0}.pdf'.format(centering))
+
+    if display:
+        ax=plt.subplot(142)
+        plt.imshow(asf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
+        ax.set_title('ASF')
+
+        ax=plt.subplot(143)
+        plt.imshow(psf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
+        ax.set_title('PSF')
+
+        plt.subplot(144)
+
+        plt.imshow(np.abs(pupil2))
+        plt.gca().set_title('back to pupil')
+        plt.draw()
+        plt.suptitle('Matrix DFT with rectangular arrays using centering={0}'.format(centering))
+
+        plt.savefig('test_DFT_rectangular_results_{0}.pdf'.format(centering))
+
+    _log.info( "Post-inverse FFT total: "+str( abs(pupil2r).sum() ))
+    _log.info( "Post-inverse pupil max: "+str(pupil2r.max()))
+
 
 def test_DFT_rect_adj():
-    """ Repeat DFT rectangle check, but for am adjustible FFT centering 
+    """ Repeat DFT rectangle check, but for adjustable FFT centering
     """
-    test_DFT_rect(centering='ADJUSTIBLE', outname='DFT1Radj_')
+    test_DFT_rect(centering='ADJUSTABLE', outname='DFT1Radj_')
 
 def test_DFT_center( npix=100, outdir=None, outname='DFT1'):
-    centering='ADJUSTIBLE'
+    centering='ADJUSTABLE'
 
     npupil = 156
     pctr = int(npupil/2)
@@ -292,7 +317,6 @@ def test_DFT_center( npix=100, outdir=None, outname='DFT1'):
     if outdir is not None:
         fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
         fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
- 
 
 
 def test_inverse( centering='SYMMETRIC'):
@@ -378,7 +402,7 @@ def run_all_MFS_tests_DFT(outdir=None, outname='DFT1'):
     npix=512
     a1 = DFT_combined(pupil, u, npix, centering='FFTSTYLE')
     a2 = DFT_combined(pupil, u, npix, centering='SYMMETRIC')
-    a3 = DFT_combined(pupil, u, npix, centering='ADJUSTIBLE')
+    a3 = DFT_combined(pupil, u, npix, centering='ADJUSTABLE')
     a4 = DFT_fftstyle(pupil, u, npix)
     a5 = DFT_symmetric(pupil, u, npix)
 
@@ -392,7 +416,7 @@ def run_all_MFS_tests_DFT(outdir=None, outname='DFT1'):
     npix=513
     b1 = DFT_combined(pupil, u, npix, centering='FFTSTYLE')
     b2 = DFT_combined(pupil, u, npix, centering='SYMMETRIC')
-    b3 = DFT_combined(pupil, u, npix, centering='ADJUSTIBLE')
+    b3 = DFT_combined(pupil, u, npix, centering='ADJUSTABLE')
     b4 = DFT_fftstyle(pupil, u, npix)
     b5 = DFT_symmetric(pupil, u, npix)
 
@@ -409,9 +433,9 @@ def run_all_MFS_tests_DFT(outdir=None, outname='DFT1'):
     npix2=(512, 128)
     c1 = DFT_combined(pupil, u2, npix2, centering='FFTSTYLE')
     c2 = DFT_combined(pupil, u2, npix2, centering='SYMMETRIC')
-    c3 = DFT_combined(pupil, u2, npix2, centering='ADJUSTIBLE')
+    c3 = DFT_combined(pupil, u2, npix2, centering='ADJUSTABLE')
     c4 = DFT_fftstyle_rect(pupil, u2, npix2)
-    c5 = DFT_adjustible_rect(pupil, u2, npix2)
+    c5 = DFT_adjustable_rect(pupil, u2, npix2)
 
     if outdir is not None:
         fits.writeto(outdir+os.sep+outname+"_c1_fft.fits",(c1*c1.conjugate()).real, clobber=True) 
@@ -437,7 +461,173 @@ def test_check_invalid_centering():
 
     with pytest.raises(ValueError) as excinfo:
         mft = matrixDFT.MatrixFourierTransform(centering='some garbage value', verbose=True)
-    assert excinfo.value.message == 'Error: centering method must be one of [SYMMETRIC, ADJUSTIBLE, FFTRECT, FFTSTYLE]'
+    assert excinfo.value.message == "'centering' must be one of [ADJUSTABLE, SYMMETRIC, FFTSTYLE]"
+
+def test_parity_MFT_forward_inverse(display = False):
+    """ Test that transforming from a pupil, to an image, and back to the pupil
+    leaves you with the same pupil as you had in the first place.
+
+    In other words it doesn't flip left/right or up/down etc.
+
+    See https://github.com/mperrin/webbpsf/issues/35
+
+    **  See also: test_fft.test_parity_FFT_forward_inverse() for a  **
+    **  parallel function to this.                                  **
+
+
+    """
+    from .test_core import ParityTestAperture
+
+    # set up optical system with 2 pupil planes and 2 image planes
+
+    # use the same exact image plane sampling as in the FFT case
+    # This is a bit slower but ensures quantitative agreement.
+
+    pixscale = 0.03437746770784939 
+    npix=2048
+    sys = poppy_core.OpticalSystem()
+    sys.addPupil(ParityTestAperture())
+    sys.addDetector(pixelscale=pixscale, fov_pixels=npix)
+    sys.addPupil()
+    sys.addDetector(pixelscale=pixscale, fov_pixels=npix)
+
+    psf, planes = sys.calcPSF(display=display, oversample=1, return_intermediates=True)
+
+    # the wavefronts are padded by 0s. With the current API the most convenient
+    # way to ensure we get unpadded versions is via the asFITS function.
+    p0 = planes[0].asFITS(what='intensity', includepadding=False)
+    p2 = planes[2].asFITS(what='intensity', includepadding=False)
+
+    # for checking the overall parity it's sufficient to check the intensity.
+    # we can have arbitrarily large differences in phase for regions with 
+    # intensity =0, so don't check the complex field or phase here. 
+
+
+    absdiff = (np.abs(p0[0].data - p2[0].data))
+    maxabsdiff = np.max(absdiff)
+    assert (maxabsdiff < 1e-10)
+
+    if display:
+        nplanes = len(planes)
+        for i, plane in enumerate(planes):
+            ax = plt.subplot(2,nplanes,i+1)
+            plane.display(ax = ax)
+            plt.title("Plane {0}".format(i))
+
+
+        plt.subplot(2,nplanes,nplanes+1)
+        plt.imshow(absdiff)
+        plt.title("Abs(Pupil0-Pupil2)")
+        plt.colorbar()
+        print maxabsdiff
+
+def test_MFT_FFT_equivalence(display=False, displaycrop=None):
+    """ Test that the MFT transform is numerically equivalent to the
+    FFT, if calculated on the correct sampling. """
+
+    centering='FFTSTYLE' # needed if you want near-exact agreement!
+
+    from poppy.tests.test_core import ParityTestAperture
+    imgin = ParityTestAperture().sample(wavelength=1e-6, npix=256)
+
+    npix = imgin.shape
+    nlamD = np.asarray(imgin.shape)
+    mft = matrixDFT.MatrixFourierTransform(centering=centering)
+    mftout = mft.perform(imgin, nlamD, npix)
+
+    fftout = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(imgin))) / np.sqrt(imgin.shape[0] * imgin.shape[1])
+
+
+    norm_factor = abs(mftout).sum()
+
+    absdiff = abs(mftout-fftout) / norm_factor
+
+    assert(np.all(absdiff < 1e-10))
+
+    if display:
+        plt.figure(figsize=(18,3))
+
+        plt.subplot(141)
+        plt.imshow(np.abs(imgin))
+        plt.colorbar()
+        if displaycrop is not None:
+            plt.xlim(*displaycrop)
+            plt.ylim(*displaycrop)
+        print 'img input sum =', np.sum(imgin)
+
+        plt.subplot(142)
+        plt.imshow(np.abs(mftout))
+        plt.colorbar()
+        if displaycrop is not None:
+            plt.xlim(*displaycrop)
+            plt.ylim(*displaycrop)
+        print 'mft output sum =', np.sum(np.abs(mftout))
+
+        plt.subplot(143)
+        plt.imshow(np.abs(fftout))
+        plt.colorbar()
+        if displaycrop is not None:
+            plt.xlim(*displaycrop)
+            plt.ylim(*displaycrop)
+        print 'fft output sum =', np.sum(np.abs(fftout))
+
+        plt.subplot(144)
+        plt.imshow(np.abs(mftout - fftout))
+        plt.colorbar()
+        if displaycrop is not None:
+            plt.xlim(*displaycrop)
+            plt.ylim(*displaycrop)
+        print '(mft - fft) output sum =', np.sum(np.abs(mftout - fftout))
+
+        return mftout, fftout
+
+def test_MFT_FFT_equivalence_in_OpticalSystem(display=False):
+    """ Test that propagating Wavefronts through an OpticalSystem
+    using an MFT and an FFT give equivalent results.
+
+    This is a somewhat higher level test that involves all the
+    Wavefront class's _propagateTo() machinery, which is not
+    tested in the above function. Hence the two closely related tests."""
+
+
+    # Note that the Detector class and Wavefront propagation always uses
+    # ADJUSTABLE-style MFTs (output centered in the array)
+    # which is not compatible with FFT outputs for even-sized arrays.
+    # Thus in order to get an exact equivalence, we have to set up our
+    # OpticalSystem so that it, very unusually, uses an odd size for
+    # its input wavefront. The easiest way to do this is to discretize
+    # an AnalyticOpticalElement onto a specific grid. 
+
+    from poppy.tests.test_core import ParityTestAperture
+    fits511 = ParityTestAperture().toFITS('test.fits', wavelength=1e-6, npix=511)
+    pup511 = poppy_core.FITSOpticalElement(transmission=fits511)
+
+
+    # set up simple optical system that will just FFT
+    fftsys = poppy_core.OpticalSystem(oversample=1)
+    fftsys.addPupil(pup511) #ParityTestAperture())
+    fftsys.addImage()
+
+    fftpsf, fftplanes = fftsys.calcPSF(display=False, return_intermediates=True)
+
+    # set up equivalent using an MFT, tuned to get the exact same scale
+    # for the image plane
+    mftsys = poppy_core.OpticalSystem(oversample=1)
+    mftsys.addPupil(pup511) #ParityTestAperture())
+    mftsys.addDetector(pixelscale=fftplanes[1].pixelscale , fov_pixels=fftplanes[1].shape, oversample=1) #, offset=(pixscale/2, pixscale/2))
+
+    mftpsf, mftplanes = mftsys.calcPSF(display=False, return_intermediates=True)
+
+    assert( np.all(  np.abs(mftpsf[0].data-fftpsf[0].data) < 1e-10 ))
+
+    if display:
+        plt.figure(figsize=(16,3))
+        plt.subplot(131)
+        poppy.display_PSF(fftpsf, title="FFT PSF")
+        plt.subplot(132)
+        poppy.display_PSF(mftpsf, title='MFT PSF')
+        plt.subplot(133)
+        poppy.display_PSF_di
 
 
 
