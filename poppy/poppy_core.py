@@ -1235,7 +1235,7 @@ class OpticalSystem(object):
         return wavefront.asFITS(), intermediate_wfs
 
     def calcPSF(self, wavelength=1e-6, weight=None, save_intermediates=False, save_intermediates_what='all',
-                display=False, return_intermediates=False, source=None, normalize='first'):
+                display=False, return_intermediates=False, source=None, normalize='first', display_intermediates=False):
         """Calculate a PSF, either multi-wavelength or monochromatic.
 
         The wavelength coverage computed will be:
@@ -1260,6 +1260,9 @@ class OpticalSystem(object):
             a dict containing 'wavelengths' and 'weights' list.
         normalize : string, optional
             How to normalize the PSF. See the documentation for propagate_mono() for details.
+        display_intermediates: bool, optional
+            Display intermediate optical planes? Default is False. This option is incompatible with
+            parallel calculations using `multiprocessing`. (If calculating in parallel, it will have no effect.)
 
         Returns
         -------
@@ -1308,7 +1311,6 @@ class OpticalSystem(object):
             if display:
                 _log.warn('Display during calculations is not supported for multiprocessing mode. Please set poppy.conf.use_multiprocessing.set(False) if you want to use display=True.')
                 _log.warn('(Plot the returned PSF with poppy.utils.display_PSF.)')
-                display = False
 
             if save_intermediates:
                 _log.warn('Saving intermediate steps does not take advantage of multiprocess parallelism. '
@@ -1350,7 +1352,7 @@ class OpticalSystem(object):
                 mono_psf, mono_intermediate_wfs = self.propagate_mono(
                     wlen,
                     retain_intermediates=retain_intermediates,
-                    display_intermediates=display,
+                    display_intermediates=display_intermediates,
                     normalize=normalize
                 )
 
