@@ -1360,7 +1360,7 @@ class OpticalSystem(object):
                 if outFITS is None:
                     # for the first wavelength processed, set up the arrays where we accumulate the output
                     outFITS = mono_psf
-                    outFITS[0].data = mono_psf[0].data * wave_weight
+                    outFITS[0].data *= wave_weight
                     intermediate_wfs = mono_intermediate_wfs
                     for wavefront in intermediate_wfs:
                         wavefront *= wave_weight  # modifies Wavefront in-place
