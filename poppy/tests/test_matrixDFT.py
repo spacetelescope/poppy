@@ -491,7 +491,7 @@ def test_parity_MFT_forward_inverse(display = False):
     sys.addPupil()
     sys.addDetector(pixelscale=pixscale, fov_pixels=npix)
 
-    psf, planes = sys.calcPSF(display=display, oversample=1, return_intermediates=True)
+    psf, planes = sys.calcPSF(display=display, return_intermediates=True)
 
     # the wavefronts are padded by 0s. With the current API the most convenient
     # way to ensure we get unpadded versions is via the asFITS function.
