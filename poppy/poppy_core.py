@@ -1182,7 +1182,8 @@ class OpticalSystem(object):
 
         if conf.enable_speed_tests:
             t_start = time.time()
-        if self.verbose: _log.info(" Propagating wavelength = %g meters %s")
+        if self.verbose:
+           _log.info(" Propagating wavelength = {0:g} meters".format(wavelength))
         wavefront = self.inputWavefront(wavelength)
 
         intermediate_wfs = []
