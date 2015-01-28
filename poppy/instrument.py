@@ -382,7 +382,7 @@ class Instrument(object):
     def _validateConfig(self, wavelengths=None):
         """Determine if a provided instrument configuration is valid.
 
-        Source properties for the calculation are passed in as the `source`
+        Wavelengths to be propagated in the calculation are passed in as the `wavelengths`
         keyword argument.
 
         Subclasses should raise an exception if the configuration is invalid/unachievable.
