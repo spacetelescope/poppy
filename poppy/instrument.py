@@ -45,7 +45,7 @@ class Instrument(object):
 
     For more complicated systems you may also want to override:
 
-        * _validate_config
+        * _validateConfig
         * _getSynphotBandpass
         * _applyJitter
     """
@@ -226,7 +226,7 @@ class Instrument(object):
         wavelens, weights = self._getWeights(source=source, nlambda=local_options['nlambda'], monochromatic=local_options['monochromatic'])
 
         # Validate that the calculation we're about to do makes sense with this instrument config
-        self._validate_config(wavelengths=wavelens)
+        self._validateConfig(wavelengths=wavelens)
 
         #---- now at last, actually do the PSF calc:
         #  instantiate an optical system using the current parameters
@@ -369,12 +369,11 @@ class Instrument(object):
         result[0].header["DATE"] = ( "%4d-%02d-%02dT%02d:%02d:%02d" % (year, month, day, hour, minute, second), "Date of calculation")
         result[0].header["AUTHOR"] = ( "%s@%s" % (os.getenv('USER'), os.getenv('HOST')), "username@host for calculation")
 
-    def _validate_config(self, **kwargs):
+    def _validateConfig(self, source=None):
         """Determine if a provided instrument configuration is valid.
 
-        Source properties are passed in as the `source` keyword argument. Other properties known
-        only at calculation time will be passed in as keyword arguments in the future, so
-        subclasses should use a function signature with ``**kwargs``.
+        Source properties for the calculation are passed in as the `source`
+        keyword argument.
 
         Subclasses should raise an exception if the configuration is invalid/unachievable.
         """
