@@ -379,7 +379,7 @@ class Instrument(object):
         result[0].header["DATE"] = ( "%4d-%02d-%02dT%02d:%02d:%02d" % (year, month, day, hour, minute, second), "Date of calculation")
         result[0].header["AUTHOR"] = ( "%s@%s" % (os.getenv('USER'), os.getenv('HOST')), "username@host for calculation")
 
-    def _validateConfig(self, source=None):
+    def _validateConfig(self, wavelengths=None):
         """Determine if a provided instrument configuration is valid.
 
         Source properties for the calculation are passed in as the `source`
