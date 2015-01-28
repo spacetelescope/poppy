@@ -163,9 +163,9 @@ def test_SAMC(oversample=4):
 def test_parity_FFT_forward_inverse(display = False):
     """ Test that transforming from a pupil, to an image, and back to the pupil
     leaves you with the same pupil as you had in the first place.
-    
+
     In other words it doesn't flip left/right or up/down etc. 
-    
+
     See https://github.com/mperrin/webbpsf/issues/35
     That was for the MFT, but for thoroughness let's test both FFT and MFT 
     to demonstrate proper behavior
@@ -175,8 +175,8 @@ def test_parity_FFT_forward_inverse(display = False):
 
     """
 
-    from .test_core import ParityTestAperture 
-    
+    from .test_core import ParityTestAperture
+
     # set up optical system with 2 pupil planes and 2 image planes
     sys = poppy_core.OpticalSystem()
     sys.addPupil(ParityTestAperture())
@@ -184,7 +184,7 @@ def test_parity_FFT_forward_inverse(display = False):
     sys.addPupil()
     sys.addDetector(pixelscale=0.010, fov_arcsec=1)
 
-    psf, planes = sys.calcPSF(display=display, oversample=1, return_intermediates=True)    
+    psf, planes = sys.calcPSF(display=display, oversample=1, return_intermediates=True)
 
     # the wavefronts are padded by 0s. With the current API the most convenient
     # way to ensure we get unpadded versions is via the asFITS function.
@@ -194,7 +194,7 @@ def test_parity_FFT_forward_inverse(display = False):
     # for checking the overall parity it's sufficient to check the intensity.
     # we can have arbitrarily large differences in phase for regions with 
     # intensity =0, so don't check the complex field or phase here. 
-    
+
     absdiff = (np.abs(p0[0].data - p2[0].data))
     maxabsdiff = np.max(absdiff)
     assert (maxabsdiff < 1e-10)

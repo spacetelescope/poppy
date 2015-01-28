@@ -4,9 +4,28 @@ import numpy as np
 import astropy.io.fits as fits
 
 
-def test_nonsquare_detector(oversample=1, pixelscale=0.010, wavelength=1e-6):
-        """ Test that the MFT supports non-square detectors 
-        
+def test_nonsquare_detector_axes_lengths():
+        """ Test that an MFT onto non-square detectors yields
+        the requested axes lengths 
+
+        """
+
+        for fov_pixels in ( [100,100], [100,200], [200,100], [137, 511] ):
+            osys = poppy.OpticalSystem()
+            circ = optics.CircularAperture(radius=6.5/2)
+            osys.addPupil(circ)
+            osys.addDetector(pixelscale=0.1, oversample=1, fov_pixels=fov_pixels )
+
+            psf = osys.calcPSF(wavelength=1e-6)
+
+            assert(psf[0].data.shape[0] == fov_pixels[0])
+            assert(psf[0].data.shape[1] == fov_pixels[1])
+
+
+def test_nonsquare_detector_values(oversample=1, pixelscale=0.010, wavelength=1e-6):
+        """ Test that the MFT onto non-square detectors yields the same pixel
+        values as onto square detectors
+
         Do this by first computing a square detector then two different
         rectangular detector grids, all from the same pupil and detector pixel sampling.
         Check that the center pixels of the various results are identical

@@ -189,22 +189,44 @@ class AnalyticOpticalElement(OpticalElement):
         self.opd = None
         self.amplitude = None
 
-    def toFITS(self, outname=None, what='amplitude', wavelength=2e-6, npix=512):
-        """ Save an analytic optic computed onto a grid to a FITS file """
+    def toFITS(self, outname=None, what='amplitude', wavelength=2e-6, npix=512, **kwargs):
+        """ Save an analytic optic computed onto a grid to a FITS file 
+        
+        The FITS file is returned to the calling function, and may optionally be 
+        saved directly to disk.
 
-        if outname is None:
-            raise ValueError("You must supply an output filename to write a FITS file.")
+        Parameters
+        ------------
+        what : string
+            What quantity to save. See the sample function of this class
+        wavelength : float
+            Wavelength in meters. 
+        npix : integer
+            Number of pixels.
+        outname : string, optional
+            Filename to write out a FITS file to disk
+
+        See the sample() function for additional optional parameters.
+
+        """
+
+        kwargs['return_scale'] = True
 
         output_array, pixelscale = self.sample(wavelength=wavelength, npix=npix, what=what,
-                                               return_scale=True)
+                                               **kwargs)
         phdu = fits.PrimaryHDU(output_array)
         phdu.header['OPTIC'] = self.name
         phdu.header['SOURCE'] = 'Computed with POPPY'
         phdu.header['CONTENTS'] = what
-        phdu.header['PIXELSCL'] = pixelscale
-        phdu.writeto(outname, clobber=True)
-        _log.info("Output written to " + outname)
+        phdu.header['PIXSCALE'] = pixelscale
 
+        hdul = fits.HDUList(hdus=[phdu])
+
+        if outname is not None:
+            phdu.writeto(outname, clobber=True)
+            _log.info("Output written to " + outname)
+
+        return hdul
 
 class ScalarTransmission(AnalyticOpticalElement):
     """ Uniform transmission between 0 and 1.0 in intensity. 

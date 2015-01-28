@@ -733,7 +733,7 @@ class Wavefront(object):
             msg= '    Propagating w/ InvMFT: %.4f"/pix     fov=%.3f lam/D    pupil npix=%d' %  (self.pixelscale, det_fov_lamD, pupil_npix)
         _log.debug(msg)
         self.history.append(msg)
-        det_offset = (0,0)  # det_offset not supported for InvMFT
+        det_offset = (0,0)  # det_offset not supported for InvMFT (yet...)
 
         self.wavefront = mft.inverse(self.wavefront, det_fov_lamD, pupil_npix)
         self._last_transform_type = 'InvMFT'
@@ -2162,12 +2162,6 @@ class FITSOpticalElement(OpticalElement):
                 except:
                     raise ValueError("pixelscale=%s is neither a FITS keyword string nor a floating point value." % str(pixelscale))
 
-
-            if self.planetype == _PUPIL:
-                self.pupil_diam = self.pixelscale * self.amplitude.shape[0] # needed to keep track of pupil array size, for now. Revisit in future versions?
-            elif self.planetype == _IMAGE:
-                pass
-
     @property
     def pupil_diam(self):
         return self.pixelscale * self.amplitude.shape[0]
@@ -2224,7 +2218,16 @@ class Rotation(OpticalElement):
 
 class Detector(OpticalElement):
     """ A Detector is a specialized type of OpticalElement that forces a wavefront
-    onto a specific fixed pixelization.
+    onto a specific fixed pixelization of an Image plane.  
+    
+    This class is in effect just a metadata container for the desired sampling;
+    all the machinery for transformation of a wavefront to that sampling happens
+    within Wavefront. 
+
+    Note that this is *not* in any way a representation of real noisy detectors;
+    no model for read noise, imperfect sensitivity, etc is included whatsoever.
+
+
 
     Parameters
     ----------
@@ -2233,19 +2236,21 @@ class Detector(OpticalElement):
     pixelscale : float
         Pixel scale in arcsec/pixel
     fov_pixels, fov_arcsec : float
-        The field of view may be specified either in arcseconds or by a number of pixels. Either is acceptable
-        and the pixel scale is used to convert as needed. You may specify a non-square FOV by providing two elements in an iterable.
-        Note that this follows the usual Python convention of ordering axes (Y,X), so put your desired Y axis size first. 
+        The field of view may be specified either in arcseconds or by a number
+        of pixels. Either is acceptable and the pixel scale is used to convert
+        as needed. You may specify a non-square FOV by providing two elements in
+        an iterable.  Note that this follows the usual Python convention of
+        ordering axes (Y,X), so put your desired Y axis size first. 
     oversample : int
         Oversampling factor beyond the detector pixel scale
     offset : tuple (X,Y)
-        Offset for the detector center relative to a hypothetical off-axis PSF. Specifying this lets you
-        pick a different sub-region for the detector to compute, if for some reason you are computing a small
-        subarray around an off-axis source. (Has not been tested!)
+        Offset for the detector center relative to a hypothetical off-axis PSF.
+        Specifying this lets you pick a different sub-region for the detector
+        to compute, if for some reason you are computing a small subarray
+        around an off-axis source. (Has not been tested!)
 
     """
     def __init__(self, pixelscale, fov_pixels=None, fov_arcsec=None, oversample=1, name="Detector", offset=None, **kwargs):
-
         OpticalElement.__init__(self,name=name, planetype=_DETECTOR, **kwargs)
         self.pixelscale = float(pixelscale)
         self.oversample = oversample
@@ -2260,12 +2265,14 @@ class Detector(OpticalElement):
             # consistent with having an integer number of pixels
             self.fov_pixels = np.round(np.asarray(fov_arcsec) / self.pixelscale)
             self.fov_arcsec = self.fov_pixels * self.pixelscale
-        #if not np.isscalar(self.fov_pixels): # hasattr(self.fov_pixels, '__len__'):
-            #self.shape = self.fov_pixels[0:2]  # rectangular
-        #else:
-            #self.shape = (self.fov_pixels, self.fov_pixels) # square
         if np.any(self.fov_pixels <= 0): raise ValueError("FOV in pixels must be a positive quantity. Invalid: "+str(self.fov_pixels))
 
+
+        if offset is not None:
+            try:
+                self.det_offset = np.asarray(offset)[0:2] 
+            except:
+                raise ValueError("The offset parameter must be a 2-element iterable")
 
         self.amplitude = 1
         self.opd = 0

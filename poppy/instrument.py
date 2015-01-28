@@ -7,6 +7,13 @@ import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
 import matplotlib
 import astropy.io.fits as fits
+try:
+    import pysynphot
+    _HAS_PYSYNPHOT = True
+except:
+    pysynphot = None
+    _HAS_PYSYNPHOT = False
+
 
 from . import poppy_core
 from . import optics
@@ -92,7 +99,7 @@ class Instrument(object):
 
     def __init__(self, name="", *args, **kwargs):
         self.name=name
-        self.pupil = poppy_core.CircularAperture( *args, **kwargs)
+        self.pupil = optics.CircularAperture(*args, **kwargs)
         self.pupilopd = None
         self.options = {}
         self.pixelscale = 0.025
@@ -220,13 +227,16 @@ class Instrument(object):
         local_options['detector_oversample']=detector_oversample
         local_options['fft_oversample']=fft_oversample
 
-        poppy_core._log.info("PSF calc using fov_%s, oversample = %d, nlambda = %d" % (local_options['fov_spec'], local_options['detector_oversample'], local_options['nlambda']) )
-
         #----- compute weights for each wavelength based on source spectrum
         wavelens, weights = self._getWeights(source=source, nlambda=local_options['nlambda'], monochromatic=local_options['monochromatic'])
 
         # Validate that the calculation we're about to do makes sense with this instrument config
         self._validateConfig(wavelengths=wavelens)
+        poppy_core._log.info(
+            "PSF calc using fov_%s, oversample = %d, number of wavelengths = %d" % (
+                local_options['fov_spec'], local_options['detector_oversample'], len(wavelens)
+            )
+        )
 
         #---- now at last, actually do the PSF calc:
         #  instantiate an optical system using the current parameters
@@ -503,7 +513,7 @@ class Instrument(object):
                 sigma = 0.007
 
             # that will be in arcseconds, we need to convert to pixels:
-            
+
             poppy_core._log.info("Jitter: Convolving with Gaussian with sigma=%.2f arcsec" % sigma)
             out = scipy.ndimage.gaussian_filter(result[0].data, sigma/self.pixelscale)
             peak = result[0].data.max()
@@ -535,7 +545,7 @@ class Instrument(object):
             self.options['no_sam'] = True
         except:
             old_no_sam = None
-        
+
         optsys = self._getOpticalSystem()
         optsys.display(what='both')
         if old_no_sam is not None: self.options['no_sam'] = old_no_sam
@@ -565,17 +575,19 @@ class Instrument(object):
         a pysynphot.ObsBandpass object for that filter. 
 
         """
+        if not _HAS_PYSYNPHOT:
+            raise RuntimeError("PySynphot not found")
 
         if filtername.lower().startswith('f'):
             # attempt to treat it as an HST filter name?
             bpname = ('wfc3,uvis1,%s'%(filtername)).lower()
         else:
-            bpname=filtername
+            bpname = self._synphot_bandpasses[filtername]
 
         try:
-            band = pysynphot.ObsBandpass( bpname)
-        except:
-            raise LookupError("Don't know how to compute pysynphot.ObsBandpass for a filter named "+filtername)
+            band = pysynphot.ObsBandpass(bpname)
+        except ValueError:
+            raise LookupError("Don't know how to compute pysynphot.ObsBandpass for a filter named "+bpname)
 
         return band
 
@@ -605,11 +617,16 @@ class Instrument(object):
 
         """
 
-        filterlist =  ['V','R','I', 'F606W']
-        bandpasslist = { 'V':"V",'R':"R",'I':"I", "F606W":'acs,wfc,f606w'}
+        filterlist =  ['B', 'I', 'R', 'U', 'V']
+        bandpasslist = {
+            'B': 'johnson,b',
+            'I': 'johnson,i',
+            'R': 'johnson,r',
+            'U': 'johnson,u',
+            'V': 'johnson,v',
+        }
 
-        return (filterlist, bandpasslist)
-
+        return filterlist, bandpasslist
 
     #def _getJitterKernel(self, type='Gaussian', sigma=10):
 
@@ -620,13 +637,6 @@ class Instrument(object):
         Uses pysynphot (if installed), otherwise assumes simple-minded flat spectrum
 
         """
-        try:
-            import pysynphot
-            _HAS_PYSYNPHOT = True
-        except:
-            _HAS_PYSYNPHOT = False
-
-
         if monochromatic is not None:
             poppy_core._log.info(" monochromatic calculation requested.")
             return (np.asarray([monochromatic]),  np.asarray([1]) )
@@ -663,14 +673,6 @@ class Instrument(object):
             minwave = band.wave[w_above10].min()
             maxwave = band.wave[w_above10].max()
             poppy_core._log.debug("Min, max wavelengths = %f, %f" % (minwave/1e4, maxwave/1e4))
-            # special case: ignore red leak for MIRI F560W, which has a negligible effect in practice
-            # this is lousy test data rather than a bad filter?
-            if self.filter == 'F560W':
-                poppy_core._log.debug("Special case: setting max wavelength to 6.38 um to ignore red leak")
-                maxwave = 63800.0
-            elif self.filter == 'F1280W':
-                poppy_core._log.debug("Special case: setting max wavelength to 14.32 um to ignore red leak")
-                maxwave = 143200.0
 
             wave_bin_edges =  np.linspace(minwave,maxwave,nlambda+1)
             wavesteps = (wave_bin_edges[:-1] +  wave_bin_edges[1:])/2
@@ -724,14 +726,11 @@ class Instrument(object):
             if waveunit != 'Angstrom': raise ValueError("The supplied file, %s, does not have WAVEUNIT = Angstrom as expected." % self._filter_files[wf] )
             poppy_core._log.warn("CAUTION: Just interpolating rather than integrating filter profile, over %d steps" % nlambda)
             wtrans = np.where(filterdata.THROUGHPUT > 0.4)
-            if self.filter == 'FND':  # special case MIRI's ND filter since it is < 0.1% everywhere...
-                wtrans = np.where(  ( filterdata.THROUGHPUT > 0.0005)  & (filterdata.WAVELENGTH > 7e-6*1e10) & (filterdata.WAVELENGTH < 26e-6*1e10 ))
             lrange = filterdata.WAVELENGTH[wtrans] *1e-10  # convert from Angstroms to Meters
             lambd = np.linspace(np.min(lrange), np.max(lrange), nlambda)
             filter_fn = scipy.interpolate.interp1d(filterdata.WAVELENGTH*1e-10, filterdata.THROUGHPUT,kind='cubic', bounds_error=False)
             weights = filter_fn(lambd)
             return (lambd,weights)
-            #source = {'wavelengths': lambd, 'weights': weights}
 
 
 
