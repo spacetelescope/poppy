@@ -320,3 +320,4 @@ def test_optic_resizing():
     osys.addPupil(optics.CircularAperture(radius=3.25))
     assert(test_optic_small_element.getPhasor(osys.inputWavefront()).shape ==osys.inputWavefront().shape )
     assert(test_optic_large_element.getPhasor(osys.inputWavefront()).shape ==osys.inputWavefront().shape )
+

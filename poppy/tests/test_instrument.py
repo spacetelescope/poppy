@@ -66,13 +66,12 @@ def test_instrument_source_weight_array(wavelengths=WAVELENGTHS_ARRAY, weights=W
 
     return psf
 
-
 def test_instrument_wavelengths_and_weights(wavelengths=WAVELENGTHS_ARRAY, weights=WEIGHTS_ARRAY):
     """
     Tests the ability to just provide wavelengths, weights directly
     """
     inst = instrument.Instrument()
-    psf = inst.calcPSF(wavelength=wavelength, weight=weights, fov_pixels=FOV_PIXELS,
+    psf = inst.calcPSF(wavelength=wavelengths, weight=weights, fov_pixels=FOV_PIXELS,
                        detector_oversample=2, fft_oversample=2)
     assert psf[0].header['NWAVES'] == len(wavelengths), \
         "Number of wavelengths in PSF header does not match number requested"
@@ -88,10 +87,6 @@ def test_instrument_wavelengths_and_weights(wavelengths=WAVELENGTHS_ARRAY, weigh
         "Multi-wavelength PSF does not match weighted sum of individual wavelength PSFs"
 
     return psf
-
-
-
-
 
 @pytest.mark.skipif(not _HAS_PYSYNPHOT, reason="PySynphot dependency not met")
 def test_instrument_source_pysynphot():
