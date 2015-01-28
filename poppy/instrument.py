@@ -52,7 +52,7 @@ class Instrument(object):
 
     For more complicated systems you may also want to override:
 
-        * _validate_config
+        * _validateConfig
         * _getSynphotBandpass
         * _applyJitter
     """
@@ -127,7 +127,6 @@ class Instrument(object):
         if value not in self.filter_list:
             raise ValueError("Instrument %s doesn't have a filter called %s." % (self.name, value))
         self._filter = value
-        self._validate_config()
 
     #----- actual optical calculations follow here -----
     def calcPSF(self, outfile=None, source=None, nlambda=None, monochromatic=None ,
@@ -231,6 +230,8 @@ class Instrument(object):
         #----- compute weights for each wavelength based on source spectrum
         wavelens, weights = self._getWeights(source=source, nlambda=local_options['nlambda'], monochromatic=local_options['monochromatic'])
 
+        # Validate that the calculation we're about to do makes sense with this instrument config
+        self._validateConfig(wavelengths=wavelens)
         poppy_core._log.info(
             "PSF calc using fov_%s, oversample = %d, number of wavelengths = %d" % (
                 local_options['fov_spec'], local_options['detector_oversample'], len(wavelens)
@@ -378,10 +379,13 @@ class Instrument(object):
         result[0].header["DATE"] = ( "%4d-%02d-%02dT%02d:%02d:%02d" % (year, month, day, hour, minute, second), "Date of calculation")
         result[0].header["AUTHOR"] = ( "%s@%s" % (os.getenv('USER'), os.getenv('HOST')), "username@host for calculation")
 
-    def _validate_config(self):
-        """ Determine if a provided instrument configuration is valid.
+    def _validateConfig(self, source=None):
+        """Determine if a provided instrument configuration is valid.
 
-        Should raise an exception if the configuration is invalid/unachievable.
+        Source properties for the calculation are passed in as the `source`
+        keyword argument.
+
+        Subclasses should raise an exception if the configuration is invalid/unachievable.
         """
         pass
 
@@ -418,8 +422,6 @@ class Instrument(object):
             an optical system instance representing the desired configuration.
 
         """
-
-        self._validate_config()
 
         poppy_core._log.info("Creating optical system model:")
 
