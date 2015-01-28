@@ -90,19 +90,16 @@ def test_fft_fqpm(): #oversample=2, verbose=True, wavelength=2e-6):
 
     oversamp=2
     osys = poppy_core.OpticalSystem("test", oversample=oversamp)
-    osys.addPupil( optics.CircularAperture(radius=radius)   )
-    osys.addPupil( optics.FQPM_FFT_aligner()  ) #'FQPM_FFT_aligner')
-    osys.addImage( optics.IdealFQPM( wavelength=wavelen) )  # perfect FQPM for this wavelength
-    osys.addImage( optics.RectangularFieldStop( width=6.0))
-    osys.addPupil( optics.FQPM_FFT_aligner(direction='backward'))
-    osys.addPupil( optics.CircularAperture(radius=radius))
+    osys.addPupil(optics.CircularAperture(radius=radius))
+    osys.addPupil(optics.FQPM_FFT_aligner())
+    osys.addImage(optics.IdealFQPM(wavelength=wavelen))  # perfect FQPM for this wavelength
+    osys.addImage(optics.RectangularFieldStop(width=6.0))
+    osys.addPupil(optics.FQPM_FFT_aligner(direction='backward'))
+    osys.addPupil(optics.CircularAperture(radius=radius))
     osys.addDetector(pixelscale=0.01, fov_arcsec=10.0)
 
-    psf = osys.calcPSF(wavelength=wavelen, oversample=oversamp)
-    assert psf[0].data.sum() <  0.002
-    #_log.info("post-FQPM flux is appropriately low.")
-
-
+    psf = osys.calcPSF(wavelength=wavelen)
+    assert psf[0].data.sum() < 0.002
 
 def test_SAMC(oversample=4):
     """ Test semianalytic coronagraphic method
@@ -160,7 +157,7 @@ def test_SAMC(oversample=4):
 
 
 
-def test_parity_FFT_forward_inverse(display = False):
+def test_parity_FFT_forward_inverse(display=False):
     """ Test that transforming from a pupil, to an image, and back to the pupil
     leaves you with the same pupil as you had in the first place.
 
@@ -178,13 +175,13 @@ def test_parity_FFT_forward_inverse(display = False):
     from .test_core import ParityTestAperture
 
     # set up optical system with 2 pupil planes and 2 image planes
-    sys = poppy_core.OpticalSystem()
+    sys = poppy_core.OpticalSystem(oversample=1)
     sys.addPupil(ParityTestAperture())
     sys.addImage()
     sys.addPupil()
     sys.addDetector(pixelscale=0.010, fov_arcsec=1)
 
-    psf, planes = sys.calcPSF(display=display, oversample=1, return_intermediates=True)
+    psf, planes = sys.calcPSF(display=display, return_intermediates=True)
 
     # the wavefronts are padded by 0s. With the current API the most convenient
     # way to ensure we get unpadded versions is via the asFITS function.
