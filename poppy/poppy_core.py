@@ -1243,9 +1243,11 @@ class OpticalSystem(object):
         Parameters
         ----------
         wavelength : float, optional
-            wavelength in meters for monochromatic calculation.
+            wavelength in meters. Either scalar for monochromatic calculation or 
+            list or ndarray for multiwavelength calculation.
         weight : float, optional
-            weight by which to multiply output plane
+            weight by which to multiply each wavelength. Must have same length as 
+            wavelength parameter. Defaults to 1s if not specified. 
         save_intermediates : bool, optional
             whether to output intermediate optical planes to disk. Default is False
         save_intermediate_what : string, optional
@@ -1277,8 +1279,13 @@ class OpticalSystem(object):
             wavelength = source['wavelengths']
             weight=source['weights']
 
-        if not hasattr(wavelength,'__iter__'):
-            wavelength = [wavelength]
+        try:
+            if np.isscalar(wavelength):
+                wavelength = np.asarray([wavelength], dtype=float)
+            else: wavelength = np.asarray(wavelength, dtype=float)
+        except:
+            raise ValueError("You have specified an invalid wavelength to calcPSF: "+str(wavelength))
+
         if weight is None:
             weight = [1.0] * len(wavelength)
 
