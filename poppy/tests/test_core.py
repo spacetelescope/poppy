@@ -148,6 +148,33 @@ def test_CircularAperture_Airy(display=False):
 #print a2.max()
 
 
+def test_multiwavelength_opticalsystem():
+    """
+    Tests the ability to just provide wavelengths, weights directly
+    """
+    wavelengths = [2.0e-6, 2.1e-6, 2.2e-6]
+    weights = [0.3, 0.5, 0.2]
+
+    osys = poppy_core.OpticalSystem("test")
+    pupil = optics.CircularAperture(radius=1)
+    osys.addPupil(pupil) #function='Circle', radius=1)
+    osys.addDetector(pixelscale=0.1, fov_arcsec=5.0) # use a large FOV so we grab essentially all the light and conserve flux
+
+
+    psf = osys.calcPSF(wavelength=wavelengths, weight=weights)
+    assert psf[0].header['NWAVES'] == len(wavelengths), \
+        "Number of wavelengths in PSF header does not match number requested"
+
+    # Check weighted sum
+    output = np.zeros_like(psf[0].data)
+    for wavelength, weight in zip(wavelengths, weights):
+        output += weight * osys.calcPSF(wavelength=wavelength)[0].data
+
+    assert np.allclose(psf[0].data, output), \
+        "Multi-wavelength PSF does not match weighted sum of individual wavelength PSFs"
+
+    return psf
+
 
 def test_normalization():
     """ Test that we can compute a PSF and get the desired flux, 
