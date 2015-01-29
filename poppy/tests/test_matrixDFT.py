@@ -319,11 +319,11 @@ def test_DFT_center( npix=100, outdir=None, outname='DFT1'):
         fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
 
 
-def test_inverse( centering='SYMMETRIC'):
+def test_inverse( centering='SYMMETRIC', display=False):
     """ Test repeated transformations between pupil and image
 
     TODO FIXME - this needs some assertions added
-    """
+        """
 
 
     npupil = 300 #156
@@ -347,8 +347,9 @@ def test_inverse( centering='SYMMETRIC'):
     pupil[100:200, 30:50] = 0
     pupil[0:50, 140:160] = 0
 
-    plt.subplot(141)
-    plt.imshow(pupil)
+    if display:
+        plt.subplot(141)
+        plt.imshow(pupil)
 
     print "Pupil 1 total:", pupil.sum() 
 
@@ -358,15 +359,17 @@ def test_inverse( centering='SYMMETRIC'):
     cpsf = a * a.conjugate()
     psf = cpsf.real.copy()
     print "PSF total", psf.sum()
- 
-    plt.subplot(142)
-    plt.imshow(psf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
 
-    plt.subplot(143)
+    if display:
+        plt.subplot(142)
+        plt.imshow(psf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
+
+        plt.subplot(143)
 
     pupil2 = mft1.inverse(a, u, npupil)
     pupil2r = (pupil2 * pupil2.conjugate()).real
-    plt.imshow( pupil2r)
+    if display:
+        plt.imshow( pupil2r)
 
     print "Pupil 2 total:", pupil2r.sum() 
 
@@ -375,8 +378,9 @@ def test_inverse( centering='SYMMETRIC'):
     a2 = mft1.perform(pupil2r, u, npix)
     psf2 = (a2*a2.conjugate()).real.copy()
     print "PSF total", psf2.sum()
-    plt.subplot(144)
-    plt.imshow(psf2, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
+    if display:
+        plt.subplot(144)
+        plt.imshow(psf2, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
 
 
 def run_all_MFS_tests_DFT(outdir=None, outname='DFT1'):

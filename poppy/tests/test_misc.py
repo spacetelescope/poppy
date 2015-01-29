@@ -74,7 +74,7 @@ def test_airy_2d(display=False):
 
     #return fn2d
 
-def test_sinc2_2d(display=True):
+def test_sinc2_2d(display=False):
     """ Test 2D Sinc function vs 1D function.
 
     """
