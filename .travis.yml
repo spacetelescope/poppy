@@ -1,18 +1,16 @@
 language: python
 
 python:
-    - 2.6
     - 2.7
-    - 3.2
-    - 3.3
-    - 3.4
+    # - 3.3
+    # - 3.4
     # This is just for "egg_info".  All other builds are explicitly given in the matrix
 env:
     global:
         # The following versions are the 'default' for tests, unless
         # overidden underneath. They are defined here in order to save having
         # to repeat them for all configurations.
-        - NUMPY_VERSION=1.8
+        - NUMPY_VERSION=1.9
         - ASTROPY_VERSION=stable
         - CONDA_INSTALL='conda install -c astropy-ci-extras --yes'
         - PIP_INSTALL='pip install'
@@ -21,11 +19,9 @@ env:
 
 matrix:
     include:
-
-        # Do a coverage test in Python 2. 
+        # Do a coverage test in Python 2.
         - python: 2.7
           env: SETUP_CMD='test --coverage'
-
         # Check for sphinx doc build warnings - we do this first because it
         # may run for a long time
         - python: 2.7
@@ -34,30 +30,20 @@ matrix:
         # Try Astropy development version
         - python: 2.7
           env: ASTROPY_VERSION=development SETUP_CMD='test'
-        - python: 3.3
-          env: ASTROPY_VERSION=development SETUP_CMD='test'
+        # - python: 3.3
+        #   env: ASTROPY_VERSION=development SETUP_CMD='test'
 
         # Try all python versions with the latest numpy
-        - python: 2.6
-          env: SETUP_CMD='test'
         - python: 2.7
           env: SETUP_CMD='test'
-        - python: 3.2
-          env: SETUP_CMD='test'
-        - python: 3.3
-          env: SETUP_CMD='test'
-        - python: 3.4
-          env: SETUP_CMD='test'
+        # - python: 3.3
+        #   env: SETUP_CMD='test'
+        # - python: 3.4
+        #   env: SETUP_CMD='test'
 
-        # Try older numpy versions
-        - python: 3.2
-          env: NUMPY_VERSION=1.6 SETUP_CMD='test'
+        # Try older numpy version
         - python: 2.7
-          env: NUMPY_VERSION=1.7 SETUP_CMD='test'
-        - python: 2.7
-          env: NUMPY_VERSION=1.6 SETUP_CMD='test'
-        - python: 2.7
-          env: NUMPY_VERSION=1.5 SETUP_CMD='test'
+          env: NUMPY_VERSION=1.8 SETUP_CMD='test'
 
 before_install:
 
@@ -70,6 +56,9 @@ before_install:
     - export PATH=/home/travis/miniconda/bin:$PATH
     - conda update --yes conda
 
+    # UPDATE APT-GET LISTINGS
+    - sudo apt-get update
+
     # DOCUMENTATION DEPENDENCIES
     - if [[ $SETUP_CMD == build_sphinx* ]]; then sudo apt-get install graphviz texlive-latex-extra dvipng; fi
 
@@ -80,19 +69,19 @@ install:
     - source activate test
 
     # CORE DEPENDENCIES
-    - if [[ $SETUP_CMD != egg_info ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION pytest pip Cython; fi
-    - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL pytest-xdist; fi
+    - $CONDA_INSTALL numpy=$NUMPY_VERSION pytest pip Cython jinja2
+    - $PIP_INSTALL pytest-xdist
 
     # ASTROPY
-    - if [[ $SETUP_CMD != egg_info ]] && [[ $ASTROPY_VERSION == development ]]; then $PIP_INSTALL git+http://github.com/astropy/astropy.git#egg=astropy; fi
-    - if [[ $SETUP_CMD != egg_info ]] && [[ $ASTROPY_VERSION == stable ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION astropy; fi
+    - if [[ $ASTROPY_VERSION == development ]]; then $PIP_INSTALL git+http://github.com/astropy/astropy.git#egg=astropy; fi
+    - if [[ $ASTROPY_VERSION == stable ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION astropy; fi
 
     # OPTIONAL DEPENDENCIES
     # Here you can add any dependencies your package may have. You can use
     # conda for packages available through conda, or pip for any other
     # packages. You should leave the `numpy=$NUMPY_VERSION` in the `conda`
     # install since this ensures Numpy does not get automatically upgraded.
-    # - if [[ $SETUP_CMD != egg_info ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION ... ; fi
+    - $CONDA_INSTALL numpy=$NUMPY_VERSION matplotlib scipy
     # - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL ...; fi
 
     # DOCUMENTATION DEPENDENCIES
