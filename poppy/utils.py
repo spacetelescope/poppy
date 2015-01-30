@@ -344,10 +344,11 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
         ax.set_ylabel("Encircled Energy")
 
     if mark_levels:
-        for level in [0.5, 0.8, 0.95]:
+        for fraction in [0.5, 0.8, 0.95]:
+            level=fraction*np.max(EE)
             EElev = radius[np.where(EE > level)[0][0]]
-            yoffset = 0 if level < 0.9 else -0.05 
-            plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
+            yoffset = 0 if level < 0.9 else -0.05
+            plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (fraction*100, EElev))
 
 
 def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, title=None, **kwargs):
@@ -400,11 +401,11 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, title=None,
         plt.xlabel("Radius [arcsec]")
         plt.ylabel("Encircled Energy")
 
-    for level in [0.5, 0.8, 0.95]:
-        if (EE>level).any():
+    for fraction in [0.5, 0.8, 0.95]:
+            level=fraction*np.max(EE)
             EElev = radius[np.where(EE > level)[0][0]]
-            yoffset = 0 if level < 0.9 else -0.05 
-            plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
+            yoffset = 0 if level < 0.9 else -0.05
+            plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (fraction*100, EElev))
 
 
 def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stddev=False, binsize=None, maxradius=None):
