@@ -426,6 +426,7 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, normalize='
         plt.ylabel("Encircled Energy")
 
     for level in [0.5, 0.8, 0.95]:
+        if (EE>level).any():
             EElev = radius[np.where(EE > level)[0][0]]
             yoffset = 0 if level < 0.9 else -0.05
             plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
