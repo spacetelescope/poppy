@@ -356,11 +356,10 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
         ax.set_ylabel("Encircled Energy")
     
     if mark_levels:
-        for fraction in [0.5, 0.8, 0.95]:
-            level=fraction*np.max(EE)
+        for level in [0.5, 0.8, 0.95]:
             EElev = radius[np.where(EE > level)[0][0]]
             yoffset = 0 if level < 0.9 else -0.05
-            plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (fraction*100, EElev))
+            plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
 
 
 def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, normalize='None', title=None, **kwargs):
@@ -378,9 +377,9 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, normalize='
         whether to overplot or clear and produce an new plot. Default false
     title : string, optional
         Title for plot
-    normalize : bool
-        Display (difference image)/(mean image) instead of just the difference image.
-
+    normalize : string
+        set to 'peak' to normalize peak intensity =1, or to 'total' to normalize total flux=1.
+        Default is no normalization.
  
     """
     if isinstance(HDUlist_or_filename, basestring):
@@ -426,11 +425,10 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, normalize='
         plt.xlabel("Radius [arcsec]")
         plt.ylabel("Encircled Energy")
 
-    for fraction in [0.5, 0.8, 0.95]:
-            level=fraction*np.max(EE)
+    for level in [0.5, 0.8, 0.95]:
             EElev = radius[np.where(EE > level)[0][0]]
             yoffset = 0 if level < 0.9 else -0.05
-            plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (fraction*100, EElev))
+            plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
 
 
 def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stddev=False, binsize=None, maxradius=None):
