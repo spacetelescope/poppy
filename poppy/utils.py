@@ -304,7 +304,7 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
         else: return ax
 
 
-def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_levels=True ):
+def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_levels=True,normalize='None' ):
     """ Display Encircled Energy curve for a PSF
 
     The azimuthally averaged encircled energy is plotted as a function of radius.
@@ -322,7 +322,9 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
     mark_levels : bool
         If set, mark and label on the plots the radii for 50%, 80%, 95% encircled energy.
         Default is True
- 
+    normalize : string
+        set to 'peak' to normalize peak intensity =1, or to 'total' to normalize total flux=1. Default is no normalization.
+        
     """
     if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename,ext=ext)
@@ -330,8 +332,18 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
         HDUlist = HDUlist_or_filename
     else: raise ValueError("input must be a filename or HDUlist")
 
+    im = HDUlist[ext].data.copy() # don't change normalization of actual input array, work with a copy!
 
-    radius, profile, EE = radial_profile(HDUlist, EE=True)
+    if normalize.lower() == 'peak':
+        _log.debug("Displaying PSF normalized to peak = 1")
+        im /= im.max()
+    elif normalize.lower() =='total':
+        _log.debug("Displaying PSF normalized to PSF total = 1")
+        im /= im.sum()
+        
+    HDUlist_copy = fits.HDUList([fits.PrimaryHDU(data=im,header=HDUlist[ext].header)])
+        
+    radius, profile, EE = radial_profile(HDUlist_copy, EE=True)
 
     if not overplot:
         if ax is None: 
@@ -342,7 +354,7 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
     if not overplot:
         ax.set_xlabel("Radius [arcsec]")
         ax.set_ylabel("Encircled Energy")
-
+    
     if mark_levels:
         for fraction in [0.5, 0.8, 0.95]:
             level=fraction*np.max(EE)
@@ -351,7 +363,7 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
             plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (fraction*100, EElev))
 
 
-def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, title=None, **kwargs):
+def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, normalize='None', title=None, **kwargs):
     """ Produce two plots of PSF radial profile and encircled energy
 
     See also the display_EE function.
@@ -366,6 +378,9 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, title=None,
         whether to overplot or clear and produce an new plot. Default false
     title : string, optional
         Title for plot
+    normalize : bool
+        Display (difference image)/(mean image) instead of just the difference image.
+
  
     """
     if isinstance(HDUlist_or_filename, basestring):
@@ -374,8 +389,18 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, title=None,
         HDUlist = HDUlist_or_filename
     else: raise ValueError("input must be a filename or HDUlist")
 
+    im = HDUlist[ext].data.copy() # don't change normalization of actual input array, work with a copy!
 
-    radius, profile, EE = radial_profile(HDUlist, EE=True, **kwargs)
+    if normalize.lower() == 'peak':
+        _log.debug("Displaying PSF normalized to peak = 1")
+        im /= im.max()
+    elif normalize.lower() =='total':
+        _log.debug("Displaying PSF normalized to PSF total = 1")
+        im /= im.sum()
+        
+    HDUlist_copy = fits.HDUList([fits.PrimaryHDU(data=im,header=HDUlist[ext].header)])
+
+    radius, profile, EE = radial_profile(HDUlist_copy, EE=True, **kwargs)
 
     if title is None:
         try:
