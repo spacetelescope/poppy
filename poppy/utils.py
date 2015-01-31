@@ -448,10 +448,10 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
     image = HDUlist[ext].data.copy() # don't change normalization of actual input array, work with a copy!
 
     if normalize.lower() == 'peak':
-        _log.debug("Displaying PSF normalized to peak = 1")
+        _log.debug("Calculating profile with PSF normalized to peak = 1")
         image /= image.max()
     elif normalize.lower() =='total':
-        _log.debug("Displaying PSF normalized to PSF total = 1")
+        _log.debug("Calculating profile with PSF normalized to total = 1")
         image /= image.sum()
 
     pixelscale = HDUlist[ext].header['PIXELSCL']
