@@ -142,11 +142,11 @@ def matrix_dft(plane, nlamD, npix,
     if inverse:
         dX = nlamDX / float(npupX)
         dY = nlamDY / float(npupY)
-        dU = 1.0 / float(npixY)
-        dV = 1.0 / float(npixX)
+        dU = 1.0 / float(npixX)
+        dV = 1.0 / float(npixY)
     else:
         dU = nlamDX / float(npixX)
-        dV = nlamDX / float(npixX)
+        dV = nlamDY / float(npixY)
         dX = 1.0 / float(npupX)
         dY = 1.0 / float(npupY)
 
