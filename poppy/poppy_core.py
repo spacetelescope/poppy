@@ -699,7 +699,8 @@ class Wavefront(object):
         """ Compute from an image to a pupil using the Soummer et al. 2007 MFT algorithm
         This allows transformation back from an arbitrarily-sampled 'detector' plane to a pupil. 
 
-        This is only used inside the semi-analytic coronagraphy algorithm.
+        This is only used if transforming back from a 'detector' type plane to a pupil, for instance
+        inside the semi-analytic coronagraphy algorithm, but is not used in more typical propagations.
 
         """
 
@@ -727,10 +728,14 @@ class Wavefront(object):
                 pupil_npix = self._preMFT_pupil_shape[0]
 
         mft = MatrixFourierTransform(centering='ADJUSTABLE', verbose=False)
-        if not np.isscalar(det_fov_lamD): #hasattr(det_fov_lamD,'__len__'):
-            msg= '    Propagating w/ InvMFT: %.4f"/pix     fov=[%.3f,%.3f] lam/D    npix=%d x %d' %  (self.pixelscale[0], det_fov_lamD[0], det_fov_lamD[1], pupil_npix, pupil_npix)
-        else:
-            msg= '    Propagating w/ InvMFT: %.4f"/pix     fov=%.3f lam/D    pupil npix=%d' %  (self.pixelscale, det_fov_lamD, pupil_npix)
+
+        # these can be either scalar or 2-element lists/tuples/ndarrays
+        msg_pixscale = '{0:.4f}"/pix'.format(self.pixelscale) if np.isscalar(self.pixelscale) else '{0:.4f} x {1:.4f} "/pix'.format(self.pixelscale[0], self.pixelscale[1])
+        msg_det_fov  = '{0:.4f} lam/D'.format(det_fov_lamD) if np.isscalar(det_fov_lamD) else '{0:.4f} x {1:.4f}  lam/D'.format(det_fov_lamD[0], det_fov_lamD[1])
+
+        msg= '    Propagating w/ InvMFT:  scale={0}    fov={1}    npix={2:d} x {2:d}'.format(msg_pixscale, msg_det_fov, pupil_npix)
+        #else:
+            #msg= '    Propagating w/ InvMFT:      fov=%.3f lam/D    pupil npix=%d' %  (self.pixelscale, det_fov_lamD, pupil_npix)
         _log.debug(msg)
         self.history.append(msg)
         det_offset = (0,0)  # det_offset not supported for InvMFT (yet...)

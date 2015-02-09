@@ -318,6 +318,51 @@ def test_DFT_center( npix=100, outdir=None, outname='DFT1'):
         fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
         fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
 
+def test_DFT_rect_fov_sampling(fov_npix = (500,1000), pixelscale=0.03, display=False):
+    """ Test that we can create a rectangular FOV which nonetheless
+    is properly sampled in both the X and Y directions as desired. 
+    In this case specifically we test that we can get the a symmetric
+    PSF (same pixel scale in both X and Y) even when the overall FOV
+    is rectangular. This tests some of the low level normalizations and
+    scaling factors within the matrixDFT code.
+    """
+
+    osys = poppy_core.OpticalSystem(oversample=1)
+    osys.addPupil(optics.CircularAperture())
+    osys.addDetector(pixelscale=0.02, fov_pixels=fov_npix)
+    osys.addPupil(optics.CircularAperture())
+    osys.addDetector(pixelscale=0.02, fov_pixels=fov_npix)
+
+
+    psf, intermediates = osys.calcPSF(wavelength=1e-6, return_intermediates=True)
+
+    delta = 100
+
+    plane=1
+
+    cut_h = intermediates[plane].intensity[fov_npix[0]/2,                           fov_npix[1]/2-delta:fov_npix[1]/2+delta]
+    cut_v = intermediates[plane].intensity[fov_npix[0]/2-delta:fov_npix[0]/2+delta, fov_npix[1]/2]
+
+    assert(np.all(np.abs(cut_h-cut_v) < 1e-12))
+
+
+
+
+    if display:
+        plt.subplot(311)
+        poppy.display_PSF(psf)
+
+        plt.subplot(312)
+        plt.semilogy(cut_h, label='horizontal')
+        plt.semilogy(cut_v, label='vertical', color='red', ls='--')
+        plt.legend()
+
+        plt.subplot(313)
+        plt.plot(cut_h-cut_v, label='difference')
+
+        plt.tight_layout()
+
+
 
 def test_inverse( centering='SYMMETRIC', display=False):
     """ Test repeated transformations between pupil and image
@@ -632,6 +677,7 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(display=False):
         poppy.display_PSF(mftpsf, title='MFT PSF')
         plt.subplot(133)
         poppy.display_PSF_di
+
 
 
 
