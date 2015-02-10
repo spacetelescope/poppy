@@ -770,10 +770,14 @@ class CircularAperture(AnalyticOpticalElement):
     """
 
     def __init__(self, name=None, radius=1.0, pad_factor=1.5, **kwargs):
+        try:
+            self.radius = float(radius)
+        except ValueError:
+            raise TypeError("Argument 'radius' must be the radius of the pupil in meters")
+
         if name is None:
             name = "Circle, radius=%.2f m" % radius
         AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
-        self.radius = radius
         # for creating input wavefronts - let's pad a bit:
         self.pupil_diam = pad_factor * 2 * self.radius
 
@@ -1353,10 +1357,6 @@ class ThinLens(CircularAperture):
         self.reference_wavelength = reference_wavelength
         self.nwaves = nwaves
         self.max_phase_delay = reference_wavelength * nwaves
-        try:
-            self.radius = float(radius)
-        except TypeError:
-            raise ValueError("Argument 'radius' must be the radius of the pupil in meters")
         CircularAperture.__init__(self, name=name, radius=radius, **kwargs)
 
     def getPhasor(self, wave):

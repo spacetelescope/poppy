@@ -124,7 +124,7 @@ def matrix_dft(plane, nlamD, npix,
 
     # make sure these are integer values
     if npixX != int(npixX) or npixY != int(npixY):
-        raise ValueError("'npix' must be supplied as integer value(s)")
+        raise TypeError("'npix' must be supplied as integer value(s)")
 
     try:
         if np.isscalar(nlamD):

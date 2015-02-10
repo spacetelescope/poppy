@@ -52,7 +52,7 @@ if _HAVE_PYTEST:
         with pytest.raises(ValueError) as excinfo:
             matrixDFT.matrix_dft(plane, 10, (4,5,6))         # wrong dimensionality
         assert excinfo.value.message.startswith("'npix' must be supplied as a scalar (for square arrays) or as ")
-        with pytest.raises(ValueError) as excinfo:
+        with pytest.raises(TypeError) as excinfo:
             matrixDFT.matrix_dft(plane, 10, 3.1415)          # must be an integer
         assert excinfo.value.message.startswith("'npix' must be supplied as integer value(s)")
 
@@ -85,7 +85,7 @@ if _HAVE_PYTEST:
 
 
     def test_CircularAperture_invalid_parameters():
-        with pytest.raises(ValueError) as excinfo:
+        with pytest.raises(TypeError) as excinfo:
             optics.CircularAperture(radius='a')
         assert excinfo.value.message.startswith("Argument 'radius' must be the radius of the pupil in meters")
 
