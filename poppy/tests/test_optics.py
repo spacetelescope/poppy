@@ -44,6 +44,8 @@ def test_InverseTransmission():
         inverted = optics.InverseTransmission(optic)
         assert( np.all(  np.abs(optic.getPhasor(wave) - (1-inverted.getPhasor(wave))) < 1e-10 ))
 
+        assert optic.shape==inverted.shape
+
 
 #------ Generic Analytic elements -----
 

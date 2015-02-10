@@ -319,7 +319,7 @@ class BandLimitedCoron(AnalyticOpticalElement):
         for pointing this out.
 
         """
-        if not isinstance(wave, Wavefront):
+        if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("BLC getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == _IMAGE)
 
@@ -468,7 +468,7 @@ class IdealFQPM(AnalyticOpticalElement):
         corresponding to the supplied Wavefront
         """
 
-        if not isinstance(wave, Wavefront):
+        if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("4QPM getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == _IMAGE)
 
@@ -515,7 +515,7 @@ class RectangularFieldStop(AnalyticOpticalElement):
     def getPhasor(self, wave):
         """ Compute the transmission inside/outside of the field stop.
         """
-        if not isinstance(wave, Wavefront):
+        if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("IdealFieldStop getPhasor must be called with a Wavefront "
                              "to define the spacing")
         assert (wave.planetype == _IMAGE)
@@ -581,7 +581,7 @@ class CircularOcculter(AnalyticOpticalElement):
     def getPhasor(self, wave):
         """ Compute the transmission inside/outside of the occulter.
         """
-        if not isinstance(wave, Wavefront):
+        if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == _IMAGE)
 
@@ -626,7 +626,7 @@ class BarOcculter(AnalyticOpticalElement):
     def getPhasor(self, wave):
         """ Compute the transmission inside/outside of the occulter.
         """
-        if not isinstance(wave, Wavefront):
+        if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == _IMAGE)
 
@@ -675,7 +675,7 @@ class FQPM_FFT_aligner(AnalyticOpticalElement):
         the 4 central pixels, not on the central pixel itself.
         """
 
-        if not isinstance(wave, Wavefront):
+        if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("FQPM getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == _PUPIL)
 
@@ -723,7 +723,7 @@ class ParityTestAperture(AnalyticOpticalElement):
     def getPhasor(self, wave):
         """ Compute the transmission inside/outside of the occulter.
         """
-        if not isinstance(wave, Wavefront):
+        if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("CircularAperture getPhasor must be called with a Wavefront "
                              "to define the spacing")
         assert (wave.planetype == _PUPIL)
@@ -780,7 +780,7 @@ class CircularAperture(AnalyticOpticalElement):
     def getPhasor(self, wave):
         """ Compute the transmission inside/outside of the occulter.
         """
-        if not isinstance(wave, Wavefront):
+        if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("CircularAperture getPhasor must be called with a Wavefront "
                              "to define the spacing")
         assert (wave.planetype == _PUPIL)
@@ -830,7 +830,7 @@ class HexagonAperture(AnalyticOpticalElement):
     def getPhasor(self, wave):
         """ Compute the transmission inside/outside of the occulter.
         """
-        if not isinstance(wave, Wavefront):
+        if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("HexagonAperture getPhasor must be called with a Wavefront "
                              "to define the spacing")
         assert (wave.planetype == _PUPIL)
@@ -1104,7 +1104,7 @@ class NgonAperture(AnalyticOpticalElement):
     def getPhasor(self, wave):
         """ Compute the transmission inside/outside of the occulter.
         """
-        if not isinstance(wave, Wavefront):
+        if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == _PUPIL)
         y, x = wave.coordinates()
@@ -1154,7 +1154,7 @@ class RectangleAperture(AnalyticOpticalElement):
     def getPhasor(self, wave):
         """ Compute the transmission inside/outside of the occulter.
         """
-        if not isinstance(wave, Wavefront):
+        if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == _PUPIL)
 
@@ -1251,7 +1251,7 @@ class SecondaryObscuration(AnalyticOpticalElement):
     def getPhasor(self, wave):
         """ Compute the transmission inside/outside of the obscuration
         """
-        if not isinstance(wave, Wavefront):
+        if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == _PUPIL)
 
@@ -1304,7 +1304,7 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
     def getPhasor(self, wave):
         """ Compute the transmission inside/outside of the obscuration
         """
-        if not isinstance(wave, Wavefront):
+        if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == _PUPIL)
 

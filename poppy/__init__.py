@@ -26,7 +26,7 @@ from ._astropy_init import *
 
 
 import astropy as _astropy
-if _astropy.version.major + _astropy.version.minor*0.1 < 0.4:
+if _astropy.version.major + _astropy.version.minor*0.1 < 0.4: # pragma: no cover
     raise ImportError("astropy >= 0.4 is required for this version of poppy.")
 
 from astropy import config as _config
