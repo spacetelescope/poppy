@@ -71,11 +71,78 @@ OpticalElements can be instantiated from FITS files, or created by one of a larg
 Typically these classes take some number of arguments to set their properties. 
 Once instantiated, any analytic function can be displayed on screen, sampled onto a numerical grid, and/or saved to disk.::
 
-    >>> ap = poppy.CircularAperture(radius=2)
-    >>> ap.display(what='both')
+    >>> ap = poppy.CircularAperture(radius=2)      # create a simple circular aperture
+    >>> ap.display(what='both')                    # display both intensity and phase components
 
-    >>> values = ap.sample(npix=512)    # evaluate on 512 x 512 grid
-    >>> ap.toFITS('test_circle.fits')   # write to disk as a FITS file. 
+    >>> values = ap.sample(npix=512)               # evaluate on 512 x 512 grid
+    >>> ap.toFITS('test_circle.fits', npix=1024)   # write to disk as a FITS file with higher sampling
 
+
+When sampling an :py:class:`AnalyticOpticalElement`, you may choose to obtain various representations of its action on a complex wavefront, including the amplitude transmission; intensity transmission; or phase delay in waves, radians, or meters. 
 See the :py:class:`AnalyticOpticalElement` class documentation for detailed arguments to these functions.
+
+
+:py:class:`OpticalElement` objects have attributes such as `.shape` (For a :py:class:`FITSOpticalElement` the array shape in usual Python (Y,X) order; None for a :py:class:`AnalyticOpticalElement`), a descriptive `.name` string, and size information such as `.pixelscale`. The type of size information present depends on the *plane type*. 
+
+Optical Plane Types
+-------------------------
+
+
+An :py:class:`OpticalSystem` consists of a series of two or more planes, of various types. The allowed types of planes are:
+
+ * **Pupil** planes, which have spatial scale measured in meters. For instance
+   a telescope could have a diameter of 1 meter and be represented inside an
+   array 1024x1024 pixels across with pixel scale 0.002 meters/pixel, so that
+   the aperture is a circle filling half the diameter of the array. Pupil planes 
+   typically have a `.pupil_diam` attribute which, please note, 
+   defines the diameter of the *numerical array* (e.g. 2.048 m in this example), 
+   rather than whatever subset of that array has nonzero optical transmission.
+
+ * **Image** planes, which have angular sampling measured in arcseconds. The
+   default behavior for an image plane in POPPY is to have the sampling
+   automatically defined by the natural sampling of a Fourier Transform of the
+   previous pupil array. This is generally appropriate for most intermediate
+   optical planes in a system. However there are also:
+
+ * **Detector** planes, which are a specialized subset of image plane that has
+   a fixed angular sampling (pixel scale).  For instance one could compute the
+   PSF of that telescope over a field of view 10 arcseconds square with a
+   sampling of 0.01 arcseconds per pixel. 
+
+ * **Rotation** planes, which represent a change of coordinate system rotating
+   by some number of degrees around the optical axis. Note that POPPY always
+   represents an "unfolded", linear optical system; fold mirrors and/or other
+   intermediate powered optics are not represented as such.  Rotations can take
+   place after either an image or pupil plane. 
+
+POPPY thus is capable of representing a limited subset of optical systems,
+namely those which are well modeled by the Fraunhofer (far-field)
+approximation. If you need to model full physical propagation through
+intermediate optics, including Fresnel or Talbot effects, you should consider
+using another tool. (It is possible that POPPY will eventually be extended to
+include Fresnel propagation, but so far it has not yet become an immediate
+priority.)
+
+
+The plane type of a given optic is encoded by its `.planetype` attribute. 
+
+
+
+Defining your own custom optics
+----------------------------------
+
+All `OpticalElements` must have a method `getPhasor()` which returns the complex phasor representing that optic, sampled appropriately for a given input `Wavefront` and at the appropriate wavelength. To define your own custom opticalElements, you can:
+
+1. Subclass :py:class:`AnalyticOpticalElement` and write a suitable `getPhasor` function to describe the properties of your optic, 
+2. Combine two or more existing :py:class:`AnalyticOpticalElement` instances as part of a :py:class:`CompoundAnalyticOpticalElement`, or
+3. Generate suitable transmission and phase (optical path difference) arrays using some other tool, save them as FITS files with appropriate keywords, and instantiate them as an :py:class:`FITSOpticalElement`
+
+
+FITSOpticalElements have separate attributes for amplitude and phase components, which may be read separately from 2 FITS files:
+
+  * `.amplitude`, the electric field amplitude transmission of the optic
+  * `.opd`, the Optical Path Difference (phase delay) of the optic
+
+AnalyticOpticalElements only need to implement the `getPhasor()` function, which allows more flexibility for amplitude transmission or phase delay to vary with wavelength or other properties. 
+
 
