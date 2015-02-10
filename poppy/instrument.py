@@ -102,7 +102,6 @@ class Instrument(object):
         self.pupil = optics.CircularAperture(*args, **kwargs)
         self.pupilopd = None
         self.options = {}
-        self.pixelscale = 0.025
         self.filter_list, self._synphot_bandpasses = self._getFilterList() # List of available filter names
 
         # create private instance variables. These will be
