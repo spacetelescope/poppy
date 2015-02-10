@@ -264,8 +264,9 @@ class InverseTransmission(OpticalElement):
         self.pixelscale = optic.pixelscale
         self.oversample = optic.oversample
 
+    @property
     def shape(self): # override parent class shape function
-        return optic.shape
+        return self.uninverted_optic.shape
 
     def getPhasor(self, wave):
         return 1 - self.uninverted_optic.getPhasor(wave)
