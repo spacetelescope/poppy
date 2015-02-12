@@ -22,7 +22,7 @@ For a list of contributors, see :ref:`about`.
  * Code cleanup and rebalancing where lines had been blurred between poppy and webbpsf (@josephoenix, @mperrin)
  * Misc packaging infrastructure improvements (@embray)
  * Updated to Astropy package helpers 0.4.4
- * Set up integration with Travis CI for continuous testing. See `https://travis-ci.org/mperrin/poppy`_
+ * Set up integration with Travis CI for continuous testing. See https://travis-ci.org/mperrin/poppy
  
 
 0.3.3
