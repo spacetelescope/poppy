@@ -145,4 +145,4 @@ FITSOpticalElements have separate attributes for amplitude and phase components,
 
 AnalyticOpticalElements only need to implement the `getPhasor()` function, which allows more flexibility for amplitude transmission or phase delay to vary with wavelength or other properties. 
 
-
+See :ref:`extending` for more details and examples.
