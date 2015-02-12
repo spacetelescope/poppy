@@ -26,16 +26,12 @@ __all__ = ['Wavefront',  'OpticalSystem', 'SemiAnalyticCoronagraph', 'OpticalEle
 _FFTW_INIT = {}  # dict of array sizes for which we have already performed the required FFTW planning step
 _FFTW_FLAGS = ['measure']
 try:
-    # try to import FFTW and use it
+    # try to import FFTW to see if it is available
     import pyfftw
     _FFTW_AVAILABLE = True
 except:
     _FFTW_AVAILABLE = False
-    # True
-    #_log.debug("conf.use_fftw is set to True, but we cannot import pyfftw. Therefore overriding the config setting to False. Everything will work fine using numpy.fft, it just may be slightly slower.")
-    # we tried but failed to import it. 
-    #conf.use_fftw = False
-
+ 
 # internal constants for types of plane
 _PUPIL = 'PUPIL'
 _IMAGE = 'IMAGE'
@@ -47,8 +43,6 @@ _ROTATION = 'ROTATION' # not a real optic, just a coordinate transform
 #conversions
 _RADIANStoARCSEC = 180.*60*60 / np.pi
 
-
-#------ Utility functions for array padding ------
 
 
 #------ Utility functions for parallelization ------
@@ -871,7 +865,6 @@ class Wavefront(object):
 
 
 #------  Optical System classes -------
-
 class OpticalSystem(object):
     """ A class representing a series of optical elements,
     either Pupil, Image, or Detector planes, through which light
@@ -1837,7 +1830,6 @@ class OpticalElement(object):
         else:
             _log.debug("No defined pixel scale - this must be an analytic optic")
             halfsize=1.0
-        #extent = [0,pixelscale*self.amplitude.shape[0], 0,pixelscale*self.amplitude.shape[1]]
         extent = [-halfsize, halfsize, -halfsize, halfsize]
 
 
@@ -1894,48 +1886,6 @@ class OpticalElement(object):
         if crosshairs:
             ax.axhline(0,ls=":", color='k')
             ax.axvline(0,ls=":", color='k')
-
-
- 
-#        if what=='intensity' or what=='both':
-#            # Note that the ampl variable is the *amplitude* transmissivity. 
-#            # What we want to display is what happens to the wavefront's intensity
-#            # so we have to square the amplitude here.
-#            if ax is None:
-#                ax = plt.subplot(nrows, 2, row*2-1)
-#            utils.imshow_with_mouseover(ampl**2, ax=ax, extent=extent, cmap=cmap, norm=norm_amp)
-#            if nrows == 1:
-#                plt.title("Transmissivity for "+self.name)
-#            plt.ylabel(units)
-#            ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
-#            ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
-#            if colorbar: 
-#                cb = plt.colorbar(ax.images[0], orientation=colorbar_orientation, ticks=[0,0.25, 0.5, 0.75, 1.0])
-#                cb.set_label('Fraction')
-#            if crosshairs:
-#                ax.axhline(0,ls=":", color='k')
-#                ax.axvline(0,ls=":", color='k')
-#
-#
-#        if what=='phase' or what=='both':
-#            if ax is None:
-#                ax2 = plt.subplot(nrows, 2, row*2-1)
-#            else:
-#                ax2 = ax
-#    
-#            ax2 = plt.subplot(nrows, 2, row*2)
-#            imshow_with_mouseover(opd, ax=ax2, extent=extent, cmap=cmap_opd, norm=norm_opd)
-#            plt.ylabel(units)
-#            ax2.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
-#            ax2.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
-#            if nrows == 1:
-#                plt.title("OPD for "+self.name)
-#            if colorbar:
-#                cb = plt.colorbar(ax2.images[0], orientation=colorbar_orientation, ticks=np.array([-1, -0.5, 0, 0.5, 1])*opd_vmax)
-#                cb.set_label('meters')
-#            if crosshairs:
-#                ax2.axhline(0,ls=":", color='k')
-#                ax2.axvline(0,ls=":", color='k')
 
     def __str__(self):
         if self.planetype is _PUPIL:
