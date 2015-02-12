@@ -24,3 +24,29 @@ As noted on the :ref:`examples` page, Poppy uses the Python ``logging`` mechanis
         logging.basicConfig(level=logging.DEBUG)
 
 See the `python logging docs <https://docs.python.org/2/library/logging.html>`_ for more information and extensive options for directing log output to screen or file.
+
+
+
+Configuration 
+-------------------
+
+Poppy makes use of the `Astropy configuration system <http://astropy.readthedocs.org/en/stable/config/index.html>`_ to store settings persistently between sessions. 
+These settings are stored in a file in the user's home directory, for instance ``~/.astropy/config/poppy.cfg``. Edit this text file to adjust settings. 
+
+
+=========================== =============================================================   ===================
+Setting                     Description                                                     Default
+=========================== =============================================================   ===================
+use_multiprocessing         Should PSF calculations run in parallel using multiple          False
+                            processors?                             
+
+n_processes                 Maximum number of additional worker processes to spawn.         4
+use_fftw                    Should the pyFFTW library be used (if it is present)?           True
+autosave_fftw_wisdom        Should POPPY automatically save and reload FFTW 'wisdom'        True
+                            (i.e. timing measurements of different FFT variants)
+default_image_display_fov   Default display field of view for PSFs, in arcsec               5
+default_logging_level       Default verbosity of logging to Python's logging framework      INFO
+enable_speed_tests          Enable additional verbose logging of execution timing           False
+enable_flux_tests           Enable additional verbose logging of flux conservation tests    False
+=========================== =============================================================   ===================
+

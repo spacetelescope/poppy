@@ -1,0 +1,8 @@
+
+Reference/API
+=============
+
+.. automodapi:: poppy
+
+
+

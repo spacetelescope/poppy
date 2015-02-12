@@ -58,17 +58,17 @@ Contributors via Astropy Affiliated Package Template
  * Brigitta Sipocz
 
 
-This work was supported by the JWST mission, a joint effort of NASA, ESA, and
-CSA, and by the WFIRST pre-phase-A mission development project. STScI is
-operated on behalf of NASA by the Association of Universities for Research in
-Astronomy.
+This work was supported in part by the JWST mission, a joint effort of NASA,
+ESA, and CSA, and by the WFIRST pre-phase-A mission development project. STScI
+is operated on behalf of NASA by the Association of Universities for Research
+in Astronomy.
 
 
 
 License
 -----------------
 
-Copyright (C) 2010-2014 Association of Universities for Research in Astronomy (AURA)
+Copyright (C) 2010-2015 Association of Universities for Research in Astronomy (AURA)
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:

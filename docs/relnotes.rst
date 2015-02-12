@@ -2,8 +2,32 @@
 Release Notes
 ===============
 
+For a list of contributors, see :ref:`about`.
+
+0.3.4
+-------------------
+
+2015 February
+
+ * Continued improvement in unit testing (@mperrin, @josephoenix)
+ * Continued improvement in documentation (@josephoenix, @mperrin)
+ * Functions such as addImage, addPupil now also return a reference to the added optic, for convenience (@josephoenix)
+ * Multiprocessing code and semi-analytic coronagraph method can now return intermediate wavefront planes (@josephoenix)
+ * Display methods for radial profile and encircled energy gain a normalization keyword (@douglase)
+ * matrixDFT: refactor into unified function for all centering types (@josephoenix)
+ * matrixDFT bug fix for axes parity flip versus FFT transforms (Anand Sivaramakrishnan, @josephoenix, @mperrin)
+ * Bug fix: Instrument class can now pass through dict or tuple sources to OpticalSystem calcPSF (@mperrin)
+ * Bug fix: InverseTransmission class shape property works now. (@mperrin)
+ * Refactor instrument validateConfig method and calling path (@josephoenix)
+ * Code cleanup and rebalancing where lines had been blurred between poppy and webbpsf (@josephoenix, @mperrin)
+ * Misc packaging infrastructure improvements (@embray)
+ * Updated to Astropy package helpers 0.4.4
+ * Set up integration with Travis CI for continuous testing. See `https://travis-ci.org/mperrin/poppy`_
+ 
+
 0.3.3
 -------------------
+2014 Nov
 
 :ref:`Bigger team!<about_team>`. This release log now includes github usernames of contributors: 
  
@@ -76,7 +100,4 @@ Released April 7, 2014
  * new `Instrument` class in poppy provides much of the functionality previously in JWInstrument, to make it
    easier to model generic non-JWST instruments using this code.
 
-Contributors
-================
 
-See :ref:`about`.

@@ -67,16 +67,3 @@ Optical Elements
  * `~poppy.Detector` represents a detector with some fixed sampling and pixel scale.
 
 
-
-
-Reference/API
-=============
-
-.. automodapi:: poppy
-
-
-
---------------
-
-Documentation last updated on |today|
-
