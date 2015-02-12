@@ -66,8 +66,8 @@ class AnalyticOpticalElement(OpticalElement):
 
     def sample(self, wavelength=2e-6, npix=512, grid_size=None, what='amplitude',
                return_scale=False, phase_unit='waves'):
-        """ Sample the Analytic Optic onto a grid and return the array 
-        
+        """ Sample the Analytic Optic onto a grid and return the array
+
         Parameters
         ----------
         wavelength : float
@@ -75,16 +75,16 @@ class AnalyticOpticalElement(OpticalElement):
         npix : integer
             Number of pixels for sampling the array
         grid_size : float
-            Field of view grid size (diameter) for sampling the optic, in meters for 
+            Field of view grid size (diameter) for sampling the optic, in meters for
             pupil plane optics and arcseconds for image planes. Default value is
-            taken from the optic's properties, if defined. Otherwise defaults to 
+            taken from the optic's properties, if defined. Otherwise defaults to
             6.5 meters or 2 arcseconds depending on plane.
         what : string
-            What to return: optic 'amplitude' transmission, 'intensity' transmission, or 
+            What to return: optic 'amplitude' transmission, 'intensity' transmission, or
             'phase'.  Note that phase with phase_unit = 'meters' should give the optical path
             difference, OPD.
         phase_unit : string
-            Unit for returned phase array IF what=='phase'. One of 'radians', 'waves', 'meters'. 
+            Unit for returned phase array IF what=='phase'. One of 'radians', 'waves', 'meters'.
         return_scale : float
             if True, will return a tuple containing the desired array and a float giving the
             pixel scale.

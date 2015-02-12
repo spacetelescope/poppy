@@ -69,7 +69,6 @@ if _HAVE_PYTEST:
         assert excinfo.value.message.startswith("Invalid centering style")
 
 
-
     def test_inverseTransmission_invalid_parameters():
         import numpy as np
         with pytest.raises(ValueError) as excinfo:
