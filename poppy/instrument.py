@@ -513,7 +513,7 @@ class Instrument(object):
 
             # that will be in arcseconds, we need to convert to pixels:
 
-            poppy_core._log.info("Jitter: Convolving with Gaussian with sigma=%.2f arcsec" % sigma)
+            poppy_core._log.info("Jitter: Convolving with Gaussian with sigma=%.3f arcsec" % sigma)
             out = scipy.ndimage.gaussian_filter(result[0].data, sigma/self.pixelscale)
             peak = result[0].data.max()
             newpeak = out.max()
