@@ -1,6 +1,8 @@
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 import os
 import time
+import platform
+import getpass
 import copy
 import numpy as np
 import matplotlib.pyplot as plt
@@ -376,7 +378,10 @@ class Instrument(object):
 
         (year, month, day, hour, minute, second, weekday, DOY, DST) =  time.gmtime()
         result[0].header["DATE"] = ( "%4d-%02d-%02dT%02d:%02d:%02d" % (year, month, day, hour, minute, second), "Date of calculation")
-        result[0].header["AUTHOR"] = ( "%s@%s" % (os.getenv('USER'), os.getenv('HOST')), "username@host for calculation")
+        # get username and hostname in a cross-platform way
+        username = getpass.getuser()
+        hostname = platform.node()
+        result[0].header["AUTHOR"] = ( "%s@%s" % (username, hostname), "username@host for calculation")
 
     def _validateConfig(self, wavelengths=None):
         """Determine if a provided instrument configuration is valid.
