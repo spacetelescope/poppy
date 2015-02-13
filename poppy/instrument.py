@@ -707,26 +707,28 @@ class Instrument(object):
             poppy_core._log.warning("Pysynphot unavailable (or invalid source supplied)!   Assuming flat # of counts versus wavelength.")
             # compute a source spectrum weighted by the desired filter curves.
             # The existing FITS files all have wavelength in ANGSTROMS since that is the pysynphot convention...
-            filterfits = fits.open(self._filters[self.filter].filename)
+            filterfile = self._filters[self.filter].filename
+            filterfits = fits.open(filterfile)
             filterdata = filterfits[1].data 
             try:
                 f1 = filterdata.WAVELENGTH
                 d2 = filterdata.THROUGHPUT
             except:
-                raise ValueError("The supplied file, %s, does not appear to be a FITS table with WAVELENGTH and THROUGHPUT columns." % self._filters[self.filter].filename )
+                raise ValueError("The supplied file, {0}, does not appear to be a FITS table with WAVELENGTH and THROUGHPUT columns.".format(filterfile))
             if 'WAVEUNIT' in  filterfits[1].header.keys():
-                waveunit  = filterfits[1].header['WAVEUNIT']
+                waveunit = filterfits[1].header['WAVEUNIT']
+                if re.match(r'[Aa]ngstroms?', waveunit) is not None:
+                    raise ValueError("The supplied file, {0}, has WAVEUNIT='{1}'. Only WAVEUNIT = Angstrom supported when Pysynphot is not installed.".format(filterfile, waveunit))
             else:
-                poppy_core._log.warn("CAUTION: no WAVEUNIT keyword found in filter file {0}. Assuming = Angstroms by default".format(filterfits.filename()))
+                poppy_core._log.warn("CAUTION: no WAVEUNIT keyword found in filter file {0}. Assuming = Angstroms by default".format(filterfile))
                 waveunit = 'Angstrom'
-            if waveunit != 'Angstrom': raise ValueError("The supplied file, %s, does not have WAVEUNIT = Angstrom as expected." % self._filters[self.filter].filename )
-            poppy_core._log.warn("CAUTION: Just interpolating rather than integrating filter profile, over %d steps" % nlambda)
+            poppy_core._log.warn("CAUTION: Just interpolating rather than integrating filter profile, over {0} steps".format(nlambda))
             wtrans = np.where(filterdata.THROUGHPUT > 0.4)
-            lrange = filterdata.WAVELENGTH[wtrans] *1e-10  # convert from Angstroms to Meters
+            lrange = filterdata.WAVELENGTH[wtrans] * 1e-10  # convert from Angstroms to Meters
             lambd = np.linspace(np.min(lrange), np.max(lrange), nlambda)
-            filter_fn = scipy.interpolate.interp1d(filterdata.WAVELENGTH*1e-10, filterdata.THROUGHPUT,kind='cubic', bounds_error=False)
+            filter_fn = scipy.interpolate.interp1d(filterdata.WAVELENGTH * 1e-10, filterdata.THROUGHPUT, kind='cubic', bounds_error=False)
             weights = filter_fn(lambd)
-            return (lambd,weights)
+            return lambd, weights
 
 
 
