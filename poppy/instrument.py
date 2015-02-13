@@ -706,23 +706,20 @@ class Instrument(object):
         else:  #Fallback simple code for if we don't have pysynphot.
             poppy_core._log.warning("Pysynphot unavailable (or invalid source supplied)!   Assuming flat # of counts versus wavelength.")
             # compute a source spectrum weighted by the desired filter curves.
-            # TBD this will eventually use pysynphot, so don't write anything fancy for now!
-            wf = np.where(np.asarray(self.filter_list) == self.filter)[0]
             # The existing FITS files all have wavelength in ANGSTROMS since that is the pysynphot convention...
-            #filterdata = atpy.Table(self._filter_files[wf], type='fits')
-            filterfits = fits.open(self._filter_files[wf])
+            filterfits = fits.open(self._filters[self.filter].filename)
             filterdata = filterfits[1].data 
             try:
                 f1 = filterdata.WAVELENGTH
                 d2 = filterdata.THROUGHPUT
             except:
-                raise ValueError("The supplied file, %s, does not appear to be a FITS table with WAVELENGTH and THROUGHPUT columns." % self._filter_files[wf] )
+                raise ValueError("The supplied file, %s, does not appear to be a FITS table with WAVELENGTH and THROUGHPUT columns." % self._filters[self.filter].filename )
             if 'WAVEUNIT' in  filterfits[1].header.keys():
                 waveunit  = filterfits[1].header['WAVEUNIT']
             else:
                 poppy_core._log.warn("CAUTION: no WAVEUNIT keyword found in filter file {0}. Assuming = Angstroms by default".format(filterfits.filename()))
                 waveunit = 'Angstrom'
-            if waveunit != 'Angstrom': raise ValueError("The supplied file, %s, does not have WAVEUNIT = Angstrom as expected." % self._filter_files[wf] )
+            if waveunit != 'Angstrom': raise ValueError("The supplied file, %s, does not have WAVEUNIT = Angstrom as expected." % self._filters[self.filter].filename )
             poppy_core._log.warn("CAUTION: Just interpolating rather than integrating filter profile, over %d steps" % nlambda)
             wtrans = np.where(filterdata.THROUGHPUT > 0.4)
             lrange = filterdata.WAVELENGTH[wtrans] *1e-10  # convert from Angstroms to Meters
