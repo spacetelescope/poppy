@@ -12,10 +12,7 @@ except ImportError:
     pysynphot = None
     _HAS_PYSYNPHOT = False
 
-from .. import poppy_core
-from .. import instrument
-from .. import optics
-from .. import zernike
+from poppy import poppy_core, instrument, optics, utils
 
 WEIGHTS_DICT = {'wavelengths': [2.0e-6, 2.1e-6, 2.2e-6], 'weights': [0.3, 0.5, 0.2]}
 WAVELENGTHS_ARRAY = np.array(WEIGHTS_DICT['wavelengths'])
@@ -91,3 +88,27 @@ def test_instrument_source_pysynphot():
         "a 5500 K blackbody in Johnson B (has pysynphot changed?)"
     )
     return psf_weights_pysynphot
+
+def test_instrument_gaussian_jitter():
+    """
+    Tests that jitter is applied by convolving with the specified Gaussian and
+    the resulting PSF FWHM is wider than the PSF without jitter
+    """
+    JITTER_SIGMA = 0.01 # arcsec
+    inst = instrument.Instrument()
+    inst.options['jitter'] = None
+    psf_no_jitter = inst.calcPSF(monochromatic=1e-6, fov_arcsec=1)
+
+    inst.options['jitter'] = 'gaussian'
+    inst.options['jitter_sigma'] = JITTER_SIGMA
+    psf_jitter = inst.calcPSF(monochromatic=1e-6, fov_arcsec=1)
+
+    fwhm_no_jitter = utils.measure_fwhm(psf_no_jitter)
+    fwhm_jitter = utils.measure_fwhm(psf_jitter)
+
+    assert fwhm_jitter > fwhm_no_jitter, ("Applying jitter didn't increase the "
+        "FWHM of the PSF")
+
+    assert psf_jitter[0].header['JITRTYPE'] == 'Gaussian convolution'
+    assert psf_jitter[0].header['JITRSIGM'] == JITTER_SIGMA
+    assert psf_jitter[0].header['JITRSTRL'] < 1.0
