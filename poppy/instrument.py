@@ -718,7 +718,7 @@ class Instrument(object):
                 raise ValueError("The supplied file, {0}, does not appear to be a FITS table with WAVELENGTH and THROUGHPUT columns.".format(filterfile))
             if 'WAVEUNIT' in  filterfits[1].header.keys():
                 waveunit = filterfits[1].header['WAVEUNIT']
-                if re.match(r'[Aa]ngstroms?', waveunit) is not None:
+                if re.match(r'[Aa]ngstroms?', waveunit) is None:
                     raise ValueError("The supplied file, {0}, has WAVEUNIT='{1}'. Only WAVEUNIT = Angstrom supported when Pysynphot is not installed.".format(filterfile, waveunit))
             else:
                 poppy_core._log.warn("CAUTION: no WAVEUNIT keyword found in filter file {0}. Assuming = Angstroms by default".format(filterfile))
