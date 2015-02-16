@@ -520,7 +520,7 @@ class Instrument(object):
             # that will be in arcseconds, we need to convert to pixels:
 
             poppy_core._log.info("Jitter: Convolving with Gaussian with sigma={0:.3f} arcsec".format(sigma))
-            out = scipy.ndimage.gaussian_filter(result[0].data, sigma/self.pixelscale)
+            out = scipy.ndimage.gaussian_filter(result[0].data, sigma/result[0].header['PIXELSCL'])
             peak = result[0].data.max()
             newpeak = out.max()
             strehl   = newpeak/peak # not really the whole Strehl ratio, just the part due to jitter

@@ -92,23 +92,53 @@ def test_instrument_source_pysynphot():
 def test_instrument_gaussian_jitter():
     """
     Tests that jitter is applied by convolving with the specified Gaussian and
-    the resulting PSF FWHM is wider than the PSF without jitter
+    the resulting PSF FWHM is wider than the PSF without jitter.
+    Also test that the resulting PSF FWHM is close to the expected value based
+    on the root sum of squares of the initial FWHM and the jitter kernel.
     """
-    JITTER_SIGMA = 0.01 # arcsec
+
+
     inst = instrument.Instrument()
+    inst.pixelscale=0.010
     inst.options['jitter'] = None
-    psf_no_jitter = inst.calcPSF(monochromatic=1e-6, fov_arcsec=1)
+    oversample = 1 # oversample
+    psf_no_jitter = inst.calcPSF(monochromatic=1e-6, fov_arcsec=2, oversample=oversample)
 
-    inst.options['jitter'] = 'gaussian'
-    inst.options['jitter_sigma'] = JITTER_SIGMA
-    psf_jitter = inst.calcPSF(monochromatic=1e-6, fov_arcsec=1)
 
-    fwhm_no_jitter = utils.measure_fwhm(psf_no_jitter)
-    fwhm_jitter = utils.measure_fwhm(psf_jitter)
+    jitter_sigmas = [ 0.005,  0.020,  0.080, 0.16, 0.5]  # arcseconds
 
-    assert fwhm_jitter > fwhm_no_jitter, ("Applying jitter didn't increase the "
-        "FWHM of the PSF")
+    fwhm_to_sigma = 2*np.sqrt(2*np.log(2))
+    # Scale factor from Gaussian FWHM to Gaussian sigma
 
-    assert psf_jitter[0].header['JITRTYPE'] == 'Gaussian convolution'
-    assert psf_jitter[0].header['JITRSIGM'] == JITTER_SIGMA
-    assert psf_jitter[0].header['JITRSTRL'] < 1.0
+    tolerance = 0.05
+    # how close the expected and measured sigma values should be, post jitter
+    # Measured PSF sigma must be within 5% of expected value
+
+
+    for JITTER_SIGMA in jitter_sigmas:
+
+        inst.options['jitter'] = 'gaussian'
+        inst.options['jitter_sigma'] = JITTER_SIGMA
+        psf_jitter = inst.calcPSF(monochromatic=1e-6, fov_arcsec=2, oversample=oversample)
+
+        fwhm_no_jitter = utils.measure_fwhm(psf_no_jitter)
+        fwhm_with_jitter = utils.measure_fwhm(psf_jitter)
+
+        assert fwhm_with_jitter > fwhm_no_jitter, ("Applying jitter didn't increase the "
+            "FWHM of the PSF")
+
+        assert psf_jitter[0].header['JITRTYPE'] == 'Gaussian convolution'
+        assert psf_jitter[0].header['JITRSIGM'] == JITTER_SIGMA
+        assert psf_jitter[0].header['JITRSTRL'] < 1.0
+
+        expected_post_sigma = np.sqrt((fwhm_no_jitter/fwhm_to_sigma)**2 + JITTER_SIGMA**2)
+        pre_sigma = fwhm_no_jitter/fwhm_to_sigma
+        post_sigma = fwhm_with_jitter/fwhm_to_sigma
+        poppy_core._log.info("TEST: Jitter sigma={0:.4f}.   PSF sigma pre: {1:.4f}    post: {2:.4f}    expected: {3:.4f}".format(JITTER_SIGMA, pre_sigma, post_sigma, expected_post_sigma))
+
+        reldiff = np.abs(post_sigma-expected_post_sigma)/post_sigma
+        assert reldiff < tolerance, "Post-jitter PSF width is too different from expected width"
+
+
+
+
