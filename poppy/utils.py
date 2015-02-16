@@ -625,6 +625,8 @@ def measure_fwhm(HDUlist_or_filename=None, ext=0, center=None, level=0.5):
     rpmax = radialprofile.max()
 
     wlower = np.where(radialprofile < rpmax *level)
+    if len(wlower[0]) == 0:
+        raise ValueError("The supplied array's pixel values never go below {0:.2f} of its maximum, {1:.3g}. Cannot measure FWHM.".format(level, rpmax))
     wmin = np.min(wlower[0])
     # go just a bit beyond the half way mark
     winterp = np.arange(0, wmin+2, dtype=int)[::-1]
