@@ -4,10 +4,12 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+.. _whatsnew:
+
 0.3.4
 -------------------
 
-2015 February
+2015 February 17
 
  * Continued improvement in unit testing (@mperrin, @josephoenix)
  * Continued improvement in documentation (@josephoenix, @mperrin)

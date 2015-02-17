@@ -40,6 +40,8 @@ near-field (Fresnel) calculations as well, if interest and usage warrant that.
 
        Downloading and running that notebook is a great way to get started using POPPY. The documentation following here provides greater details on the algorithms and API.
 
+:ref:`What's New in the latest version? <whatsnew>`
+       
 
 Contents
 -----------
@@ -56,6 +58,7 @@ Contents
   extending.rst
   api.rst
   about.rst
+  fft_optimization.rst
 
 
 Getting Help
