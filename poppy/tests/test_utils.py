@@ -35,7 +35,7 @@ def makeGaussian(size, fwhm = 3, center=None):
     return np.exp(-4*np.log(2) * ((x-x0)**2 + (y-y0)**2) / fwhm**2)
 
 
-def test_measure_FWHM():
+def test_measure_FWHM(display=False):
     """ Test the utils.measure_FWHM function
 
     Current implementation can be off by a
@@ -58,7 +58,6 @@ def test_measure_FWHM():
         center=(24.5,26.25)
         ar = makeGaussian(50, fwhm=desired_fwhm, center=center)
 
-        plt.imshow(ar)
         testfits = fits.HDUList(fits.PrimaryHDU(ar))
         testfits[0].header['PIXELSCL'] = pxscl
 
