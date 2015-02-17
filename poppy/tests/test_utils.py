@@ -1,4 +1,5 @@
 import numpy as np
+import astropy.io.fits as fits
 
 from .. import utils
 
@@ -61,7 +62,7 @@ def test_measure_FWHM(display=False):
         testfits = fits.HDUList(fits.PrimaryHDU(ar))
         testfits[0].header['PIXELSCL'] = pxscl
 
-        meas_fwhm = poppy.utils.measure_fwhm(testfits, center=center)
+        meas_fwhm = utils.measure_fwhm(testfits, center=center)
         print "Measured FWHM: {0:.4f} arcsec, {1:.4f} pixels ".format(meas_fwhm, meas_fwhm/pxscl)
 
         reldiff =  np.abs((meas_fwhm/pxscl) - desired_fwhm ) / desired_fwhm 
