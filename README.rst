@@ -2,12 +2,6 @@
 poppy: Physical Optics Propagation in PYthon
 ================================================
 
-.. image:: https://pypip.in/v/poppy/badge.png
-    :target: https://pypi.python.org/pypi/poppy
-
-.. image:: https://pypip.in/d/poppy/badge.png
-    :target: https://pypi.python.org/pypi/poppy
-
 
 POPPY (Physical Optics Propagation in PYthon) is a Python package that
 simulates physical optical propagation including diffraction. It implements a
@@ -30,5 +24,20 @@ Code by Marshall Perrin, Joseph Long, Ewan Douglas, with additional
 contributions from Anand Sivaramakrishnan, Remi Soummer, Christine Slocum, 
 and others on the Astropy team. 
 
+
+.. image:: https://pypip.in/v/poppy/badge.png
+    :target: https://pypi.python.org/pypi/poppy
+
+.. image:: https://pypip.in/d/poppy/badge.png
+    :target: https://pypi.python.org/pypi/poppy
+
+
+
+Status reports for developers
+-----------------------------
+
+.. image:: https://travis-ci.org/mperrin/poppy.png?branch=master
+    :target: https://travis-ci.org/mperrin/poppy
+        :alt: Test Status
 
 
