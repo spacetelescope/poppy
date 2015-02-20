@@ -25,16 +25,17 @@ contributions from Anand Sivaramakrishnan, Remi Soummer, Christine Slocum,
 and others on the Astropy team. 
 
 
+
+
+Status reports for developers
+-----------------------------
+
 .. image:: https://pypip.in/v/poppy/badge.png
     :target: https://pypi.python.org/pypi/poppy
 
 .. image:: https://pypip.in/d/poppy/badge.png
     :target: https://pypi.python.org/pypi/poppy
 
-
-
-Status reports for developers
------------------------------
 
 .. image:: https://travis-ci.org/mperrin/poppy.png?branch=master
     :target: https://travis-ci.org/mperrin/poppy
