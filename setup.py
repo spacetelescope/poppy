@@ -108,9 +108,9 @@ setup(name=PACKAGENAME,
       version=VERSION,
       description=DESCRIPTION,
       scripts=scripts,
-      setup_requires=['numpy>=1.9.1', 'astropy>=1.0.1'],
+      setup_requires=['numpy>=1.8.0', 'astropy>=1.0.1'],
       install_requires=[
-          'numpy>=1.9.1',
+          'numpy>=1.8.0',
           'scipy>=0.15.0',
           'matplotlib>=1.4.2',
           'astropy>=1.0.1'
