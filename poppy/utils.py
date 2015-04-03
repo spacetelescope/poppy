@@ -62,10 +62,11 @@ def imshow_with_mouseover(image, ax=None,  *args, **kwargs):
     return ax
 
 
-def display_PSF(HDUlist_or_filename=None, ext=0,
-    vmin=1e-8,vmax=1e-1, scale='log', cmap = matplotlib.cm.jet, 
-        title=None, imagecrop=None, adjust_for_oversampling=False, normalize='None', crosshairs=False, markcentroid=False, colorbar=True, colorbar_orientation='vertical',
-        pixelscale='PIXELSCL', ax=None, return_ax=False):
+def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
+                scale='log', cmap=matplotlib.cm.jet, title=None,
+                imagecrop=None, adjust_for_oversampling=False, normalize='None',
+                crosshairs=False, markcentroid=False, colorbar=True,
+                pixelscale='PIXELSCL', ax=None, return_ax=False):
     """Display nicely a PSF from a given HDUlist or filename 
 
     This is extensively configurable. In addition to making an attractive display, for
@@ -99,15 +100,10 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
         Draw a crosshairs at the image centroid location?
         Centroiding is computed with the JWST-standard moving box algorithm.
     colorbar : bool
-        Draw a colorbar?
-    colorbar_orientation : str
-        either 'horizontal' or 'vertical'; default is vertical.
+        Draw a colorbar to the right of the image?
     pixelscale : str or float
         if str, interpreted as the FITS keyword name for the pixel scale in arcsec/pixels.
         if float, used as the pixelscale directly.
-
-
-
     """
     if isinstance(HDUlist_or_filename, basestring):
         HDUlist = fits.open(HDUlist_or_filename)
@@ -116,14 +112,16 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
     else: raise ValueError("input must be a filename or HDUlist")
 
     if adjust_for_oversampling:
-
         try:
             scalefactor = HDUlist[ext].header['OVERSAMP']**2
         except:
-            _log.error("Could not determine oversampling scale factor; therefore NOT rescaling fluxes.")
+            _log.error("Could not determine oversampling scale factor; "
+                       "therefore NOT rescaling fluxes.")
             scalefactor=1
         im = HDUlist[ext].data *scalefactor
-    else: im = HDUlist[ext].data.copy() # don't change normalization of actual input array, work with a copy!
+    else:
+        # don't change normalization of actual input array, work with a copy!
+        im = HDUlist[ext].data.copy()
 
     if normalize.lower() == 'peak':
         _log.debug("Displaying image normalized to peak = 1")
@@ -137,42 +135,53 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
     else: 
         norm=matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
+    psf_array_shape = HDUlist[ext].data.shape
     if isinstance(pixelscale, basestring):
-        halffov_x = HDUlist[ext].header[pixelscale]*HDUlist[ext].data.shape[1]/2
-        halffov_y = HDUlist[ext].header[pixelscale]*HDUlist[ext].data.shape[0]/2
+        pixelscale = HDUlist[ext].header[pixelscale]
+        halffov_x = pixelscale * psf_array_shape[1] / 2.0
+        halffov_y = pixelscale * psf_array_shape[0] / 2.0
     else:
-        try: 
-            pixelscale = float(pixelscale)
-        except:
-            _log.warning("Provided pixelscale is neither float nor str; cannot use it. Using default=1 instead.")
-            pixelscale = 1.0
-        halffov_x = pixelscale*HDUlist[ext].data.shape[1]/2
-        halffov_y = pixelscale*HDUlist[ext].data.shape[0]/2
-    unit="arcsec"
+        pixelscale = float(pixelscale)
+        halffov_x = pixelscale * psf_array_shape[1] / 2.0
+        halffov_y = pixelscale * psf_array_shape[0] / 2.0
+
+    unit = "arcsec"
     extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
 
-
-    ax = imshow_with_mouseover( im   ,extent=extent,cmap=cmap, norm=norm, ax=ax)
+    # update and get (or create) image axes
+    ax = imshow_with_mouseover(im, extent=extent, cmap=cmap, norm=norm, ax=ax)
     if imagecrop is not None:
-        halffov_x = min( (imagecrop/2, halffov_x))
-        halffov_y = min( (imagecrop/2, halffov_y))
+        halffov_x = min((imagecrop / 2.0, halffov_x))
+        halffov_y = min((imagecrop / 2.0, halffov_y))
     ax.set_xbound(-halffov_x, halffov_x)
     ax.set_ybound(-halffov_y, halffov_y)
     if crosshairs: 
-        ax.axhline(0,ls=":", color='k')
-        ax.axvline(0,ls=":", color='k')
-
-
+        ax.axhline(0, ls=':', color='k')
+        ax.axvline(0, ls=':', color='k')
     if title is None:
         try:
             fspec = "%s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER'])
         except: 
-            fspec= str(HDUlist_or_filename)
+            fspec = str(HDUlist_or_filename)
         title="PSF sim for "+fspec
     ax.set_title(title)
 
     if colorbar:
-        cb = plt.colorbar(ax.images[0], ax=ax, orientation=colorbar_orientation)
+        if ax.images[0].colorbar is not None:
+            # Reuse existing colorbar axes (Issue #21)
+            colorbar_axes = ax.images[0].colorbar.ax
+            cb = plt.colorbar(
+                ax.images[0],
+                ax=ax,
+                cax=colorbar_axes,
+                orientation=colorbar_orientation
+            )
+        else:
+            cb = plt.colorbar(
+                ax.images[0],
+                ax=ax,
+                orientation=colorbar_orientation
+            )
         if scale.lower() =='log':
             ticks = np.logspace(np.log10(vmin), np.log10(vmax), np.log10(vmax/vmin)+1)
             if colorbar_orientation=='horizontal' and vmax==1e-1 and vmin==1e-8: ticks = [1e-8, 1e-6, 1e-4,  1e-2, 1e-1] # looks better
