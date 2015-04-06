@@ -214,8 +214,13 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
         else: return ax
 
 
-def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None, ext1=0, ext2=0, vmax=1e-4, title=None, imagecrop=None, adjust_for_oversampling=False, crosshairs=False, colorbar=True, colorbar_orientation='vertical', print_=False, ax=None, return_ax=False, vmin=None,
-        normalize=False, normalize_to_second=False):
+def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
+                           ext1=0, ext2=0, vmin=None, vmax=1e-4, title=None,
+                           imagecrop=None, adjust_for_oversampling=False,
+                           crosshairs=False, cmap=None, colorbar=True,
+                           colorbar_orientation='vertical', print_=False,
+                           ax=None, return_ax=False,
+                           normalize=False, normalize_to_second=False):
     """Display nicely the difference of two PSFs from given files 
 
     The two files may be FITS files on disk or FITS HDUList objects in memory. The two must have the same 
@@ -223,21 +228,46 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
     
     Parameters
     ----------
-    HDUlist_or_filename1,2 : fits.HDUlist or string
-        FITS files containing image to difference
+    HDUlist_or_filename1, HDUlist_or_filename2 : fits.HDUlist or string
+        FITS files containing images to difference
     ext1, ext2 : int
         FITS extension. default = 0
-    vmax : float
-        for the  scaling
+    vmin, vmax : float
+        Image intensity scaling min and max.
     title : string, optional
+        Title for plot.
     imagecrop : float
-        size of region to display (default is whole image)
-    normalize : bool
-        Display (difference image)/(mean image) instead of just the difference image.
+        Size of region to display (default is whole image).
     adjust_for_oversampling : bool
-        rescale to conserve surface brightness for oversampled PSFs? 
-        (making this True conserves surface brightness but not total flux)
-        default is False, to conserve total flux.
+        Rescale to conserve surface brightness for oversampled PSFs?
+        (Making this True conserves surface brightness but not total flux.)
+        Default is False, to conserve total flux.
+    crosshairs : bool
+        Plot crosshairs over array center?
+    cmap : matplotlib.cm.Colormap instance or None
+        Colormap to use. If not given, use standard gray colormap.
+    colorbar : bool
+        Draw a colorbar on the image?
+    colorbar_orientation : 'vertical' (default) or 'horizontal'
+        How should the colorbar be oriented? (Note: Updating a plot and
+        changing the colorbar orientation is not supported. When replotting
+        in the same axes, use the same colorbar orientation.)
+    print_ : bool
+        Print RMS difference value for the images? (Default: False)
+    ax : matplotlib.Axes instance
+        Axes to display into.
+    return_ax : bool
+        Return the axes to the caller for later use? (Default: False)
+        When True, this function returns a matplotlib.Axes instance, or a
+        tuple of (ax, cb) where the second is the colorbar Axes.
+    normalize : bool
+        Display (difference image)/(mean image) instead of just
+        the difference image. Mutually exclusive to `normalize_to_second`.
+        (Default: False)
+    normalize_to_second : bool
+        Display (difference image)/(second image) instead of just
+        the difference image. Mutually exclusive to `normalize`.
+        (Default: False)
     """
     if isinstance(HDUlist_or_filename1, basestring):
         HDUlist1 = fits.open(HDUlist_or_filename1)
@@ -262,11 +292,11 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
 
     diff_im = im1-im2
 
-    if normalize:
+    if normalize and not normalize_to_second:
         avg_im = (im1+im2)/2
         diff_im /= avg_im
         cbtitle = 'Image difference / average  (per pixel)' #Relative intensity difference per pixel'
-    if normalize_to_second:
+    if normalize_to_second and not normalize:
         diff_im /= im2
         cbtitle = 'Image difference / original (per pixel)' #Relative intensity difference per pixel'
     else:
@@ -281,8 +311,9 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
         rms_diff = np.sqrt((diff_im**2).mean())
         print("RMS of difference image: {0}".format(rms_diff))
 
-    norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
-    cmap = matplotlib.cm.gray
+    norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+    if cmap is None:
+        cmap = matplotlib.cm.gray
     halffov_x = HDUlist1[ext1].header['PIXELSCL']*HDUlist1[ext1].data.shape[1]/2
     halffov_y = HDUlist1[ext1].header['PIXELSCL']*HDUlist1[ext1].data.shape[0]/2
     unit="arcsec"
