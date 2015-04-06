@@ -63,10 +63,11 @@ def imshow_with_mouseover(image, ax=None,  *args, **kwargs):
 
 
 def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
-                scale='log', cmap=matplotlib.cm.jet, title=None,
-                imagecrop=None, adjust_for_oversampling=False, normalize='None',
+                scale='log', cmap=None, title=None, imagecrop=None,
+                adjust_for_oversampling=False, normalize='None',
                 crosshairs=False, markcentroid=False, colorbar=True,
-                pixelscale='PIXELSCL', ax=None, return_ax=False):
+                colorbar_orientation='vertical', pixelscale='PIXELSCL',
+                ax=None, return_ax=False):
     """Display nicely a PSF from a given HDUlist or filename 
 
     This is extensively configurable. In addition to making an attractive display, for
@@ -83,8 +84,9 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
         min and max for image display scaling
     scale : str
         'linear' or 'log', default is log
-    cmap : matplotlib.cm.Colormap instance
-        Colormap to use. Default is matplotlib.cm.jet
+    cmap : matplotlib.cm.Colormap instance or None
+        Colormap to use. If not given, taken from user's
+        `matplotlib.rcParams['image.cmap']` (or matplotlib's default).
     ax : matplotlib.Axes instance
         Axes to display into.
     title : string, optional
@@ -100,7 +102,11 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
         Draw a crosshairs at the image centroid location?
         Centroiding is computed with the JWST-standard moving box algorithm.
     colorbar : bool
-        Draw a colorbar to the right of the image?
+        Draw a colorbar on the image?
+    colorbar_orientation : 'vertical' (default) or 'horizontal'
+        How should the colorbar be oriented? (Note: Updating a plot and
+        changing the colorbar orientation is not supported. When replotting
+        in the same axes, use the same colorbar orientation.)
     pixelscale : str or float
         if str, interpreted as the FITS keyword name for the pixel scale in arcsec/pixels.
         if float, used as the pixelscale directly.
