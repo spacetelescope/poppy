@@ -89,6 +89,10 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
         `matplotlib.rcParams['image.cmap']` (or matplotlib's default).
     ax : matplotlib.Axes instance
         Axes to display into.
+    return_ax : bool
+        Return the axes to the caller for later use? (Default: False)
+        When True, this function returns a matplotlib.Axes instance, or a
+        tuple of (ax, cb) where the second is the colorbar Axes.
     title : string, optional
     imagecrop : float
         size of region to display (default is whole image)
