@@ -1,7 +1,7 @@
 .. _performance_and_parallelization:
 
 Optimizing Performance and Parallelization
-=========================================
+==========================================
 
 Performance optimization on modern multi-core machines is a complex subject.
 
