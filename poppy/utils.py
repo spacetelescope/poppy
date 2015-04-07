@@ -37,28 +37,30 @@ def imshow_with_mouseover(image, ax=None,  *args, **kwargs):
 
     Why this behavior isn't the matplotlib default, I have no idea...
     """
-    if ax is None: ax = plt.gca()
+    if ax is None:
+        ax = plt.gca()
     myax = ax.imshow(image, *args, **kwargs)
     aximage = ax.images[0].properties()['array']
     # need to account for half pixel offset of array coordinates for mouseover relative to pixel center,
     # so that the whole pixel from e.g. ( 1.5, 1.5) to (2.5, 2.5) is labeled with the coordinates of pixel (2,2)
 
-
     # We use the extent and implementation to map back from the data coord to pixel coord
     # There is probably an easier way to do this...
     imext = ax.images[0].get_extent()  # returns [-X, X, -Y, Y]
     imsize = ax.images[0].get_size()   # returns [sY, sX]g
-    # map data coords back to pixel coords:
-    #pixx = (x - imext[0])/(imext[1]-imext[0])*imsize[1]
-    #pixy = (y - imext[2])/(imext[3]-imext[2])*imsize[0]
-    # and be sure to clip appropriatedly to avoid array bounds errors
-    report_pixel = lambda x, y : "(%6.3f, %6.3f)     %-12.6g" % \
-        (x,y,   aximage[np.floor( (y - imext[2])/(imext[3]-imext[2])*imsize[0]  ).clip(0,imsize[0]-1),\
-                        np.floor( (x - imext[0])/(imext[1]-imext[0])*imsize[1]  ).clip(0,imsize[1]-1)])
 
-        #(x,y, aximage[np.floor(y+0.5),np.floor(x+0.5)])   # this works for regular pixels w/out an explicit extent= call
+    def report_pixel(x, y):
+        # map data coords back to pixel coords
+        # and be sure to clip appropriatedly to avoid array bounds errors
+        img_y = np.floor( (y - imext[2])/(imext[3]-imext[2])*imsize[0]  )
+        img_y = int(img_y.clip(0,imsize[0]-1))
+
+        img_x = np.floor( (x - imext[0])/(imext[1]-imext[0])*imsize[1]  )
+        img_x = int(img_x.clip(0,imsize[1]-1))
+
+        return "(%6.3f, %6.3f)     %-12.6g" % (x, y, aximage[img_y, img_x])
+
     ax.format_coord = report_pixel
-
     return ax
 
 
