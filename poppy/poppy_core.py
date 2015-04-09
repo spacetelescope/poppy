@@ -595,7 +595,7 @@ class Wavefront(object):
 
         _log.debug("using {2} FFT of {0} array, direction={1}".format(str(self.wavefront.shape), FFT_direction, method))
         if _USE_FFTW:
-            if (self.wavefront.shape, FFT_direction) not in _FFTW_INIT.keys():
+            if (self.wavefront.shape, FFT_direction) not in _FFTW_INIT:
                 # The first time you run FFTW to transform a given size, it does a speed test to determine optimal algorithm
                 # that is destructive to your chosen array. So only do that test on a copy, not the real array:
                 _log.info("Evaluating PyFFT optimal algorithm for %s, direction=%s" % (str(self.wavefront.shape), FFT_direction))
@@ -2079,7 +2079,7 @@ class FITSOpticalElement(OpticalElement):
                     opdunits = self.opd_header['BUNIT']
                 except:
                     _log.error("No opdunit keyword supplied, and BUNIT keyword not found in header. Cannot determine OPD units")
-                    raise StandardError("No opdunit keyword supplied, and BUNIT keyword not found in header. Cannot determine OPD units.")
+                    raise Exception("No opdunit keyword supplied, and BUNIT keyword not found in header. Cannot determine OPD units.")
 
 
             if opdunits.lower().endswith('s'): opdunits = opdunits[:-1] # drop trailing s if present
@@ -2094,10 +2094,10 @@ class FITSOpticalElement(OpticalElement):
 
             if len (self.opd.shape) != 2 or self.opd.shape[0] != self.opd.shape[1]:
                 _log.debug('OPD shape: '+str(self.opd.shape))
-                raise ValueError, "OPD image must be 2-D and square"
+                raise ValueError("OPD image must be 2-D and square")
 
             if len (self.amplitude.shape) != 2 or self.amplitude.shape[0] != self.amplitude.shape[1]:
-                raise ValueError, "Pupil amplitude image must be 2-D and square"
+                raise ValueError("Pupil amplitude image must be 2-D and square")
 
 
             assert self.amplitude.shape == self.opd.shape

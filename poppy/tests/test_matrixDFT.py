@@ -23,8 +23,8 @@ def complexinfo(a, str=None):
     """
 
     if str:
-        print 
-        print "\t", str
+        print()
+        print("\t", str)
     re = a.real.copy()
     im = a.imag.copy()
     _log.debug("\t%.2e  %.2g  =  re.sum im.sum" % (re.sum(), im.sum()))
@@ -86,7 +86,7 @@ def test_MFT_flux_conservation(centering='FFTSTYLE', outdir=None, outname='test_
 
     # Set up constants for either a more precise test or a less precise but much 
     # faster test:
-    print("Testing MFT flux conservation for centering = "+centering)
+    print("Testing MFT flux conservation for centering = {}".format(centering))
     if precision ==0.001:
         npupil = 800
         npix = 4096
@@ -116,9 +116,9 @@ def test_MFT_flux_conservation(centering='FFTSTYLE', outdir=None, outname='test_
     pre = (abs(pupil)**2).sum()    # normalized area of input pupil, should be 1 by construction
     post = (abs(a)**2).sum()       # 
     ratio = post / pre
-    print "Pre-FFT  total: "+str( pre)
-    print "Post-FFT total: "+str( post )
-    print "Ratio:          "+str( ratio)
+    print("Pre-FFT  total: "+str( pre))
+    print("Post-FFT total: "+str( post ))
+    print("Ratio:          "+str( ratio))
 
 
 
@@ -301,9 +301,9 @@ def test_DFT_center( npix=100, outdir=None, outname='DFT1'):
     post = (abs(a)**2).sum() 
     ratio = post / pre
     calcr = 1./(u**2 *npix**2)     # multiply post by this to make them equal
-    print "Pre-FFT  total: "+str( pre)
-    print "Post-FFT total: "+str( post )
-    print "Ratio:          "+str( ratio)
+    print("Pre-FFT  total: "+str( pre))
+    print("Post-FFT total: "+str( post ))
+    print("Ratio:          "+str( ratio))
     #print "Calc ratio  :   "+str( calcr)
     #print "uncorrected:    "+str( ratio/calcr)
 
@@ -396,14 +396,14 @@ def test_inverse( centering='SYMMETRIC', display=False):
         plt.subplot(141)
         plt.imshow(pupil)
 
-    print "Pupil 1 total:", pupil.sum() 
+    print("Pupil 1 total:", pupil.sum())
 
     a = mft1.perform(pupil, u, npix)
 
     asf = a.real.copy()
     cpsf = a * a.conjugate()
     psf = cpsf.real.copy()
-    print "PSF total", psf.sum()
+    print("PSF total", psf.sum())
 
     if display:
         plt.subplot(142)
@@ -416,13 +416,13 @@ def test_inverse( centering='SYMMETRIC', display=False):
     if display:
         plt.imshow( pupil2r)
 
-    print "Pupil 2 total:", pupil2r.sum() 
+    print("Pupil 2 total:", pupil2r.sum())
 
 
 
     a2 = mft1.perform(pupil2r, u, npix)
     psf2 = (a2*a2.conjugate()).real.copy()
-    print "PSF total", psf2.sum()
+    print("PSF total", psf2.sum())
     if display:
         plt.subplot(144)
         plt.imshow(psf2, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
@@ -495,7 +495,7 @@ def run_all_MFS_tests_DFT(outdir=None, outname='DFT1'):
 
 
     for c, label in zip([c1, c2, c3, c4,c5], ['comb-fft', 'comb-sym', 'comb-adj', 'fft_rect', 'adj_rect']) :
-        print label, c.shape
+        print(label, c.shape)
 
 def test_check_invalid_centering():
     """ intentionally invalid CENTERING option to test the error message part of the code. 
@@ -568,7 +568,7 @@ def test_parity_MFT_forward_inverse(display = False):
         plt.imshow(absdiff)
         plt.title("Abs(Pupil0-Pupil2)")
         plt.colorbar()
-        print maxabsdiff
+        print(maxabsdiff)
 
 def test_MFT_FFT_equivalence(display=False, displaycrop=None):
     """ Test that the MFT transform is numerically equivalent to the
@@ -602,7 +602,7 @@ def test_MFT_FFT_equivalence(display=False, displaycrop=None):
         if displaycrop is not None:
             plt.xlim(*displaycrop)
             plt.ylim(*displaycrop)
-        print 'img input sum =', np.sum(imgin)
+        print('img input sum =', np.sum(imgin))
 
         plt.subplot(142)
         plt.imshow(np.abs(mftout))
@@ -610,7 +610,7 @@ def test_MFT_FFT_equivalence(display=False, displaycrop=None):
         if displaycrop is not None:
             plt.xlim(*displaycrop)
             plt.ylim(*displaycrop)
-        print 'mft output sum =', np.sum(np.abs(mftout))
+        print('mft output sum =', np.sum(np.abs(mftout)))
 
         plt.subplot(143)
         plt.imshow(np.abs(fftout))
@@ -618,7 +618,7 @@ def test_MFT_FFT_equivalence(display=False, displaycrop=None):
         if displaycrop is not None:
             plt.xlim(*displaycrop)
             plt.ylim(*displaycrop)
-        print 'fft output sum =', np.sum(np.abs(fftout))
+        print('fft output sum =', np.sum(np.abs(fftout)))
 
         plt.subplot(144)
         plt.imshow(np.abs(mftout - fftout))
@@ -626,7 +626,7 @@ def test_MFT_FFT_equivalence(display=False, displaycrop=None):
         if displaycrop is not None:
             plt.xlim(*displaycrop)
             plt.ylim(*displaycrop)
-        print '(mft - fft) output sum =', np.sum(np.abs(mftout - fftout))
+        print('(mft - fft) output sum =', np.sum(np.abs(mftout - fftout)))
 
         return mftout, fftout
 

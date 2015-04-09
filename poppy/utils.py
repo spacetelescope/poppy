@@ -1118,7 +1118,7 @@ def specFromSpectralType(sptype, return_list=False, catalog=None):
             "M2I":   (3500, 0.0, 0.0)}
 
     if return_list:
-        sptype_list = lookuptable.keys()
+        sptype_list = list(lookuptable.keys())
         def sort_sptype(typestr):
             letter = typestr[0]
             lettervals = {'O':0, 'B': 10, 'A': 20,'F': 30, 'G':40, 'K': 50, 'M':60}
