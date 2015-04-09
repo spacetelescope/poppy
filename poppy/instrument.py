@@ -5,6 +5,7 @@ import time
 import platform
 import getpass
 import copy
+import six
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
@@ -349,7 +350,7 @@ class Instrument(object):
             __version__ = ''
 
         #---  update FITS header, display, and output.
-        if isinstance( self.pupil, basestring):
+        if isinstance( self.pupil, six.string_types):
             pupilstr= os.path.basename(self.pupil)
         elif isinstance( self.pupil, fits.HDUList):
             pupilstr= 'pupil from supplied FITS HDUList object'
@@ -359,7 +360,7 @@ class Instrument(object):
 
         if self.pupilopd is None:
             opdstring = "NONE - perfect telescope! "
-        elif isinstance( self.pupilopd, basestring):
+        elif isinstance( self.pupilopd, six.string_types):
             opdstring = os.path.basename(self.pupilopd)
         elif isinstance( self.pupilopd, fits.HDUList):
             opdstring = 'OPD from supplied FITS HDUlist object'
@@ -456,7 +457,7 @@ class Instrument(object):
         #---- set pupil OPD
         if isinstance(self.pupilopd, str):  # simple filename
             full_opd_path = self.pupilopd if os.path.exists( self.pupilopd) else os.path.join(self._datapath, "OPD",self.pupilopd)
-        elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], basestring): # tuple with filename and slice
+        elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], six.string_types): # tuple with filename and slice
             full_opd_path =  (self.pupilopd[0] if os.path.exists( self.pupilopd[0]) else os.path.join(self._datapath, "OPD",self.pupilopd[0]), self.pupilopd[1])
         elif isinstance(self.pupilopd, fits.HDUList): # OPD supplied as FITS HDUList object
             full_opd_path = self.pupilopd # not a path per se but this works correctly to pass it to poppy
