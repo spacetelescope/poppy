@@ -5,6 +5,7 @@
 #
 
 from __future__ import (absolute_import, division, print_function, unicode_literals)
+import six
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
@@ -109,7 +110,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
 
 
     """
-    if isinstance(HDUlist_or_filename, basestring):
+    if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -137,7 +138,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
     else: 
         norm=matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
-    if isinstance(pixelscale, basestring):
+    if isinstance(pixelscale, six.string_types):
         halffov_x = HDUlist[ext].header[pixelscale]*HDUlist[ext].data.shape[1]/2
         halffov_y = HDUlist[ext].header[pixelscale]*HDUlist[ext].data.shape[0]/2
     else:
@@ -220,12 +221,12 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
         (making this True conserves surface brightness but not total flux)
         default is False, to conserve total flux.
     """
-    if isinstance(HDUlist_or_filename1, basestring):
+    if isinstance(HDUlist_or_filename1, six.string_types):
         HDUlist1 = fits.open(HDUlist_or_filename1)
     elif isinstance(HDUlist_or_filename1, fits.HDUList):
         HDUlist1 = HDUlist_or_filename1
     else: raise ValueError("input must be a filename or HDUlist")
-    if isinstance(HDUlist_or_filename2, basestring):
+    if isinstance(HDUlist_or_filename2, six.string_types):
         HDUlist2 = fits.open(HDUlist_or_filename2)
     elif isinstance(HDUlist_or_filename2, fits.HDUList):
         HDUlist2 = HDUlist_or_filename2
@@ -324,7 +325,7 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
         Default is True
         
     """
-    if isinstance(HDUlist_or_filename, basestring):
+    if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename,ext=ext)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -366,7 +367,7 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, title=None,
         Title for plot
  
     """
-    if isinstance(HDUlist_or_filename, basestring):
+    if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename,ext=ext)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -438,7 +439,7 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
         so you should use (radius+binsize/2) for the radius of the EE curve if you want to be
         as precise as possible.
     """
-    if isinstance(HDUlist_or_filename, basestring):
+    if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -650,7 +651,7 @@ def measure_sharpness(HDUlist_or_filename=None, ext=0):
         Same as above
  
     """
-    if isinstance(HDUlist_or_filename, basestring):
+    if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -700,7 +701,7 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, verbo
     """
     from .fwcentroid import fwcentroid
 
-    if isinstance(HDUlist_or_filename, basestring):
+    if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -763,7 +764,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
         Strehl ratio as a floating point number between 0.0 - 1.0
   
     """
-    if isinstance(HDUlist_or_filename, basestring):
+    if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
