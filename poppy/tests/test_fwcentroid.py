@@ -3,6 +3,8 @@ import numpy as np
 from .. import fwcentroid
 from ..fwcentroid import test_fwcentroid
 
+from .test_errorhandling import _exception_message_starts_with
+
 # fwcentroid is a standalong package that's just included as a copy in
 # poppy. It has its own test function
 
@@ -27,7 +29,7 @@ if _HAVE_PYTEST:
 
         with pytest.raises(NotImplementedError) as excinfo:
             fwcentroid.fwcentroid(np.ones((10,10)), checkbox=5)
-        assert excinfo.value.message == "Checkbox smoothing not done yet"
+        _exception_message_starts_with(excinfo, "Checkbox smoothing not done yet")
 
 
 

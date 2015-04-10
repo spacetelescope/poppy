@@ -1123,7 +1123,7 @@ class NgonAperture(AnalyticOpticalElement):
 
         self.transmission = np.zeros(wave.shape)
         for row in range(wave.shape[0]):
-            pts = np.asarray(zip(x[row], y[row]))
+            pts = np.asarray(list(zip(x[row], y[row])))
             #ok = matplotlib.nxutils.points_inside_poly(pts, vertices)
             ok = matplotlib.path.Path(vertices).contains_points(pts)  #, vertices)
             self.transmission[row][ok] = 1.0

@@ -12,6 +12,7 @@ import os
 from .. import poppy_core 
 from .. import optics
 from .. import matrixDFT
+from .test_errorhandling import _exception_message_starts_with
 
 
 import logging
@@ -510,7 +511,7 @@ def test_check_invalid_centering():
 
     with pytest.raises(ValueError) as excinfo:
         mft = matrixDFT.MatrixFourierTransform(centering='some garbage value', verbose=True)
-    assert excinfo.value.message == "'centering' must be one of [ADJUSTABLE, SYMMETRIC, FFTSTYLE]"
+    assert _exception_message_starts_with(excinfo, "'centering' must be one of [ADJUSTABLE, SYMMETRIC, FFTSTYLE]")
 
 def test_parity_MFT_forward_inverse(display = False):
     """ Test that transforming from a pupil, to an image, and back to the pupil
