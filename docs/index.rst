@@ -58,6 +58,7 @@ Contents
   extending.rst
   api.rst
   about.rst
+  performance.rst
   fft_optimization.rst
 
 

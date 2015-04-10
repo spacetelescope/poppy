@@ -38,35 +38,39 @@ def imshow_with_mouseover(image, ax=None,  *args, **kwargs):
 
     Why this behavior isn't the matplotlib default, I have no idea...
     """
-    if ax is None: ax = plt.gca()
+    if ax is None:
+        ax = plt.gca()
     myax = ax.imshow(image, *args, **kwargs)
     aximage = ax.images[0].properties()['array']
     # need to account for half pixel offset of array coordinates for mouseover relative to pixel center,
     # so that the whole pixel from e.g. ( 1.5, 1.5) to (2.5, 2.5) is labeled with the coordinates of pixel (2,2)
 
-
     # We use the extent and implementation to map back from the data coord to pixel coord
     # There is probably an easier way to do this...
     imext = ax.images[0].get_extent()  # returns [-X, X, -Y, Y]
     imsize = ax.images[0].get_size()   # returns [sY, sX]g
-    # map data coords back to pixel coords:
-    #pixx = (x - imext[0])/(imext[1]-imext[0])*imsize[1]
-    #pixy = (y - imext[2])/(imext[3]-imext[2])*imsize[0]
-    # and be sure to clip appropriatedly to avoid array bounds errors
-    report_pixel = lambda x, y : "(%6.3f, %6.3f)     %-12.6g" % \
-        (x,y,   aximage[np.floor( (y - imext[2])/(imext[3]-imext[2])*imsize[0]  ).clip(0,imsize[0]-1),\
-                        np.floor( (x - imext[0])/(imext[1]-imext[0])*imsize[1]  ).clip(0,imsize[1]-1)])
 
-        #(x,y, aximage[np.floor(y+0.5),np.floor(x+0.5)])   # this works for regular pixels w/out an explicit extent= call
+    def report_pixel(x, y):
+        # map data coords back to pixel coords
+        # and be sure to clip appropriatedly to avoid array bounds errors
+        img_y = np.floor( (y - imext[2])/(imext[3]-imext[2])*imsize[0]  )
+        img_y = int(img_y.clip(0,imsize[0]-1))
+
+        img_x = np.floor( (x - imext[0])/(imext[1]-imext[0])*imsize[1]  )
+        img_x = int(img_x.clip(0,imsize[1]-1))
+
+        return "(%6.3f, %6.3f)     %-12.6g" % (x, y, aximage[img_y, img_x])
+
     ax.format_coord = report_pixel
-
     return ax
 
 
-def display_PSF(HDUlist_or_filename=None, ext=0,
-    vmin=1e-8,vmax=1e-1, scale='log', cmap = matplotlib.cm.jet, 
-        title=None, imagecrop=None, adjust_for_oversampling=False, normalize='None', crosshairs=False, markcentroid=False, colorbar=True, colorbar_orientation='vertical',
-        pixelscale='PIXELSCL', ax=None, return_ax=False):
+def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
+                scale='log', cmap=None, title=None, imagecrop=None,
+                adjust_for_oversampling=False, normalize='None',
+                crosshairs=False, markcentroid=False, colorbar=True,
+                colorbar_orientation='vertical', pixelscale='PIXELSCL',
+                ax=None, return_ax=False):
     """Display nicely a PSF from a given HDUlist or filename 
 
     This is extensively configurable. In addition to making an attractive display, for
@@ -83,10 +87,15 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
         min and max for image display scaling
     scale : str
         'linear' or 'log', default is log
-    cmap : matplotlib.cm.Colormap instance
-        Colormap to use. Default is matplotlib.cm.jet
+    cmap : matplotlib.cm.Colormap instance or None
+        Colormap to use. If not given, taken from user's
+        `matplotlib.rcParams['image.cmap']` (or matplotlib's default).
     ax : matplotlib.Axes instance
         Axes to display into.
+    return_ax : bool
+        Return the axes to the caller for later use? (Default: False)
+        When True, this function returns a matplotlib.Axes instance, or a
+        tuple of (ax, cb) where the second is the colorbar Axes.
     title : string, optional
     imagecrop : float
         size of region to display (default is whole image)
@@ -100,15 +109,14 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
         Draw a crosshairs at the image centroid location?
         Centroiding is computed with the JWST-standard moving box algorithm.
     colorbar : bool
-        Draw a colorbar?
-    colorbar_orientation : str
-        either 'horizontal' or 'vertical'; default is vertical.
+        Draw a colorbar on the image?
+    colorbar_orientation : 'vertical' (default) or 'horizontal'
+        How should the colorbar be oriented? (Note: Updating a plot and
+        changing the colorbar orientation is not supported. When replotting
+        in the same axes, use the same colorbar orientation.)
     pixelscale : str or float
         if str, interpreted as the FITS keyword name for the pixel scale in arcsec/pixels.
         if float, used as the pixelscale directly.
-
-
-
     """
     if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename)
@@ -117,14 +125,16 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
     else: raise ValueError("input must be a filename or HDUlist")
 
     if adjust_for_oversampling:
-
         try:
             scalefactor = HDUlist[ext].header['OVERSAMP']**2
         except:
-            _log.error("Could not determine oversampling scale factor; therefore NOT rescaling fluxes.")
+            _log.error("Could not determine oversampling scale factor; "
+                       "therefore NOT rescaling fluxes.")
             scalefactor=1
         im = HDUlist[ext].data *scalefactor
-    else: im = HDUlist[ext].data.copy() # don't change normalization of actual input array, work with a copy!
+    else:
+        # don't change normalization of actual input array, work with a copy!
+        im = HDUlist[ext].data.copy()
 
     if normalize.lower() == 'peak':
         _log.debug("Displaying image normalized to peak = 1")
@@ -138,42 +148,53 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
     else: 
         norm=matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
+    psf_array_shape = HDUlist[ext].data.shape
     if isinstance(pixelscale, six.string_types):
-        halffov_x = HDUlist[ext].header[pixelscale]*HDUlist[ext].data.shape[1]/2
-        halffov_y = HDUlist[ext].header[pixelscale]*HDUlist[ext].data.shape[0]/2
+        pixelscale = HDUlist[ext].header[pixelscale]
+        halffov_x = pixelscale * psf_array_shape[1] / 2.0
+        halffov_y = pixelscale * psf_array_shape[0] / 2.0
     else:
-        try: 
-            pixelscale = float(pixelscale)
-        except:
-            _log.warning("Provided pixelscale is neither float nor str; cannot use it. Using default=1 instead.")
-            pixelscale = 1.0
-        halffov_x = pixelscale*HDUlist[ext].data.shape[1]/2
-        halffov_y = pixelscale*HDUlist[ext].data.shape[0]/2
-    unit="arcsec"
+        pixelscale = float(pixelscale)
+        halffov_x = pixelscale * psf_array_shape[1] / 2.0
+        halffov_y = pixelscale * psf_array_shape[0] / 2.0
+
+    unit = "arcsec"
     extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
 
-
-    ax = imshow_with_mouseover( im   ,extent=extent,cmap=cmap, norm=norm, ax=ax)
+    # update and get (or create) image axes
+    ax = imshow_with_mouseover(im, extent=extent, cmap=cmap, norm=norm, ax=ax)
     if imagecrop is not None:
-        halffov_x = min( (imagecrop/2, halffov_x))
-        halffov_y = min( (imagecrop/2, halffov_y))
+        halffov_x = min((imagecrop / 2.0, halffov_x))
+        halffov_y = min((imagecrop / 2.0, halffov_y))
     ax.set_xbound(-halffov_x, halffov_x)
     ax.set_ybound(-halffov_y, halffov_y)
     if crosshairs: 
-        ax.axhline(0,ls=":", color='k')
-        ax.axvline(0,ls=":", color='k')
-
-
+        ax.axhline(0, ls=':', color='k')
+        ax.axvline(0, ls=':', color='k')
     if title is None:
         try:
             fspec = "%s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER'])
         except: 
-            fspec= str(HDUlist_or_filename)
+            fspec = str(HDUlist_or_filename)
         title="PSF sim for "+fspec
     ax.set_title(title)
 
     if colorbar:
-        cb = plt.colorbar(ax.images[0], ax=ax, orientation=colorbar_orientation)
+        if ax.images[0].colorbar is not None:
+            # Reuse existing colorbar axes (Issue #21)
+            colorbar_axes = ax.images[0].colorbar.ax
+            cb = plt.colorbar(
+                ax.images[0],
+                ax=ax,
+                cax=colorbar_axes,
+                orientation=colorbar_orientation
+            )
+        else:
+            cb = plt.colorbar(
+                ax.images[0],
+                ax=ax,
+                orientation=colorbar_orientation
+            )
         if scale.lower() =='log':
             ticks = np.logspace(np.log10(vmin), np.log10(vmax), np.log10(vmax/vmin)+1)
             if colorbar_orientation=='horizontal' and vmax==1e-1 and vmin==1e-8: ticks = [1e-8, 1e-6, 1e-4,  1e-2, 1e-1] # looks better
@@ -196,8 +217,13 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
         else: return ax
 
 
-def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None, ext1=0, ext2=0, vmax=1e-4, title=None, imagecrop=None, adjust_for_oversampling=False, crosshairs=False, colorbar=True, colorbar_orientation='vertical', print_=False, ax=None, return_ax=False, vmin=None,
-        normalize=False, normalize_to_second=False):
+def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
+                           ext1=0, ext2=0, vmin=None, vmax=1e-4, title=None,
+                           imagecrop=None, adjust_for_oversampling=False,
+                           crosshairs=False, cmap=None, colorbar=True,
+                           colorbar_orientation='vertical', print_=False,
+                           ax=None, return_ax=False,
+                           normalize=False, normalize_to_second=False):
     """Display nicely the difference of two PSFs from given files 
 
     The two files may be FITS files on disk or FITS HDUList objects in memory. The two must have the same 
@@ -205,21 +231,46 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
     
     Parameters
     ----------
-    HDUlist_or_filename1,2 : fits.HDUlist or string
-        FITS files containing image to difference
+    HDUlist_or_filename1, HDUlist_or_filename2 : fits.HDUlist or string
+        FITS files containing images to difference
     ext1, ext2 : int
         FITS extension. default = 0
-    vmax : float
-        for the  scaling
+    vmin, vmax : float
+        Image intensity scaling min and max.
     title : string, optional
+        Title for plot.
     imagecrop : float
-        size of region to display (default is whole image)
-    normalize : bool
-        Display (difference image)/(mean image) instead of just the difference image.
+        Size of region to display (default is whole image).
     adjust_for_oversampling : bool
-        rescale to conserve surface brightness for oversampled PSFs? 
-        (making this True conserves surface brightness but not total flux)
-        default is False, to conserve total flux.
+        Rescale to conserve surface brightness for oversampled PSFs?
+        (Making this True conserves surface brightness but not total flux.)
+        Default is False, to conserve total flux.
+    crosshairs : bool
+        Plot crosshairs over array center?
+    cmap : matplotlib.cm.Colormap instance or None
+        Colormap to use. If not given, use standard gray colormap.
+    colorbar : bool
+        Draw a colorbar on the image?
+    colorbar_orientation : 'vertical' (default) or 'horizontal'
+        How should the colorbar be oriented? (Note: Updating a plot and
+        changing the colorbar orientation is not supported. When replotting
+        in the same axes, use the same colorbar orientation.)
+    print_ : bool
+        Print RMS difference value for the images? (Default: False)
+    ax : matplotlib.Axes instance
+        Axes to display into.
+    return_ax : bool
+        Return the axes to the caller for later use? (Default: False)
+        When True, this function returns a matplotlib.Axes instance, or a
+        tuple of (ax, cb) where the second is the colorbar Axes.
+    normalize : bool
+        Display (difference image)/(mean image) instead of just
+        the difference image. Mutually exclusive to `normalize_to_second`.
+        (Default: False)
+    normalize_to_second : bool
+        Display (difference image)/(second image) instead of just
+        the difference image. Mutually exclusive to `normalize`.
+        (Default: False)
     """
     if isinstance(HDUlist_or_filename1, six.string_types):
         HDUlist1 = fits.open(HDUlist_or_filename1)
@@ -244,11 +295,11 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
 
     diff_im = im1-im2
 
-    if normalize:
+    if normalize and not normalize_to_second:
         avg_im = (im1+im2)/2
         diff_im /= avg_im
         cbtitle = 'Image difference / average  (per pixel)' #Relative intensity difference per pixel'
-    if normalize_to_second:
+    if normalize_to_second and not normalize:
         diff_im /= im2
         cbtitle = 'Image difference / original (per pixel)' #Relative intensity difference per pixel'
     else:
@@ -263,8 +314,9 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
         rms_diff = np.sqrt((diff_im**2).mean())
         print("RMS of difference image: {0}".format(rms_diff))
 
-    norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
-    cmap = matplotlib.cm.gray
+    norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+    if cmap is None:
+        cmap = matplotlib.cm.gray
     halffov_x = HDUlist1[ext1].header['PIXELSCL']*HDUlist1[ext1].data.shape[1]/2
     halffov_y = HDUlist1[ext1].header['PIXELSCL']*HDUlist1[ext1].data.shape[0]/2
     unit="arcsec"
