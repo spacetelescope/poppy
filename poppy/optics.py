@@ -1287,6 +1287,10 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
     """ Defines a central obscuration with one or more supports which can be oriented at
     arbitrary angles around the primary mirror, a la the three supports of JWST
 
+    This also allows for secondary supports that do not intersect with
+    the primary mirror center; use the support_offset_x and support_offset_y parameters
+    to apply offsets relative to the center for the origin of each strut.
+
     Parameters
     ----------
     secondary_radius : float
@@ -1297,15 +1301,32 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
         if scalar, gives the width for all support struts
         if a list, gives separately the width for each support strut independently.
         Widths in meters. Default is 0.01 m = 1 cm.
+    support_offset_x : float, or list of floats.
+        Offset in the X direction of the start point for each support.
+        if scalar, applies to all supports; if a list, gives a separate offset for each.
+    support_offset_y : float, or list of floats.
+        Offset in the Y direction of the start point for each support.
+        if scalar, applies to all supports; if a list, gives a separate offset for each.
     """
 
-    def __init__(self, support_angle=(0, 90, 240), support_width=0.01, **kwargs):
+    def __init__(self, support_angle=(0, 90, 240), support_width=0.01, 
+            support_offset_x=0.0, support_offset_y=0.0, **kwargs):
         SecondaryObscuration.__init__(self, n_supports=len(support_angle), **kwargs)
 
         self.support_angle = np.asarray(support_angle)
+
         if np.isscalar(support_width):
             support_width = np.zeros(len(support_angle)) + support_width
         self.support_width = support_width
+
+        if np.isscalar(support_offset_x):
+            support_offset_x = np.zeros(len(support_angle)) + support_offset_x
+        self.support_offset_x = support_offset_x
+
+        if np.isscalar(support_offset_y):
+            support_offset_y = np.zeros(len(support_angle)) + support_offset_y
+        self.support_offset_y = support_offset_y
+
 
     def getPhasor(self, wave):
         """ Compute the transmission inside/outside of the obscuration
@@ -1321,12 +1342,14 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
 
         self.transmission[r < self.secondary_radius] = 0
 
-        for angle_deg, width in zip(self.support_angle, self.support_width):
+        for angle_deg, width, offset_x, offset_y in zip(self.support_angle,
+                self.support_width, self.support_offset_x, self.support_offset_y):
             angle = np.deg2rad(angle_deg + 90)  # 90 deg offset is to start from the +Y direction
 
             # calculate rotated x' and y' coordinates after rotation by that angle.
-            xp = np.cos(angle) * x + np.sin(angle) * y
-            yp = -np.sin(angle) * x + np.cos(angle) * y
+            # and application of offset
+            xp =  np.cos(angle) * (x-offset_x) + np.sin(angle) * (y-offset_y)
+            yp = -np.sin(angle) * (x-offset_x) + np.cos(angle) * (y-offset_y)
 
             self.transmission[(xp > 0) & (np.abs(yp) < width / 2)] = 0
 
