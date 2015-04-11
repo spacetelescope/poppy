@@ -30,10 +30,8 @@ matrix:
         # Try all python versions with the latest numpy
         - python: 2.7
           env: SETUP_CMD='test'
-        # - python: 3.3
-        #   env: SETUP_CMD='test'
-        # - python: 3.4
-        #   env: SETUP_CMD='test'
+        - python: 3.4
+          env: SETUP_CMD='test'
 
         # Try Astropy development version
         - python: 2.7
