@@ -5,6 +5,7 @@
 #
 
 from __future__ import (absolute_import, division, print_function, unicode_literals)
+import six
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
@@ -117,7 +118,7 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
         if str, interpreted as the FITS keyword name for the pixel scale in arcsec/pixels.
         if float, used as the pixelscale directly.
     """
-    if isinstance(HDUlist_or_filename, basestring):
+    if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -148,7 +149,7 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
         norm=matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
     psf_array_shape = HDUlist[ext].data.shape
-    if isinstance(pixelscale, basestring):
+    if isinstance(pixelscale, six.string_types):
         pixelscale = HDUlist[ext].header[pixelscale]
         halffov_x = pixelscale * psf_array_shape[1] / 2.0
         halffov_y = pixelscale * psf_array_shape[0] / 2.0
@@ -271,12 +272,12 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
         the difference image. Mutually exclusive to `normalize`.
         (Default: False)
     """
-    if isinstance(HDUlist_or_filename1, basestring):
+    if isinstance(HDUlist_or_filename1, six.string_types):
         HDUlist1 = fits.open(HDUlist_or_filename1)
     elif isinstance(HDUlist_or_filename1, fits.HDUList):
         HDUlist1 = HDUlist_or_filename1
     else: raise ValueError("input must be a filename or HDUlist")
-    if isinstance(HDUlist_or_filename2, basestring):
+    if isinstance(HDUlist_or_filename2, six.string_types):
         HDUlist2 = fits.open(HDUlist_or_filename2)
     elif isinstance(HDUlist_or_filename2, fits.HDUList):
         HDUlist2 = HDUlist_or_filename2
@@ -376,7 +377,7 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
         Default is True
         
     """
-    if isinstance(HDUlist_or_filename, basestring):
+    if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename,ext=ext)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -418,7 +419,7 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, title=None,
         Title for plot
  
     """
-    if isinstance(HDUlist_or_filename, basestring):
+    if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename,ext=ext)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -490,7 +491,7 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
         so you should use (radius+binsize/2) for the radius of the EE curve if you want to be
         as precise as possible.
     """
-    if isinstance(HDUlist_or_filename, basestring):
+    if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -702,7 +703,7 @@ def measure_sharpness(HDUlist_or_filename=None, ext=0):
         Same as above
  
     """
-    if isinstance(HDUlist_or_filename, basestring):
+    if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -752,7 +753,7 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, verbo
     """
     from .fwcentroid import fwcentroid
 
-    if isinstance(HDUlist_or_filename, basestring):
+    if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -815,7 +816,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
         Strehl ratio as a floating point number between 0.0 - 1.0
   
     """
-    if isinstance(HDUlist_or_filename, basestring):
+    if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -1170,7 +1171,7 @@ def specFromSpectralType(sptype, return_list=False, catalog=None):
             "M2I":   (3500, 0.0, 0.0)}
 
     if return_list:
-        sptype_list = lookuptable.keys()
+        sptype_list = list(lookuptable.keys())
         def sort_sptype(typestr):
             letter = typestr[0]
             lettervals = {'O':0, 'B': 10, 'A': 20,'F': 30, 'G':40, 'K': 50, 'M':60}

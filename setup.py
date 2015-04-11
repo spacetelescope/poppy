@@ -110,6 +110,7 @@ setup(name=PACKAGENAME,
       scripts=scripts,
       setup_requires=['numpy>=1.8.0', 'astropy>=1.0.1'],
       install_requires=[
+          'six>=1.7.3',
           'numpy>=1.8.0',
           'scipy>=0.15.0',
           'matplotlib>=1.4.2',
@@ -123,6 +124,5 @@ setup(name=PACKAGENAME,
       long_description=LONG_DESCRIPTION,
       cmdclass=cmdclassd,
       zip_safe=False,
-      use_2to3=True,
       **package_info
 )

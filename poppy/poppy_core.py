@@ -1,6 +1,7 @@
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 import multiprocessing
 import copy
+import six
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.ndimage.interpolation
@@ -595,7 +596,7 @@ class Wavefront(object):
 
         _log.debug("using {2} FFT of {0} array, direction={1}".format(str(self.wavefront.shape), FFT_direction, method))
         if _USE_FFTW:
-            if (self.wavefront.shape, FFT_direction) not in _FFTW_INIT.keys():
+            if (self.wavefront.shape, FFT_direction) not in _FFTW_INIT:
                 # The first time you run FFTW to transform a given size, it does a speed test to determine optimal algorithm
                 # that is destructive to your chosen array. So only do that test on a copy, not the real array:
                 _log.info("Evaluating PyFFT optimal algorithm for %s, direction=%s" % (str(self.wavefront.shape), FFT_direction))
@@ -953,7 +954,7 @@ class OpticalSystem(object):
             # OpticalElement object provided. 
             # We can use it directly, but make sure the plane type is set.
             optic.planetype = _PUPIL
-        elif isinstance(optic, basestring):
+        elif isinstance(optic, six.string_types):
             # convenience code to instantiate objects from a string name.
             raise NotImplementedError('Setting optics based on strings is now deprecated.')
         elif optic is None and len(kwargs) > 0: # create image from files specified in kwargs
@@ -1011,7 +1012,7 @@ class OpticalSystem(object):
 
         """
 
-        if isinstance(optic, basestring):
+        if isinstance(optic, six.string_types):
             function = optic
             optic = None
 
@@ -1999,7 +2000,7 @@ class FITSOpticalElement(OpticalElement):
         else:
             # load transmission file.
             if transmission is not None:
-                if isinstance(transmission,basestring):
+                if isinstance(transmission,six.string_types):
                     self.amplitude_file = transmission
                     self.amplitude, self.amplitude_header = fits.getdata(self.amplitude_file, header=True)
                     if self.name=='unnamed optic': self.name='Optic from '+self.amplitude_file
@@ -2040,14 +2041,14 @@ class FITSOpticalElement(OpticalElement):
                 self.opd_header = opd[0].header
                 if self.name=='unnamed optic': self.name='OPD from supplied fits.HDUList object'
                 _log.info(self.name+": Loaded OPD from supplied fits.HDUList object")
-            elif isinstance(opd, basestring):
+            elif isinstance(opd, six.string_types):
                 # load from regular FITS filename
                 self.opd_file=opd
                 self.opd, self.opd_header = fits.getdata(self.opd_file, header=True)
                 if self.name=='unnamed optic': self.name='OPD from '+self.opd_file
                 _log.info(self.name+": Loaded OPD from "+self.opd_file)
 
-            elif len(opd) ==2 and isinstance(opd[0], basestring) :
+            elif len(opd) ==2 and isinstance(opd[0], six.string_types) :
                 # if OPD is specified as a 2-element iterable, treat the first element as the filename and 2nd as the slice of a cube.
                 self.opd_file = opd[0]
                 self.opd_slice = opd[1]
@@ -2079,7 +2080,7 @@ class FITSOpticalElement(OpticalElement):
                     opdunits = self.opd_header['BUNIT']
                 except:
                     _log.error("No opdunit keyword supplied, and BUNIT keyword not found in header. Cannot determine OPD units")
-                    raise StandardError("No opdunit keyword supplied, and BUNIT keyword not found in header. Cannot determine OPD units.")
+                    raise Exception("No opdunit keyword supplied, and BUNIT keyword not found in header. Cannot determine OPD units.")
 
 
             if opdunits.lower().endswith('s'): opdunits = opdunits[:-1] # drop trailing s if present
@@ -2094,10 +2095,10 @@ class FITSOpticalElement(OpticalElement):
 
             if len (self.opd.shape) != 2 or self.opd.shape[0] != self.opd.shape[1]:
                 _log.debug('OPD shape: '+str(self.opd.shape))
-                raise ValueError, "OPD image must be 2-D and square"
+                raise ValueError("OPD image must be 2-D and square")
 
             if len (self.amplitude.shape) != 2 or self.amplitude.shape[0] != self.amplitude.shape[1]:
-                raise ValueError, "Pupil amplitude image must be 2-D and square"
+                raise ValueError("Pupil amplitude image must be 2-D and square")
 
 
             assert self.amplitude.shape == self.opd.shape
@@ -2138,7 +2139,7 @@ class FITSOpticalElement(OpticalElement):
 
             if pixelscale is None:
                 pixelscale = 'PUPLSCAL' if self.planetype == _PUPIL else 'PIXSCALE' # set default FITS keyword
-            if isinstance(pixelscale,basestring): # pixelscale is a str, so interpret it as a FITS keyword
+            if isinstance(pixelscale,six.string_types): # pixelscale is a str, so interpret it as a FITS keyword
                 _log.debug("  Getting pixel scale from FITS keyword:" + pixelscale)
                 try:
                     self.pixelscale = self.amplitude_header[pixelscale]

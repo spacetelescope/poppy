@@ -5,6 +5,7 @@ import time
 import platform
 import getpass
 import copy
+import six
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
@@ -349,7 +350,7 @@ class Instrument(object):
             __version__ = ''
 
         #---  update FITS header, display, and output.
-        if isinstance( self.pupil, basestring):
+        if isinstance( self.pupil, six.string_types):
             pupilstr= os.path.basename(self.pupil)
         elif isinstance( self.pupil, fits.HDUList):
             pupilstr= 'pupil from supplied FITS HDUList object'
@@ -359,7 +360,7 @@ class Instrument(object):
 
         if self.pupilopd is None:
             opdstring = "NONE - perfect telescope! "
-        elif isinstance( self.pupilopd, basestring):
+        elif isinstance( self.pupilopd, six.string_types):
             opdstring = os.path.basename(self.pupilopd)
         elif isinstance( self.pupilopd, fits.HDUList):
             opdstring = 'OPD from supplied FITS HDUlist object'
@@ -372,9 +373,9 @@ class Instrument(object):
         result[0].header['EXTNAME'] = ( 'OVERSAMP')
         result[0].header.add_history('Created by POPPY version '+__version__)
 
-        if 'fft_oversample' in options.keys():
+        if 'fft_oversample' in options:
             result[0].header['OVERSAMP'] = ( options['fft_oversample'], 'Oversampling factor for FFTs in computation')
-        if 'detector_oversample' in options.keys():
+        if 'detector_oversample' in options:
             result[0].header['DET_SAMP'] = ( options['detector_oversample'], 'Oversampling factor for MFT to detector plane')
 
         (year, month, day, hour, minute, second, weekday, DOY, DST) =  time.gmtime()
@@ -435,8 +436,8 @@ class Instrument(object):
 
         poppy_core._log.debug("Oversample: %d  %d " % (fft_oversample, detector_oversample))
         optsys = poppy_core.OpticalSystem(name=self.name, oversample=fft_oversample)
-        if 'source_offset_r' in options.keys(): optsys.source_offset_r = options['source_offset_r']
-        if 'source_offset_theta' in options.keys(): optsys.source_offset_theta = options['source_offset_theta']
+        if 'source_offset_r' in options: optsys.source_offset_r = options['source_offset_r']
+        if 'source_offset_theta' in options: optsys.source_offset_theta = options['source_offset_theta']
 
 
         #---- set pupil intensity
@@ -456,7 +457,7 @@ class Instrument(object):
         #---- set pupil OPD
         if isinstance(self.pupilopd, str):  # simple filename
             full_opd_path = self.pupilopd if os.path.exists( self.pupilopd) else os.path.join(self._datapath, "OPD",self.pupilopd)
-        elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], basestring): # tuple with filename and slice
+        elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], six.string_types): # tuple with filename and slice
             full_opd_path =  (self.pupilopd[0] if os.path.exists( self.pupilopd[0]) else os.path.join(self._datapath, "OPD",self.pupilopd[0]), self.pupilopd[1])
         elif isinstance(self.pupilopd, fits.HDUList): # OPD supplied as FITS HDUList object
             full_opd_path = self.pupilopd # not a path per se but this works correctly to pass it to poppy
@@ -474,7 +475,7 @@ class Instrument(object):
         #--- add the detector element. 
         if fov_pixels is None:
             fov_pixels = np.round(fov_arcsec/self.pixelscale)
-            if 'parity' in self.options.keys():
+            if 'parity' in self.options:
                 if self.options['parity'].lower() == 'odd'  and np.remainder(fov_pixels,2)==0: fov_pixels +=1
                 if self.options['parity'].lower() == 'even' and np.remainder(fov_pixels,2)==1: fov_pixels +=1
 
@@ -502,7 +503,7 @@ class Instrument(object):
         The image in the 'result' HDUlist will be modified by this function.
         """
         if local_options is None: local_options = self.options
-        if 'jitter' not in local_options.keys(): return
+        if 'jitter' not in local_options: return
 
         poppy_core._log.info("Calculating jitter using "+str(local_options['jitter']) )
 
@@ -664,7 +665,7 @@ class Instrument(object):
 
             try:
                 key = self._getSpecCacheKey(source, nlambda)
-                if key in self._spectra_cache.keys():
+                if key in self._spectra_cache:
                     poppy_core._log.debug("Previously computed spectral weights found in cache, just reusing those")
                     return self._spectra_cache[keys]
             except:
@@ -721,7 +722,7 @@ class Instrument(object):
                 d2 = filterdata.THROUGHPUT
             except:
                 raise ValueError("The supplied file, {0}, does not appear to be a FITS table with WAVELENGTH and THROUGHPUT columns.".format(filterfile))
-            if 'WAVEUNIT' in  filterfits[1].header.keys():
+            if 'WAVEUNIT' in  filterfits[1].header:
                 waveunit = filterfits[1].header['WAVEUNIT']
                 if re.match(r'[Aa]ngstroms?', waveunit) is None:
                     raise ValueError("The supplied file, {0}, has WAVEUNIT='{1}'. Only WAVEUNIT = Angstrom supported when Pysynphot is not installed.".format(filterfile, waveunit))

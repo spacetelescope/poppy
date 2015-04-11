@@ -9,6 +9,7 @@ import astropy.io.fits as fits
 from . import utils
 
 import logging
+import collections
 
 _log = logging.getLogger('poppy')
 
@@ -919,7 +920,7 @@ class MultiHexagonAperture(AnalyticOpticalElement):
         if segmentlist is not None:
             self.segmentlist = segmentlist
         else:
-            self.segmentlist = range(self._nHexesInsideRing(self.rings + 1))
+            self.segmentlist = list(range(self._nHexesInsideRing(self.rings + 1)))
             if not center: self.segmentlist.remove(0)  # remove center segment 0
 
 
@@ -1122,7 +1123,7 @@ class NgonAperture(AnalyticOpticalElement):
 
         self.transmission = np.zeros(wave.shape)
         for row in range(wave.shape[0]):
-            pts = np.asarray(zip(x[row], y[row]))
+            pts = np.asarray(list(zip(x[row], y[row])))
             #ok = matplotlib.nxutils.points_inside_poly(pts, vertices)
             ok = matplotlib.path.Path(vertices).contains_points(pts)  #, vertices)
             self.transmission[row][ok] = 1.0
@@ -1405,7 +1406,7 @@ class ParameterizedAberration(AnalyticOpticalElement):
     """
     def __init__(self, name="Parameterized Distortion", coefficients=None, radius=None,
                  basis_factory=None, **kwargs):
-        if not callable(basis_factory):
+        if not isinstance(basis_factory, collections.Callable):
             raise ValueError("'basis_factory' must be a callable that can "
                              "calculate basis functions")
         try:
