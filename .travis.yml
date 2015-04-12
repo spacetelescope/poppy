@@ -3,7 +3,7 @@ language: python
 python:
     - 2.7
     # - 3.3
-    # - 3.4
+    - 3.4
     # This is just for "egg_info".  All other builds are explicitly given in the matrix
 env:
     global:
@@ -31,7 +31,7 @@ matrix:
         - python: 2.7
           env: SETUP_CMD='test'
         - python: 3.4
-          env: SETUP_CMD='test'
+          env: SETUP_CMD='test --coverage'
 
         # Try Astropy development version
         - python: 2.7
@@ -98,4 +98,4 @@ after_success:
     # If coveralls.io is set up for this package, uncomment the line
     # below and replace "packagename" with the name of your package.
     # The coveragerc file may be customized as needed for your package.
-    # - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls --rcfile='packagename/tests/coveragerc'; fi
+    - if [[ $STEUP_CMD == 'test --coverage' ]]; then coveralls --rcfile='poppy/tests/coveragerc'; fi
