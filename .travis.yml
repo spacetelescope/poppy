@@ -40,8 +40,11 @@ matrix:
         #   env: ASTROPY_VERSION=development SETUP_CMD='test'
 
         # Try older numpy version
+        # Use (temporarily?) the dev astropy to work around the issue in 
+        # https://github.com/mperrin/poppy/issues/87 
+        # https://github.com/astropy/astropy-helpers/issues/73#issuecomment-72558556
         - python: 2.7
-          env: NUMPY_VERSION=1.8 SETUP_CMD='test'
+          env: NUMPY_VERSION=1.8 ASTROPY_VERSION=development SETUP_CMD='test'
 
 before_install:
 
