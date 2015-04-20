@@ -152,7 +152,7 @@ class AnalyticOpticalElement(OpticalElement):
 
         what : str
             What to display: 'intensity', 'phase', or 'both'
-        ax : matplotlib.Axes instance 
+        ax : matplotlib.Axes instance
             Axes to display into
         nrows, row : integers
             # of rows and row index for subplot display
@@ -182,18 +182,19 @@ class AnalyticOpticalElement(OpticalElement):
         self.pixelscale = pixelscale
 
         #then call parent class display
-        OpticalElement.display(self, nrows=nrows, row=row, **kwargs)
+        returnvalue = OpticalElement.display(self, nrows=nrows, row=row, **kwargs)
 
         # now un-set all the temporary attributes back, since this is analytic and
         # these are unneeded
         self.pixelscale = None
         self.opd = None
         self.amplitude = None
+        return returnvalue
 
     def toFITS(self, outname=None, what='amplitude', wavelength=2e-6, npix=512, **kwargs):
-        """ Save an analytic optic computed onto a grid to a FITS file 
-        
-        The FITS file is returned to the calling function, and may optionally be 
+        """ Save an analytic optic computed onto a grid to a FITS file
+
+        The FITS file is returned to the calling function, and may optionally be
         saved directly to disk.
 
         Parameters
@@ -201,7 +202,7 @@ class AnalyticOpticalElement(OpticalElement):
         what : string
             What quantity to save. See the sample function of this class
         wavelength : float
-            Wavelength in meters. 
+            Wavelength in meters.
         npix : integer
             Number of pixels.
         outname : string, optional
@@ -230,8 +231,8 @@ class AnalyticOpticalElement(OpticalElement):
         return hdul
 
 class ScalarTransmission(AnalyticOpticalElement):
-    """ Uniform transmission between 0 and 1.0 in intensity. 
-    
+    """ Uniform transmission between 0 and 1.0 in intensity.
+
     Either a null optic (empty plane) or some perfect ND filter...
     But most commonly this is just used as a null optic placeholder """
 
@@ -778,7 +779,7 @@ class CircularAperture(AnalyticOpticalElement):
 
         if name is None:
             name = "Circle, radius=%.2f m" % radius
-        AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
+        super(CircularAperture, self).__init__( name=name, planetype=_PUPIL, **kwargs)
         # for creating input wavefronts - let's pad a bit:
         self.pupil_diam = pad_factor * 2 * self.radius
 
@@ -884,18 +885,18 @@ class MultiHexagonAperture(AnalyticOpticalElement):
     gap: float, optional
         Gap between adjacent segments, in meters. Default is 0.01 m = 1 cm
     center : bool, optional
-        should the central segment be included? Default is False. 
+        should the central segment be included? Default is False.
     segmentlist : list of ints, optional
         This allows one to specify that only a subset of segments are present, for a
-        partially populated segmented telescope, non-redundant segment set, etc. 
+        partially populated segmented telescope, non-redundant segment set, etc.
         Segments are numbered from 0 for the center segment, 1 for the segment immediately
-        above it, and then clockwise around each ring. 
-        For example, segmentlist=[1,3,5] would make an aperture of 3 segments. 
+        above it, and then clockwise around each ring.
+        For example, segmentlist=[1,3,5] would make an aperture of 3 segments.
 
 
     Note that this routine becomes a bit slow for nrings >4. For repeated computations on
     the same aperture, it will be faster to create this once, save it to a FITS file using
-    the toFITS() method, and then use that. 
+    the toFITS() method, and then use that.
 
     """
 
@@ -948,7 +949,7 @@ class MultiHexagonAperture(AnalyticOpticalElement):
             return (self.flattoflat + self.gap) * ring
 
     def _hexCenter(self, hex_index):
-        """ Center coordinates of a given hexagon 
+        """ Center coordinates of a given hexagon
         counting clockwise around each ring
 
         Returns y, x coords
@@ -1085,7 +1086,7 @@ class MultiHexagonAperture(AnalyticOpticalElement):
 
 
 class NgonAperture(AnalyticOpticalElement):
-    """ Defines an ideal N-gon pupil aperture. 
+    """ Defines an ideal N-gon pupil aperture.
 
     Parameters
     -----------
@@ -1094,7 +1095,7 @@ class NgonAperture(AnalyticOpticalElement):
     nsides : integer
         Number of sides. Default is 6.
     radius : float
-        radius to the vertices, meters. Default is 1. 
+        radius to the vertices, meters. Default is 1.
     rotation : float
         Rotation angle to first vertex, in degrees counterclockwise from the +X axis. Default is 0.
     """
@@ -1225,20 +1226,20 @@ class SecondaryObscuration(AnalyticOpticalElement):
     supports
 
     The number of supports is adjustable but they are always radially symmetric around the center.
-    See AsymmetricSecondaryObscuration if you need more flexibility. 
+    See AsymmetricSecondaryObscuration if you need more flexibility.
 
     Parameters
     ----------
     secondary_radius : float
         Radius of the circular secondary obscuration. Default 0.5 m
     n_supports : int
-        Number of secondary mirror supports ("spiders"). These will be 
+        Number of secondary mirror supports ("spiders"). These will be
         spaced equally around a circle.  Default is 4.
     support_width : float
         Width of each support, in meters. Default is 0.01 m = 1 cm.
     support_angle_offset : float
         Angular offset, in degrees, of the first secondary support from the X axis.
-        
+
     """
 
     def __init__(self, name=None, secondary_radius=0.5, n_supports=4, support_width=0.01,
@@ -1309,7 +1310,7 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
         if scalar, applies to all supports; if a list, gives a separate offset for each.
     """
 
-    def __init__(self, support_angle=(0, 90, 240), support_width=0.01, 
+    def __init__(self, support_angle=(0, 90, 240), support_width=0.01,
             support_offset_x=0.0, support_offset_y=0.0, **kwargs):
         SecondaryObscuration.__init__(self, n_supports=len(support_angle), **kwargs)
 
@@ -1370,7 +1371,7 @@ class ThinLens(CircularAperture):
         of the input wavefront. That is, there will be nwaves defocus peak-to-valley
         over the region of the pupil that has nonzero input intensity.
     reference_wavelength : float
-        Wavelength, in meters, at which that number of waves of defocus is specified. 
+        Wavelength, in meters, at which that number of waves of defocus is specified.
     radius : float
         Pupil radius, in meters, over which the Zernike defocus term should be computed
         such that rho = 1 at r = `radius`.
