@@ -436,6 +436,7 @@ class Wavefront(object):
                 imsize_y = min( (imagecrop, halffov_y))
                 ax.set_xbound(-imsize_x, imsize_x)
                 ax.set_ybound(-imsize_y, imsize_y)
+            to_return = ax
         elif what =='phase':
             # Display phase in waves.
             cmap = matplotlib.cm.jet
@@ -450,12 +451,13 @@ class Wavefront(object):
             plt.xlabel(unit)
             if colorbar: plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
 
+            to_return = ax
 
         else:
             if ax is None:
                 ax = plt.subplot(nr,nc,int(row))
             cmap = matplotlib.cm.gray
-            plt.subplot(nrows,2,(row*2)-1)
+            ax1 = plt.subplot(nrows,2,(row*2)-1)
             plt.imshow(amp,extent=extent,cmap=cmap)
             plt.title("Wavefront amplitude")
             plt.ylabel(unit)
@@ -463,18 +465,21 @@ class Wavefront(object):
 
             if colorbar: plt.colorbar(orientation='vertical',shrink=0.8)
 
-            plt.subplot(nrows,2,row*2)
+            ax2 = plt.subplot(nrows,2,row*2)
             plt.imshow(phase,extent=extent, cmap=cmap)
             if colorbar: plt.colorbar(orientation='vertical',shrink=0.8)
 
             plt.xlabel(unit)
             plt.title("Wavefront phase [radians]")
-                
+
+            to_return = (ax1,ax2)
+
         ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5))
         ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5))
 
 
         plt.draw()
+        return to_return
 
     # add convenient properties for intensity, phase, amplitude, total_flux
     @property
@@ -1847,7 +1852,7 @@ class OpticalElement(object):
             self.display(what='intensity', ax=ax, crosshairs=crosshairs, colorbar=colorbar, nrows=nrows)
             ax2 = plt.subplot(nrows, 2, row*2)
             self.display(what='phase', ax=ax2, crosshairs=crosshairs, colorbar=colorbar, nrows=nrows)
-            return
+            return (ax,ax2)
         elif what=='amplitude':
             plot_array = ampl
             title = 'Transmissivity'
@@ -1881,12 +1886,13 @@ class OpticalElement(object):
         plt.ylabel(units)
         ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
         ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
-        if colorbar: 
+        if colorbar:
             cb = plt.colorbar(ax.images[0], orientation=colorbar_orientation, ticks=cb_values)
             cb.set_label(cb_label)
         if crosshairs:
             ax.axhline(0,ls=":", color='k')
             ax.axvline(0,ls=":", color='k')
+        return ax
 
     def __str__(self):
         if self.planetype is _PUPIL:
@@ -2201,9 +2207,11 @@ class Rotation(OpticalElement):
         return 1.0  #no change in wavefront (apart from the rotation)
         # returning this is necessary to allow the multiplication in propagate_mono to be OK
 
-    def display(self, nrows=1, row=1, **kwargs):
-        plt.subplot(nrows, 2, row*2-1)
+    def display(self, nrows=1, row=1, ax=None, **kwargs):
+        if ax is None:
+            ax = plt.subplot(nrows, 2, row*2-1)
         plt.text(0.3,0.3,self.name)
+        return ax
 
 
 
