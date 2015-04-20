@@ -112,7 +112,7 @@ setup(name=PACKAGENAME,
       install_requires=[
           'six>=1.7.3',
           'numpy>=1.8.0',
-          'scipy>=0.15.0',
+          'scipy>=0.14.0',
           'matplotlib>=1.4.2',
           'astropy>=1.0.1'
       ],
