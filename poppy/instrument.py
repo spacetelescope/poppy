@@ -263,7 +263,12 @@ class Instrument(object):
         if display:
             f = plt.gcf()
             plt.suptitle( "%s, filter= %s" % (self.name, self.filter), size='xx-large')
-            plt.text( 0.99, 0.04, "Calculation with %d wavelengths (%g - %g um)" % (nlambda, wavelens[0]*1e6, wavelens[-1]*1e6), 
+
+            if monochromatic is not None:
+                labeltext = "Monochromatic calculation at {:.3f} um".format(monochromatic*1e6)
+            else:
+                labeltext = "Calculation with %d wavelengths (%g - %g um)" % (nlambda, wavelens[0]*1e6, wavelens[-1]*1e6)
+            plt.text( 0.99, 0.04, labeltext,
                     transform=f.transFigure, horizontalalignment='right')
 
         if outfile is not None:

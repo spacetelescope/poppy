@@ -1399,7 +1399,7 @@ class OpticalSystem(object):
         if save_intermediates:
             _log.info('Saving intermediate wavefronts:')
             for idx, wavefront in enumerate(intermediate_wfs):
-                filename = 'wavefront_plane_%03d.fits' % i
+                filename = 'wavefront_plane_{:03d}.fits'.format(idx)
                 wavefront.writeto(filename, what=save_intermediates_what)
                 _log.info('  saved {} to {} ({} / {})'.format(save_intermediates_what, filename,
                                                               idx, len(intermediate_wfs)))
