@@ -88,6 +88,25 @@ def test_BarOcculter():
     assert wave.shape[0] == 100
     assert wave.intensity.sum() == 9000 # 9/10 of the 1e4 element array
 
+
+def test_AnnularFieldStop():
+    optic= optics.AnnularFieldStop(radius_inner=1.0, radius_outer=2.0)
+    wave = poppy_core.Wavefront(npix=100, pixelscale=0.1, wavelength=1e-6) # 10x10 arcsec square
+
+    wave*= optic
+    # Just check a handful of points that it goes from 0 to 1 back to 0
+    assert wave.intensity[50,50] == 0
+    assert wave.intensity[55,50] == 0
+    assert wave.intensity[60,50] == 1
+    assert wave.intensity[69,50] == 1
+    assert wave.intensity[75,50] == 0
+    assert wave.intensity[95,50] == 0
+    # and check the area is approximately right
+    expected_area = np.pi*(optic.radius_outer**2 - optic.radius_inner**2) * 100
+    area = wave.intensity.sum()
+    assert np.abs(expected_area-area) < 0.01*expected_area
+
+
 #def test_rotations_RectangularFieldStop():
 #
 #    # First let's do a rotation of the wavefront itself by 90^0 after an optic

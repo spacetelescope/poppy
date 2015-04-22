@@ -36,9 +36,10 @@ Status reports for developers
 .. image:: https://pypip.in/d/poppy/badge.png
     :target: https://pypi.python.org/pypi/poppy
 
-
 .. image:: https://travis-ci.org/mperrin/poppy.png?branch=master
     :target: https://travis-ci.org/mperrin/poppy
-        :alt: Test Status
+    :alt: Test Status
 
-
+.. image:: https://coveralls.io/repos/mperrin/poppy/badge.svg 
+    :target: https://coveralls.io/r/mperrin/poppy
+    :alt: Test Coverage

@@ -63,10 +63,10 @@ def test_measure_FWHM(display=False):
         testfits[0].header['PIXELSCL'] = pxscl
 
         meas_fwhm = utils.measure_fwhm(testfits, center=center)
-        print "Measured FWHM: {0:.4f} arcsec, {1:.4f} pixels ".format(meas_fwhm, meas_fwhm/pxscl)
+        print("Measured FWHM: {0:.4f} arcsec, {1:.4f} pixels ".format(meas_fwhm, meas_fwhm/pxscl))
 
         reldiff =  np.abs((meas_fwhm/pxscl) - desired_fwhm ) / desired_fwhm 
-        print "Desired: {0:.4f}. Relative difference: {1:.4f}    Tolerance: {2:.4f}".format(desired_fwhm, reldiff, tol)
+        print("Desired: {0:.4f}. Relative difference: {1:.4f}    Tolerance: {2:.4f}".format(desired_fwhm, reldiff, tol))
         assert( reldiff < tol )
 
 

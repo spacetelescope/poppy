@@ -9,6 +9,7 @@ import astropy.io.fits as fits
 from . import utils
 
 import logging
+import collections
 
 _log = logging.getLogger('poppy')
 
@@ -151,7 +152,7 @@ class AnalyticOpticalElement(OpticalElement):
 
         what : str
             What to display: 'intensity', 'phase', or 'both'
-        ax : matplotlib.Axes instance 
+        ax : matplotlib.Axes instance
             Axes to display into
         nrows, row : integers
             # of rows and row index for subplot display
@@ -181,18 +182,19 @@ class AnalyticOpticalElement(OpticalElement):
         self.pixelscale = pixelscale
 
         #then call parent class display
-        OpticalElement.display(self, nrows=nrows, row=row, **kwargs)
+        returnvalue = OpticalElement.display(self, nrows=nrows, row=row, **kwargs)
 
         # now un-set all the temporary attributes back, since this is analytic and
         # these are unneeded
         self.pixelscale = None
         self.opd = None
         self.amplitude = None
+        return returnvalue
 
     def toFITS(self, outname=None, what='amplitude', wavelength=2e-6, npix=512, **kwargs):
-        """ Save an analytic optic computed onto a grid to a FITS file 
-        
-        The FITS file is returned to the calling function, and may optionally be 
+        """ Save an analytic optic computed onto a grid to a FITS file
+
+        The FITS file is returned to the calling function, and may optionally be
         saved directly to disk.
 
         Parameters
@@ -200,7 +202,7 @@ class AnalyticOpticalElement(OpticalElement):
         what : string
             What quantity to save. See the sample function of this class
         wavelength : float
-            Wavelength in meters. 
+            Wavelength in meters.
         npix : integer
             Number of pixels.
         outname : string, optional
@@ -229,8 +231,8 @@ class AnalyticOpticalElement(OpticalElement):
         return hdul
 
 class ScalarTransmission(AnalyticOpticalElement):
-    """ Uniform transmission between 0 and 1.0 in intensity. 
-    
+    """ Uniform transmission between 0 and 1.0 in intensity.
+
     Either a null optic (empty plane) or some perfect ND filter...
     But most commonly this is just used as a null optic placeholder """
 
@@ -560,7 +562,49 @@ class SquareFieldStop(RectangularFieldStop):
         self.angle = angle
         self._default_display_size = size * 1.2
 
-class CircularOcculter(AnalyticOpticalElement):
+
+class AnnularFieldStop(AnalyticOpticalElement):
+    """ Defines a circular field stop with an (optional) opaque circular center region
+
+    Parameters
+    ------------
+    name : string
+        Descriptive name
+    radius_inner : float
+        Radius of the central opaque region, in arcseconds. Default is 0.0 (no central opaque spot)
+    radius_outer : float
+        Radius of the circular field stop outer edge. Default is 10. Set to 0.0 for no outer edge.
+    """
+    def __init__(self, name="unnamed annular field stop", radius_inner=0.0, radius_outer=1.0, **kwargs):
+        AnalyticOpticalElement.__init__(self, planetype=_IMAGE, **kwargs)
+        self.name = name
+        self.radius_inner = radius_inner  # radius of circular occulter in arcseconds.
+        self.radius_outer = radius_outer  # radius of circular field stop in arcseconds.
+        self._default_display_size = 10 #radius_outer 
+
+    def getPhasor(self, wave):
+        """ Compute the transmission inside/outside of the field stop.
+        """
+        if not isinstance(wave, Wavefront):  # pragma: no cover
+            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
+        assert (wave.planetype == _IMAGE)
+
+        y, x = wave.coordinates()
+        r = np.sqrt(x ** 2 + y ** 2)  #* wave.pixelscale
+
+        self.transmission = np.ones(wave.shape)
+
+        if self.radius_inner > 0:
+            w_inside = np.where(r <= self.radius_inner)
+            self.transmission[w_inside] = 0
+        if self.radius_outer > 0:
+            w_outside = np.where(r >= self.radius_outer)
+            self.transmission[w_outside] = 0
+
+        return self.transmission
+
+
+class CircularOcculter(AnnularFieldStop):
     """ Defines an ideal circular occulter (opaque circle)
 
     Parameters
@@ -571,35 +615,9 @@ class CircularOcculter(AnalyticOpticalElement):
         Radius of the occulting spot, in arcseconds. Default is 1.0
 
     """
-
     def __init__(self, name="unnamed occulter", radius=1.0, **kwargs):
-        AnalyticOpticalElement.__init__(self, planetype=_IMAGE, **kwargs)
-        self.name = name
-        self.radius = radius  # radius of circular occulter in arcseconds.
+        super(CircularOcculter,self).__init__(name=name,radius_inner=radius, radius_outer=0.0, **kwargs)
         self._default_display_size = 10
-        #self.pixelscale=0
-
-    def getPhasor(self, wave):
-        """ Compute the transmission inside/outside of the occulter.
-        """
-        if not isinstance(wave, Wavefront):  # pragma: no cover
-            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _IMAGE)
-
-        y, x = wave.coordinates()
-        #y, x = np.indices(wave.shape)
-        #y -= wave.shape[0]/2
-        #x -= wave.shape[1]/2
-        r = np.sqrt(x ** 2 + y ** 2)  #* wave.pixelscale
-        w_inside = np.where(r <= self.radius)
-
-        del x
-        del y
-        del r
-        self.transmission = np.ones(wave.shape)
-        self.transmission[w_inside] = 0
-
-        return self.transmission
 
 
 class BarOcculter(AnalyticOpticalElement):
@@ -777,7 +795,7 @@ class CircularAperture(AnalyticOpticalElement):
 
         if name is None:
             name = "Circle, radius=%.2f m" % radius
-        AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
+        super(CircularAperture, self).__init__( name=name, planetype=_PUPIL, **kwargs)
         # for creating input wavefronts - let's pad a bit:
         self.pupil_diam = pad_factor * 2 * self.radius
 
@@ -883,18 +901,18 @@ class MultiHexagonAperture(AnalyticOpticalElement):
     gap: float, optional
         Gap between adjacent segments, in meters. Default is 0.01 m = 1 cm
     center : bool, optional
-        should the central segment be included? Default is False. 
+        should the central segment be included? Default is False.
     segmentlist : list of ints, optional
         This allows one to specify that only a subset of segments are present, for a
-        partially populated segmented telescope, non-redundant segment set, etc. 
+        partially populated segmented telescope, non-redundant segment set, etc.
         Segments are numbered from 0 for the center segment, 1 for the segment immediately
-        above it, and then clockwise around each ring. 
-        For example, segmentlist=[1,3,5] would make an aperture of 3 segments. 
+        above it, and then clockwise around each ring.
+        For example, segmentlist=[1,3,5] would make an aperture of 3 segments.
 
 
     Note that this routine becomes a bit slow for nrings >4. For repeated computations on
     the same aperture, it will be faster to create this once, save it to a FITS file using
-    the toFITS() method, and then use that. 
+    the toFITS() method, and then use that.
 
     """
 
@@ -919,7 +937,7 @@ class MultiHexagonAperture(AnalyticOpticalElement):
         if segmentlist is not None:
             self.segmentlist = segmentlist
         else:
-            self.segmentlist = range(self._nHexesInsideRing(self.rings + 1))
+            self.segmentlist = list(range(self._nHexesInsideRing(self.rings + 1)))
             if not center: self.segmentlist.remove(0)  # remove center segment 0
 
 
@@ -947,7 +965,7 @@ class MultiHexagonAperture(AnalyticOpticalElement):
             return (self.flattoflat + self.gap) * ring
 
     def _hexCenter(self, hex_index):
-        """ Center coordinates of a given hexagon 
+        """ Center coordinates of a given hexagon
         counting clockwise around each ring
 
         Returns y, x coords
@@ -1084,7 +1102,7 @@ class MultiHexagonAperture(AnalyticOpticalElement):
 
 
 class NgonAperture(AnalyticOpticalElement):
-    """ Defines an ideal N-gon pupil aperture. 
+    """ Defines an ideal N-gon pupil aperture.
 
     Parameters
     -----------
@@ -1093,7 +1111,7 @@ class NgonAperture(AnalyticOpticalElement):
     nsides : integer
         Number of sides. Default is 6.
     radius : float
-        radius to the vertices, meters. Default is 1. 
+        radius to the vertices, meters. Default is 1.
     rotation : float
         Rotation angle to first vertex, in degrees counterclockwise from the +X axis. Default is 0.
     """
@@ -1122,7 +1140,7 @@ class NgonAperture(AnalyticOpticalElement):
 
         self.transmission = np.zeros(wave.shape)
         for row in range(wave.shape[0]):
-            pts = np.asarray(zip(x[row], y[row]))
+            pts = np.asarray(list(zip(x[row], y[row])))
             #ok = matplotlib.nxutils.points_inside_poly(pts, vertices)
             ok = matplotlib.path.Path(vertices).contains_points(pts)  #, vertices)
             self.transmission[row][ok] = 1.0
@@ -1224,20 +1242,20 @@ class SecondaryObscuration(AnalyticOpticalElement):
     supports
 
     The number of supports is adjustable but they are always radially symmetric around the center.
-    See AsymmetricSecondaryObscuration if you need more flexibility. 
+    See AsymmetricSecondaryObscuration if you need more flexibility.
 
     Parameters
     ----------
     secondary_radius : float
         Radius of the circular secondary obscuration. Default 0.5 m
     n_supports : int
-        Number of secondary mirror supports ("spiders"). These will be 
+        Number of secondary mirror supports ("spiders"). These will be
         spaced equally around a circle.  Default is 4.
     support_width : float
         Width of each support, in meters. Default is 0.01 m = 1 cm.
     support_angle_offset : float
         Angular offset, in degrees, of the first secondary support from the X axis.
-        
+
     """
 
     def __init__(self, name=None, secondary_radius=0.5, n_supports=4, support_width=0.01,
@@ -1286,6 +1304,10 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
     """ Defines a central obscuration with one or more supports which can be oriented at
     arbitrary angles around the primary mirror, a la the three supports of JWST
 
+    This also allows for secondary supports that do not intersect with
+    the primary mirror center; use the support_offset_x and support_offset_y parameters
+    to apply offsets relative to the center for the origin of each strut.
+
     Parameters
     ----------
     secondary_radius : float
@@ -1296,15 +1318,32 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
         if scalar, gives the width for all support struts
         if a list, gives separately the width for each support strut independently.
         Widths in meters. Default is 0.01 m = 1 cm.
+    support_offset_x : float, or list of floats.
+        Offset in the X direction of the start point for each support.
+        if scalar, applies to all supports; if a list, gives a separate offset for each.
+    support_offset_y : float, or list of floats.
+        Offset in the Y direction of the start point for each support.
+        if scalar, applies to all supports; if a list, gives a separate offset for each.
     """
 
-    def __init__(self, support_angle=(0, 90, 240), support_width=0.01, **kwargs):
+    def __init__(self, support_angle=(0, 90, 240), support_width=0.01,
+            support_offset_x=0.0, support_offset_y=0.0, **kwargs):
         SecondaryObscuration.__init__(self, n_supports=len(support_angle), **kwargs)
 
         self.support_angle = np.asarray(support_angle)
+
         if np.isscalar(support_width):
             support_width = np.zeros(len(support_angle)) + support_width
         self.support_width = support_width
+
+        if np.isscalar(support_offset_x):
+            support_offset_x = np.zeros(len(support_angle)) + support_offset_x
+        self.support_offset_x = support_offset_x
+
+        if np.isscalar(support_offset_y):
+            support_offset_y = np.zeros(len(support_angle)) + support_offset_y
+        self.support_offset_y = support_offset_y
+
 
     def getPhasor(self, wave):
         """ Compute the transmission inside/outside of the obscuration
@@ -1320,12 +1359,14 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
 
         self.transmission[r < self.secondary_radius] = 0
 
-        for angle_deg, width in zip(self.support_angle, self.support_width):
+        for angle_deg, width, offset_x, offset_y in zip(self.support_angle,
+                self.support_width, self.support_offset_x, self.support_offset_y):
             angle = np.deg2rad(angle_deg + 90)  # 90 deg offset is to start from the +Y direction
 
             # calculate rotated x' and y' coordinates after rotation by that angle.
-            xp = np.cos(angle) * x + np.sin(angle) * y
-            yp = -np.sin(angle) * x + np.cos(angle) * y
+            # and application of offset
+            xp =  np.cos(angle) * (x-offset_x) + np.sin(angle) * (y-offset_y)
+            yp = -np.sin(angle) * (x-offset_x) + np.cos(angle) * (y-offset_y)
 
             self.transmission[(xp > 0) & (np.abs(yp) < width / 2)] = 0
 
@@ -1346,7 +1387,7 @@ class ThinLens(CircularAperture):
         of the input wavefront. That is, there will be nwaves defocus peak-to-valley
         over the region of the pupil that has nonzero input intensity.
     reference_wavelength : float
-        Wavelength, in meters, at which that number of waves of defocus is specified. 
+        Wavelength, in meters, at which that number of waves of defocus is specified.
     radius : float
         Pupil radius, in meters, over which the Zernike defocus term should be computed
         such that rho = 1 at r = `radius`.
@@ -1405,7 +1446,7 @@ class ParameterizedAberration(AnalyticOpticalElement):
     """
     def __init__(self, name="Parameterized Distortion", coefficients=None, radius=None,
                  basis_factory=None, **kwargs):
-        if not callable(basis_factory):
+        if not isinstance(basis_factory, collections.Callable):
             raise ValueError("'basis_factory' must be a callable that can "
                              "calculate basis functions")
         try:

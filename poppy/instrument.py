@@ -263,7 +263,12 @@ class Instrument(object):
         if display:
             f = plt.gcf()
             plt.suptitle( "%s, filter= %s" % (self.name, self.filter), size='xx-large')
-            plt.text( 0.99, 0.04, "Calculation with %d wavelengths (%g - %g um)" % (nlambda, wavelens[0]*1e6, wavelens[-1]*1e6), 
+
+            if monochromatic is not None:
+                labeltext = "Monochromatic calculation at {:.3f} um".format(monochromatic*1e6)
+            else:
+                labeltext = "Calculation with %d wavelengths (%g - %g um)" % (nlambda, wavelens[0]*1e6, wavelens[-1]*1e6)
+            plt.text( 0.99, 0.04, labeltext,
                     transform=f.transFigure, horizontalalignment='right')
 
         if outfile is not None:
@@ -373,9 +378,9 @@ class Instrument(object):
         result[0].header['EXTNAME'] = ( 'OVERSAMP')
         result[0].header.add_history('Created by POPPY version '+__version__)
 
-        if 'fft_oversample' in options.keys():
+        if 'fft_oversample' in options:
             result[0].header['OVERSAMP'] = ( options['fft_oversample'], 'Oversampling factor for FFTs in computation')
-        if 'detector_oversample' in options.keys():
+        if 'detector_oversample' in options:
             result[0].header['DET_SAMP'] = ( options['detector_oversample'], 'Oversampling factor for MFT to detector plane')
 
         (year, month, day, hour, minute, second, weekday, DOY, DST) =  time.gmtime()
@@ -436,8 +441,8 @@ class Instrument(object):
 
         poppy_core._log.debug("Oversample: %d  %d " % (fft_oversample, detector_oversample))
         optsys = poppy_core.OpticalSystem(name=self.name, oversample=fft_oversample)
-        if 'source_offset_r' in options.keys(): optsys.source_offset_r = options['source_offset_r']
-        if 'source_offset_theta' in options.keys(): optsys.source_offset_theta = options['source_offset_theta']
+        if 'source_offset_r' in options: optsys.source_offset_r = options['source_offset_r']
+        if 'source_offset_theta' in options: optsys.source_offset_theta = options['source_offset_theta']
 
 
         #---- set pupil intensity
@@ -475,7 +480,7 @@ class Instrument(object):
         #--- add the detector element. 
         if fov_pixels is None:
             fov_pixels = np.round(fov_arcsec/self.pixelscale)
-            if 'parity' in self.options.keys():
+            if 'parity' in self.options:
                 if self.options['parity'].lower() == 'odd'  and np.remainder(fov_pixels,2)==0: fov_pixels +=1
                 if self.options['parity'].lower() == 'even' and np.remainder(fov_pixels,2)==1: fov_pixels +=1
 
@@ -503,7 +508,7 @@ class Instrument(object):
         The image in the 'result' HDUlist will be modified by this function.
         """
         if local_options is None: local_options = self.options
-        if 'jitter' not in local_options.keys(): return
+        if 'jitter' not in local_options: return
 
         poppy_core._log.info("Calculating jitter using "+str(local_options['jitter']) )
 
@@ -665,7 +670,7 @@ class Instrument(object):
 
             try:
                 key = self._getSpecCacheKey(source, nlambda)
-                if key in self._spectra_cache.keys():
+                if key in self._spectra_cache:
                     poppy_core._log.debug("Previously computed spectral weights found in cache, just reusing those")
                     return self._spectra_cache[keys]
             except:
@@ -722,7 +727,7 @@ class Instrument(object):
                 d2 = filterdata.THROUGHPUT
             except:
                 raise ValueError("The supplied file, {0}, does not appear to be a FITS table with WAVELENGTH and THROUGHPUT columns.".format(filterfile))
-            if 'WAVEUNIT' in  filterfits[1].header.keys():
+            if 'WAVEUNIT' in  filterfits[1].header:
                 waveunit = filterfits[1].header['WAVEUNIT']
                 if re.match(r'[Aa]ngstroms?', waveunit) is None:
                     raise ValueError("The supplied file, {0}, has WAVEUNIT='{1}'. Only WAVEUNIT = Angstrom supported when Pysynphot is not installed.".format(filterfile, waveunit))

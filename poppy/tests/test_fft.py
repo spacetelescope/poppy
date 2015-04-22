@@ -206,7 +206,7 @@ def test_parity_FFT_forward_inverse(display=False):
         plt.imshow(absdiff)
         plt.title("Abs(Pupil0-Pupil2)")
         plt.colorbar()
-        print("Max abs(difference) = "+str(maxabsdiff))
+        print("Max abs(difference) = {}".format(maxabsdiff))
         
 
 
