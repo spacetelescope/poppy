@@ -5,6 +5,53 @@ Optimizing Performance and Parallelization
 
 Performance optimization on modern multi-core machines is a complex subject.
 
+Know your Linear Algebra Library
+------------------------------------
+
+The optical propagation calculations in POPPY are dominated by a small number
+of matrix algebra calls, primarily ``np.dot`` with a side order of
+``np.outer``.  ``numpy`` relies heavily on ATLAS (`A Tuned LaPACK and BLAS
+library <http://math-atlas.sourceforge.net>`_ ) to perform its linear algebra
+calculations, but for reasons of portability many distributed copies of numpy
+do not have an ATLAS that has been compiled with all the CPU optimization
+tricks turned on.  
+
+Whether or not ``numpy`` is linked against an optimized
+linear algebra library can make a **huge** difference in execution speed, with
+speedups of an **order of magnitude or more**. You definitely want to make sure
+that your numpy is using such a library: 
+
+ * Apple's `Accelerate framework
+   <https://developer.apple.com/library/mac/documentation/Accelerate/Reference/AccelerateFWRef/index.html>`_
+   (a.k.a. vecLib) provides a highly tuned copy of BLAS and LAPACK on any Mac,
+   right out of the box.
+ * `OpenBLAS <http://www.openblas.net>`_  is recommended on Linux.
+ * `The Intel Math Kernel Library (MKL) Optimizations
+   <https://store.continuum.io/cshop/mkl-optimizations/>`_ is available as an
+   add-on from Continuum Analytics to their Anaconda Python distribution. This
+   requires a commercial license for a small fee. 
+
+Numpy is statically linked at compile time against a given copy of BLAS.
+Switching backends generally requires recompiling numpy. (Note that if you use
+MacPorts on Mac OS to install numpy, it automatically uses Apple's Accelerate
+framework for you. Nice!)
+
+Various `stackoverflow
+<http://stackoverflow.com/questions/5260068/multithreaded-blas-in-python-numpy>`_,
+`quora
+<http://www.quora.com/Computational-Science-Scientific-Computing/How-does-the-performance-of-the-Intel-BLAS-and-LAPACK-libraries-compare-with-the-FOSS-alternatives>`_,
+and `twitter <https://twitter.com/nedlom/status/437427557919891457>`_ posts
+suggest that OpenBLAS, MKL, and Accelerate all have very similar performance,
+so as long as  your ``numpy`` is using one of those three you should be in good
+shape. 
+
+
+
+
+Parallelized Calculations
+------------------------------
+
+
 POPPY can parallelize calculations in two different ways:
 
   1. Using Python's built-in ``multiprocessing`` package to launch many additional Python
@@ -24,11 +71,27 @@ Calculations that use only discrete matrix Fourier transforms are not helped by 
 Furthermore, baseline testing indicates that in many cases, just running multiple Python processes is in fact
 significantly faster than using FFTW, even for coronagraphic calculations using FFTs.
 
-There is one significant tradeoff in using multiprocessing: When running in this mode, POPPY cannot display plots of the
+There is one slight tradeoff in using multiprocessing: When running in this mode, POPPY cannot display plots of the
 calculation's work in progress, for instance the intermediate optical planes. (This is because the background Python processes can't
-write to any Matplotlib display windows owned by the foreground process.) For interactive use, it can be useful to turn the parallelization
-off and just run sequential calculations, then switch to parallelized calculations for batch computations where you just want to see the final results
-saved as FITS files.
+write to any Matplotlib display windows owned by the foreground process.) One can still retrieve the intermediate optical planes after the 
+multiprocess calculation is complete and examine them then; you just can't see plots displayed on screen as the calculation is proceeding.
+Of course, the calculation ought to proceed faster overall if you're using multiple processes!
+
+.. _accelerated_multiprocessing:
+
+.. warning::
+   On Mac OS X, for Python < 2.7, multiprocessing is not compatible with
+   Apple's Accelerate framework mentioned above, due to the non-POSIX-compliant manner in which multiprocessing forks new processes. See https://github.com/mperrin/poppy/issues/23
+   and https://github.com/numpy/numpy/issues/5752 for discussion.  Python 3.4 provides an improved method
+   of starting new processes that removes this limitation. 
+
+   **If you want to use multiprocessing with Apple's Accelerate framework, you must upgrade to
+   Python 3.4+**. POPPY will raise an exception if you try to start a multiprocess calculation 
+   and numpy is linked to Accelerate on earlier versions of Python.
+
+   This is likely related to the intermittent crashes some users have 
+   reported with multiprocessing and FFTW; that combination may also prove more stable on 
+   Python 3.4 but this has not been extensively tested yet. 
 
 The configuration options to enable multiprocessing live under :py:obj:`poppy.conf`, and use the Astropy configuration framework. Enable them as follows::
 

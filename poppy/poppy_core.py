@@ -1314,6 +1314,16 @@ class OpticalSystem(object):
             utils.fftw_load_wisdom()
 
         if conf.use_multiprocessing and len(wavelength) > 1: ######### Parallellized computation ############
+            # Avoid a Mac OS incompatibility that can lead to hard-to-reproduce crashes. 
+            import sys
+            import platform
+            if ((sys.version_info.major+sys.version_info.minor*0.1) < 3.4 and platform.system()=='Darwin' and
+                    '-Wl,Accelerate' in np.__config__.blas_opt_info['extra_link_args']):
+                    _log.error("Multiprocessing not compatible with Apple Accelerate library on Python < 3.4")
+                    _log.error(" See https://github.com/mperrin/poppy/issues/23 ")
+                    _log.error(" Either disable multiprocessing, or recompile your numpy without Accelerate.")
+                    raise NotImplementedError("Multiprocessing not compatible with Apple Accelerate framework.")
+
             if _USE_FFTW:
                 _log.warn('IMPORTANT WARNING: Python multiprocessing and fftw3 do not appear to play well together. This may crash intermittently')
                 _log.warn('   We suggest you set   poppy.conf.use_fftw to False   if you want to use multiprocessing().')
@@ -1333,9 +1343,15 @@ class OpticalSystem(object):
             # This is a memory-intensive task so that can end up swapping to disk and thrashing IO
             nproc = conf.n_processes if conf.n_processes > 1 \
                                      else utils.estimate_optimal_nprocesses(self, nwavelengths=len(wavelength))
+            # be sure to cast nproc to int below; will fail if given a float even if of integer value
 
-            # be sure to cast to int, will fail if given a float even if of integer value
-            pool = multiprocessing.Pool(int(nproc))
+            if ((sys.version_info.major+sys.version_info.minor*0.1) < 3.4):
+                pool = multiprocessing.Pool(int(nproc))
+            else:
+                # Use new forkserver for more robustness; 
+                # Resolves https://github.com/mperrin/poppy/issues/23 ?
+                ctx = multiprocessing.get_context('forkserver')
+                pool =ctx.Pool(int(nproc))
 
             # build a single iterable containing the required function arguments
             _log.info("Beginning multiprocessor job using {0} processes".format(nproc))

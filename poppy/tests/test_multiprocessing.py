@@ -6,6 +6,7 @@ from .. import conf
 
 import numpy as np
 import astropy.io.fits as fits
+import sys
 
 try:
     import pytest
@@ -19,7 +20,8 @@ if _HAVE_PYTEST:
     #@pytest.mark.xfail
     # Just skip this test entirely for right now because sometimes it hangs the
     # entire Python process...
-    @pytest.mark.skipif(True, reason="Intermittent Python interpreter hangs with multiprocessing")  
+
+    @pytest.mark.skipif( (sys.version_info.major+sys.version_info.minor*0.1), reason="Python 3.4 required for reliable forkserver start method")
     def test_basic_multiprocessing():
         osys = poppy_core.OpticalSystem("test")
         pupil = optics.CircularAperture(radius=1)

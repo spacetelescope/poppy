@@ -17,7 +17,7 @@ The source code is hosted in `this repository on GitHub <https://github.com/mper
 Requirements
 --------------
 
-* Either Python 2.7 or Python 3.4.
+* Either Python 2.7 or Python 3.4.  (Under :ref:`certain circumstances on Mac OS <accelerated_multiprocessing>`, Python 3.4 is required if you want parallelized calculations, but otherwise POPPY functionality is identical on both versions.)
 * The standard Python scientific stack: :py:mod:`numpy`, :py:mod:`scipy`, :py:mod:`matplotlib`
 * :py:mod:`astropy`, 0.4 or more recent, from http://astropy.org
 
