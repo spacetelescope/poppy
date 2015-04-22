@@ -562,7 +562,49 @@ class SquareFieldStop(RectangularFieldStop):
         self.angle = angle
         self._default_display_size = size * 1.2
 
-class CircularOcculter(AnalyticOpticalElement):
+
+class AnnularFieldStop(AnalyticOpticalElement):
+    """ Defines a circular field stop with an (optional) opaque circular center region
+
+    Parameters
+    ------------
+    name : string
+        Descriptive name
+    radius_inner : float
+        Radius of the central opaque region, in arcseconds. Default is 0.0 (no central opaque spot)
+    radius_outer : float
+        Radius of the circular field stop outer edge. Default is 10. Set to 0.0 for no outer edge.
+    """
+    def __init__(self, name="unnamed annular field stop", radius_inner=0.0, radius_outer=1.0, **kwargs):
+        AnalyticOpticalElement.__init__(self, planetype=_IMAGE, **kwargs)
+        self.name = name
+        self.radius_inner = radius_inner  # radius of circular occulter in arcseconds.
+        self.radius_outer = radius_outer  # radius of circular field stop in arcseconds.
+        self._default_display_size = 10 #radius_outer 
+
+    def getPhasor(self, wave):
+        """ Compute the transmission inside/outside of the field stop.
+        """
+        if not isinstance(wave, Wavefront):  # pragma: no cover
+            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
+        assert (wave.planetype == _IMAGE)
+
+        y, x = wave.coordinates()
+        r = np.sqrt(x ** 2 + y ** 2)  #* wave.pixelscale
+
+        self.transmission = np.ones(wave.shape)
+
+        if self.radius_inner > 0:
+            w_inside = np.where(r <= self.radius_inner)
+            self.transmission[w_inside] = 0
+        if self.radius_outer > 0:
+            w_outside = np.where(r >= self.radius_outer)
+            self.transmission[w_outside] = 0
+
+        return self.transmission
+
+
+class CircularOcculter(AnnularFieldStop):
     """ Defines an ideal circular occulter (opaque circle)
 
     Parameters
@@ -573,35 +615,9 @@ class CircularOcculter(AnalyticOpticalElement):
         Radius of the occulting spot, in arcseconds. Default is 1.0
 
     """
-
     def __init__(self, name="unnamed occulter", radius=1.0, **kwargs):
-        AnalyticOpticalElement.__init__(self, planetype=_IMAGE, **kwargs)
-        self.name = name
-        self.radius = radius  # radius of circular occulter in arcseconds.
+        super(CircularOcculter,self).__init__(name=name,radius_inner=radius, radius_outer=0.0, **kwargs)
         self._default_display_size = 10
-        #self.pixelscale=0
-
-    def getPhasor(self, wave):
-        """ Compute the transmission inside/outside of the occulter.
-        """
-        if not isinstance(wave, Wavefront):  # pragma: no cover
-            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _IMAGE)
-
-        y, x = wave.coordinates()
-        #y, x = np.indices(wave.shape)
-        #y -= wave.shape[0]/2
-        #x -= wave.shape[1]/2
-        r = np.sqrt(x ** 2 + y ** 2)  #* wave.pixelscale
-        w_inside = np.where(r <= self.radius)
-
-        del x
-        del y
-        del r
-        self.transmission = np.ones(wave.shape)
-        self.transmission[w_inside] = 0
-
-        return self.transmission
 
 
 class BarOcculter(AnalyticOpticalElement):
