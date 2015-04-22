@@ -1,12 +1,14 @@
 #Test functions for poppy multiprocessing
 
-from .. import poppy_core 
+from .. import poppy_core
 from .. import optics
 from .. import conf
 
 import numpy as np
 import astropy.io.fits as fits
 import sys
+
+from astropy.tests.helper import remote_data
 
 try:
     import pytest
@@ -21,7 +23,10 @@ if _HAVE_PYTEST:
     # Just skip this test entirely for right now because sometimes it hangs the
     # entire Python process...
 
-    @pytest.mark.skipif( (sys.version_info.major+sys.version_info.minor*0.1), reason="Python 3.4 required for reliable forkserver start method")
+    @pytest.mark.skipif( (sys.version_info < (3,4,0) ),
+            reason="Python 3.4 required for reliable forkserver start method")
+    @remote_data # not really but it does open sockets; this is needed to
+                 # stop the astropy test customizations from stomping on this function
     def test_basic_multiprocessing():
         osys = poppy_core.OpticalSystem("test")
         pupil = optics.CircularAperture(radius=1)

@@ -1317,7 +1317,7 @@ class OpticalSystem(object):
             # Avoid a Mac OS incompatibility that can lead to hard-to-reproduce crashes. 
             import sys
             import platform
-            if ((sys.version_info.major+sys.version_info.minor*0.1) < 3.4 and platform.system()=='Darwin' and
+            if ( (sys.version_info < (3,4,0)) and platform.system()=='Darwin' and
                     '-Wl,Accelerate' in np.__config__.blas_opt_info['extra_link_args']):
                     _log.error("Multiprocessing not compatible with Apple Accelerate library on Python < 3.4")
                     _log.error(" See https://github.com/mperrin/poppy/issues/23 ")
