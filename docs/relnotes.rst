@@ -6,6 +6,27 @@ For a list of contributors, see :ref:`about`.
 
 .. _whatsnew:
 
+0.3.5 (or 0.4.0)?
+--------------------
+
+2015 April Sometime
+
+ * Now compatible with Python 3.4 in addition to 2.7!  ( `#83 <https://github.com/mperrin/poppy/pull/82>`_, @josephoenix)
+ * Updated version numbers for dependencies (@josephoenix)
+ * Update to most recent astropy package template (@josephoenix)
+ * AsymmetricSecondaryObscuration enhanced to allow secondary mirror supports offset from the center of the optical system. (@mperrin)
+ * display() functions now return Matplotlib.Axes instances to the calling functions.
+ * Various small documentation updates
+ * Bug fixes for: 
+
+   * redundant colorbar display (`#82 <https://github.com/mperrin/poppy/pull/82>`_)
+   * Unnecessary DeprecationWarnings in imshow_with_mouseover (`#53 <https://github.com/mperrin/poppy/issues/53>`_)
+   * Error in saving intermediate planes during calculation (`#81 <https://github.com/mperrin/poppy/issues/81>`_)
+   * Multiprocessing causes Python to hang if used with Apple Accelerate (`#23 <https://github.com/mperrin/poppy/issues/23>`_)
+
+
+
+
 0.3.4
 -------------------
 
