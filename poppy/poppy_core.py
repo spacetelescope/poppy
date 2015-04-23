@@ -2060,7 +2060,7 @@ class FITSOpticalElement(OpticalElement):
                 # load from fits HDUList
                 self.opd_file='supplied as fits.HDUList object'
                 self.opd = opd[0].data.copy()
-                self.opd_header = opd[0].header
+                self.opd_header = opd[0].header.copy()
                 if self.name=='unnamed optic': self.name='OPD from supplied fits.HDUList object'
                 _log.info(self.name+": Loaded OPD from supplied fits.HDUList object")
             elif isinstance(opd, six.string_types):
