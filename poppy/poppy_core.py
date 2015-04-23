@@ -2029,8 +2029,8 @@ class FITSOpticalElement(OpticalElement):
                     _log.info(self.name+": Loaded amplitude transmission from "+self.amplitude_file)
                 elif isinstance(transmission,fits.HDUList):
                     self.amplitude_file='supplied as fits.HDUList object'
-                    self.amplitude = transmission[0].data
-                    self.amplitude_header = transmission[0].header
+                    self.amplitude = transmission[0].data.copy()
+                    self.amplitude_header = transmission[0].header.copy()
                     if self.name=='unnamed optic': self.name='Optic from fits.HDUList object'
                     _log.info(self.name+": Loaded amplitude transmission from supplied fits.HDUList object")
                 else:
