@@ -1062,6 +1062,8 @@ def specFromSpectralType(sptype, return_list=False, catalog=None):
     if catalog is None: 
         import os
         cdbs = os.getenv('PYSYN_CDBS')
+        if cdbs is None:
+            raise EnvironmentError("Environment variable $PYSYN_CDBS must be defined for pysynphot")
         if os.path.exists( os.path.join(os.getenv('PYSYN_CDBS'), 'grid', 'phoenix')):
             catalog='phoenix'
         elif os.path.exists( os.path.join(os.getenv('PYSYN_CDBS'), 'grid', 'ck04models')):
