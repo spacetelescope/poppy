@@ -319,7 +319,7 @@ class Instrument(object):
             # return the downsampled image in the first image extension
             # keep the oversampled image in the primary HDU.
             # create the image extension even if we're already at 1x sampling, for consistency
-            poppy_core._log.info(" Downsampling to detector pixel scale.")
+            poppy_core._log.info(" Adding extension with image downsampled to detector pixel scale.")
             rebinned_result = result[0].copy()
             if options['detector_oversample'] > 1:
                 rebinned_result.data = utils.rebin_array(rebinned_result.data,
