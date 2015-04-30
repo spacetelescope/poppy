@@ -62,3 +62,22 @@ def test_wavefront_rotation():
 
 
 
+def test_wavefront_asFITS():
+    """ Test casting wavefronts to FITS arrays, in all possible combinations
+    """
+    wave = poppy_core.Wavefront(npix=100, wavelength=1e-6)
+
+    intens = wave.asFITS(what='intensity')
+    assert isinstance(intens,fits.HDUList)
+    assert intens[0].data.shape == wave.shape
+    phase = wave.asFITS(what='phase')
+    assert phase[0].data.shape == wave.shape
+    assert np.all(np.isreal(phase[0].data))
+    allparts = wave.asFITS(what='all')
+    assert allparts[0].data.shape == (3, wave.shape[0],wave.shape[1])
+    parts = wave.asFITS(what='parts')
+    assert parts[0].data.shape == (2, wave.shape[0],wave.shape[1])
+    #complexwave = wave.asFITS(what='complex')
+    #assert complexwave[0].data.shape == wave.shape
+    #assert np.all(np.iscomplex(phase[0].data))
+

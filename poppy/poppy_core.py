@@ -235,45 +235,53 @@ class Wavefront(object):
         """
         # make copies in case we need to unpad - don't want to mess up actual wavefront data in memory
         # FIXME this is somewhat inefficient but easiest to code for now
-        intens = self.intensity.copy()
-        amp = self.amplitude.copy()
-        phase = self.phase.copy()
-        wave = self.wavefront.copy()
+        #intens = self.intensity.copy()
+        #amp = self.amplitude.copy()
+        #phase = self.phase.copy()
+        #wave = self.wavefront.copy()
 
-        if self.planetype==_PUPIL and self.ispadded and not includepadding :
-            intens = utils.removePadding(intens,self.oversample)
-            phase =  utils.removePadding(phase, self.oversample)
-            amp =    utils.removePadding(amp,   self.oversample)
-            wave =   utils.removePadding(wave,  self.oversample)
+        #if self.planetype==_PUPIL and self.ispadded and not includepadding :
+            #intens = utils.removePadding(intens,self.oversample)
+            #phase =  utils.removePadding(phase, self.oversample)
+            #amp =    utils.removePadding(amp,   self.oversample)
+            #wave =   utils.removePadding(wave,  self.oversample)
+
+        def get_unpadded(attribute_array):
+            if self.planetype==_PUPIL and self.ispadded and not includepadding :
+                return utils.removePadding(attribute_array.copy(),self.oversample)
+            else:
+                return attribute_array.copy()
 
 
         if what.lower() =='all':
+            intens =  get_unpadded(self.intensity)
             outarr = np.zeros((3,intens.shape[0], intens.shape[1]))
             outarr[0,:,:] = intens
-            outarr[1,:,:] = amp
-            outarr[2,:,:] = phase
+            outarr[1,:,:] = get_unpadded(self.amplitude)
+            outarr[2,:,:] = get_unpadded(self.phase)
             outFITS = fits.HDUList(fits.PrimaryHDU(outarr))
             outFITS[0].header['PLANE1'] = 'Wavefront Intensity'
             outFITS[0].header['PLANE2'] = 'Wavefront Amplitude'
             outFITS[0].header['PLANE3'] = 'Wavefront Phase'
         elif what.lower() =='parts':
+            amp = get_unpadded(self.amplitude)
             outarr = np.zeros((2,amp.shape[0], amp.shape[1]))
             outarr[0,:,:] = amp
-            outarr[1,:,:] = phase
+            outarr[1,:,:] = get_unpadded(self.phase)
             outFITS = fits.HDUList(fits.PrimaryHDU(outarr))
             outFITS[0].header['PLANE1'] = 'Wavefront Amplitude'
             outFITS[0].header['PLANE2'] = 'Wavefront Phase'
         elif what.lower() =='intensity':
-            outFITS = fits.HDUList(fits.PrimaryHDU(intens))
+            outFITS = fits.HDUList(fits.PrimaryHDU(get_unpadded(self.intensity)))
             outFITS[0].header['PLANE1'] = 'Wavefront Intensity'
         elif what.lower() =='phase':
-            outFITS = fits.HDUList(fits.PrimaryHDU(phase))
+            outFITS = fits.HDUList(fits.PrimaryHDU(get_unpadded(self.phase)))
             outFITS[0].header['PLANE1'] = 'Phase'
-        elif what.lower()  == 'complex':
-            outFITS = fits.HDUList(fits.PrimaryHDU(wave))
-            outFITS[0].header['PLANE1'] = 'Wavefront Complex Phasor '
-
-
+        #elif what.lower()  == 'complex':
+            #outFITS = fits.HDUList(fits.PrimaryHDU(get_unpadded(self.wavefront)))
+            #outFITS[0].header['PLANE1'] = 'Wavefront Complex Phasor '
+        else:
+            raise ValueError("Unknown string for what to return: "+what)
 
 
         outFITS[0].header['WAVELEN'] =  (self.wavelength, 'Wavelength in meters')
