@@ -18,6 +18,8 @@ from .optics import AnalyticOpticalElement, CircularAperture
 from .poppy_core import Wavefront, _PUPIL
 from . import zernike
 
+__all__ = ['WavefrontError', 'ParameterizedWFE', 'ZernikeWFE']
+
 class WavefrontError(AnalyticOpticalElement):
 
     planetype = _PUPIL

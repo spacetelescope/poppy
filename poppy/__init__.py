@@ -82,6 +82,7 @@ from . import optics
 from .poppy_core import *
 from .utils import * 
 from .optics import *
+from .wfe import *
 
 from .instrument import Instrument
 
