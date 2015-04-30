@@ -30,7 +30,7 @@ try:
     # try to import FFTW to see if it is available
     import pyfftw
     _FFTW_AVAILABLE = True
-except:
+except ImportError:
     _FFTW_AVAILABLE = False
 
 # internal constants for types of plane
@@ -1287,7 +1287,7 @@ class OpticalSystem(object):
             if np.isscalar(wavelength):
                 wavelength = np.asarray([wavelength], dtype=float)
             else: wavelength = np.asarray(wavelength, dtype=float)
-        except:
+        except (ValueError,TypeError):
             raise ValueError("You have specified an invalid wavelength to calcPSF: "+str(wavelength))
 
         if weight is None:
@@ -2100,7 +2100,7 @@ class FITSOpticalElement(OpticalElement):
             if opdunits is None:
                 try:
                     opdunits = self.opd_header['BUNIT']
-                except:
+                except KeyError:
                     _log.error("No opdunit keyword supplied, and BUNIT keyword not found in header. Cannot determine OPD units")
                     raise Exception("No opdunit keyword supplied, and BUNIT keyword not found in header. Cannot determine OPD units.")
 
@@ -2165,16 +2165,16 @@ class FITSOpticalElement(OpticalElement):
                 _log.debug("  Getting pixel scale from FITS keyword:" + pixelscale)
                 try:
                     self.pixelscale = self.amplitude_header[pixelscale]
-                except:
+                except KeyError:
                     try:
                         self.pixelscale = self.opd_header[pixelscale]
-                    except:
+                    except KeyError:
                         raise LookupError("Cannot find a FITS header keyword for pixelscale with the requested key="+pixelscale)
             else:  # pixelscale had better be a floating point value here.
                 try:
                     _log.debug("  Getting pixel scale from user-provided float value:" + str(pixelscale))
                     self.pixelscale = float(pixelscale)
-                except:
+                except ValueError:
                     raise ValueError("pixelscale=%s is neither a FITS keyword string nor a floating point value." % str(pixelscale))
 
     @property
@@ -2288,7 +2288,7 @@ class Detector(OpticalElement):
         if offset is not None:
             try:
                 self.det_offset = np.asarray(offset)[0:2]
-            except:
+            except IndexError:
                 raise ValueError("The offset parameter must be a 2-element iterable")
 
         self.amplitude = 1

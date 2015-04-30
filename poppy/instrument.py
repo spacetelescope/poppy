@@ -14,7 +14,7 @@ import astropy.io.fits as fits
 try:
     import pysynphot
     _HAS_PYSYNPHOT = True
-except:
+except ImportError:
     pysynphot = None
     _HAS_PYSYNPHOT = False
 
@@ -554,7 +554,7 @@ class Instrument(object):
         try:
             old_no_sam = self.options['no_sam']
             self.options['no_sam'] = True
-        except:
+        except KeyError:
             old_no_sam = None
 
         optsys = self._getOpticalSystem()
@@ -663,7 +663,7 @@ class Instrument(object):
             if source is None:
                 try:
                     source = pysynphot.Icat('ck04models',5700,0.0,2.0)
-                except:
+                except IOError:
                     poppy_core._log.error("Could not load Castelli & Kurucz stellar model from disk; falling back to 5700 K blackbody")
                     source = pysynphot.BlackBody(5700)
             poppy_core._log.debug("Computing spectral weights for source = "+str(source))
@@ -673,7 +673,7 @@ class Instrument(object):
                 if key in self._spectra_cache:
                     poppy_core._log.debug("Previously computed spectral weights found in cache, just reusing those")
                     return self._spectra_cache[keys]
-            except:
+            except KeyError:
                 pass  # in case sourcespectrum lacks a name element so the above lookup fails - just do the below calc.
 
             poppy_core._log.info("Computing wavelength weights using synthetic photometry for %s..." % self.filter)
@@ -725,7 +725,7 @@ class Instrument(object):
             try:
                 f1 = filterdata.WAVELENGTH
                 d2 = filterdata.THROUGHPUT
-            except:
+            except AttributeError:
                 raise ValueError("The supplied file, {0}, does not appear to be a FITS table with WAVELENGTH and THROUGHPUT columns.".format(filterfile))
             if 'WAVEUNIT' in  filterfits[1].header:
                 waveunit = filterfits[1].header['WAVEUNIT']

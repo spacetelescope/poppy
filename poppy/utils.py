@@ -1,7 +1,7 @@
 #
 # Poppy utility functions
 #
-# These provide various utilities to measure the PSF's properties in certain ways, display it on screen etc. 
+# These provide various utilities to measure the PSF's properties in certain ways, display it on screen etc.
 #
 
 from __future__ import (absolute_import, division, print_function, unicode_literals)
@@ -25,13 +25,13 @@ __all__ = [ 'display_PSF', 'display_PSF_difference', 'display_EE', 'display_prof
 
 ###########################################################################
 #
-#    Display functions 
+#    Display functions
 #
 
 
 def imshow_with_mouseover(image, ax=None,  *args, **kwargs):
     """ wrapper for matplotlib imshow that displays the value under the cursor position
-    
+
     Wrapper for pyplot.imshow that sets up a custom mouseover display formatter
     so that mouse motions over the image are labeled in the status bar with
     pixel numerical value as well as X and Y coords.
@@ -71,12 +71,12 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
                 crosshairs=False, markcentroid=False, colorbar=True,
                 colorbar_orientation='vertical', pixelscale='PIXELSCL',
                 ax=None, return_ax=False):
-    """Display nicely a PSF from a given HDUlist or filename 
+    """Display nicely a PSF from a given HDUlist or filename
 
     This is extensively configurable. In addition to making an attractive display, for
     interactive usage this function provides a live display of the pixel value at a
-    given (x,y) as you mouse around the image. 
-    
+    given (x,y) as you mouse around the image.
+
     Parameters
     ----------
     HDUlist_or_filename : fits.HDUlist or string
@@ -102,7 +102,7 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
     normalize : string
         set to 'peak' to normalize peak intensity =1, or to 'total' to normalize total flux=1. Default is no normalization.
     adjust_for_oversampling : bool
-        rescale to conserve surface brightness for oversampled PSFs? 
+        rescale to conserve surface brightness for oversampled PSFs?
         (making this True conserves surface brightness but not total flux)
         default is False, to conserve total flux.
     markcentroid : bool
@@ -127,7 +127,7 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
     if adjust_for_oversampling:
         try:
             scalefactor = HDUlist[ext].header['OVERSAMP']**2
-        except:
+        except KeyError:
             _log.error("Could not determine oversampling scale factor; "
                        "therefore NOT rescaling fluxes.")
             scalefactor=1
@@ -145,7 +145,7 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
 
     if scale == 'linear':
         norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
-    else: 
+    else:
         norm=matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
     psf_array_shape = HDUlist[ext].data.shape
@@ -168,13 +168,13 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
         halffov_y = min((imagecrop / 2.0, halffov_y))
     ax.set_xbound(-halffov_x, halffov_x)
     ax.set_ybound(-halffov_y, halffov_y)
-    if crosshairs: 
+    if crosshairs:
         ax.axhline(0, ls=':', color='k')
         ax.axvline(0, ls=':', color='k')
     if title is None:
         try:
             fspec = "%s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER'])
-        except: 
+        except KeyError:
             fspec = str(HDUlist_or_filename)
         title="PSF sim for "+fspec
     ax.set_title(title)
@@ -202,7 +202,7 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
             cb.set_ticklabels(ticks)
         if normalize.lower() == 'peak':
             cb.set_label('Intensity relative to peak pixel')
-        else: 
+        else:
             cb.set_label('Fractional intensity per pixel')
 
     if markcentroid:
@@ -224,11 +224,11 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
                            colorbar_orientation='vertical', print_=False,
                            ax=None, return_ax=False,
                            normalize=False, normalize_to_second=False):
-    """Display nicely the difference of two PSFs from given files 
+    """Display nicely the difference of two PSFs from given files
 
-    The two files may be FITS files on disk or FITS HDUList objects in memory. The two must have the same 
+    The two files may be FITS files on disk or FITS HDUList objects in memory. The two must have the same
     shape and size.
-    
+
     Parameters
     ----------
     HDUlist_or_filename1, HDUlist_or_filename2 : fits.HDUlist or string
@@ -289,7 +289,7 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
         im1 = HDUlist1[ext1].data *scalefactor
         scalefactor = HDUlist2[ext2].header['OVERSAMP']**2
         im2 = HDUlist1[ext2].data *scalefactor
-    else: 
+    else:
         im1 = HDUlist1[ext1].data
         im2 = HDUlist2[ext2].data
 
@@ -329,24 +329,19 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
         halffov_y = min( (imagecrop/2, halffov_y))
     ax.set_xbound(-halffov_x, halffov_x)
     ax.set_ybound(-halffov_y, halffov_y)
-    if crosshairs: 
+    if crosshairs:
         ax.axhline(0,ls=":", color='k')
         ax.axvline(0,ls=":", color='k')
 
 
     if title is None:
-        try:
-            fspec= str(HDUlist_or_filename1) +"-"+str(HDUlist_or_filename2)
-            #fspec = "Difference Image " # "%s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER'])
-        except: 
-            fspec= str(HDUlist_or_filename1) +"-"+str(HDUlist_or_filename2)
-        title="Difference of "+fspec
+        title="Difference of "+ str(HDUlist_or_filename1) +"-"+str(HDUlist_or_filename2)
     ax.set_title(title)
 
     if colorbar:
         cb = plt.colorbar(ax.images[0], ax=ax, orientation=colorbar_orientation)
         #ticks = np.logspace(np.log10(vmin), np.log10(vmax), np.log10(vmax/vmin)+1)
-        #if vmin == 1e-8 and vmax==1e-1: 
+        #if vmin == 1e-8 and vmax==1e-1:
             #ticks = [1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1]
         #ticks = [vmin, -0.5*vmax, 0, 0.5*vmax, vmax]
         #cb.set_ticks(ticks)
@@ -371,11 +366,11 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
     overplot : bool
         whether to overplot or clear and produce an new plot. Default false
     ax : matplotlib Axes instance
-        axis to plot into. If not provided, current axis will be used. 
+        axis to plot into. If not provided, current axis will be used.
     mark_levels : bool
         If set, mark and label on the plots the radii for 50%, 80%, 95% encircled energy.
         Default is True
-        
+
     """
     if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename,ext=ext)
@@ -386,7 +381,7 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
     radius, profile, EE = radial_profile(HDUlist, EE=True,**kwargs)
 
     if not overplot:
-        if ax is None: 
+        if ax is None:
             plt.clf()
             ax = plt.subplot(111)
 
@@ -394,7 +389,7 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
     if not overplot:
         ax.set_xlabel("Radius [arcsec]")
         ax.set_ylabel("Encircled Energy")
-    
+
     if mark_levels:
         for level in [0.5, 0.8, 0.95]:
             EElev = radius[np.where(EE > level)[0][0]]
@@ -430,7 +425,7 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, title=None,
     if title is None:
         try:
             title= "%s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER'])
-        except: 
+        except KeyError:
             title= str(HDUlist_or_filename)
 
     if not overplot:
@@ -459,7 +454,7 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, title=None,
 
 
 def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stddev=False, binsize=None, maxradius=None,normalize='None'):
-    """ Compute a radial profile of the image. 
+    """ Compute a radial profile of the image.
 
     This computes a discrete radial profile evaluated on the provided binsize. For a version
     interpolated onto a continuous curve, see measure_radial().
@@ -475,7 +470,7 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
     EE : bool
         Also return encircled energy (EE) curve in addition to radial profile?
     center : tuple of floats
-        Coordinates (x,y) of PSF center, in pixel units. Default is image center. 
+        Coordinates (x,y) of PSF center, in pixel units. Default is image center.
     binsize : float
         size of step for profile. Default is pixel size.
     stddev : bool
@@ -497,7 +492,7 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
         HDUlist = HDUlist_or_filename
     else: raise ValueError("input must be a filename or HDUlist")
 
-    
+
     image = HDUlist[ext].data.copy() # don't change normalization of actual input array, work with a copy!
 
     if normalize.lower() == 'peak':
@@ -542,7 +537,7 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
     if rind[0] != 0:
         radialprofile2[0] =  csim[rind[0]] / (rind[0]+1)  # if there are multiple elements in the center bin, average them
     else:
-        radialprofile2[0] = csim[0]                       # otherwise if there's just one then just take it. 
+        radialprofile2[0] = csim[0]                       # otherwise if there's just one then just take it.
     radialprofile2[1:] = radialprofile
     rr = np.arange(len(radialprofile2))*binsize + binsize*0.5  # these should be centered in the bins, so add a half.
 
@@ -551,7 +546,7 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
         r_pix = r * binsize
         for i, radius in enumerate(rr):
             if i == 0: wg = np.where(r < radius+ binsize/2)
-            else: 
+            else:
                 wg = np.where( (r_pix >= (radius-binsize/2)) &  (r_pix < (radius+binsize/2)))
                 #wg = np.where( (r >= rr[i-1]) &  (r <rr[i] )))
             stddevs[i] = image[wg].std()
@@ -563,18 +558,18 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
         #weighted_profile = radialprofile2*2*np.pi*(rr/rr[1])
         #EE = np.cumsum(weighted_profile)
         EE = csim[rind]
-        return (rr, radialprofile2, EE) 
+        return (rr, radialprofile2, EE)
 
 
 ###########################################################################
 #
-#    PSF evaluation functions 
+#    PSF evaluation functions
 #
 
 def measure_EE(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     """ measure encircled energy vs radius and return as an interpolator
-    
-    Returns a function object which when called returns the Encircled Energy inside a given radius, 
+
+    Returns a function object which when called returns the Encircled Energy inside a given radius,
     for any arbitrary desired radius smaller than the image size.
 
 
@@ -586,8 +581,8 @@ def measure_EE(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     ext : int
         Extension in that FITS file
     center : tuple of floats
-        Coordinates (x,y) of PSF center. Default is image center. 
-    binsize: 
+        Coordinates (x,y) of PSF center. Default is image center.
+    binsize:
         size of step for profile. Default is pixel size.
 
     Returns
@@ -607,8 +602,8 @@ def measure_EE(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
 
     # append the zero at the center
     rr_EE = rr + (rr[1]-rr[0])/1  # add half a binsize to this, because the EE is measured inside the
-                                  # outer edge of each annulus. 
-    rr0 = np.concatenate( ([0], rr_EE)) 
+                                  # outer edge of each annulus.
+    rr0 = np.concatenate( ([0], rr_EE))
     EE0 = np.concatenate( ([0], EE))
 
 
@@ -619,7 +614,7 @@ def measure_EE(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
 
 def measure_radial(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     """ measure azimuthally averaged radial profile of a PSF.
-    
+
     Returns a function object which when called returns the mean value at a given radius.
 
     Parameters
@@ -629,8 +624,8 @@ def measure_radial(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     ext : int
         Extension in FITS file
     center : tuple of floats
-        Coordinates (x,y) of PSF center. Default is image center. 
-    binsize: 
+        Coordinates (x,y) of PSF center. Default is image center.
+    binsize:
         size of step for profile. Default is pixel size.
 
     Returns
@@ -655,9 +650,9 @@ def measure_radial(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
 
 
 def measure_fwhm(HDUlist_or_filename=None, ext=0, center=None, level=0.5):
-    """ Measure FWHM by interpolation of the radial profile 
+    """ Measure FWHM by interpolation of the radial profile
 
-    This measures the full width at half maximum for the supplied PSF, 
+    This measures the full width at half maximum for the supplied PSF,
     or optionally the full width at some other fraction of max.
 
     Parameters
@@ -667,7 +662,7 @@ def measure_fwhm(HDUlist_or_filename=None, ext=0, center=None, level=0.5):
     center : tuple
         center to compute around.  Default is image center.
     level : float
-        Fraction of max to compute for; default is 0.5 for Half Max. 
+        Fraction of max to compute for; default is 0.5 for Half Max.
         You can also measure widths at other levels e.g. FW at 10% max
         by setting level=0.1
 
@@ -689,7 +684,7 @@ def measure_fwhm(HDUlist_or_filename=None, ext=0, center=None, level=0.5):
 
     interp_hw = scipy.interpolate.interp1d(radialprofile[winterp], rr[winterp], kind=kind)
     return 2*interp_hw(rpmax*level)
- 
+
 
 def measure_sharpness(HDUlist_or_filename=None, ext=0):
     """ Compute image sharpness, the sum of pixel squares.
@@ -701,7 +696,7 @@ def measure_sharpness(HDUlist_or_filename=None, ext=0):
     ----------
     HDUlist_or_filename, ext : string, int
         Same as above
- 
+
     """
     if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename)
@@ -713,7 +708,7 @@ def measure_sharpness(HDUlist_or_filename=None, ext=0):
     # TODO or check that the oversampling factor is 1
     try:
         detpixels = HDUlist['DET_SAMP']
-    except:
+    except KeyError:
         raise ValueError("You can only measure sharpness for an image with an extension giving the rebinned actual detector pixel values.""")
 
     sharpness =  (detpixels.data**2).sum()
@@ -724,7 +719,7 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, verbo
     """ Measure the center of an image via center-of-mass
 
     The centroid method used is the floating-box center of mass algorithm by
-    Jeff Valenti et al., which has been adopted for JWST target acquisition 
+    Jeff Valenti et al., which has been adopted for JWST target acquisition
     measurements on orbit.
     See JWST technical reports JWST-STScI-001117 and JWST-STScI-001134 for details.
 
@@ -741,9 +736,9 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, verbo
     relativeto : string
         either 'origin' for relative to pixel (0,0) or 'center' for relative to image center. Default is 'origin'
     units : string
-        either 'pixels' for position in pixels or 'arcsec' for arcseconds. 
+        either 'pixels' for position in pixels or 'arcsec' for arcseconds.
         Relative to the relativeto parameter point in either case.
- 
+
 
     Returns
     -------
@@ -760,7 +755,7 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, verbo
     else: raise ValueError("input must be a filename or HDUlist")
 
     image = HDUlist[ext].data
-    
+
     if image.ndim >=3:  # handle datacubes gracefully
         image = image[slice,:,:]
 
@@ -783,14 +778,14 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, verbo
 
 def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, display=True, verbose=True, cache_perfect=False):
     """ Estimate the Strehl ratio for a PSF.
-    
+
     This requires computing a simulated PSF with the same
     properties as the one under analysis.
 
     Note that this calculation will not be very accurate unless both PSFs are well sampled,
-    preferably several times better than Nyquist. See 
+    preferably several times better than Nyquist. See
     `Roberts et al. 2004 SPIE 5490 <http://adsabs.harvard.edu/abs/2004SPIE.5490..504R>`_
-    for a discussion of the various possible pitfalls when calculating Strehl ratios. 
+    for a discussion of the various possible pitfalls when calculating Strehl ratios.
 
     Parameters
     ----------
@@ -803,9 +798,9 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
     center : tuple
         center to compute around.  Default is image center. If the center is on the
         crosshairs between four pixels, then the mean of those four pixels is used.
-        Otherwise, if the center is in a single pixel, then that pixel is used. 
+        Otherwise, if the center is in a single pixel, then that pixel is used.
     print_, display : bool
-        control whether to print the results or display plots on screen. 
+        control whether to print the results or display plots on screen.
 
     cache_perfect : bool
         use caching for perfect images? greatly speeds up multiple calcs w/ same config
@@ -814,7 +809,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
     ---------
     strehl : float
         Strehl ratio as a floating point number between 0.0 - 1.0
-  
+
     """
     if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename)
@@ -828,7 +823,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
     if image.ndim >=3:  # handle datacubes gracefully
         image = image[slice,:,:]
 
- 
+
     if center is None:
         # get exact center of image
         #center = (image.shape[1]/2, image.shape[0]/2)
@@ -845,7 +840,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
     cache_key = (header['INSTRUME'], header['FILTER'], header['PIXELSCL'], header['OVERSAMP'],  header['FOV'],header['NWAVES'])
     try:
         comparison_psf = _Strehl_perfect_cache[cache_key]
-    except:
+    except KeyError:
         comparison_psf = inst.calcPSF(fov_arcsec = header['FOV'], oversample=header['OVERSAMP'], nlambda=header['NWAVES'])
         if cache_perfect: _Strehl_perfect_cache[cache_key ] = comparison_psf
 
@@ -869,7 +864,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
         display_PSF(HDUlist, title="Observed PSF")
         plt.subplot(122)
         display_PSF(comparison_psf, title="Perfect PSF")
-        plt.gcf().suptitle("Strehl ratio = %.3f" % strehl) 
+        plt.gcf().suptitle("Strehl ratio = %.3f" % strehl)
 
 
     if verbose:
@@ -885,7 +880,7 @@ def measure_anisotropy(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50):
 
 ###########################################################################
 #
-#    Array manipulation utility functions 
+#    Array manipulation utility functions
 #
 
 
@@ -936,10 +931,10 @@ def padToSize(array, padded_shape):
 
     See Also
     ---------
-    padToOversample 
+    padToOversample
     """
 
-    if len(padded_shape) < 2: 
+    if len(padded_shape) < 2:
         outsize0 = padded_shape
         outside1 = padded_shape
     else:
@@ -978,7 +973,7 @@ def rebin_array(a = None, rc=(2,2), verbose=False):
     ----------
     a : array_like
         input array
-    rc : two-element tuple 
+    rc : two-element tuple
         (nrows, ncolumns) desired for rebinned array
     verbose : bool
         output additional status text?
@@ -1023,7 +1018,7 @@ def krebin(a, shape):
     ----------
     a : array_like
         input array
-    shape : two-element tuple 
+    shape : two-element tuple
         (nrows, ncolumns) desired for rebinned array
 
 
@@ -1034,7 +1029,7 @@ def krebin(a, shape):
 
 ###########################################################################
 #
-#    Other utility functions 
+#    Other utility functions
 #
 
 
@@ -1043,7 +1038,7 @@ def specFromSpectralType(sptype, return_list=False, catalog=None):
     """Get Pysynphot Spectrum object from a user-friendly spectral type string.
 
     Given a spectral type such as 'A0IV' or 'G2V', this uses a fixed lookup table
-    to determine an appropriate spectral model from Castelli & Kurucz 2004 or 
+    to determine an appropriate spectral model from Castelli & Kurucz 2004 or
     the Phoenix model grids. Depends on pysynphot and CDBS. This is just a
     convenient access function.
 
@@ -1059,7 +1054,7 @@ def specFromSpectralType(sptype, return_list=False, catalog=None):
     import pysynphot
 
 
-    if catalog is None: 
+    if catalog is None:
         import os
         cdbs = os.getenv('PYSYN_CDBS')
         if cdbs is None:
@@ -1074,7 +1069,7 @@ def specFromSpectralType(sptype, return_list=False, catalog=None):
     if catalog.lower()  =='ck04':
         catname='ck04models'
 
-        # Recommended lookup table into the CK04 models (from 
+        # Recommended lookup table into the CK04 models (from
         # the documentation of that catalog?)
         lookuptable = {
             "O3V":   (50000, 0.0, 5.0),
@@ -1207,18 +1202,18 @@ def specFromSpectralType(sptype, return_list=False, catalog=None):
         if ans is None: raise ValueError("Invalid power law specification cannot be parsed to get exponent")
         exponent = float(ans.groups(0)[0])
         # note that Pysynphot's PowerLaw class implements a power law in terms of lambda, not nu.
-        # but since nu = clight/lambda, it's just a matter of swapping the sign on the exponent. 
+        # but since nu = clight/lambda, it's just a matter of swapping the sign on the exponent.
 
         spec = pysynphot.PowerLaw(1, (-1)*exponent, fluxunits='fnu')
         spec.convert('flam')
         spec *= (1./spec.flux.mean())
         spec.name = sptype
         return spec
-    else: 
+    else:
         keys = lookuptable[sptype]
         try:
             return pysynphot.Icat(catname,keys[0], keys[1], keys[2])
-        except:
+        except IOError:
             errmsg = "Could not find a match in catalog {0} for key {1}. Check that is a valid name in the lookup table, and/or that pysynphot is installed properly.".format(catname, sptype)
             _log.critical(errmsg)
             raise LookupError(errmsg)
@@ -1226,15 +1221,15 @@ def specFromSpectralType(sptype, return_list=False, catalog=None):
 
 ###################################################################33
 #
-#     Multiprocessing and FFT helper functions 
+#     Multiprocessing and FFT helper functions
 
 
 def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, memory_fraction=0.5):
     """ Attempt to estimate a reasonable number of processes to use for a multi-wavelength calculation.
 
     This is not entirely obvious because this can be either CPU- or memory-limited, and you don't want
-    to just spawn nwavelengths processes necessarily. 
-    
+    to just spawn nwavelengths processes necessarily.
+
     Here we attempt to estimate how many such calculations can happen in
     parallel without swapping to disk, with a mixture of empiricism and conservatism.
     One really does not want to end up swapping to disk with huge arrays.
@@ -1244,7 +1239,7 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
     Parameters
     -----------
     osys : OpticalSystem instance
-        The optical system that we will be calculating for. 
+        The optical system that we will be calculating for.
     nwavelengths : int
         Number of wavelengths. Sets maximum # of processes.
     padding_factor : int
@@ -1257,7 +1252,7 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
     from . import conf
     try:
         import psutil
-    except:
+    except ImportError:
         _log.debug("No psutil package available, cannot estimate optimal nprocesses.")
         return 4
 
@@ -1265,7 +1260,7 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
     # will we do an FFT or not?
     propinfo = osys._propagation_info()
     if 'FFT' in propinfo['steps']:
-        wavefrontsize = wfshape[0]*wfshape[1]*osys.oversample**2 *  16 # 16 bytes = complex double size 
+        wavefrontsize = wfshape[0]*wfshape[1]*osys.oversample**2 *  16 # 16 bytes = complex double size
         _log.debug('FFT propagation with array={0}, oversample = {1} uses {2} bytes'.format(wfshape[0], osys.oversample, wavefrontsize))
         # The following is a very rough estimate
         # empirical tests show that an 8192x8192 propagation results in Python sessions with ~4 GB memory allocation. using FFTW
@@ -1273,7 +1268,7 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
         padding_factor = 4  if conf.use_fftw else 5
     else:
         # oversampling not relevant for memory size in MFT mode
-        wavefrontsize = wfshape[0]*wfshape[1] *  16 # 16 bytes = complex double size 
+        wavefrontsize = wfshape[0]*wfshape[1] *  16 # 16 bytes = complex double size
         _log.debug('MFT propagation with array={0} uses {2} bytes'.format(wfshape[0], osys.oversample, wavefrontsize))
         padding_factor = 1
 
@@ -1285,7 +1280,7 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
     avail_ram = psutil.virtual_memory().available
     avail_ram -= 2* 1024.**3   # always leave at least 2 GB extra padding - let's be cautious to make sure we don't swap.
     recommendation = int(np.floor(float(avail_ram) / (mem_per_prop+mem_per_output)))
-       
+
     if recommendation > psutil.NUM_CPUS: recommendation = psutil.NUM_CPUS
     if nwavelengths is not None:
         if recommendation > nwavelengths: recommendation = nwavelengths
@@ -1295,11 +1290,11 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
 
 
 def fftw_save_wisdom(filename=None):
-    """ Save accumulated FFTW wisdom to a file 
+    """ Save accumulated FFTW wisdom to a file
 
     By default this file will be in the user's astropy configuration directory.
     (Another location could be chosen - this is simple and works easily cross-platform.)
-    
+
     Parameters
     ------------
     filename : string, optional
@@ -1309,7 +1304,7 @@ def fftw_save_wisdom(filename=None):
     import astropy.config
     try:
         import pyfftw
-    except:
+    except ImportError:
         return # FFTW is not present, therefore this is a null op
 
     if filename is None:
@@ -1329,27 +1324,27 @@ def fftw_save_wisdom(filename=None):
 
 
 def fftw_load_wisdom(filename=None):
-    """ Read accumulated FFTW wisdom previously saved in previously saved in a file 
+    """ Read accumulated FFTW wisdom previously saved in previously saved in a file
 
     By default this file will be in the user's astropy configuration directory.
     (Another location could be chosen - this is simple and works easily cross-platform.)
-    
+
     Parameters
     ------------
     filename : string, optional
         Filename to use (instead of the default, poppy_fftw_wisdom.txt)
     """
- 
+
     import os
     from astropy import config
     try:
         import pyfftw
-    except:
+    except ImportError:
         return # FFTW is not present, therefore this is a null op
 
     if filename is None:
         filename=os.path.join( config.get_config_dir(), "poppy_fftw_wisdom.txt")
- 
+
     if not os.path.exists(filename): return # gracefully ignore the case of lacking wisdom yet.
 
     _log.debug("Trying to reload wisdom from file "+filename)
@@ -1358,7 +1353,7 @@ def fftw_load_wisdom(filename=None):
         # the first four lines are comments and should be ignored.
         wisdom = [lines[i].replace(r'\n', '\n') for i in [4,5,6]]
         wisdom = tuple(wisdom)
-    except:
+    except IOError:
         _log.debug("ERROR - wisdom tuple could not be loaded from file :"+filename)
         return False
 
@@ -1366,7 +1361,7 @@ def fftw_load_wisdom(filename=None):
     _log.debug("Reloaded double precision wisdom: "+str(success[0]))
     _log.debug("Reloaded single precision wisdom: "+str(success[1]))
     _log.debug("Reloaded longdouble precision wisdom: "+str(success[2]))
-    
+
     return True
 
 
