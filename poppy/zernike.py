@@ -179,6 +179,8 @@ def zernike(n, m, npix=100, rho=None, theta=None, mask_outside=True,
      zernike(n, m, rho=r, theta=theta)    Which explicitly provides the desired pupil coordinates
                                as arrays r and theta. These need not be regular or contiguous.
 
+    The expressions for the Zernike terms follow the normalization convention
+    of Noll et al. JOSA 1976 unless the `noll_normalize` argument is False.
 
     Parameters
     ----------
@@ -197,6 +199,7 @@ def zernike(n, m, npix=100, rho=None, theta=None, mask_outside=True,
         As defined in Noll et al. JOSA 1976, the Zernikes are normalized such that
         the integral of Z[n, m] * Z[n, m] over the unit disk is pi exactly. To omit
         the normalization constant, set this to False. Default is True.
+
     Returns
     -------
     zern : 2D numpy array
@@ -222,21 +225,25 @@ def zernike(n, m, npix=100, rho=None, theta=None, mask_outside=True,
                              "r with the corresponding radii for each point.")
 
     aperture = np.ones(rho.shape)
-    if mask_outside:  # TODO:jlong: this is not actually masking, it's multiplying...
-        aperture[np.where(rho > 1)] = outside
+    aperture[np.where(rho > 1)] = 0.0  # this is the aperture mask
+
     if m == 0:
         if n == 0:
-            return np.ones(rho.shape) * aperture
+            zernike_result = aperture
         else:
             norm_coeff = sqrt(n + 1) if noll_normalize else 1
-            return norm_coeff * R(n, m, rho) * aperture
+            zernike_result = norm_coeff * R(n, m, rho) * aperture
     elif m > 0:
         norm_coeff = sqrt(2) * sqrt(n + 1) if noll_normalize else 1
-        return norm_coeff * R(n, m, rho) * np.cos(np.abs(m) * theta) * aperture
+        zernike_result = norm_coeff * R(n, m, rho) * np.cos(np.abs(m) * theta) * aperture
     else:
         norm_coeff = sqrt(2) * sqrt(n + 1) if noll_normalize else 1
-        return norm_coeff * R(n, m, rho) * np.sin(np.abs(m) * theta) * aperture
+        zernike_result = norm_coeff * R(n, m, rho) * np.sin(np.abs(m) * theta) * aperture
 
+    zernike_result[np.where(rho > 1)] = outside
+    if mask_outside:
+        zernike_result = np.ma.array(zernike_result, mask=(rho > 1), fill_value=np.nan)
+    return zernike_result
 
 def zernike1(j, **kwargs):
     """ Return the Zernike polynomial Z_j for pupil points {r,theta}.
