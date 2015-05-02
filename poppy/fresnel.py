@@ -196,7 +196,7 @@ class gaussian_wavefront(poppy.Wavefront):
     @property
     def param_str(self):
         string= "w_0:{0:0.2e},".format(self.w_0)+" z_w0={0:0.2e}".format(self.z_w0) +"\n"+\
-         "z:{0:0.2e},".format(self.z)+" z_R={0:0.2e}".format(self.z_R)
+         "z={0:0.2e},".format(self.z)+" z_R={0:0.2e}".format(self.z_R)
         return string
     #def beam_radius(self,z):
     #    '''
@@ -243,11 +243,11 @@ class gaussian_wavefront(poppy.Wavefront):
     
         if dz > 0:
             self.wavefront = forward_FFT(self.wavefront, overwrite_input=True,
-                                     planner_effort='FFTW_MEASURE')#, threads=multiprocessing.cpu_count())
+                                     planner_effort='FFTW_MEASURE', threads=poppy.conf.n_processes)
             self.wavefront *= self.n
         else:
             self.wavefront = inverse_FFT(self.wavefront, overwrite_input=True,
-                                     planner_effort='FFTW_MEASURE')#, threads=multiprocessing.cpu_count())
+                                     planner_effort='FFTW_MEASURE', threads=poppy.conf.n_processes)
             self.wavefront *= 1.0/self.n
             
         self.pixelscale = self.wavelength*np.abs(dz.value)/(self.n*self.pixelscale)
@@ -368,9 +368,10 @@ class gaussian_wavefront(poppy.Wavefront):
             self.z_w0 = zl
             self.w_0 = new_waist
         else:
-            self.z_w0 = -r_curve/(1.0 + (self.wavelen_m*r_curve/(np.pi*new_waist)**2)**2) + zl
+
+            self.z_w0 = -r_curve/(1.0 + (self.wavelen_m*r_curve/(np.pi*new_waist**2))**2) + zl
             self.w_0 = new_waist/np.sqrt(1.0+(np.pi*new_waist**2/(self.wavelen_m*r_curve))**2)
-        
+            _log.debug(str(optic.name) +" has a curvature of ={0:0.2e}".format(r_curve))
         
         #check that this Fresnel business is necessary.
         if (not self.force_fresnel) and (self.planetype == _PUPIL or self.planetype ==_IMAGE) \
