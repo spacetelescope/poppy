@@ -193,6 +193,11 @@ class gaussian_wavefront(poppy.Wavefront):
         print((self.z_R/dz)**2)
         return dz*(1+(self.z_R/dz)**2)
     
+    @property
+    def param_str(self):
+        string= "w_0:{0:0.2e},".format(self.w_0)+" z_w0={0:0.2e}".format(self.z_w0) +"\n"+\
+         "z:{0:0.2e},".format(self.z)+" z_R={0:0.2e}".format(self.z_R)
+        return string
     #def beam_radius(self,z):
     #    '''
     #    Diameter of the gaussian beam as a function of distance
@@ -200,10 +205,6 @@ class gaussian_wavefront(poppy.Wavefront):
     #    return self.w_0*(1.0+self.divergance*(self.z_w0-z))
     def spot_radius(self,z):
         return self.w_0 * np.sqrt(1.0 + ((z-self.z_w0)/self.z_R)**2 )
-    
-    def print_params(self):
-        print("w_0:{0:0.2e},".format(self.w_0)+" z_w0={0:0.2e}".format(self.z_w0))
-        print("z:{0:0.2e},".format(self.z)+" z_R={0:0.2e}".format(self.z_R))
 
     def propogateDirect(self,z):
         #
@@ -348,7 +349,8 @@ class gaussian_wavefront(poppy.Wavefront):
         
         #is the last surface outside the rayleigh distance?
         if np.abs(self.z_w0 - self.z) > self.rayl_factor*self.z_R:
-            print("spherical",self.z_w0 ,self.z,self.z_R)
+            _log.debug("spherical")
+            _log.debug(self.param_str)
             self.spherical = True
             R_input_beam = self.z - self.z_w0
         else:
@@ -416,5 +418,5 @@ class gaussian_wavefront(poppy.Wavefront):
         self *= effective_optic
 
         #update wavefront location:
-        self.z = zl
+        #self.z = zl
         return 
