@@ -1,27 +1,16 @@
-import poppy
-#---- begin top of poppy_core.py
 from __future__ import division
+
+#---- core dependencies
+import poppy
 import multiprocessing
 import copy
 import numpy as np
-import matplotlib.pyplot as plt
-import scipy.special
-import scipy.ndimage.interpolation
-import matplotlib
-import time
-
-
-from matplotlib.colors import LogNorm  # for log scaling of images, with automatic colorbar support
+#---- astropy dependencies
 
 import astropy.io.fits as fits
+from astropy import units as u
 
-
-
-#from .utils import imshow_with_mouseover, estimate_optimal_nprocesses, fftw_load_wisdom, fftw_save_
-from .matrixDFT import MatrixFourierTransform
-from . import utils
-from . import settings
-
+import utils
 
 import logging
 _log = logging.getLogger('poppy')
@@ -31,23 +20,14 @@ try:
 except:
     pass
 
-# Setup infrastructure for FFTW
-_FFTW_INIT = {}  # dict of array sizes for which we have already performed the required FFTW planning step
-_FFTW_FLAGS = ['measure']
-if settings.use_fftw():
-    try:
-        # try to import FFTW and use it
-        import pyfftw
-    except:
-        # we tried but failed to import it. 
-        settings.use_fftw.set(False)
 
 # internal constants for types of plane
 _PUPIL = 1
 _IMAGE = 2
 _DETECTOR = 3 # specialized type of image plane.
 _ROTATION = 4 # not a real optic, just a coordinate transform
-_typestrs = ['', 'Pupil plane', 'Image plane', 'Detector', 'Rotation']
+_INTERMED = 5
+_typestrs = ['', 'Pupil plane', 'Image plane', 'Detector', 'Rotation','Intermediate Surface']
 
 
 #conversions
@@ -55,11 +35,18 @@ _RADIANStoARCSEC = 180.*60*60 / np.pi
 
 #---end top of poppy_core.py
 
+#define Discrete Fourier Transform functions
+if poppy.conf.use_fftw:
+    try:
+        # try to import FFTW and use it
+        import pyfftw
+    except:
+        _log.debug("conf.use_fftw is set to True, but we cannot import pyfftw. Therefore overriding the config setting to False. Everything will work fine using numpy.fft, it just may be slightly slower.")
+        # we tried but failed to import it. 
+        poppy.conf.use_fftw = False
 
-
-import logging
-_log = logging.getLogger('poppy')
-
+forward_FFT= pyfftw.interfaces.numpy_fft.fft2 if poppy.conf.use_fftw else np.fft.fft2 
+inverse_FFT= pyfftw.interfaces.numpy_fft.ifft2 if poppy.conf.use_fftw else np.fft.ifft2 
 
 
 
@@ -153,7 +140,7 @@ class gaussian_wavefront(poppy.Wavefront):
         https://marketplace.idexop.com/store/SupportDocuments/All_About_Gaussian_Beam_OpticsWEB.pdf
         
         4. Krist, J. E. (2007), PROPER: an optical propagation library for IDL, 
-        vol. 6675, p. 66750P–66750P–9. 
+        vol. 6675, p. 66750P-66750P-9. 
         [online] Available from: http://dx.doi.org/10.1117/12.731179 
         (Accessed 12 September 2013)
 
@@ -213,14 +200,18 @@ class gaussian_wavefront(poppy.Wavefront):
     #    return self.w_0*(1.0+self.divergance*(self.z_w0-z))
     def spot_radius(self,z):
         return self.w_0 * np.sqrt(1.0 + ((z-self.z_w0)/self.z_R)**2 )
+    
+    def print_params(self):
+        print("w_0:{0:0.2e},".format(self.w_0)+" z_w0={0:0.2e}".format(self.z_w0))
+        print("z:{0:0.2e},".format(self.z)+" z_R={0:0.2e}".format(self.z_R))
 
     def propogateDirect(self,z):
         #
-        x,y=self.coordinates()
-        k=np.pi*2.0/self.wavelength
+        x,y=self.coordinates()*self.units
+        k=np.pi*2.0/self.wavelen_m
         S=self.n*self.pixelscale
-        quad_phase_1st= np.exp(i*k*(x**2+y**2)/(2*z))#eq. 6.68
-        quad_phase_2nd= np.exp(i*k*z)/(i*self.wavelength*z)*np.exp(i*k*(x**2+y**2)/(2*z))#eq. 6.70
+        quad_phase_1st= np.exp(1.0j*k*(x**2+y**2)/(2*z))#eq. 6.68
+        quad_phase_2nd= np.exp(1.0j*k*z)/(1.0j*self.wavelen_m*z)*np.exp(1.0j*k*(x**2+y**2)/(2*z))#eq. 6.70
 
         stage1=self.wavefront*quad_phase_1st #eq.6.67
 
@@ -235,7 +226,7 @@ class gaussian_wavefront(poppy.Wavefront):
         '''
         Lawrence eq. 82, 86,87
         '''
-        self.propogateDirect(z)
+        self.propogateDirect(z2)
     def wts(self,z2):
         '''
         Lawrence eq. 83,88
@@ -360,7 +351,9 @@ class gaussian_wavefront(poppy.Wavefront):
             print("spherical",self.z_w0 ,self.z,self.z_R)
             self.spherical = True
             R_input_beam = self.z - self.z_w0
-
+        else:
+            R_input_beam = np.inf
+ 
         if (self.planetype == _PUPIL or self.planetype ==_IMAGE):
             #we are at a focus or pupil, so the new optic is the only curvature of the beam
             r_curve = -optic.fl
@@ -423,5 +416,5 @@ class gaussian_wavefront(poppy.Wavefront):
         self *= effective_optic
 
         #update wavefront location:
-        #self.z = zl
+        self.z = zl
         return 
