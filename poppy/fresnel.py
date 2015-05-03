@@ -5,6 +5,8 @@ import poppy
 import multiprocessing
 import copy
 import numpy as np
+import matplotlib.pyplot as plt
+
 #---- astropy dependencies
 
 import astropy.io.fits as fits
@@ -127,24 +129,26 @@ class gaussian_wavefront(poppy.Wavefront):
         spherical:
             Indicates wavefront is spherical, default False (that is, wavefront is planar).
         force_fresnel:
-            if True then the Fresnel propogation will always be used,
+            If True then the Fresnel propogation will always be used,
             even between planes of type _PUPIL or _IMAGE
             
         
         References:
-        1. G.N. Lawerence, Optical Modeling. 1992. 
-        2. https://en.wikipedia.org/wiki/Gaussian_beam
-        
-        3. IDEX Optics and Photonics(n.d.), Gaussian Beam Optics, 
-        [online] Available from:
-        https://marketplace.idexop.com/store/SupportDocuments/All_About_Gaussian_Beam_OpticsWEB.pdf
-        
-        4. Krist, J. E. (2007), PROPER: an optical propagation library for IDL, 
-        vol. 6675, p. 66750P-66750P-9. 
-        [online] Available from: http://dx.doi.org/10.1117/12.731179 
-        (Accessed 12 September 2013)
+        - Lawrence, G. N. (1992), Optical Modeling, in Applied Optics and Optical Engineering., vol. XI,
+            edited by R. R. Shannon and J. C. Wyant., Academic Press, New York.
 
-    
+        - https://en.wikipedia.org/wiki/Gaussian_beam
+        
+        - IDEX Optics and Photonics(n.d.), Gaussian Beam Optics, 
+            [online] Available from:
+             https://marketplace.idexop.com/store/SupportDocuments/All_About_Gaussian_Beam_OpticsWEB.pdf
+        
+        - Krist, J. E. (2007), PROPER: an optical propagation library for IDL, 
+           vol. 6675, p. 66750P-66750P-9. 
+        [online] Available from: http://dx.doi.org/10.1117/12.731179 
+
+        - Andersen, T., and A. Enmark (2011), Integrated Modeling of Telescopes, Springer Science & Business Media.
+
         '''
         
         '''
@@ -189,8 +193,8 @@ class gaussian_wavefront(poppy.Wavefront):
         The gaussian beam radius of curvature as a function of distance
         '''
         dz=(z-self.z_w0) #z relative to waist
-        print(dz)
-        print((self.z_R/dz)**2)
+        #print(dz)
+        #print((self.z_R/dz)**2)
         return dz*(1+(self.z_R/dz)**2)
     
     @property
@@ -206,28 +210,38 @@ class gaussian_wavefront(poppy.Wavefront):
     def spot_radius(self,z):
         return self.w_0 * np.sqrt(1.0 + ((z-self.z_w0)/self.z_R)**2 )
 
-    def propogateDirect(self,z):
-        #
-        x,y=self.coordinates()*self.units
-        k=np.pi*2.0/self.wavelen_m
+    def propagateDirect(self,z):
+        '''
+        Implements the direct propagation algorithm described in Andersen & Enmark (2011)
+        '''
+        _log.debug("Direct propagation to z= {0:0.2e}".format(z))
+        if  isinstance(z,u.quantity.Quantity):
+            z_direct = (z).to(u.m).value #convert to meters.
+        else:
+            _log.warn("z= {0:0.2e}, has no units, assuming meters ".format(z))
+            z_direct=z
+        x,y=self.coordinates()#*self.units
+        k=np.pi*2.0/self.wavelen_m.value
         S=self.n*self.pixelscale
-        quad_phase_1st= np.exp(1.0j*k*(x**2+y**2)/(2*z))#eq. 6.68
-        quad_phase_2nd= np.exp(1.0j*k*z)/(1.0j*self.wavelen_m*z)*np.exp(1.0j*k*(x**2+y**2)/(2*z))#eq. 6.70
+        _log.debug("Propagation Parameters: k={0:0.2e},".format(k)+"S={0:0.2e},".format(S)+"z={0:0.2e},".format(z_direct))
+        
+        quad_phase_1st= np.exp(1.0j*k*(x**2+y**2)/(2*z_direct))#eq. 6.68
+        quad_phase_2nd= np.exp(1.0j*k*z_direct)/(1.0j*self.wavelength*z_direct)*np.exp(1.0j*(x**2+y**2)/(2*z_direct))#eq. 6.70
 
         stage1=self.wavefront*quad_phase_1st #eq.6.67
-
+    
         dft=forward_FFT(stage1)
 
         result=np.fft.fftshift(dft*self.pixelscale**2*quad_phase_2nd) #eq.6.69 and #6.80l
+
         self.wavefront=result
-        
         return
     
     def ptp(self,z2): 
         '''
         Lawrence eq. 82, 86,87
         '''
-        self.propogateDirect(z2)
+        self.propagateDirect(z2)
     def wts(self,z2):
         '''
         Lawrence eq. 83,88
@@ -285,17 +299,17 @@ class gaussian_wavefront(poppy.Wavefront):
         self.wavefront = np.fft.fftshift(self.wavefront)
 
     def planar_range(self,z):
-        print(self.z_w0,self.z,z)
+        #print(self.z_w0,self.z,z)
         if np.abs(self.z_w0 - self.z) < self.z_R:
             return True
         else:
             return False
             
-    def propogateFresnel(self,z):
+    def propagateFresnel(self,z):
         '''
         Parameters:
         z:
-            the distance from the current location to propogate the beam.
+            the distance from the current location to propagate the beam.
         
         Description:
         Each spherical wavefront is propagated to a waist and then to the next appropriate plane 
@@ -306,7 +320,7 @@ class gaussian_wavefront(poppy.Wavefront):
             if self.planar_range(z):
                 _log.debug("waist at z="+str(self.z_w0))
                 _log.debug('Plane to Plane Regime')
-                self.ptp(self.z)
+                self.ptp(z)
             else:
                 _log.debug("waist at z="+str(self.z_w0))
                 _log.debug('Plane to Spherical, inside Z_R to outside Z_R')
@@ -376,7 +390,7 @@ class gaussian_wavefront(poppy.Wavefront):
         #check that this Fresnel business is necessary.
         if (not self.force_fresnel) and (self.planetype == _PUPIL or self.planetype ==_IMAGE) \
             and (optic.planetype ==_IMAGE or optic.planetype ==_PUPIL):
-            _log.debug("Simple pupil / image propogation, Fresnel unneccesary. \
+            _log.debug("Simple pupil / image propagation, Fresnel unnecessary. \
                        Reverting to Fraunhofer.")
             self.propagateTo(optic)
             return
@@ -385,7 +399,7 @@ class gaussian_wavefront(poppy.Wavefront):
             return
         
         if (not self.spherical) and(np.abs(self.z_w0 - zl) < self.z_R):
-            print('Near-field, Plane-to-Plane Propagation.')
+            _log.debug('Near-field, Plane-to-Plane Propagation.')
             z_eff = fl
 
         elif (not self.spherical) and (np.abs(self.z_w0 - zl) > self.z_R):
@@ -393,15 +407,14 @@ class gaussian_wavefront(poppy.Wavefront):
             # curvatures are multiplicative exponentials
             # e^(1/z) = e^(1/x)*e^(1/y) = e^(1/x+1/y) -> 1/z = 1/x + 1/y 
             # z = 1/(1/x+1/y) = xy/x+y  
-            print('Inside Rayleigh distance to Outside Rayleigh distance.')
             z_eff = 1.0/( 1.0/optic.fl+ 1.0/(zl-self.z_w0))
-            print(z_eff)
+            _log.debug('Inside Rayleigh distance to Outside Rayleigh distance.')
             self.spherical = True
 
 
             #optic needs new focal length:
         elif (self.spherical) and (np.abs(self.z_w0 - zl) > self.z_R):
-            print('Spherical to Spherical wavefront propogation.')
+            _log.debug('Spherical to Spherical wavefront propagation.')
             if R_input_beam == 0:
                 z_eff = 1.0/( 1.0/optic.fl- 1.0/(R_input_beam)) 
             if (zl-self.z_w0) ==0:
@@ -411,7 +424,7 @@ class gaussian_wavefront(poppy.Wavefront):
 
             
         elif (self.spherical) and (np.abs(self.z_w0 - zl) < self.z_R):
-            print('Spherical to Planar.')
+            _log.debug('Spherical to Planar.')
             z_eff=1.0/( 1.0/optic.fl - 1.0/(R_input_beam) )
             self.spherical=False
             
