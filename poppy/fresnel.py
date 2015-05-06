@@ -64,7 +64,7 @@ class curvature(poppy.AnalyticOpticalElement):
                  units=u.m,
                  **kwargs):
         poppy.AnalyticOpticalElement.__init__(self,name=name, planetype=_PUPIL, **kwargs)
-
+        self.z=z
         self.reference_wavelength = reference_wavelength*units
         self.name = name
         if  isinstance(z,u.quantity.Quantity):
@@ -75,13 +75,15 @@ class curvature(poppy.AnalyticOpticalElement):
 
     def getPhasor(self, wave):
         y, x = wave.coordinates()
-        rsqd = (x**2+y**2)*u.m**2
+        self.rsqd = (x**2+y**2)*u.m**2
         #quad_phase_1st= np.exp(i*k*(x**2+y**2)/(2*self.z_m))#eq. 6.68
         _log.debug("Applying spherical phase curvature ={0:0.2e}".format(self.z_m))
         _log.debug("Applying spherical lens phase ={0:0.2e}".format(1.0/self.z_m))
+        _log.debug("max_rsqd ={0:0.2e}".format(np.max(self.rsqd)))
+        
 
-        k=2* np.pi/self.reference_wavelength
-        lens_phasor = np.exp(1.j * k * rsqd/(2.0*self.z_m))
+        k = 2* np.pi/self.reference_wavelength
+        lens_phasor = np.exp(1.j * k * self.rsqd/(2.0*self.z_m))
         #stop()
         return lens_phasor
     
@@ -97,20 +99,19 @@ class Gaussian_Lens(curvature):
                  units=u.m,
                  **kwargs):
         curvature.__init__(self, 
-                 -f_lens,
+                 f_lens,
                  planetype =planetype,
                  name = name,
                  reference_wavelength = reference_wavelength,
                  units=units,
                  **kwargs)
-   
         if  isinstance(f_lens,u.quantity.Quantity):
             self.fl = (f_lens).to(u.m) #convert to meters.
         else:
             _log.debug("Assuming meters, phase (%.3g) has no units for Optic: "%(z)+self.name)
             self.fl=z*u.m
+        _log.debug("Initialized"+self.name+"z ={0:0.2e} meters".format(self.z_m))
 
-  
 
 class gaussian_wavefront(poppy.Wavefront):  
     def __init__(self, beam_radius, 
@@ -220,6 +221,7 @@ class gaussian_wavefront(poppy.Wavefront):
         '''
         Implements the direct propagation algorithm described in Andersen & Enmark (2011)
         '''
+        
         _log.debug("Direct propagation to z= {0:0.2e}".format(z))
         if  isinstance(z,u.quantity.Quantity):
             z_direct = (z).to(u.m).value #convert to meters.
@@ -236,27 +238,44 @@ class gaussian_wavefront(poppy.Wavefront):
 
         stage1=self.wavefront*quad_phase_1st #eq.6.67
     
-        dft=forward_FFT(stage1)
+        result=forward_FFT(stage1)
 
-        result=np.fft.fftshift(dft*self.pixelscale**2*quad_phase_2nd) #eq.6.69 and #6.80l
+        result=np.fft.fftshift(result*self.pixelscale**2*quad_phase_2nd) #eq.6.69 and #6.80l
 
         self.wavefront=result
         return
     
-    def ptp(self,z2): 
+    def ptp(self,dz): 
         '''
         Lawrence eq. 82, 86,87
         '''
+        #dz = z2-self.z
+        if np.abs(dz) < 0.1*u.Angstrom:
+            _log.debug("Skipping Small dz = " + str(dz))
+            return
+        
+        x,y=self.coordinates()*self.units
+        
         _log.debug("Plane-to-Plane Propagation, dz = " + str(dz))
+        self.wavefront = forward_FFT(self.wavefront) *self.n
+        quad_phase = np.exp(-1.0j*np.pi*self.wavelen_m*((dz)/(x**2+y**2)))#eq. 6.68
 
-        self.propagateDirect(z2)
-    def wts(self,z2):
+        # self *= curvature(1/dz, reference_wavelength=self.wavelength)
+        
+        self.wavefront = inverse_FFT(self.wavefront) /self.n
+        
+        #self.propagateDirect(dz)
+
+    def wts(self,dz):
         '''
         Lawrence eq. 83,88
         '''
-        dz = z2-self.z
+        #dz = z2-self.z
         _log.debug("Waist to Spherical propagation, dz=" + str(dz))
-
+        if np.abs(dz) < 0.1*u.Angstrom:
+            _log.debug("Skipping Small dz = " + str(dz))
+            return
+        
         if dz ==0:
             _log.error("Waist to Spherical propagation stopped, no change in distance.")
             return 
@@ -265,48 +284,54 @@ class gaussian_wavefront(poppy.Wavefront):
     
         if dz > 0:
             self.wavefront = forward_FFT(self.wavefront, overwrite_input=True,
-                                     planner_effort='FFTW_MEASURE', threads=poppy.conf.n_processes)
-            self.wavefront *= self.n
+                                     planner_effort='FFTW_MEASURE',
+                                     threads=poppy.conf.n_processes)*self.n
         else:
             self.wavefront = inverse_FFT(self.wavefront, overwrite_input=True,
-                                     planner_effort='FFTW_MEASURE', threads=poppy.conf.n_processes)
-            self.wavefront *= 1.0/self.n
+                                     planner_effort='FFTW_MEASURE',
+                                      threads=poppy.conf.n_processes)/self.n
             
         self.pixelscale = self.wavelength*np.abs(dz.value)/(self.n*self.pixelscale)
         self.z = self.z + dz
-        plt.figure()
-        self.display('both')
-        self.wavefront = np.fft.fftshift(self.wavefront)
+        #plt.figure()
+        #self.display('both')
+        #self.wavefront = np.fft.fftshift(self.wavefront)
 
-    def stw(self,z2):
+    def stw(self,dz):
         '''
         Lawrence eq. 89
         '''
         '''
         Lawrence eq. 83,88
         '''
-        dz = z2 - self.z
+        #dz = z2 - self.z
         _log.debug("Spherical to Waist propagation,dz="+str(dz))
 
+        if np.abs(dz) < 0.1*u.Angstrom:
+            _log.debug("Skipping Small dz = " + str(dz))
+            return
         if dz ==0:
             _log.error("Spherical to Waist propagation stopped, no change in distance.")
             return 
            
         if dz > 0:
             self.wavefront = forward_FFT(self.wavefront, overwrite_input=True,
-                                     planner_effort='FFTW_MEASURE')#, threads=multiprocessing.cpu_count())
-            self.wavefront *= self.n
+                                     planner_effort='FFTW_MEASURE')*self.n
+            #, threads=multiprocessing.cpu_count())
+            #self.wavefront *=self.n
         else:
             self.wavefront = inverse_FFT(self.wavefront, overwrite_input=True,
-                                     planner_effort='FFTW_MEASURE')#, threads=multiprocessing.cpu_count())
-            self.wavefront *= 1.0/self.n
-        
+                                     planner_effort='FFTW_MEASURE')/self.n#, threads=multiprocessing.cpu_count())
+            #self.wavefront *= 1.0/self.n
+            
+        #update to new pixel scale before applying curvature
+        self.pixelscale = self.wavelength*np.abs(dz.value)/(self.n*self.pixelscale)
+
         self *= curvature(dz, reference_wavelength=self.wavelength)
 
 
-        self.pixelscale = self.wavelength*np.abs(dz.value)/(self.n*self.pixelscale)
         self.z = self.z + dz
-        self.wavefront = np.fft.fftshift(self.wavefront)
+        #self.wavefront = np.fft.fftshift(self.wavefront)
 
     def planar_range(self,z):
         #print(self.z_w0,self.z,z)
@@ -315,10 +340,10 @@ class gaussian_wavefront(poppy.Wavefront):
         else:
             return False
             
-    def propagateFresnel(self,z,display_intermed=False):
+    def propagateFresnel(self,delta_z,display_intermed=False):
         '''
         Parameters:
-        z:
+        delta_z:
             the distance from the current location to propagate the beam.
         
         Description:
@@ -326,6 +351,7 @@ class gaussian_wavefront(poppy.Wavefront):
          (spherical or planar). 
          
         '''
+        z = self.z + delta_z
         if display_intermed:
             plt.figure()
             self.display('both',colorbar=True,title="Starting Surface")
@@ -335,35 +361,35 @@ class gaussian_wavefront(poppy.Wavefront):
             if self.planar_range(z):
                 _log.debug("waist at z="+str(self.z_w0))
                 _log.debug('Plane to Plane Regime')
-                self.ptp(z)
+                self.ptp(delta_z)
             else:
                 _log.debug("waist at z="+str(self.z_w0))
                 _log.debug('Plane to Spherical, inside Z_R to outside Z_R')
-                self.ptp(self.z_w0)
+                self.ptp(self.z_w0 - self.z)
                 if display_intermed:
                     plt.figure()
                     self.display('both',colorbar=True)
-                self.wts(z)
+                self.wts(z-a.z_w0)
         else:
             if self.planar_range(z):
                 _log.debug("waist at z="+str(self.z_w0))
                 _log.debug('Spherical to Plane Regime, outside Z_R to inside Z_R')
-                self.stw(self.z_w0)
+                self.stw(self.z_w0 - self.z)
                 if display_intermed:
                     plt.figure()
                     self.display('both',colorbar=True,title='Intermediate Waist')
-                self.ptp(z)
+                self.ptp(z-self.z_w0)
             else:
                 _log.debug("waist at z="+str(self.z_w0))
                 _log.debug('Spherical to Spherical, Outside Z_R to waist (z_w0) to outside Z_R')
                 _log.debug('Starting Pixelscale:%.2g'%self.pixelscale)
-                self.stw(self.z_w0)
+                self.stw(self.z_w0 - self.z)
                 _log.debug('Intermediate Pixelscale:%.2g'%self.pixelscale)
                 self.pixelscale
                 if display_intermed:
                     plt.figure()
                     self.display('both',colorbar=True,title='Intermediate Waist')
-                self.wts(z)
+                self.wts(z-self.z_w0)
         if display_intermed:
             plt.figure()
             self.display('both',colorbar=True)
@@ -442,9 +468,12 @@ class gaussian_wavefront(poppy.Wavefront):
             # find the radius of curvature of the lens output beam
             # curvatures are multiplicative exponentials
             # e^(1/z) = e^(1/x)*e^(1/y) = e^(1/x+1/y) -> 1/z = 1/x + 1/y 
-            # z = 1/(1/x+1/y) = xy/x+y  
-            z_eff = 1.0/( 1.0/optic.fl+ 1.0/(zl-self.z_w0))
+            # z = 1/(1/x+1/y) = xy/x+y
+            print(self.z)
+            print(self.z_w0)
+            z_eff = 1.0/( 1.0/optic.fl+ 1.0/(self.z-self.z_w0))
             _log.debug('Inside Rayleigh distance to Outside Rayleigh distance.')
+            
             self.spherical = True
 
 
@@ -468,7 +497,7 @@ class gaussian_wavefront(poppy.Wavefront):
             z_eff=1.0/( 1.0/optic.fl - 1.0/(R_input_beam) )
             self.spherical=False
             
-        effective_optic = curvature(-(z_eff), reference_wavelength=self.wavelength)
+        effective_optic = curvature(-z_eff, reference_wavelength=self.wavelength)
         self *= effective_optic
 
         #update wavefront location:
