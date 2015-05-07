@@ -133,7 +133,7 @@ class gaussian_wavefront(poppy.Wavefront):
         spherical:
             Indicates wavefront is spherical, default False (that is, wavefront is planar).
         force_fresnel:
-            If True then the Fresnel propogation will always be used,
+            If True then the Fresnel propagation will always be used,
             even between planes of type _PUPIL or _IMAGE
             
         
@@ -200,8 +200,6 @@ class gaussian_wavefront(poppy.Wavefront):
         dz=(z-self.z_w0) #z relative to waist
         if dz==0:
             return np.inf
-        #print(dz)
-        #print((self.z_R/dz)**2)
         return dz*(1+(self.z_R/dz)**2)
     
     @property
@@ -209,17 +207,15 @@ class gaussian_wavefront(poppy.Wavefront):
         string= "w_0:{0:0.2e},".format(self.w_0)+" z_w0={0:0.2e}".format(self.z_w0) +"\n"+\
          "z={0:0.2e},".format(self.z)+" z_R={0:0.2e}".format(self.z_R)
         return string
-    #def beam_radius(self,z):
-    #    '''
-    #    Diameter of the gaussian beam as a function of distance
-    #    '''
-    #    return self.w_0*(1.0+self.divergance*(self.z_w0-z))
+
     def spot_radius(self,z):
         return self.w_0 * np.sqrt(1.0 + ((z-self.z_w0)/self.z_R)**2 )
 
     def propagateDirect(self,z):
         '''
-        Implements the direct propagation algorithm described in Andersen & Enmark (2011)
+        Implements the direct propagation algorithm described in Andersen & Enmark (2011). Works best for far field propagation.
+        Not part of the Lawrence propagation system.
+        
         '''
         
         _log.debug("Direct propagation to z= {0:0.2e}".format(z))
@@ -238,9 +234,9 @@ class gaussian_wavefront(poppy.Wavefront):
 
         stage1=self.wavefront*quad_phase_1st #eq.6.67
     
-        result=forward_FFT(stage1)
+        result= np.fft.fftshift(forward_FFT(stage1))*self.pixelscale**2*quad_phase_2nd  #eq.6.69 and #6.80
 
-        result=np.fft.fftshift(result*self.pixelscale**2*quad_phase_2nd) #eq.6.69 and #6.80l
+        result=np.fft.fftshift(result)
 
         self.wavefront=result
         return
@@ -249,21 +245,29 @@ class gaussian_wavefront(poppy.Wavefront):
         '''
         Lawrence eq. 82, 86,87
         '''
-        #dz = z2-self.z
-        if np.abs(dz) < 0.1*u.Angstrom:
-            _log.debug("Skipping Small dz = " + str(dz))
+        if  isinstance(dz,u.quantity.Quantity):
+            z_direct = (dz).to(u.m).value #convert to meters.
+        else:
+            _log.warn("z= {0:0.2e}, has no units, assuming meters ".format(dz))
+            z_direct = dz
+        _log.debug("Plane-to-Plane Propagation, dz = " + str(z_direct))
+
+        if np.abs((dz).to(u.m)) < 0.1*u.Angstrom:
+            _log.debug("Skipping Small dz = " + str(z_direct))
             return
         
-        x,y=self.coordinates()*self.units
-        
-        _log.debug("Plane-to-Plane Propagation, dz = " + str(dz))
-        self.wavefront = forward_FFT(self.wavefront) *self.n
-        quad_phase = np.exp(-1.0j*np.pi*self.wavelen_m*((dz)/(x**2+y**2)))#eq. 6.68
+        x,y = self.coordinates() #meters
+        rho = np.fft.fftshift((x/self.pixelscale/2.0)**2 + (y/self.pixelscale/2.0)**2)
+        T=-1.0j*np.pi*self.wavelength*(z_direct)*rho #Transfer Function of diffraction propagation eq. 22, eq. 87
+    
 
-        # self *= curvature(1/dz, reference_wavelength=self.wavelength)
-        
+        self.wavefront = forward_FFT(self.wavefront) *self.n
+
+        self.wavefront = self.wavefront*np.exp(T)#eq. 6.68
+
         self.wavefront = inverse_FFT(self.wavefront) /self.n
-        
+
+
         #self.propagateDirect(dz)
 
     def wts(self,dz):
@@ -283,13 +287,13 @@ class gaussian_wavefront(poppy.Wavefront):
         self *= curvature(dz, reference_wavelength=self.wavelength)
     
         if dz > 0:
-            self.wavefront = forward_FFT(self.wavefront, overwrite_input=True,
+            self.wavefront =  (forward_FFT(self.wavefront, overwrite_input=True,
                                      planner_effort='FFTW_MEASURE',
-                                     threads=poppy.conf.n_processes)*self.n
+                                     threads=poppy.conf.n_processes))*self.n
         else:
-            self.wavefront = inverse_FFT(self.wavefront, overwrite_input=True,
+            self.wavefront =  (inverse_FFT(self.wavefront, overwrite_input=True,
                                      planner_effort='FFTW_MEASURE',
-                                      threads=poppy.conf.n_processes)/self.n
+                                      threads=poppy.conf.n_processes))/self.n
             
         self.pixelscale = self.wavelength*np.abs(dz.value)/(self.n*self.pixelscale)
         self.z = self.z + dz
@@ -315,14 +319,14 @@ class gaussian_wavefront(poppy.Wavefront):
             return 
            
         if dz > 0:
-            self.wavefront = forward_FFT(self.wavefront, overwrite_input=True,
-                                     planner_effort='FFTW_MEASURE')*self.n
+            self.wavefront = (forward_FFT(self.wavefront, overwrite_input=True,
+                                     planner_effort='FFTW_MEASURE'))
             #, threads=multiprocessing.cpu_count())
-            #self.wavefront *=self.n
+            self.wavefront *=self.n
         else:
-            self.wavefront = inverse_FFT(self.wavefront, overwrite_input=True,
-                                     planner_effort='FFTW_MEASURE')/self.n#, threads=multiprocessing.cpu_count())
-            #self.wavefront *= 1.0/self.n
+            self.wavefront =  (inverse_FFT(self.wavefront, overwrite_input=True,
+                                     planner_effort='FFTW_MEASURE'))#, threads=multiprocessing.cpu_count())
+            self.wavefront *= 1.0/self.n
             
         #update to new pixel scale before applying curvature
         self.pixelscale = self.wavelength*np.abs(dz.value)/(self.n*self.pixelscale)
@@ -334,7 +338,6 @@ class gaussian_wavefront(poppy.Wavefront):
         #self.wavefront = np.fft.fftshift(self.wavefront)
 
     def planar_range(self,z):
-        #print(self.z_w0,self.z,z)
         if np.abs(self.z_w0 - self.z) < self.z_R:
             return True
         else:
@@ -351,16 +354,20 @@ class gaussian_wavefront(poppy.Wavefront):
          (spherical or planar). 
          
         '''
+        #self.wavefront = np.fft.fftshift(self.wavefront)
+
         z = self.z + delta_z
         if display_intermed:
             plt.figure()
             self.display('both',colorbar=True,title="Starting Surface")
 
-
+        self.wavefront=np.fft.fftshift(self.wavefront)
         if not self.spherical:
             if self.planar_range(z):
                 _log.debug("waist at z="+str(self.z_w0))
-                _log.debug('Plane to Plane Regime')
+                _log.debug('Plane to Plane Regime, dz'+str(delta_z))
+                _log.debug('Constant Pixelscale:%.2g'%self.pixelscale)
+
                 self.ptp(delta_z)
             else:
                 _log.debug("waist at z="+str(self.z_w0))
@@ -393,6 +400,7 @@ class gaussian_wavefront(poppy.Wavefront):
         if display_intermed:
             plt.figure()
             self.display('both',colorbar=True)
+        self.wavefront = np.fft.fftshift(self.wavefront)
         _log.debug("------ Propagated to: z = {0:0.2e} ------".format(z))
 
     
@@ -469,8 +477,6 @@ class gaussian_wavefront(poppy.Wavefront):
             # curvatures are multiplicative exponentials
             # e^(1/z) = e^(1/x)*e^(1/y) = e^(1/x+1/y) -> 1/z = 1/x + 1/y 
             # z = 1/(1/x+1/y) = xy/x+y
-            print(self.z)
-            print(self.z_w0)
             z_eff = 1.0/( 1.0/optic.fl+ 1.0/(self.z-self.z_w0))
             _log.debug('Inside Rayleigh distance to Outside Rayleigh distance.')
             
