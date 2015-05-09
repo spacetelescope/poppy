@@ -290,8 +290,8 @@ class Wavefront(poppy.Wavefront):
             _log.warn("z= {0:0.2e}, has no units, assuming meters ".format(dz))
             z_direct = dz
 
-        if np.abs((z_direct).to(u.m)) < 1*u.Angstrom:
-            _log.debug("Skipping Small dz = " + str(z_direct))
+        if np.abs(dz) < 1*u.Angstrom:
+            _log.debug("Skipping Small dz = " + str(dz))
             return
 
         x,y = self.coordinates() #meters
