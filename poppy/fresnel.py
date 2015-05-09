@@ -93,6 +93,7 @@ class Gaussian_Lens(quad_phase):
                  name = 'Gaussian Lens',
                  reference_wavelength = 2e-6,
                  units=u.m,
+                 oversample=2,
                  **kwargs):
         quad_phase.__init__(self, 
                  f_lens,
@@ -100,6 +101,7 @@ class Gaussian_Lens(quad_phase):
                  name = name,
                  reference_wavelength = reference_wavelength,
                  units=units,
+                 oversample=oversample,
                  **kwargs)
         if  isinstance(f_lens,u.quantity.Quantity):
             self.fl = (f_lens).to(u.m) #convert to meters.
@@ -115,7 +117,7 @@ class Wavefront(poppy.Wavefront):
                  units=u.m, 
                  force_fresnel=True,
                  rayl_factor=2.0,
-        
+                    oversample=2,
                  **kwds):
         '''
         
@@ -155,23 +157,39 @@ class Wavefront(poppy.Wavefront):
         #        in Python 3 this will change, 
         #        https://stackoverflow.com/questions/576169/understanding-python-super-with-init-methods
         
-        super(Wavefront,self).__init__(**kwds)  
         self.units = units
         self.w_0 = (beam_radius).to( self.units) #convert to base units.
+        self.oversample=oversample
+        #print(oversample)
+        super(Wavefront,self).__init__(diam=beam_radius.to(u.m).value*2.0, oversample=self.oversample,**kwds)  
+        
+    
         self.z  =  0*units
         self.z_w0 = 0*units
-        self.wavelen_m = self.wavelength*u.m
+        self.wavelen_m = self.wavelength*u.m #wavelengths should always be in meters
         self.spherical = False
-        self.i = np.complex(0,1)
         self.k = np.pi*2.0/self.wavelength
         self.force_fresnel = force_fresnel
         self.rayl_factor= rayl_factor
+        if self.oversample > 1 and not self.ispadded: #add padding for oversampling, if necessary
+            self.wavefront = utils.padToOversample(self.wavefront, self.oversample)
+            self.ispadded = True
+            _log.debug("Padded WF array for oversampling by %dx" % self.oversample)
+
+            self.history.append("    Padded WF array for oversampling by %dx" % self.oversample)
+        else:
+            _log.debug("Skipping oversampling, oversample < 1 or already padded ")
+        
+        if self.oversample < 2:
+            _log.warn("Oversampling > 2x suggested for reliable results.")
+        
         if self.shape[0]==self.shape[1]:
             self.n=self.shape[0]
         else:
             self.n=self.shape
-        #self.planetype=_PUPIL #type of last surface 
-        #self.wavelength = self.wavelength*u.m #breaks other parts of POPPY
+        
+        if self.planetype is _IMAGE:
+            raise ValueError("Input wavefront needs to be a pupil plane in units of m/pix. Specify a diameter not a pixelscale.")
         
     @property
     def z_R(self):
@@ -204,7 +222,7 @@ class Wavefront(poppy.Wavefront):
         forward_FFT= pyfftw.interfaces.numpy_fft.fft2 if poppy.conf.use_fftw else np.fft.fft2 
         self.wavefront=forward_FFT(self.wavefront, overwrite_input=True,
                                      planner_effort='FFTW_MEASURE',
-                                     threads=poppy.conf.n_processes)*self.n
+                                     threads=poppy.conf.n_processes)*self.shape[0]
 
     def inv_fft(self):
         '''
@@ -213,7 +231,7 @@ class Wavefront(poppy.Wavefront):
         inverse_FFT= pyfftw.interfaces.numpy_fft.ifft2 if poppy.conf.use_fftw else np.fft.ifft2 
         self.wavefront=inverse_FFT(self.wavefront, overwrite_input=True,
                                      planner_effort='FFTW_MEASURE',
-                                     threads=poppy.conf.n_processes)/self.n
+                                     threads=poppy.conf.n_processes)/self.shape[0]
 
     def R_c(self,z):
         '''
@@ -230,6 +248,7 @@ class Wavefront(poppy.Wavefront):
         '''
         return self.w_0 * np.sqrt(1.0 + ((z-self.z_w0)/self.z_R)**2 )
 
+
     def propagateDirect(self,z):
         '''
         Implements the direct propagation algorithm described in Andersen & Enmark (2011). Works best for far field propagation.
@@ -237,7 +256,6 @@ class Wavefront(poppy.Wavefront):
         
         '''
         
-        _log.debug("Direct propagation to z= {0:0.2e}".format(z))
         if  isinstance(z,u.quantity.Quantity):
             z_direct = (z).to(u.m).value #convert to meters.
         else:
@@ -258,6 +276,8 @@ class Wavefront(poppy.Wavefront):
         result=np.fft.fftshift(result)
 
         self.wavefront=result
+        self.history.append("Direct propagation to z= {0:0.2e}".format(z))
+
         return
     
     def ptp(self,dz): 
@@ -269,14 +289,13 @@ class Wavefront(poppy.Wavefront):
         else:
             _log.warn("z= {0:0.2e}, has no units, assuming meters ".format(dz))
             z_direct = dz
-        _log.debug("Plane-to-Plane Propagation, dz = " + str(z_direct))
 
         if np.abs((dz).to(u.m)) < 0.1*u.Angstrom:
             _log.debug("Skipping Small dz = " + str(z_direct))
             return
         
         x,y = self.coordinates() #meters
-        rho = np.fft.fftshift((x/self.pixelscale/2.0)**2 + (y/self.pixelscale/2.0)**2)
+        rho = np.fft.fftshift((x/self.pixelscale/2.0/self.oversample)**2 + (y/self.pixelscale/2.0/self.oversample)**2)
         T=-1.0j*np.pi*self.wavelength*(z_direct)*rho #Transfer Function of diffraction propagation eq. 22, eq. 87
             
         self.fft()
@@ -284,9 +303,8 @@ class Wavefront(poppy.Wavefront):
         self.wavefront = self.wavefront*np.exp(T)#eq. 6.68
 
         self.inv_fft()
-
-        #self.propagateDirect(dz)
-
+        self.history.append("Propagated Plane-to-Plane, dz = " + str(z_direct))
+    
     def wts(self,dz):
         '''
         Lawrence eq. 83,88
@@ -311,6 +329,7 @@ class Wavefront(poppy.Wavefront):
             
         self.pixelscale = self.wavelength*np.abs(dz.value)/(self.n*self.pixelscale)
         self.z = self.z + dz
+        self.history.append("Propagated Waist to Spherical, dz = " + str(dz))
 
 
     def stw(self,dz):
@@ -339,9 +358,8 @@ class Wavefront(poppy.Wavefront):
         self.pixelscale = self.wavelength*np.abs(dz.value)/(self.n*self.pixelscale)
 
         self *= quad_phase(dz, reference_wavelength=self.wavelength)
-
-
         self.z = self.z + dz
+        self.history.append("Propagated Spherical to Waist, dz = " + str(dz))
 
     def planar_range(self,z):
         if np.abs(self.z_w0 - self.z) < self.z_R:
@@ -360,22 +378,22 @@ class Wavefront(poppy.Wavefront):
          (spherical or planar). 
          
         '''
-
+        #self.pad_wavefront()
         z = self.z + delta_z
         if display_intermed:
             plt.figure()
             self.display('both',colorbar=True,title="Starting Surface")
 
         self.wavefront=np.fft.fftshift(self.wavefront)
+        _log.debug("Beginning Fresnel Prop. Waist at z = "+str(self.z_w0))
+
         if not self.spherical:
             if self.planar_range(z):
-                _log.debug("waist at z="+str(self.z_w0))
-                _log.debug('Plane to Plane Regime, dz'+str(delta_z))
-                _log.debug('Constant Pixelscale:%.2g'%self.pixelscale)
+                _log.debug('Plane to Plane Regime, dz='+str(delta_z))
+                _log.debug('Constant Pixelscale: %.2g'%self.pixelscale)
 
                 self.ptp(delta_z)
             else:
-                _log.debug("waist at z="+str(self.z_w0))
                 _log.debug('Plane to Spherical, inside Z_R to outside Z_R')
                 self.ptp(self.z_w0 - self.z)
                 if display_intermed:
@@ -384,7 +402,6 @@ class Wavefront(poppy.Wavefront):
                 self.wts(z-a.z_w0)
         else:
             if self.planar_range(z):
-                _log.debug("waist at z="+str(self.z_w0))
                 _log.debug('Spherical to Plane Regime, outside Z_R to inside Z_R')
                 self.stw(self.z_w0 - self.z)
                 if display_intermed:
@@ -392,7 +409,6 @@ class Wavefront(poppy.Wavefront):
                     self.display('both',colorbar=True,title='Intermediate Waist')
                 self.ptp(z-self.z_w0)
             else:
-                _log.debug("waist at z="+str(self.z_w0))
                 _log.debug('Spherical to Spherical, Outside Z_R to waist (z_w0) to outside Z_R')
                 _log.debug('Starting Pixelscale:%.2g'%self.pixelscale)
                 self.stw(self.z_w0 - self.z)
@@ -405,6 +421,7 @@ class Wavefront(poppy.Wavefront):
         if display_intermed:
             plt.figure()
             self.display('both',colorbar=True)
+            
         self.wavefront = np.fft.fftshift(self.wavefront)
         _log.debug("------ Propagated to: z = {0:0.2e} ------".format(z))
 
@@ -430,6 +447,9 @@ class Wavefront(poppy.Wavefront):
 
         
         '''
+        #test optic and wavefront have equal oversampling
+        assert self.oversample == optic.oversample
+        #self.pad_wavefront()
         _log.debug("Pre-Lens Parameters:"+self.param_str)
 
         zl = (z_lens).to( self.units) #convert to meters.
