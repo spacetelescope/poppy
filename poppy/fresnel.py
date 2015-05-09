@@ -106,9 +106,9 @@ class Gaussian_Lens(quad_phase):
         if  isinstance(f_lens,u.quantity.Quantity):
             self.fl = (f_lens).to(u.m) #convert to meters.
         else:
-            _log.debug("Assuming meters, phase (%.3g) has no units for Optic: "%(z)+self.name)
-            self.fl=z*u.m
-        _log.debug("Initialized"+self.name+"z ={0:0.2e} meters".format(self.z_m))
+            _log.warn("Assuming meters, focal length (%.3g) has no units for Optic: "%(f_lens)+self.name)
+            self.fl=f_lens*u.m
+        _log.debug("Initialized: "+self.name+", fl ={0:0.2e}".format(self.fl))
 
 
 class Wavefront(poppy.Wavefront):  
