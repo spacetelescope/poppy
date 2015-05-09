@@ -290,10 +290,10 @@ class Wavefront(poppy.Wavefront):
             _log.warn("z= {0:0.2e}, has no units, assuming meters ".format(dz))
             z_direct = dz
 
-        if np.abs((dz).to(u.m)) < 0.1*u.Angstrom:
+        if np.abs((z_direct).to(u.m)) < 1*u.Angstrom:
             _log.debug("Skipping Small dz = " + str(z_direct))
             return
-        
+
         x,y = self.coordinates() #meters
         rho = np.fft.fftshift((x/self.pixelscale/2.0/self.oversample)**2 + (y/self.pixelscale/2.0/self.oversample)**2)
         T=-1.0j*np.pi*self.wavelength*(z_direct)*rho #Transfer Function of diffraction propagation eq. 22, eq. 87
@@ -362,7 +362,7 @@ class Wavefront(poppy.Wavefront):
         self.history.append("Propagated Spherical to Waist, dz = " + str(dz))
 
     def planar_range(self,z):
-        if np.abs(self.z_w0 - self.z) < self.z_R:
+        if np.abs(self.z_w0 - z) < self.z_R:
             return True
         else:
             return False
@@ -386,7 +386,7 @@ class Wavefront(poppy.Wavefront):
 
         self.wavefront=np.fft.fftshift(self.wavefront)
         _log.debug("Beginning Fresnel Prop. Waist at z = "+str(self.z_w0))
-
+        
         if not self.spherical:
             if self.planar_range(z):
                 _log.debug('Plane to Plane Regime, dz='+str(delta_z))
