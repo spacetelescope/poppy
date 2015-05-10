@@ -48,6 +48,8 @@ if poppy.conf.use_fftw:
         poppy.conf.use_fftw = False
 
 
+
+        
 class quad_phase(poppy.AnalyticOpticalElement):
     '''
     Class, q(z), Lawrence eq. 88
@@ -70,7 +72,7 @@ class quad_phase(poppy.AnalyticOpticalElement):
             self.z_m=z*u.m
 
     def getPhasor(self, wave):
-        y, x = wave.coordinates()
+        y, x = wave.fft_coords()
         self.rsqd = (x**2+y**2)*u.m**2
         #quad_phase_1st= np.exp(i*k*(x**2+y**2)/(2*self.z_m))#eq. 6.68
         _log.debug("Applying spherical phase curvature ={0:0.2e}".format(self.z_m))
@@ -163,7 +165,6 @@ class Wavefront(poppy.Wavefront):
         #print(oversample)
         super(Wavefront,self).__init__(diam=beam_radius.to(u.m).value*2.0, oversample=self.oversample,**kwds)  
         
-    
         self.z  =  0*units
         self.z_w0 = 0*units
         self.wavelen_m = self.wavelength*u.m #wavelengths should always be in meters
@@ -220,6 +221,7 @@ class Wavefront(poppy.Wavefront):
         Apply normalized forward 2d Fast Fourier Transform to wavefront
         '''
         forward_FFT= pyfftw.interfaces.numpy_fft.fft2 if poppy.conf.use_fftw else np.fft.fft2 
+
         self.wavefront=forward_FFT(self.wavefront, overwrite_input=True,
                                      planner_effort='FFTW_MEASURE',
                                      threads=poppy.conf.n_processes)/self.shape[0]
@@ -248,6 +250,28 @@ class Wavefront(poppy.Wavefront):
         '''
         return self.w_0 * np.sqrt(1.0 + ((z-self.z_w0)/self.z_R)**2 )
 
+    def fft_coords(self):
+        """ 
+        Return Y, X coordinates for this wavefront, in the manner of numpy.indices()
+
+        This function returns the FFT center of the array always. Replaces poppy.wavefront.coordinates().
+
+        Returns
+        -------
+        Y, X :  array_like
+            Wavefront coordinates in either meters or arcseconds for pupil and image, respectively
+
+        """
+        y, x = np.indices(self.shape, dtype=float)
+        y-= (self.shape[0])/2.
+        x-= (self.shape[1])/2.
+        
+        xscale=self.pixelscale
+        yscale=self.pixelscale
+
+        #x *= xscale
+        #y *= yscale
+        return y*yscale, x*xscale
 
     def propagateDirect(self,z):
         '''
@@ -261,7 +285,7 @@ class Wavefront(poppy.Wavefront):
         else:
             _log.warn("z= {0:0.2e}, has no units, assuming meters ".format(z))
             z_direct=z
-        x,y=self.coordinates()#*self.units
+        x,y=self.fft_coords()#*self.units
         k=np.pi*2.0/self.wavelen_m.value
         S=self.n*self.pixelscale
         _log.debug("Propagation Parameters: k={0:0.2e},".format(k)+"S={0:0.2e},".format(S)+"z={0:0.2e},".format(z_direct))
@@ -294,7 +318,7 @@ class Wavefront(poppy.Wavefront):
             _log.debug("Skipping Small dz = " + str(dz))
             return
 
-        x,y = self.coordinates() #meters
+        x,y = self.fft_coords() #meters
         rho = np.fft.fftshift((x/self.pixelscale/2.0/self.oversample)**2 + (y/self.pixelscale/2.0/self.oversample)**2)
         T=-1.0j*np.pi*self.wavelength*(z_direct)*rho #Transfer Function of diffraction propagation eq. 22, eq. 87
             
@@ -313,10 +337,7 @@ class Wavefront(poppy.Wavefront):
         '''
         #dz = z2-self.z
         _log.debug("Waist to Spherical propagation, dz=" + str(dz))
-        if np.abs(dz) < 0.1*u.Angstrom:
-            _log.debug("Skipping Small dz = " + str(dz))
-            return
-        
+ 
         if dz ==0:
             _log.error("Waist to Spherical propagation stopped, no change in distance.")
             return 
@@ -344,9 +365,6 @@ class Wavefront(poppy.Wavefront):
         #dz = z2 - self.z
         _log.debug("Spherical to Waist propagation,dz="+str(dz))
 
-        if np.abs(dz) < 0.1*u.Angstrom:
-            _log.debug("Skipping Small dz = " + str(dz))
-            return
         if dz ==0:
             _log.error("Spherical to Waist propagation stopped, no change in distance.")
             return 
@@ -358,10 +376,10 @@ class Wavefront(poppy.Wavefront):
 
         #update to new pixel scale before applying curvature
         self.pixelscale = self.wavelength*np.abs(dz.value)/(self.n*self.pixelscale)
-
         self *= quad_phase(dz, reference_wavelength=self.wavelength)
         self.z = self.z + dz
         self.history.append("Propagated Spherical to Waist, dz = " + str(dz))
+        #
 
     def planar_range(self,z):
         if np.abs(self.z_w0 - z) < self.z_R:
@@ -423,8 +441,9 @@ class Wavefront(poppy.Wavefront):
         if display_intermed:
             plt.figure()
             self.display('both',colorbar=True)
-            
+
         self.wavefront = np.fft.fftshift(self.wavefront)
+
         _log.debug("------ Propagated to: z = {0:0.2e} ------".format(z))
 
     
@@ -449,6 +468,7 @@ class Wavefront(poppy.Wavefront):
 
         
         '''
+
         #test optic and wavefront have equal oversampling
         assert self.oversample == optic.oversample
         #self.pad_wavefront()
