@@ -111,27 +111,31 @@ def matrix_dft(plane, nlamD, npix,
 
     npupY, npupX = plane.shape
 
-    if np.isscalar(npix): 
-        npixY, npixX = npix, npix
-    else:
-        try:
-            npixY, npixX = npix
-        except ValueError:
-            raise ValueError(
-                "'npix' must be supplied as a scalar (for square arrays) or as "
-                "a 2-tuple of ints (npixY, npixX)"
-            )
+    try:
+        if np.isscalar(npix): 
+            npixY, npixX = float(npix), float(npix)
+        else:
+            npixY, npixX = tuple(np.asarray(npix, dtype=float))
+    except ValueError:
+        raise ValueError(
+            "'npix' must be supplied as a scalar (for square arrays) or as "
+            "a 2-tuple of ints (npixY, npixX)"
+        )
 
-    if np.isscalar(nlamD):
-        nlamDY, nlamDX = nlamD, nlamD
-    else:
-        try:
-            nlamDY, nlamDX = nlamD
-        except ValueError:
-            raise ValueError(
-                "'nlamD' must be supplied as a scalar (for square arrays) or as"
-                " a 2-tuple of floats (nlamDY, nlamDX)"
-            )
+    # make sure these are integer values
+    if npixX != int(npixX) or npixY != int(npixY):
+        raise TypeError("'npix' must be supplied as integer value(s)")
+
+    try:
+        if np.isscalar(nlamD):
+            nlamDY, nlamDX = float(nlamD), float(nlamD)
+        else:
+            nlamDY, nlamDX = tuple(np.asarray(nlamD, dtype=float))
+    except ValueError:
+        raise ValueError(
+            "'nlamD' must be supplied as a scalar (for square arrays) or as"
+            " a 2-tuple of floats (nlamDY, nlamDX)"
+        )
 
     centering = centering.upper()
 
@@ -142,11 +146,11 @@ def matrix_dft(plane, nlamD, npix,
     if inverse:
         dX = nlamDX / float(npupX)
         dY = nlamDY / float(npupY)
-        dU = 1.0 / float(npixY)
-        dV = 1.0 / float(npixX)
+        dU = 1.0 / float(npixX)
+        dV = 1.0 / float(npixY)
     else:
         dU = nlamDX / float(npixX)
-        dV = nlamDX / float(npixX)
+        dV = nlamDY / float(npixY)
         dX = 1.0 / float(npupX)
         dY = 1.0 / float(npupY)
 
@@ -161,7 +165,7 @@ def matrix_dft(plane, nlamD, npix,
             offsetY, offsetX = 0.0, 0.0
         else:
             try:
-                offsetY, offsetX = offset
+                offsetY, offsetX = tuple(np.asarray(offset, dtype=float))
             except ValueError:
                 raise ValueError(
                     "'offset' must be supplied as a 2-tuple with "

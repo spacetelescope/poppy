@@ -197,7 +197,7 @@ def fwcentroid(image, checkbox=1, maxiterations=20, threshold=1e-4, halfwidth=5,
             CONVERGENCEFLAG = False
             oldXCEN = XCEN
             oldYCEN = YCEN
-    if not CONVERGENCEFLAG:
+    if not CONVERGENCEFLAG: # pragma: no cover
         print("Algorithm terminated at max iterations without convergence.")
 
     return  YCEN, XCEN
@@ -249,7 +249,7 @@ def test_fwcentroid(n=100, width=5, halfwidth=5, verbose=True, **kwargs):
     assert np.sqrt(np.mean(diffx**2+diffy**2)) < 5e-3
 
 
-if __name__ == "__main__":
+if __name__ == "__main__": # pragma: no cover
 
     test_fwcentroid()
 

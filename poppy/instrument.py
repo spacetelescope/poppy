@@ -1,7 +1,11 @@
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 import os
+import re
 import time
+import platform
+import getpass
 import copy
+import six
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
@@ -10,7 +14,7 @@ import astropy.io.fits as fits
 try:
     import pysynphot
     _HAS_PYSYNPHOT = True
-except:
+except ImportError:
     pysynphot = None
     _HAS_PYSYNPHOT = False
 
@@ -102,7 +106,6 @@ class Instrument(object):
         self.pupil = optics.CircularAperture(*args, **kwargs)
         self.pupilopd = None
         self.options = {}
-        self.pixelscale = 0.025
         self.filter_list, self._synphot_bandpasses = self._getFilterList() # List of available filter names
 
         # create private instance variables. These will be
@@ -260,7 +263,12 @@ class Instrument(object):
         if display:
             f = plt.gcf()
             plt.suptitle( "%s, filter= %s" % (self.name, self.filter), size='xx-large')
-            plt.text( 0.99, 0.04, "Calculation with %d wavelengths (%g - %g um)" % (nlambda, wavelens[0]*1e6, wavelens[-1]*1e6), 
+
+            if monochromatic is not None:
+                labeltext = "Monochromatic calculation at {:.3f} um".format(monochromatic*1e6)
+            else:
+                labeltext = "Calculation with %d wavelengths (%g - %g um)" % (nlambda, wavelens[0]*1e6, wavelens[-1]*1e6)
+            plt.text( 0.99, 0.04, labeltext,
                     transform=f.transFigure, horizontalalignment='right')
 
         if outfile is not None:
@@ -311,7 +319,7 @@ class Instrument(object):
             # return the downsampled image in the first image extension
             # keep the oversampled image in the primary HDU.
             # create the image extension even if we're already at 1x sampling, for consistency
-            poppy_core._log.info(" Downsampling to detector pixel scale.")
+            poppy_core._log.info(" Adding extension with image downsampled to detector pixel scale.")
             rebinned_result = result[0].copy()
             if options['detector_oversample'] > 1:
                 rebinned_result.data = utils.rebin_array(rebinned_result.data,
@@ -347,7 +355,7 @@ class Instrument(object):
             __version__ = ''
 
         #---  update FITS header, display, and output.
-        if isinstance( self.pupil, basestring):
+        if isinstance( self.pupil, six.string_types):
             pupilstr= os.path.basename(self.pupil)
         elif isinstance( self.pupil, fits.HDUList):
             pupilstr= 'pupil from supplied FITS HDUList object'
@@ -357,7 +365,7 @@ class Instrument(object):
 
         if self.pupilopd is None:
             opdstring = "NONE - perfect telescope! "
-        elif isinstance( self.pupilopd, basestring):
+        elif isinstance( self.pupilopd, six.string_types):
             opdstring = os.path.basename(self.pupilopd)
         elif isinstance( self.pupilopd, fits.HDUList):
             opdstring = 'OPD from supplied FITS HDUlist object'
@@ -370,14 +378,17 @@ class Instrument(object):
         result[0].header['EXTNAME'] = ( 'OVERSAMP')
         result[0].header.add_history('Created by POPPY version '+__version__)
 
-        if 'fft_oversample' in options.keys():
+        if 'fft_oversample' in options:
             result[0].header['OVERSAMP'] = ( options['fft_oversample'], 'Oversampling factor for FFTs in computation')
-        if 'detector_oversample' in options.keys():
+        if 'detector_oversample' in options:
             result[0].header['DET_SAMP'] = ( options['detector_oversample'], 'Oversampling factor for MFT to detector plane')
 
         (year, month, day, hour, minute, second, weekday, DOY, DST) =  time.gmtime()
         result[0].header["DATE"] = ( "%4d-%02d-%02dT%02d:%02d:%02d" % (year, month, day, hour, minute, second), "Date of calculation")
-        result[0].header["AUTHOR"] = ( "%s@%s" % (os.getenv('USER'), os.getenv('HOST')), "username@host for calculation")
+        # get username and hostname in a cross-platform way
+        username = getpass.getuser()
+        hostname = platform.node()
+        result[0].header["AUTHOR"] = ( "%s@%s" % (username, hostname), "username@host for calculation")
 
     def _validateConfig(self, wavelengths=None):
         """Determine if a provided instrument configuration is valid.
@@ -430,8 +441,8 @@ class Instrument(object):
 
         poppy_core._log.debug("Oversample: %d  %d " % (fft_oversample, detector_oversample))
         optsys = poppy_core.OpticalSystem(name=self.name, oversample=fft_oversample)
-        if 'source_offset_r' in options.keys(): optsys.source_offset_r = options['source_offset_r']
-        if 'source_offset_theta' in options.keys(): optsys.source_offset_theta = options['source_offset_theta']
+        if 'source_offset_r' in options: optsys.source_offset_r = options['source_offset_r']
+        if 'source_offset_theta' in options: optsys.source_offset_theta = options['source_offset_theta']
 
 
         #---- set pupil intensity
@@ -451,7 +462,7 @@ class Instrument(object):
         #---- set pupil OPD
         if isinstance(self.pupilopd, str):  # simple filename
             full_opd_path = self.pupilopd if os.path.exists( self.pupilopd) else os.path.join(self._datapath, "OPD",self.pupilopd)
-        elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], basestring): # tuple with filename and slice
+        elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], six.string_types): # tuple with filename and slice
             full_opd_path =  (self.pupilopd[0] if os.path.exists( self.pupilopd[0]) else os.path.join(self._datapath, "OPD",self.pupilopd[0]), self.pupilopd[1])
         elif isinstance(self.pupilopd, fits.HDUList): # OPD supplied as FITS HDUList object
             full_opd_path = self.pupilopd # not a path per se but this works correctly to pass it to poppy
@@ -469,7 +480,7 @@ class Instrument(object):
         #--- add the detector element. 
         if fov_pixels is None:
             fov_pixels = np.round(fov_arcsec/self.pixelscale)
-            if 'parity' in self.options.keys():
+            if 'parity' in self.options:
                 if self.options['parity'].lower() == 'odd'  and np.remainder(fov_pixels,2)==0: fov_pixels +=1
                 if self.options['parity'].lower() == 'even' and np.remainder(fov_pixels,2)==1: fov_pixels +=1
 
@@ -497,7 +508,7 @@ class Instrument(object):
         The image in the 'result' HDUlist will be modified by this function.
         """
         if local_options is None: local_options = self.options
-        if 'jitter' not in local_options.keys(): return
+        if 'jitter' not in local_options: return
 
         poppy_core._log.info("Calculating jitter using "+str(local_options['jitter']) )
 
@@ -514,13 +525,13 @@ class Instrument(object):
 
             # that will be in arcseconds, we need to convert to pixels:
 
-            poppy_core._log.info("Jitter: Convolving with Gaussian with sigma=%.2f arcsec" % sigma)
-            out = scipy.ndimage.gaussian_filter(result[0].data, sigma/self.pixelscale)
+            poppy_core._log.info("Jitter: Convolving with Gaussian with sigma={0:.3f} arcsec".format(sigma))
+            out = scipy.ndimage.gaussian_filter(result[0].data, sigma/result[0].header['PIXELSCL'])
             peak = result[0].data.max()
             newpeak = out.max()
             strehl   = newpeak/peak # not really the whole Strehl ratio, just the part due to jitter
 
-            poppy_core._log.info("        resulting image peak drops to %.3f of its previous value" % strehl)
+            poppy_core._log.info("        resulting image peak drops to {0:.3f} of its previous value".format(strehl))
             result[0].header['JITRTYPE'] = ( 'Gaussian convolution', 'Type of jitter applied')
             result[0].header['JITRSIGM'] = ( sigma, 'Gaussian sigma for jitter [arcsec]')
             result[0].header['JITRSTRL'] = ( strehl, 'Image peak reduction due to jitter')
@@ -543,7 +554,7 @@ class Instrument(object):
         try:
             old_no_sam = self.options['no_sam']
             self.options['no_sam'] = True
-        except:
+        except KeyError:
             old_no_sam = None
 
         optsys = self._getOpticalSystem()
@@ -652,17 +663,17 @@ class Instrument(object):
             if source is None:
                 try:
                     source = pysynphot.Icat('ck04models',5700,0.0,2.0)
-                except:
+                except IOError:
                     poppy_core._log.error("Could not load Castelli & Kurucz stellar model from disk; falling back to 5700 K blackbody")
                     source = pysynphot.BlackBody(5700)
             poppy_core._log.debug("Computing spectral weights for source = "+str(source))
 
             try:
                 key = self._getSpecCacheKey(source, nlambda)
-                if key in self._spectra_cache.keys():
+                if key in self._spectra_cache:
                     poppy_core._log.debug("Previously computed spectral weights found in cache, just reusing those")
                     return self._spectra_cache[keys]
-            except:
+            except KeyError:
                 pass  # in case sourcespectrum lacks a name element so the above lookup fails - just do the below calc.
 
             poppy_core._log.info("Computing wavelength weights using synthetic photometry for %s..." % self.filter)
@@ -707,30 +718,29 @@ class Instrument(object):
         else:  #Fallback simple code for if we don't have pysynphot.
             poppy_core._log.warning("Pysynphot unavailable (or invalid source supplied)!   Assuming flat # of counts versus wavelength.")
             # compute a source spectrum weighted by the desired filter curves.
-            # TBD this will eventually use pysynphot, so don't write anything fancy for now!
-            wf = np.where(np.asarray(self.filter_list) == self.filter)[0]
             # The existing FITS files all have wavelength in ANGSTROMS since that is the pysynphot convention...
-            #filterdata = atpy.Table(self._filter_files[wf], type='fits')
-            filterfits = fits.open(self._filter_files[wf])
+            filterfile = self._filters[self.filter].filename
+            filterfits = fits.open(filterfile)
             filterdata = filterfits[1].data 
             try:
                 f1 = filterdata.WAVELENGTH
                 d2 = filterdata.THROUGHPUT
-            except:
-                raise ValueError("The supplied file, %s, does not appear to be a FITS table with WAVELENGTH and THROUGHPUT columns." % self._filter_files[wf] )
-            if 'WAVEUNIT' in  filterfits[1].header.keys():
-                waveunit  = filterfits[1].header['WAVEUNIT']
+            except AttributeError:
+                raise ValueError("The supplied file, {0}, does not appear to be a FITS table with WAVELENGTH and THROUGHPUT columns.".format(filterfile))
+            if 'WAVEUNIT' in  filterfits[1].header:
+                waveunit = filterfits[1].header['WAVEUNIT']
+                if re.match(r'[Aa]ngstroms?', waveunit) is None:
+                    raise ValueError("The supplied file, {0}, has WAVEUNIT='{1}'. Only WAVEUNIT = Angstrom supported when Pysynphot is not installed.".format(filterfile, waveunit))
             else:
-                poppy_core._log.warn("CAUTION: no WAVEUNIT keyword found in filter file {0}. Assuming = Angstroms by default".format(filterfits.filename()))
+                poppy_core._log.warn("CAUTION: no WAVEUNIT keyword found in filter file {0}. Assuming = Angstroms by default".format(filterfile))
                 waveunit = 'Angstrom'
-            if waveunit != 'Angstrom': raise ValueError("The supplied file, %s, does not have WAVEUNIT = Angstrom as expected." % self._filter_files[wf] )
-            poppy_core._log.warn("CAUTION: Just interpolating rather than integrating filter profile, over %d steps" % nlambda)
+            poppy_core._log.warn("CAUTION: Just interpolating rather than integrating filter profile, over {0} steps".format(nlambda))
             wtrans = np.where(filterdata.THROUGHPUT > 0.4)
-            lrange = filterdata.WAVELENGTH[wtrans] *1e-10  # convert from Angstroms to Meters
+            lrange = filterdata.WAVELENGTH[wtrans] * 1e-10  # convert from Angstroms to Meters
             lambd = np.linspace(np.min(lrange), np.max(lrange), nlambda)
-            filter_fn = scipy.interpolate.interp1d(filterdata.WAVELENGTH*1e-10, filterdata.THROUGHPUT,kind='cubic', bounds_error=False)
+            filter_fn = scipy.interpolate.interp1d(filterdata.WAVELENGTH * 1e-10, filterdata.THROUGHPUT, kind='cubic', bounds_error=False)
             weights = filter_fn(lambd)
-            return (lambd,weights)
+            return lambd, weights
 
 
 

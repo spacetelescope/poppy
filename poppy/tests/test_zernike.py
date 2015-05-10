@@ -20,7 +20,7 @@ def test_ones_zernikes(nterms=10):
         n, m = zernike.noll_indices(j)
         Z = zernike.zernike1(j, rho=rho, theta=theta)
         Rs = zernike.R(n, m, rho)
-        print "j=%d\tZ_(%d,%d) [1] = \t %s" % (j, n, m, str(Rs))
+        print("j=%d\tZ_(%d,%d) [1] = \t %s" % (j, n, m, str(Rs)))
         assert Rs[0] == Rs[1] == Rs[2], "Radial polynomial is not radially symmetric"
 
 

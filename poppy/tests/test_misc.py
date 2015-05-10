@@ -47,7 +47,7 @@ def test_airy_2d(display=False):
     r, fn1d = airy_1d(diameter=1.0, wavelength=1e-6, length=256, pixelscale=0.010)
 
     cut = fn2d[255, 255:].flatten()
-    print cut.shape
+    print(cut.shape)
 
     if display:
         

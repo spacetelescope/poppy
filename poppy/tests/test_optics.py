@@ -44,6 +44,8 @@ def test_InverseTransmission():
         inverted = optics.InverseTransmission(optic)
         assert( np.all(  np.abs(optic.getPhasor(wave) - (1-inverted.getPhasor(wave))) < 1e-10 ))
 
+        assert optic.shape==inverted.shape
+
 
 #------ Generic Analytic elements -----
 
@@ -85,6 +87,25 @@ def test_BarOcculter():
     wave*= optic
     assert wave.shape[0] == 100
     assert wave.intensity.sum() == 9000 # 9/10 of the 1e4 element array
+
+
+def test_AnnularFieldStop():
+    optic= optics.AnnularFieldStop(radius_inner=1.0, radius_outer=2.0)
+    wave = poppy_core.Wavefront(npix=100, pixelscale=0.1, wavelength=1e-6) # 10x10 arcsec square
+
+    wave*= optic
+    # Just check a handful of points that it goes from 0 to 1 back to 0
+    assert wave.intensity[50,50] == 0
+    assert wave.intensity[55,50] == 0
+    assert wave.intensity[60,50] == 1
+    assert wave.intensity[69,50] == 1
+    assert wave.intensity[75,50] == 0
+    assert wave.intensity[95,50] == 0
+    # and check the area is approximately right
+    expected_area = np.pi*(optic.radius_outer**2 - optic.radius_inner**2) * 100
+    area = wave.intensity.sum()
+    assert np.abs(expected_area-area) < 0.01*expected_area
+
 
 #def test_rotations_RectangularFieldStop():
 #
@@ -361,67 +382,3 @@ def test_ThinLens(display=False):
         "ThinLens shouldn't be affected by null optical elements! Introducing extra image planes "
         "raised std(psf_with_extras - psf_without_extras) above {}".format(THRESHOLD)
     )
-
-def test_ZernikeAberration():
-    # verify that we can reproduce the same behavior as ThinLens
-    # using ZernikeAberration
-    NWAVES = 0.5
-    WAVELENGTH = 1e-6
-    RADIUS = 1.0
-
-    pupil = optics.CircularAperture(radius=1)
-    lens = optics.ThinLens(nwaves=NWAVES, reference_wavelength=WAVELENGTH, radius=RADIUS)
-    tl_wave = poppy_core.Wavefront(npix=101, diam=3.0, wavelength=WAVELENGTH)  # 10x10 meter square
-    tl_wave *= pupil
-    tl_wave *= lens
-
-    zern_wave = poppy_core.Wavefront(npix=101, diam=3.0, wavelength=WAVELENGTH)  # 10x10 meter square
-    zernike_lens = optics.ZernikeAberration(
-        coefficients=[
-            (2, 0, NWAVES * WAVELENGTH / (2 * np.sqrt(3))),
-        ],
-        radius=RADIUS
-    )
-    zern_wave *= pupil
-    zern_wave *= zernike_lens
-
-    stddev = np.std(zern_wave.phase - tl_wave.phase)
-
-    assert stddev < 1e-16, ("ZernikeAberration disagrees with ThinLens! stddev {}".format(stddev))
-
-def test_ParameterizedAberration():
-    # verify that we can reproduce the same behavior as ZernikeAberration
-    # using ParameterizedAberration
-    NWAVES = 0.5
-    WAVELENGTH = 1e-6
-    RADIUS = 1.0
-
-    pupil = optics.CircularAperture(radius=1)
-
-    zern_wave = poppy_core.Wavefront(npix=101, diam=3.0, wavelength=1e-6)  # 10x10 meter square
-    zernike_lens = optics.ZernikeAberration(
-        coefficients=[
-            (2, 0, NWAVES * WAVELENGTH / (2 * np.sqrt(3))),
-            (1, -1, 2e-7),
-            (2, 2, 3e-8)
-        ],
-        radius=RADIUS
-    )
-    zern_wave *= pupil
-    zern_wave *= zernike_lens
-
-    parameterized_distortion = optics.ParameterizedAberration(
-        coefficients=[0, 0, 2e-7, NWAVES * WAVELENGTH / (2 * np.sqrt(3)), 0, 3e-8],
-        basis_factory=zernike.zernike_basis,
-        radius=RADIUS
-    )
-
-    pd_wave = poppy_core.Wavefront(npix=101, diam=3.0, wavelength=1e-6) # 10x10 meter square
-    pd_wave *= pupil
-    pd_wave *= parameterized_distortion
-
-    stddev = np.std(pd_wave.phase - zern_wave.phase)
-
-    assert stddev < 1e-16, ("ParameterizedAberration disagrees with "
-                            "ZernikeAberration! stddev {}".format(stddev))
-

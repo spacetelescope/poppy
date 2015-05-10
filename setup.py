@@ -57,7 +57,7 @@ LONG_DESCRIPTION = ast.get_docstring(module_ast)
 builtins._ASTROPY_PACKAGE_NAME_ = PACKAGENAME
 
 # VERSION should be PEP386 compatible (http://www.python.org/dev/peps/pep-0386)
-VERSION = '0.3.3.dev'
+VERSION = '0.4.0.dev'
 
 # Indicates if this version is a release version
 RELEASE = 'dev' not in VERSION
@@ -108,8 +108,14 @@ setup(name=PACKAGENAME,
       version=VERSION,
       description=DESCRIPTION,
       scripts=scripts,
-      setup_requires=['numpy', 'astropy'],
-      install_requires=['numpy', 'scipy', 'matplotlib', 'astropy'],
+      setup_requires=['numpy>=1.8.0', 'astropy>=1.0.1'],
+      install_requires=[
+          'six>=1.7.3',
+          'numpy>=1.8.0',
+          'scipy>=0.14.0',
+          'matplotlib>=1.4.2',
+          'astropy>=1.0.1'
+      ],
       provides=[PACKAGENAME],
       author=AUTHOR,
       author_email=AUTHOR_EMAIL,
@@ -118,6 +124,5 @@ setup(name=PACKAGENAME,
       long_description=LONG_DESCRIPTION,
       cmdclass=cmdclassd,
       zip_safe=False,
-      use_2to3=True,
       **package_info
 )

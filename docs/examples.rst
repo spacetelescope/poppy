@@ -77,7 +77,7 @@ Defocus can be added using a lens::
 
             osys = poppy.OpticalSystem("test", oversample=2)
             osys.addPupil( poppy.CircularAperture(radius=3))    # pupil radius in meters
-            osys.addPupil( poppy.ThinLens(nwaves=nwaves, reference_wavelength=wavelen))
+            osys.addPupil( poppy.ThinLens(nwaves=nwaves, reference_wavelength=wavelen, radius=3))
             osys.addDetector(pixelscale=0.01, fov_arcsec=4.0)
 
             psf = osys.calcPSF(wavelength=wavelen)

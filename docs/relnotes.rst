@@ -2,8 +2,55 @@
 Release Notes
 ===============
 
+For a list of contributors, see :ref:`about`.
+
+.. _whatsnew:
+
+0.3.5 (or 0.4.0)?
+--------------------
+
+2015 April Sometime
+
+ * Now compatible with Python 3.4 in addition to 2.7!  ( `#83 <https://github.com/mperrin/poppy/pull/82>`_, @josephoenix)
+ * Updated version numbers for dependencies (@josephoenix)
+ * Update to most recent astropy package template (@josephoenix)
+ * AsymmetricSecondaryObscuration enhanced to allow secondary mirror supports offset from the center of the optical system. (@mperrin)
+ * display() functions now return Matplotlib.Axes instances to the calling functions.
+ * Various small documentation updates
+ * Bug fixes for: 
+
+   * redundant colorbar display (`#82 <https://github.com/mperrin/poppy/pull/82>`_)
+   * Unnecessary DeprecationWarnings in imshow_with_mouseover (`#53 <https://github.com/mperrin/poppy/issues/53>`_)
+   * Error in saving intermediate planes during calculation (`#81 <https://github.com/mperrin/poppy/issues/81>`_)
+   * Multiprocessing causes Python to hang if used with Apple Accelerate (`#23 <https://github.com/mperrin/poppy/issues/23>`_)
+
+
+
+
+0.3.4
+-------------------
+
+2015 February 17
+
+ * Continued improvement in unit testing (@mperrin, @josephoenix)
+ * Continued improvement in documentation (@josephoenix, @mperrin)
+ * Functions such as addImage, addPupil now also return a reference to the added optic, for convenience (@josephoenix)
+ * Multiprocessing code and semi-analytic coronagraph method can now return intermediate wavefront planes (@josephoenix)
+ * Display methods for radial profile and encircled energy gain a normalization keyword (@douglase)
+ * matrixDFT: refactor into unified function for all centering types (@josephoenix)
+ * matrixDFT bug fix for axes parity flip versus FFT transforms (Anand Sivaramakrishnan, @josephoenix, @mperrin)
+ * Bug fix: Instrument class can now pass through dict or tuple sources to OpticalSystem calcPSF (@mperrin)
+ * Bug fix: InverseTransmission class shape property works now. (@mperrin)
+ * Refactor instrument validateConfig method and calling path (@josephoenix)
+ * Code cleanup and rebalancing where lines had been blurred between poppy and webbpsf (@josephoenix, @mperrin)
+ * Misc packaging infrastructure improvements (@embray)
+ * Updated to Astropy package helpers 0.4.4
+ * Set up integration with Travis CI for continuous testing. See https://travis-ci.org/mperrin/poppy
+ 
+
 0.3.3
 -------------------
+2014 Nov
 
 :ref:`Bigger team!<about_team>`. This release log now includes github usernames of contributors: 
  
@@ -76,7 +123,4 @@ Released April 7, 2014
  * new `Instrument` class in poppy provides much of the functionality previously in JWInstrument, to make it
    easier to model generic non-JWST instruments using this code.
 
-Contributors
-================
 
-See :ref:`about`.

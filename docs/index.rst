@@ -3,8 +3,8 @@
 Documentation for POPPY
 =========================
 
-POPPY (Physical Optics Propagation in PYthon) is 
-a Python package that simulates physical optical propagation including diffraction. 
+POPPY (Physical Optics Propagation in PYthon) 
+simulates physical optical propagation including diffraction. 
 It implements a flexible framework for modeling Fraunhofer (far-field) diffraction
 and point spread function formation, particularly in the context of astronomical telescopes.
 POPPY was developed as part of a simulation package for JWST, but is more broadly applicable to many kinds of 
@@ -21,7 +21,7 @@ Summary
 * Allows users to define an optical system consisting of multiple image and pupil planes
 * Provides flexible and extensible optical element classes, including a wide variety of stops, masks, lenses and other optics
 * Computes monochromatic and polychromatic point spread functions through those optics
-* Provides an extensible framework for defining models of astronomical instruments, including
+* Provides an extensible framework for defining models of optical instruments, including
   selection of broad- and narrow-band filters, selectable optical components such as pupil stops, etc.
 
 **What this software does not do:**
@@ -40,12 +40,14 @@ near-field (Fresnel) calculations as well, if interest and usage warrant that.
 
        Downloading and running that notebook is a great way to get started using POPPY. The documentation following here provides greater details on the algorithms and API.
 
+:ref:`What's New in the latest version? <whatsnew>`
+       
 
 Contents
 -----------
 
 .. toctree::
-  :maxdepth: 2
+  :maxdepth: 1
 
   installation.rst
   relnotes.rst
@@ -54,7 +56,10 @@ Contents
   options.rst
   classes.rst
   extending.rst
+  api.rst
   about.rst
+  performance.rst
+  fft_optimization.rst
 
 
 Getting Help
