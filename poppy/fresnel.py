@@ -222,7 +222,7 @@ class Wavefront(poppy.Wavefront):
         forward_FFT= pyfftw.interfaces.numpy_fft.fft2 if poppy.conf.use_fftw else np.fft.fft2 
         self.wavefront=forward_FFT(self.wavefront, overwrite_input=True,
                                      planner_effort='FFTW_MEASURE',
-                                     threads=poppy.conf.n_processes)*self.shape[0]
+                                     threads=poppy.conf.n_processes)/self.shape[0]
 
     def inv_fft(self):
         '''
@@ -231,7 +231,7 @@ class Wavefront(poppy.Wavefront):
         inverse_FFT= pyfftw.interfaces.numpy_fft.ifft2 if poppy.conf.use_fftw else np.fft.ifft2 
         self.wavefront=inverse_FFT(self.wavefront, overwrite_input=True,
                                      planner_effort='FFTW_MEASURE',
-                                     threads=poppy.conf.n_processes)/self.shape[0]
+                                     threads=poppy.conf.n_processes)*self.shape[0]
 
     def R_c(self,z):
         '''
@@ -303,6 +303,8 @@ class Wavefront(poppy.Wavefront):
         self.wavefront = self.wavefront*np.exp(T)#eq. 6.68
 
         self.inv_fft()
+        self.z = self.z + dz
+
         self.history.append("Propagated Plane-to-Plane, dz = " + str(z_direct))
     
     def wts(self,dz):
@@ -399,7 +401,7 @@ class Wavefront(poppy.Wavefront):
                 if display_intermed:
                     plt.figure()
                     self.display('both',colorbar=True)
-                self.wts(z-a.z_w0)
+                self.wts(z-self.z_w0)
         else:
             if self.planar_range(z):
                 _log.debug('Spherical to Plane Regime, outside Z_R to inside Z_R')
