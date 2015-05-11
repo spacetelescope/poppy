@@ -10,6 +10,7 @@ import numpy as np
 
 
 # original code in pixwt.c by Marc Buie
+#    See http://www.boulder.swri.edu/~buie/idl/downloads/custom/32bit/pixwt.c
 # 
 # ported to pixwt.pro (IDL) by Doug Loucks, Lowell Observatory, 1992 Sep
 #
@@ -49,6 +50,9 @@ def _oneside(x, y0, y1, r):
 
     if np.all((x==0)): return x
 
+    if np.isscalar(x): x = np.asarray(x)
+    if np.isscalar(y0): y0 = np.asarray(y0)
+    if np.isscalar(y1): y1 = np.asarray(y1)
     sx = x.shape
     ans = np.zeros(sx, dtype=np.float)
     yh = np.zeros(sx, dtype=np.float)
@@ -143,15 +147,16 @@ def pixwt(xc, yc, r, x, y):
 
     area = pixwt( xc, yc, r, x, y )
 
-    xc, yc : Center of the circle, numeric scalars
-    r      : Radius of the circle, numeric scalars
-    x, y   : Center of the unit pixel, numeric scalar or vector
+    xc, yc : Center of the circle, numpy scalars
+    r      : Radius of the circle, numpy scalars
+    x, y   : Center of the unit pixel, numpy scalar or vector
     """
     return _intarea(xc, yc, r, x-0.5, x+0.5, y-0.5, y+0.5)
 
 
 
-def filled_circle_aa(shape, xcenter, ycenter, radius, xarray=None, yarray=None, fillvalue=1, clip=True, cliprange=(0,1)):
+def filled_circle_aa(shape, xcenter, ycenter, radius, xarray=None, yarray=None, 
+        fillvalue=1, clip=True, cliprange=(0,1)):
     """Draw a filled circle with subpixel antialiasing into an array.
 
     Parameters
@@ -201,5 +206,6 @@ def filled_circle_aa(shape, xcenter, ycenter, radius, xarray=None, yarray=None, 
 
     if clip:
         assert len(cliprange) == 2
-        np.clip(array, *cliprange)
-    return array
+        return np.asarray(array).clip(*cliprange)
+    else:
+        return array
