@@ -285,8 +285,11 @@ class Wavefront(poppy.Wavefront):
     def propagateDirect(self,z):
         '''
         Implements the direct propagation algorithm described in Andersen & Enmark (2011). Works best for far field propagation.
-        Not part of the Lawrence propagation system.
-        
+        Not part of the Gaussian beam propagation method.
+
+        Parameters:
+        z :  float 
+            the distance from the current location to propagate the beam.
         '''
         
         if  isinstance(z,u.quantity.Quantity):
@@ -315,6 +318,11 @@ class Wavefront(poppy.Wavefront):
     
     def ptp(self,dz): 
         '''
+        Parameters:
+        
+        dz :  float 
+            the distance from the current location to propagate the beam.
+
         Lawrence eq. 82, 86,87
         '''
         if  isinstance(dz,u.quantity.Quantity):
@@ -342,6 +350,11 @@ class Wavefront(poppy.Wavefront):
     
     def wts(self,dz):
         '''
+        Parameters:
+
+        dz :  float 
+            the distance from the current location to propagate the beam.
+
         Lawrence eq. 83,88
         '''
         #dz = z2-self.z
@@ -366,11 +379,13 @@ class Wavefront(poppy.Wavefront):
 
     def stw(self,dz):
         '''
+        Parameters:
+        dz :  float 
+            the distance from the current location to propagate the beam.
+
         Lawrence eq. 89
         '''
-        '''
-        Lawrence eq. 83,88
-        '''
+
         #dz = z2 - self.z
         _log.debug("Spherical to Waist propagation,dz="+str(dz))
 
@@ -391,6 +406,13 @@ class Wavefront(poppy.Wavefront):
         #
 
     def planar_range(self,z):
+        '''
+        Parameters:
+             z : float
+             
+        Returns True if the input range z is within the Rayleigh range of the waist.
+        '''
+        
         if np.abs(self.z_w0 - z) < self.z_R:
             return True
         else:
@@ -399,9 +421,11 @@ class Wavefront(poppy.Wavefront):
     def propagateFresnel(self,delta_z,display_intermed=False):
         '''
         Parameters:
-        delta_z:
+        delta_z :  float 
             the distance from the current location to propagate the beam.
-        
+        display_interm : boolean
+             If True, display the complex start, intermediates waist and end surfaces.
+            
         Description:
         Each spherical wavefront is propagated to a waist and then to the next appropriate plane 
          (spherical or planar). 
@@ -456,7 +480,7 @@ class Wavefront(poppy.Wavefront):
         _log.debug("------ Propagated to: z = {0:0.2e} ------".format(z))
 
     
-    def apply_optic(self,optic,z_lens,units=u.m,ignore_wavefront=False):
+    def apply_optic(self,optic,z_lens,ignore_wavefront=False):
         '''
         
         Adds thin lens wavefront curvature to the wavefront 
@@ -471,10 +495,11 @@ class Wavefront(poppy.Wavefront):
         
         f_lens : float 
              lens focal length
-             
         z_lens : float 
              location of lens relative to the wavefront origin
-
+        ignore_wavefront : boolean
+             If True then only gaussian the beam propagation parameters will be updated and the wavefront surface will not be calculated.
+              Useful for quick calculations of gaussian laser beams
         
         '''
 
@@ -483,7 +508,7 @@ class Wavefront(poppy.Wavefront):
         #self.pad_wavefront()
         _log.debug("Pre-Lens Parameters:"+self.param_str)
 
-        zl = (z_lens).to( self.units) #convert to meters.
+        zl = (z_lens).to(u.m) #convert to meters.
         new_waist = self.spot_radius(zl)
         _log.debug("Beam radius at"+ str(optic.name)+" ={0:0.2e}".format(new_waist))
         #is the last surface outside the rayleigh distance?
