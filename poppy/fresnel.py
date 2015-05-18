@@ -555,7 +555,7 @@ class Wavefront(poppy.Wavefront):
         
         if (not self.spherical) and (np.abs(self.z_w0 - zl) < self.z_R):
             _log.debug('Near-field, Plane-to-Plane Propagation.')
-            z_eff = fl
+            z_eff = optic.fl
 
         elif (not self.spherical) and (np.abs(self.z_w0 - zl) > self.z_R):
             # find the radius of curvature of the lens output beam
