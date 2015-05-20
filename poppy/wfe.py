@@ -21,8 +21,8 @@ from . import zernike
 __all__ = ['WavefrontError', 'ParameterizedWFE', 'ZernikeWFE']
 
 class WavefrontError(AnalyticOpticalElement):
-
-    planetype = _PUPIL
+    def __init__(self, **kwargs):
+        super(WavefrontError, self).__init__(planetype=_PUPIL, **kwargs)
 
     def rms(self):
         """ RMS wavefront error induced by this surface """
@@ -96,7 +96,7 @@ class ParameterizedWFE(WavefrontError):
                              "(optionally circumscribing a pupil of another shape)")
         self.coefficients = coefficients
         self.basis_factory = basis_factory
-        AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
+        super(ParameterizedWFE, self).__init__(name=name, **kwargs)
 
     def getPhasor(self, wave):
         rho, theta = _wave_to_rho_theta(wave, self.radius)
