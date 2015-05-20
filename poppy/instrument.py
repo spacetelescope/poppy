@@ -672,7 +672,7 @@ class Instrument(object):
                 key = self._getSpecCacheKey(source, nlambda)
                 if key in self._spectra_cache:
                     poppy_core._log.debug("Previously computed spectral weights found in cache, just reusing those")
-                    return self._spectra_cache[keys]
+                    return self._spectra_cache[key]
             except KeyError:
                 pass  # in case sourcespectrum lacks a name element so the above lookup fails - just do the below calc.
 
