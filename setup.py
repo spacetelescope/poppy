@@ -113,7 +113,7 @@ setup(name=PACKAGENAME,
           'six>=1.7.3',
           'numpy>=1.8.0',
           'scipy>=0.14.0',
-          'matplotlib>=1.4.2',
+          'matplotlib>=1.3.0',
           'astropy>=1.0.1'
       ],
       provides=[PACKAGENAME],
