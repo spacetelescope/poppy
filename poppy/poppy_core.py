@@ -2167,64 +2167,57 @@ class FITSOpticalElement(OpticalElement):
                 self._rotation = rotation
 
             _MISSING_PIXELSCALE_MSG = ("No FITS header keyword for pixel scale found "
-                                       "(PIXSCALE or PUPLSCAL). Supply pixelscale as a float in "
+                                       "(tried: {}). Supply pixelscale as a float in "
                                        "meters/px or arcsec/px, or as a string specifying which "
                                        "header keyword to use.")
 
-            if pixelscale is None:
+            def _find_pixelscale_in_headers(keywords, headers):
+                """
+                Loops through provided possible FITS header keywords and a list of FITS
+                header objects (may contain Nones), returning the first
+                (keyword, header value) pair found
+                """
+                for keyword in keywords:
+                    for header in headers:
+                        if header is not None and keyword in header:
+                            return keyword, header[keyword]
+                raise LookupError(_MISSING_PIXELSCALE_MSG.format(', '.join(keywords)))
+
+            if pixelscale is None and self.planetype is None:
+                # we don't know which keywords might be present yet, so check for both keywords
+                # in both header objects (at least one must be non-None at this point!)
                 _log.debug("  Looking for 'PUPLSCAL' or 'PIXSCALE' in FITS headers to set "
                            "pixel scale")
-                if self.amplitude_header is not None and self.opd_header is not None:
-                    if 'PUPLSCAL' in self.opd_header:
-                        self.planetype = _PUPIL
-                        self.pixelscale = self.opd_header['PUPLSCAL']
-                    elif 'PIXSCALE' in self.opd_header:
-                        self.planetype = _IMAGE
-                        self.pixelscale = self.opd_header['PIXSCALE']
-                    elif 'PUPLSCAL' in self.amplitude_header:
-                        self.planetype = _PUPIL
-                        self.pixelscale = self.amplitude_header['PUPLSCAL']
-                    elif 'PIXSCALE' in self.amplitude_header:
-                        self.planetype = _IMAGE
-                        self.pixelscale = self.amplitude_header['PIXSCALE']
-                    else:
-                        raise LookupError(_MISSING_PIXELSCALE_MSG)
-                elif self.amplitude_header is not None:
-                    if 'PUPLSCAL' in self.amplitude_header:
-                        self.planetype = _PUPIL
-                        self.pixelscale = self.amplitude_header['PUPLSCAL']
-                    elif 'PIXSCALE' in self.amplitude_header:
-                        self.planetype = _IMAGE
-                        self.pixelscale = self.amplitude_header['PIXSCALE']
-                    else:
-                        raise LookupError(_MISSING_PIXELSCALE_MSG)
-                elif self.opd_header is not None:
-                    if 'PUPLSCAL' in self.opd_header:
-                        self.planetype = _PUPIL
-                        self.pixelscale = self.opd_header['PUPLSCAL']
-                    elif 'PIXSCALE' in self.opd_header:
-                        self.planetype = _IMAGE
-                        self.pixelscale = self.opd_header['PIXSCALE']
-                    else:
-                        raise LookupError(_MISSING_PIXELSCALE_MSG)
+                keyword, self.pixelscale = _find_pixelscale_in_headers(
+                    ('PUPLSCAL', 'PIXSCALE'),
+                    (self.amplitude_header, self.opd_header)
+                )
+                if keyword == 'PUPLSCAL':
+                    self.planetype = _PUPIL
                 else:
-                    raise LookupError(_MISSING_PIXELSCALE_MSG)
+                    self.planetype = _IMAGE
+            elif pixelscale is None and self.planetype == _IMAGE:
+                # the planetype tells us which header keyword to check when a keyword is
+                # not provided (PIXSCALE for image planes)...
+                _, self.pixelscale = _find_pixelscale_in_headers(
+                    ('PIXSCALE',),
+                    (self.amplitude_header, self.opd_header)
+                )
+            elif pixelscale is None and self.planetype == _PUPIL:
+                # ... likewise for pupil planes
+                _, self.pixelscale = _find_pixelscale_in_headers(
+                    ('PUPLSCAL',),
+                    (self.amplitude_header, self.opd_header)
+                )
             elif isinstance(pixelscale, six.string_types):
+                # If provided as a keyword string, check for it using the same helper function
                 _log.debug("  Getting pixel scale from FITS keyword:" + pixelscale)
-                try:
-                    self.pixelscale = self.opd_header[pixelscale]
-                except (KeyError, TypeError):  # opd_header could be None, or not have the keyword
-                    if self.amplitude_header is not None:
-                        try:
-                            self.pixelscale = self.amplitude_header[pixelscale]
-                        except KeyError:
-                            raise LookupError("Cannot find a FITS header keyword for pixelscale in "
-                                              "transmission or OPD map with the "
-                                              "requested key=" + pixelscale)
-                    else:
-                        raise LookupError("Cannot find a FITS header keyword for pixelscale in "
-                                          "OPD map with the requested key = " + pixelscale)
-            else:  # pixelscale had better be a floating point value here.
+                _, self.pixelscale = _find_pixelscale_in_headers(
+                    (pixelscale,),
+                    (self.opd_header, self.amplitude_header)
+                )
+            else:
+                # pixelscale had better be a floating point value here.
                 try:
                     _log.debug("  Getting pixel scale from user-provided float value: " +
                                str(pixelscale))
