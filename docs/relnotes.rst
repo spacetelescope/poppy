@@ -6,6 +6,11 @@ For a list of contributors, see :ref:`about`.
 
 .. _whatsnew:
 
+0.3.6
+-----
+
+*in development*
+
 0.3.5
 -----
 
