@@ -6,16 +6,15 @@ For a list of contributors, see :ref:`about`.
 
 .. _whatsnew:
 
-0.3.5 (or 0.4.0)?
---------------------
+0.3.5 *in development*
+----------------------
 
-2015 April Sometime
-
- * Now compatible with Python 3.4 in addition to 2.7!  ( `#83 <https://github.com/mperrin/poppy/pull/82>`_, @josephoenix)
+ * Now compatible with Python 3.4 in addition to 2.7!  (`#83 <https://github.com/mperrin/poppy/pull/82>`_, @josephoenix)
  * Updated version numbers for dependencies (@josephoenix)
  * Update to most recent astropy package template (@josephoenix)
  * AsymmetricSecondaryObscuration enhanced to allow secondary mirror supports offset from the center of the optical system. (@mperrin)
  * display() functions now return Matplotlib.Axes instances to the calling functions.
+ * FITSOpticalElement will now determine if you are initializing a pupil plane optic or image plane optic based on the presence of a PUPLSCAL or PIXSCALE header keyword in the supplied transmission or OPD files (with the transmission file header taking precedence). (`#97 <https://github.com/mperrin/poppy/pull/97>`_, @josephoenix)
  * Various small documentation updates
  * Bug fixes for: 
 

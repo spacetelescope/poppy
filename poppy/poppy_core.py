@@ -2166,24 +2166,65 @@ class FITSOpticalElement(OpticalElement):
                 #fits.PrimaryHDU(self.opd).writeto("test_rotated_opt.fits", clobber=True)
                 self._rotation = rotation
 
+            _MISSING_PIXELSCALE_MSG = ("No FITS header keyword for pixel scale found "
+                                       "(tried: {}). Supply pixelscale as a float in "
+                                       "meters/px or arcsec/px, or as a string specifying which "
+                                       "header keyword to use.")
 
-            if pixelscale is None:
-                pixelscale = 'PUPLSCAL' if self.planetype == _PUPIL else 'PIXSCALE' # set default FITS keyword
-            if isinstance(pixelscale,six.string_types): # pixelscale is a str, so interpret it as a FITS keyword
+            def _find_pixelscale_in_headers(keywords, headers):
+                """
+                Loops through provided possible FITS header keywords and a list of FITS
+                header objects (may contain Nones), returning the first
+                (keyword, header value) pair found
+                """
+                for keyword in keywords:
+                    for header in headers:
+                        if header is not None and keyword in header:
+                            return keyword, header[keyword]
+                raise LookupError(_MISSING_PIXELSCALE_MSG.format(', '.join(keywords)))
+
+            if pixelscale is None and self.planetype is None:
+                # we don't know which keywords might be present yet, so check for both keywords
+                # in both header objects (at least one must be non-None at this point!)
+                _log.debug("  Looking for 'PUPLSCAL' or 'PIXSCALE' in FITS headers to set "
+                           "pixel scale")
+                keyword, self.pixelscale = _find_pixelscale_in_headers(
+                    ('PUPLSCAL', 'PIXSCALE'),
+                    (self.amplitude_header, self.opd_header)
+                )
+                if keyword == 'PUPLSCAL':
+                    self.planetype = _PUPIL
+                else:
+                    self.planetype = _IMAGE
+            elif pixelscale is None and self.planetype == _IMAGE:
+                # the planetype tells us which header keyword to check when a keyword is
+                # not provided (PIXSCALE for image planes)...
+                _, self.pixelscale = _find_pixelscale_in_headers(
+                    ('PIXSCALE',),
+                    (self.amplitude_header, self.opd_header)
+                )
+            elif pixelscale is None and self.planetype == _PUPIL:
+                # ... likewise for pupil planes
+                _, self.pixelscale = _find_pixelscale_in_headers(
+                    ('PUPLSCAL',),
+                    (self.amplitude_header, self.opd_header)
+                )
+            elif isinstance(pixelscale, six.string_types):
+                # If provided as a keyword string, check for it using the same helper function
                 _log.debug("  Getting pixel scale from FITS keyword:" + pixelscale)
+                _, self.pixelscale = _find_pixelscale_in_headers(
+                    (pixelscale,),
+                    (self.opd_header, self.amplitude_header)
+                )
+            else:
+                # pixelscale had better be a floating point value here.
                 try:
-                    self.pixelscale = self.amplitude_header[pixelscale]
-                except KeyError:
-                    try:
-                        self.pixelscale = self.opd_header[pixelscale]
-                    except KeyError:
-                        raise LookupError("Cannot find a FITS header keyword for pixelscale with the requested key="+pixelscale)
-            else:  # pixelscale had better be a floating point value here.
-                try:
-                    _log.debug("  Getting pixel scale from user-provided float value:" + str(pixelscale))
+                    _log.debug("  Getting pixel scale from user-provided float value: " +
+                               str(pixelscale))
                     self.pixelscale = float(pixelscale)
                 except ValueError:
-                    raise ValueError("pixelscale=%s is neither a FITS keyword string nor a floating point value." % str(pixelscale))
+                    raise ValueError("pixelscale=%s is neither a FITS keyword string "
+                                     "nor a floating point value." % str(pixelscale))
 
     @property
     def pupil_diam(self):
