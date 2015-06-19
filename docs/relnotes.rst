@@ -23,7 +23,7 @@ For a list of contributors, see :ref:`about`.
    * Unnecessary DeprecationWarnings in imshow_with_mouseover (`#53 <https://github.com/mperrin/poppy/issues/53>`_)
    * Error in saving intermediate planes during calculation (`#81 <https://github.com/mperrin/poppy/issues/81>`_)
    * Multiprocessing causes Python to hang if used with Apple Accelerate (`#23 <https://github.com/mperrin/poppy/issues/23>`_)
-
+   * Error in the ``poppy.utils.measure_EE`` function produced values for the edges of the radial bins that were too large, biasing EE values and leading to weird interpolation behavior near r = 0. (`#96 <https://github.com/mperrin/poppy/pull/96>`_)
 
 
 
