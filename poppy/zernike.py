@@ -30,12 +30,17 @@ import matplotlib.pyplot as plt
 
 from astropy.io import fits
 
+import sys
+if sys.version_info > (3, 2):
+    from functools import lru_cache
+else:
+    from poppy.vendor.lru_cache import lru_cache
+
 import logging
 
 _log = logging.getLogger(__name__)
 _log.setLevel(logging.INFO)
 _log.addHandler(logging.NullHandler())
-
 
 def _is_odd(integer):
     """Helper for testing if an integer is odd by bitwise & with 1."""
@@ -281,6 +286,33 @@ def zernike1(j, **kwargs):
     n, m = noll_indices(j)
     return zernike(n, m, **kwargs)
 
+@lru_cache()
+def cached_zernike1(j, shape, pixelscale, pupil_radius, mask_outside=True, outside=np.nan, noll_normalize=True):
+    # n.b. this duplicates a subset of functionality from
+    # Wavefront.coordinates(), but we need hashable types in the function
+    # signature for caching
+    y, x = np.indices(shape, dtype=np.float64)
+    y -= (shape[0] - 1) / 2.
+    x -= (shape[1] - 1) / 2.
+    if not np.isscalar(pixelscale):
+        xscale = pixelscale[0]
+        yscale = pixelscale[1]
+    else:
+        xscale = pixelscale
+        yscale = pixelscale
+    y *= yscale
+    x *= xscale
+    # end duplicated functionality
+
+    r = np.sqrt(x ** 2 + y ** 2)
+
+    rho = r / pupil_radius
+    theta = np.arctan2(y / pupil_radius, x / pupil_radius)
+
+    n, m = noll_indices(j)
+    result = zernike(n, m, rho=rho, theta=theta, mask_outside=mask_outside, outside=outside, noll_normalize=noll_normalize)
+    result.flags.writeable = False  # don't let caller modify cached copy in-place
+    return result
 
 def zernike_basis(nterms=15, npix=512, rho=None, theta=None, **kwargs):
     """
