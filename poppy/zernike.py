@@ -36,6 +36,8 @@ if sys.version_info > (3, 2):
 else:
     from poppy.vendor.lru_cache import lru_cache
 
+from poppy.poppy_core import Wavefront
+
 import logging
 
 _log = logging.getLogger(__name__)
@@ -288,22 +290,7 @@ def zernike1(j, **kwargs):
 
 @lru_cache()
 def cached_zernike1(j, shape, pixelscale, pupil_radius, mask_outside=True, outside=np.nan, noll_normalize=True):
-    # n.b. this duplicates a subset of functionality from
-    # Wavefront.coordinates(), but we need hashable types in the function
-    # signature for caching
-    y, x = np.indices(shape, dtype=np.float64)
-    y -= (shape[0] - 1) / 2.
-    x -= (shape[1] - 1) / 2.
-    if not np.isscalar(pixelscale):
-        xscale = pixelscale[0]
-        yscale = pixelscale[1]
-    else:
-        xscale = pixelscale
-        yscale = pixelscale
-    y *= yscale
-    x *= xscale
-    # end duplicated functionality
-
+    y, x = Wavefront.pupil_coordinates(shape, pixelscale)
     r = np.sqrt(x ** 2 + y ** 2)
 
     rho = r / pupil_radius

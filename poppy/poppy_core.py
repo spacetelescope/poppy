@@ -826,56 +826,102 @@ class Wavefront(object):
         self.history.append('Rotated by %f degrees, CCW' %(angle))
 
 
+    @staticmethod
+    def pupil_coordinates(shape, pixelscale):
+        """Utility function to generate coordinates arrays for a pupil
+        plane wavefront
+
+        Parameters
+        ----------
+
+        shape : tuple of ints
+            Shape of the wavefront array
+        pixelscale : float or 2-tuple of floats
+            the pixel scale in meters/pixel, optionally different in
+            X and Y
+        """
+        y, x = np.indices(shape, dtype=float)
+        if not np.isscalar(pixelscale):
+            pixel_scale_x, pixel_scale_y = pixelscale
+        else:
+            pixel_scale_x, pixel_scale_y = pixelscale, pixelscale
+
+        y -= (shape[0] - 1) / 2.0
+        x -= (shape[1] - 1) / 2.0
+
+        return pixel_scale_y * y, pixel_scale_x * x
+
+    @staticmethod
+    def image_coordinates(shape, pixelscale, last_transform_type, image_centered):
+        """Utility function to generate coordinates arrays for an image
+        plane wavefront
+
+        Parameters
+        ----------
+
+        shape : tuple of ints
+            Shape of the wavefront array
+        pixelscale : float or 2-tuple of floats
+            the pixelscale in meters/pixel, optionally different in
+            X and Y
+        last_transform_type : string
+            Was the last transformation on the Wavefront an FFT
+            or an MFT?
+        image_centered : string
+            Was POPPY trying to keeping the center of the image on
+            a pixel, crosshairs ('array_center'), or corner?
+        """
+        y, x = np.indices(shape, dtype=float)
+        if not np.isscalar(pixelscale):
+            pixel_scale_x, pixel_scale_y = pixelscale
+        else:
+            pixel_scale_x, pixel_scale_y = pixelscale, pixelscale
+
+        # in most cases, the x and y values are centered around the exact center of the array.
+        # This is not true in general for FFT-produced image planes where the center is in the
+        # middle of one single pixel (the 0th-order term of the FFT), even though that means that
+        # the PSF center is slightly offset from the array center.
+        # On the other hand, if we used the FQPM FFT Aligner optic, then that forces the PSF center
+        # to the exact center of an array.
+
+        # The following are just relevant for the FFT-created images, not for the Detector MFT
+        # image at the end.
+        if last_transform_type == 'FFT':
+            # FFT array sizes will always be even, right?
+            if image_centered == 'pixel':
+                # so this goes to an integer pixel
+                y -= shape[0] / 2.0
+                x -= shape[1] / 2.0
+            elif image_centered == 'array_center' or image_centered == 'corner':
+                # and this goes to a pixel center
+                y -= (shape[0] - 1) / 2.0
+                x -= (shape[1] - 1) / 2.0
+        else:
+            # MFT produced images are always exactly centered.
+            y -= (shape[0] - 1) / 2.0
+            x -= (shape[1] - 1) / 2.0
+
+        return pixel_scale_y * y, pixel_scale_x * x
+
     def coordinates(self):
         """ Return Y, X coordinates for this wavefront, in the manner of numpy.indices()
 
         This function knows about the offset resulting from FFTs. Use it whenever computing anything
-        measures in wavefront coordinates.
+        measured in wavefront coordinates.
 
         Returns
         -------
         Y, X :  array_like
             Wavefront coordinates in either meters or arcseconds for pupil and image, respectively
-
         """
-        y, x = np.indices(self.shape, dtype=float)
 
-        # in most cases, the x and y values are centered around the exact center of the array.
-        # This is not true in general for FFT-produced image planes where the center is in the
-        # middle of one single pixel (the 0th-order term of the FFT), even though that means that the
-        # PSF center is slightly offset from the array center.
-        # On the other hand, if we used the FQPM FFT Aligner optic, then that forces the PSF center to
-        # the exact center of an array.
         if self.planetype == _PUPIL:
-            y-= (self.shape[0]-1)/2.
-            x-= (self.shape[1]-1)/2.
+            return Wavefront.pupil_coordinates(self.shape, self.pixelscale)
         elif self.planetype == _IMAGE:
-            # The following are just relevant for the FFT-created images, not for the Detector MFT image at the end.
-            if self._last_transform_type == 'FFT':
-                # FFT array sizes will always be even, right?
-                if self._image_centered=='pixel':  # so this goes to an integer pixel
-                    y-= (self.shape[0])/2.
-                    x-= (self.shape[1])/2.
-                elif self._image_centered=='array_center' or self._image_centered=='corner':  # and this goes to a pixel center
-                    y-= (self.shape[0]-1)/2.
-                    x-= (self.shape[1]-1)/2.
-            else:
-                # MFT produced images are always exactly centered.
-                y-= (self.shape[0]-1)/2.
-                x-= (self.shape[1]-1)/2.
-
-
-        if not np.isscalar(self.pixelscale): #hasattr(self.pixelscale,'__len__'):
-            xscale=self.pixelscale[0]
-            yscale=self.pixelscale[1]
+            return Wavefront.image_coordinates(self.shape, self.pixelscale,
+                                               self._last_transform_type, self._image_centered)
         else:
-            xscale=self.pixelscale
-            yscale=self.pixelscale
-
-        #x *= xscale
-        #y *= yscale
-        return y*yscale, x*xscale
-
+            raise RuntimeError("Unknown plane type (should be pupil or image!)")
 
 
 #------  Optical System classes -------
