@@ -12,9 +12,9 @@ def test_GaussianBeamParams():
     _PUPIL = 1
     gl=fresnel.GaussianLens(50*u.mm,planetype=_PUPIL)
     gw.apply_optic(gl,78.0*u.mm)
-    assert(np.round(gw.w_0.value,9) == np.round(0.0001061989749146441,8))
-    assert(np.round(gw.z_w0.value,9) == np.round(0.15957902236417937,8))
-    assert(np.round(gw.z_R.value,9) == np.round(0.042688650889351865,8))
+    assert(np.round(gw.w_0.value,9) == np.round(0.0001061989749146441,9))
+    assert(np.round(gw.z_w0.value,9) == np.round(0.15957902236417937,9))
+    assert(np.round(gw.z_R.value,9) == np.round(0.042688650889351865,9))
 
 
 
