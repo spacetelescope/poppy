@@ -42,10 +42,12 @@ if poppy.conf.use_fftw:
     try:
         # try to import FFTW and use it
         import pyfftw
+        _FFTW_AVAILABLE =True
     except:
         _log.debug("conf.use_fftw is set to True, but we cannot import pyfftw. Therefore overriding the config setting to False. Everything will work fine using numpy.fft, it just may be slightly slower.")
         # we tried but failed to import it. 
-        poppy.conf.use_fftw = False
+        _FFTW_AVAILABLE = False
+
 
 
 
@@ -215,8 +217,8 @@ class Wavefront(poppy.Wavefront):
         '''
         Formatted string of gaussian beam parameters.
         '''
-        string= "w_0:{0:0.2e},".format(self.w_0)+" z_w0={0:0.2e}".format(self.z_w0) +"\n"+\
-         "z={0:0.2e},".format(self.z)+" z_R={0:0.2e}".format(self.z_R)
+        string= "w_0:{0:0.3e},".format(self.w_0)+" z_w0={0:0.3e}".format(self.z_w0) +"\n"+\
+         "z={0:0.3e},".format(self.z)+" z_R={0:0.3e}".format(self.z_R)
         return string
     @property
     def waists(self):
@@ -227,23 +229,37 @@ class Wavefront(poppy.Wavefront):
     
     def fft(self):
         '''
-        Apply normalized forward 2d Fast Fourier Transform to wavefront
+        Apply normalized forward 2D Fast Fourier Transform to wavefront
         '''
-        forward_FFT= pyfftw.interfaces.numpy_fft.fft2 if poppy.conf.use_fftw else np.fft.fft2 
+        _USE_FFTW = (poppy.conf.use_fftw and _FFTW_AVAILABLE)
+        forward_FFT= pyfftw.interfaces.numpy_fft.fft2 if _USE_FFTW else np.fft.fft2 
 
-        self.wavefront=forward_FFT(self.wavefront, overwrite_input=True,
+        if _USE_FFTW:
+            #FFTW wisdom could be implemented here.
+            _log.debug("Using pyfftw")
+            self.wavefront=forward_FFT(self.wavefront, overwrite_input=True,
                                      planner_effort='FFTW_MEASURE',
                                      threads=poppy.conf.n_processes)/self.shape[0]
-
+        else:
+            _log.debug("Using numpy FFT")
+            self.wavefront=forward_FFT(self.wavefront)/self.shape[0]
+            
     def inv_fft(self):
         '''
-        Apply normalized Inverse 2d Fast Fourier Transform to wavefront
+        Apply normalized Inverse 2D Fast Fourier Transform to wavefront
         '''
-        inverse_FFT= pyfftw.interfaces.numpy_fft.ifft2 if poppy.conf.use_fftw else np.fft.ifft2 
-        self.wavefront=inverse_FFT(self.wavefront, overwrite_input=True,
+        _USE_FFTW = (poppy.conf.use_fftw and _FFTW_AVAILABLE)
+        inverse_FFT= pyfftw.interfaces.numpy_fft.ifft2 if _USE_FFTW else np.fft.ifft2 
+
+        if _USE_FFTW:
+            #FFTW wisdom could be implemented here.
+            self.wavefront=inverse_FFT(self.wavefront, overwrite_input=True,
                                      planner_effort='FFTW_MEASURE',
                                      threads=poppy.conf.n_processes)*self.shape[0]
-
+        else:
+            _log.debug("Using numpy FFT")
+            self.wavefront=inverse_FFT(self.wavefront)*self.shape[0]
+            
     def R_c(self,z):
         '''
         The gaussian beam radius of curvature as a function of distance
