@@ -52,7 +52,7 @@ if poppy.conf.use_fftw:
 
 
         
-class quad_phase(poppy.AnalyticOpticalElement):
+class QuadPhase(poppy.AnalyticOpticalElement):
     '''
     Class, q(z), Lawrence eq. 88
     '''
@@ -87,7 +87,7 @@ class quad_phase(poppy.AnalyticOpticalElement):
         #stop()
         return lens_phasor
     
-class Gaussian_Lens(quad_phase):
+class GaussianLens(QuadPhase):
     '''
     Class
     '''
@@ -99,7 +99,7 @@ class Gaussian_Lens(quad_phase):
                  units=u.m,
                  oversample=2,
                  **kwargs):
-        quad_phase.__init__(self, 
+        QuadPhase.__init__(self, 
                  f_lens,
                  planetype =planetype,
                  name = name,
@@ -298,7 +298,7 @@ class Wavefront(poppy.Wavefront):
         #y *= yscale
         return y*yscale, x*xscale
 
-    def propagateDirect(self,z):
+    def propagate_direct(self,z):
         '''
         Implements the direct propagation algorithm described in Andersen & Enmark (2011). Works best for far field propagation.
         Not part of the Gaussian beam propagation method.
@@ -318,12 +318,12 @@ class Wavefront(poppy.Wavefront):
         S=self.n*self.pixelscale
         _log.debug("Propagation Parameters: k={0:0.2e},".format(k)+"S={0:0.2e},".format(S)+"z={0:0.2e},".format(z_direct))
         
-        quad_phase_1st= np.exp(1.0j*k*(x**2+y**2)/(2*z_direct))#eq. 6.68
-        quad_phase_2nd= np.exp(1.0j*k*z_direct)/(1.0j*self.wavelength*z_direct)*np.exp(1.0j*(x**2+y**2)/(2*z_direct))#eq. 6.70
+        QuadPhase_1st= np.exp(1.0j*k*(x**2+y**2)/(2*z_direct))#eq. 6.68
+        QuadPhase_2nd= np.exp(1.0j*k*z_direct)/(1.0j*self.wavelength*z_direct)*np.exp(1.0j*(x**2+y**2)/(2*z_direct))#eq. 6.70
 
-        stage1=self.wavefront*quad_phase_1st #eq.6.67
+        stage1=self.wavefront*QuadPhase_1st #eq.6.67
     
-        result= np.fft.fftshift(forward_FFT(stage1))*self.pixelscale**2*quad_phase_2nd  #eq.6.69 and #6.80
+        result= np.fft.fftshift(forward_FFT(stage1))*self.pixelscale**2*QuadPhase_2nd  #eq.6.69 and #6.80
 
         result=np.fft.fftshift(result)
 
@@ -380,7 +380,7 @@ class Wavefront(poppy.Wavefront):
             _log.error("Waist to Spherical propagation stopped, no change in distance.")
             return 
         
-        self *= quad_phase(dz, reference_wavelength=self.wavelength)
+        self *= QuadPhase(dz, reference_wavelength=self.wavelength)
     
         if dz > 0:
             self.fft()
@@ -416,7 +416,7 @@ class Wavefront(poppy.Wavefront):
 
         #update to new pixel scale before applying curvature
         self.pixelscale = self.wavelength*np.abs(dz.value)/(self.n*self.pixelscale)
-        self *= quad_phase(dz, reference_wavelength=self.wavelength)
+        self *= QuadPhase(dz, reference_wavelength=self.wavelength)
         self.z = self.z + dz
         self.history.append("Propagated Spherical to Waist, dz = " + str(dz))
         #
@@ -434,7 +434,7 @@ class Wavefront(poppy.Wavefront):
         else:
             return False
             
-    def propagateFresnel(self,delta_z,display_intermed=False):
+    def propagate_fresnel(self,delta_z,display_intermed=False):
         '''
         Parameters:
         delta_z :  float 
@@ -507,7 +507,7 @@ class Wavefront(poppy.Wavefront):
         
         Parameters
         -------------
-        optic : Gaussian_Lens
+        optic : GaussianLens
         
         f_lens : float 
              lens focal length
@@ -604,7 +604,7 @@ class Wavefront(poppy.Wavefront):
             z_eff=1.0/( 1.0/optic.fl - 1.0/(R_input_beam) )
             self.spherical=False
             
-        effective_optic = quad_phase(-z_eff, reference_wavelength=self.wavelength)
+        effective_optic = QuadPhase(-z_eff, reference_wavelength=self.wavelength)
         self *= effective_optic
 
         self.waists_z.append(self.z_w0.value)

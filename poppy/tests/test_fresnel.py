@@ -10,7 +10,7 @@ def test_GaussianBeamParams():
     """Confirm that gaussian beam parameters agree with expectations"""
     gw=fresnel.Wavefront(100*u.um,wavelength=830e-9)
     _PUPIL = 1
-    gl=fresnel.Gaussian_Lens(50*u.mm,planetype=_PUPIL)
+    gl=fresnel.GaussianLens(50*u.mm,planetype=_PUPIL)
     gw.apply_optic(gl,78.0*u.mm)
     assert(np.round(gw.w_0,9) == np.round(0.0001061989749146441,9))
     assert(np.round(gw.z_w0,9) == np.round(0.15957902236417937,9))
@@ -30,7 +30,7 @@ def test_CircularAperturePropagation(display=False):
         plt.figure()
         gw.display('both',colorbar=True)
         
-    gw.propagateFresnel(5e3*u.m)
+    gw.propagate_fresnel(5e3*u.m)
     if display:
         
         plt.figure()
