@@ -89,6 +89,27 @@ def test_instrument_source_pysynphot():
     )
     return psf_weights_pysynphot
 
+@pytest.mark.skipif(not _HAS_PYSYNPHOT, reason="PySynphot dependency not met")
+def test_pysynphot_spectra_cache():
+    """
+    The result of the Pysynphot calculation is cached. This ensures the appropriate
+    key appears in the cache after one calculation, and that subsequent calculations
+    proceed without errors (exercising the cache lookup code).
+    """
+    import pysynphot
+    source = pysynphot.BlackBody(5700)
+    nlambda = 2
+    ins = instrument.Instrument()
+    cache_key = ins._getSpecCacheKey(source, nlambda)
+    assert cache_key not in ins._spectra_cache, "How is the cache populated already?"
+    psf = ins.calcPSF(nlambda=2, source=source, fov_pixels=2)
+    assert cache_key in ins._spectra_cache, "Cache was not populated"
+    psf2 = ins.calcPSF(nlambda=2, source=source, fov_pixels=2)
+    maxdiff = np.abs(psf[0].data - psf2[0].data).max()
+
+    assert(maxdiff < 1e-7), "PSF using cached spectrum differs from first PSF calculated"
+
+
 def test_instrument_gaussian_jitter():
     """
     Tests that jitter is applied by convolving with the specified Gaussian and

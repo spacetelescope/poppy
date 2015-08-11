@@ -601,8 +601,8 @@ def measure_EE(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     rr, radialprofile2, EE = radial_profile(HDUlist_or_filename, ext, EE=True, center=center, binsize=binsize)
 
     # append the zero at the center
-    rr_EE = rr + (rr[1]-rr[0])/1  # add half a binsize to this, because the EE is measured inside the
-                                  # outer edge of each annulus.
+    rr_EE = rr + (rr[1] - rr[0]) / 2.0  # add half a binsize to this, because the EE is measured inside the
+                                        # outer edge of each annulus.
     rr0 = np.concatenate( ([0], rr_EE))
     EE0 = np.concatenate( ([0], EE))
 

@@ -831,56 +831,102 @@ class Wavefront(object):
         self.history.append('Rotated by %f degrees, CCW' %(angle))
 
 
+    @staticmethod
+    def pupil_coordinates(shape, pixelscale):
+        """Utility function to generate coordinates arrays for a pupil
+        plane wavefront
+
+        Parameters
+        ----------
+
+        shape : tuple of ints
+            Shape of the wavefront array
+        pixelscale : float or 2-tuple of floats
+            the pixel scale in meters/pixel, optionally different in
+            X and Y
+        """
+        y, x = np.indices(shape, dtype=float)
+        if not np.isscalar(pixelscale):
+            pixel_scale_x, pixel_scale_y = pixelscale
+        else:
+            pixel_scale_x, pixel_scale_y = pixelscale, pixelscale
+
+        y -= (shape[0] - 1) / 2.0
+        x -= (shape[1] - 1) / 2.0
+
+        return pixel_scale_y * y, pixel_scale_x * x
+
+    @staticmethod
+    def image_coordinates(shape, pixelscale, last_transform_type, image_centered):
+        """Utility function to generate coordinates arrays for an image
+        plane wavefront
+
+        Parameters
+        ----------
+
+        shape : tuple of ints
+            Shape of the wavefront array
+        pixelscale : float or 2-tuple of floats
+            the pixelscale in meters/pixel, optionally different in
+            X and Y
+        last_transform_type : string
+            Was the last transformation on the Wavefront an FFT
+            or an MFT?
+        image_centered : string
+            Was POPPY trying to keeping the center of the image on
+            a pixel, crosshairs ('array_center'), or corner?
+        """
+        y, x = np.indices(shape, dtype=float)
+        if not np.isscalar(pixelscale):
+            pixel_scale_x, pixel_scale_y = pixelscale
+        else:
+            pixel_scale_x, pixel_scale_y = pixelscale, pixelscale
+
+        # in most cases, the x and y values are centered around the exact center of the array.
+        # This is not true in general for FFT-produced image planes where the center is in the
+        # middle of one single pixel (the 0th-order term of the FFT), even though that means that
+        # the PSF center is slightly offset from the array center.
+        # On the other hand, if we used the FQPM FFT Aligner optic, then that forces the PSF center
+        # to the exact center of an array.
+
+        # The following are just relevant for the FFT-created images, not for the Detector MFT
+        # image at the end.
+        if last_transform_type == 'FFT':
+            # FFT array sizes will always be even, right?
+            if image_centered == 'pixel':
+                # so this goes to an integer pixel
+                y -= shape[0] / 2.0
+                x -= shape[1] / 2.0
+            elif image_centered == 'array_center' or image_centered == 'corner':
+                # and this goes to a pixel center
+                y -= (shape[0] - 1) / 2.0
+                x -= (shape[1] - 1) / 2.0
+        else:
+            # MFT produced images are always exactly centered.
+            y -= (shape[0] - 1) / 2.0
+            x -= (shape[1] - 1) / 2.0
+
+        return pixel_scale_y * y, pixel_scale_x * x
+
     def coordinates(self):
         """ Return Y, X coordinates for this wavefront, in the manner of numpy.indices()
 
         This function knows about the offset resulting from FFTs. Use it whenever computing anything
-        measures in wavefront coordinates.
+        measured in wavefront coordinates.
 
         Returns
         -------
         Y, X :  array_like
             Wavefront coordinates in either meters or arcseconds for pupil and image, respectively
-
         """
-        y, x = np.indices(self.shape, dtype=float)
 
-        # in most cases, the x and y values are centered around the exact center of the array.
-        # This is not true in general for FFT-produced image planes where the center is in the
-        # middle of one single pixel (the 0th-order term of the FFT), even though that means that the
-        # PSF center is slightly offset from the array center.
-        # On the other hand, if we used the FQPM FFT Aligner optic, then that forces the PSF center to
-        # the exact center of an array.
         if self.planetype == _PUPIL:
-            y-= (self.shape[0]-1)/2.
-            x-= (self.shape[1]-1)/2.
+            return Wavefront.pupil_coordinates(self.shape, self.pixelscale)
         elif self.planetype == _IMAGE:
-            # The following are just relevant for the FFT-created images, not for the Detector MFT image at the end.
-            if self._last_transform_type == 'FFT':
-                # FFT array sizes will always be even, right?
-                if self._image_centered=='pixel':  # so this goes to an integer pixel
-                    y-= (self.shape[0])/2.
-                    x-= (self.shape[1])/2.
-                elif self._image_centered=='array_center' or self._image_centered=='corner':  # and this goes to a pixel center
-                    y-= (self.shape[0]-1)/2.
-                    x-= (self.shape[1]-1)/2.
-            else:
-                # MFT produced images are always exactly centered.
-                y-= (self.shape[0]-1)/2.
-                x-= (self.shape[1]-1)/2.
-
-
-        if not np.isscalar(self.pixelscale): #hasattr(self.pixelscale,'__len__'):
-            xscale=self.pixelscale[0]
-            yscale=self.pixelscale[1]
+            return Wavefront.image_coordinates(self.shape, self.pixelscale,
+                                               self._last_transform_type, self._image_centered)
         else:
-            xscale=self.pixelscale
-            yscale=self.pixelscale
-
-        #x *= xscale
-        #y *= yscale
-        return y*yscale, x*xscale
-
+            raise RuntimeError("Unknown plane type (should be pupil or image!)")
 
 
 #------  Optical System classes -------
@@ -2171,24 +2217,65 @@ class FITSOpticalElement(OpticalElement):
                 #fits.PrimaryHDU(self.opd).writeto("test_rotated_opt.fits", clobber=True)
                 self._rotation = rotation
 
+            _MISSING_PIXELSCALE_MSG = ("No FITS header keyword for pixel scale found "
+                                       "(tried: {}). Supply pixelscale as a float in "
+                                       "meters/px or arcsec/px, or as a string specifying which "
+                                       "header keyword to use.")
 
-            if pixelscale is None:
-                pixelscale = 'PUPLSCAL' if self.planetype == _PUPIL else 'PIXSCALE' # set default FITS keyword
-            if isinstance(pixelscale,six.string_types): # pixelscale is a str, so interpret it as a FITS keyword
+            def _find_pixelscale_in_headers(keywords, headers):
+                """
+                Loops through provided possible FITS header keywords and a list of FITS
+                header objects (may contain Nones), returning the first
+                (keyword, header value) pair found
+                """
+                for keyword in keywords:
+                    for header in headers:
+                        if header is not None and keyword in header:
+                            return keyword, header[keyword]
+                raise LookupError(_MISSING_PIXELSCALE_MSG.format(', '.join(keywords)))
+
+            if pixelscale is None and self.planetype is None:
+                # we don't know which keywords might be present yet, so check for both keywords
+                # in both header objects (at least one must be non-None at this point!)
+                _log.debug("  Looking for 'PUPLSCAL' or 'PIXSCALE' in FITS headers to set "
+                           "pixel scale")
+                keyword, self.pixelscale = _find_pixelscale_in_headers(
+                    ('PUPLSCAL', 'PIXSCALE'),
+                    (self.amplitude_header, self.opd_header)
+                )
+                if keyword == 'PUPLSCAL':
+                    self.planetype = _PUPIL
+                else:
+                    self.planetype = _IMAGE
+            elif pixelscale is None and self.planetype == _IMAGE:
+                # the planetype tells us which header keyword to check when a keyword is
+                # not provided (PIXSCALE for image planes)...
+                _, self.pixelscale = _find_pixelscale_in_headers(
+                    ('PIXSCALE',),
+                    (self.amplitude_header, self.opd_header)
+                )
+            elif pixelscale is None and self.planetype == _PUPIL:
+                # ... likewise for pupil planes
+                _, self.pixelscale = _find_pixelscale_in_headers(
+                    ('PUPLSCAL',),
+                    (self.amplitude_header, self.opd_header)
+                )
+            elif isinstance(pixelscale, six.string_types):
+                # If provided as a keyword string, check for it using the same helper function
                 _log.debug("  Getting pixel scale from FITS keyword:" + pixelscale)
+                _, self.pixelscale = _find_pixelscale_in_headers(
+                    (pixelscale,),
+                    (self.opd_header, self.amplitude_header)
+                )
+            else:
+                # pixelscale had better be a floating point value here.
                 try:
-                    self.pixelscale = self.amplitude_header[pixelscale]
-                except KeyError:
-                    try:
-                        self.pixelscale = self.opd_header[pixelscale]
-                    except KeyError:
-                        raise LookupError("Cannot find a FITS header keyword for pixelscale with the requested key="+pixelscale)
-            else:  # pixelscale had better be a floating point value here.
-                try:
-                    _log.debug("  Getting pixel scale from user-provided float value:" + str(pixelscale))
+                    _log.debug("  Getting pixel scale from user-provided float value: " +
+                               str(pixelscale))
                     self.pixelscale = float(pixelscale)
                 except ValueError:
-                    raise ValueError("pixelscale=%s is neither a FITS keyword string nor a floating point value." % str(pixelscale))
+                    raise ValueError("pixelscale=%s is neither a FITS keyword string "
+                                     "nor a floating point value." % str(pixelscale))
 
     @property
     def pupil_diam(self):
