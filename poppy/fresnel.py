@@ -51,12 +51,13 @@ class QuadPhase(poppy.AnalyticOpticalElement):
     '''
     def __init__(self, 
                  z,
-                 planetype = '_INTERMED',
+                 planetype = _INTERMED,
                  name = 'Quadratic Wavefront Curvature Operator',
                  reference_wavelength = 2e-6,
                  units=u.m,
                  **kwargs):
         poppy.AnalyticOpticalElement.__init__(self,name=name, planetype=_PUPIL, **kwargs)
+        self.planetype = _INTERMED  # TODO check if AnalyticOpticalElement will be happy with _INTERMED
         self.z=z
         self.reference_wavelength = reference_wavelength*units
         self.name = name
@@ -86,7 +87,7 @@ class GaussianLens(QuadPhase):
     '''
     def __init__(self, 
                  f_lens,
-                 planetype = '_INTERMED',
+                 planetype = _INTERMED,
                  name = 'Gaussian Lens',
                  reference_wavelength = 2e-6,
                  units=u.m,
@@ -528,8 +529,11 @@ class Wavefront(poppy.Wavefront):
             R_input_beam = self.z - self.z_w0
         else:
             R_input_beam = np.inf
- 
-        if (self.planetype == _PUPIL or self.planetype == _IMAGE):
+
+        _log.debug('self.planetype: {}'.format(self.planetype))
+        _log.debug('_PUPIL: {}'.format(_PUPIL))
+        _log.debug('_IMAGE: {}'.format(_IMAGE))
+        if self.planetype == _PUPIL or self.planetype == _IMAGE:
             #we are at a focus or pupil, so the new optic is the only curvature of the beam
             r_curve = -optic.fl
             _log.debug("flat wavefront and "+ str(optic.name) +" has a curvature of ={0:0.2e}".format(r_curve))
