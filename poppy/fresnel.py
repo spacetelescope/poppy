@@ -527,8 +527,8 @@ class Wavefront(poppy.Wavefront):
             R_input_beam = self.z - self.z_w0
         else:
             R_input_beam = np.inf
- 
-        if (self.planetype == _PUPIL or self.planetype == _IMAGE):
+
+        if self.planetype == _PUPIL or self.planetype == _IMAGE:
             #we are at a focus or pupil, so the new optic is the only curvature of the beam
             r_curve = -optic.fl
             _log.debug("flat wavefront and "+ str(optic.name) +" has a curvature of ={0:0.2e}".format(r_curve))
