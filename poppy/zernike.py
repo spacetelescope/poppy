@@ -30,12 +30,19 @@ import matplotlib.pyplot as plt
 
 from astropy.io import fits
 
+import sys
+if sys.version_info > (3, 2):
+    from functools import lru_cache
+else:
+    from poppy.vendor.lru_cache import lru_cache
+
+from poppy.poppy_core import Wavefront
+
 import logging
 
 _log = logging.getLogger(__name__)
 _log.setLevel(logging.INFO)
 _log.addHandler(logging.NullHandler())
-
 
 def _is_odd(integer):
     """Helper for testing if an integer is odd by bitwise & with 1."""
@@ -281,6 +288,18 @@ def zernike1(j, **kwargs):
     n, m = noll_indices(j)
     return zernike(n, m, **kwargs)
 
+@lru_cache()
+def cached_zernike1(j, shape, pixelscale, pupil_radius, mask_outside=True, outside=np.nan, noll_normalize=True):
+    y, x = Wavefront.pupil_coordinates(shape, pixelscale)
+    r = np.sqrt(x ** 2 + y ** 2)
+
+    rho = r / pupil_radius
+    theta = np.arctan2(y / pupil_radius, x / pupil_radius)
+
+    n, m = noll_indices(j)
+    result = zernike(n, m, rho=rho, theta=theta, mask_outside=mask_outside, outside=outside, noll_normalize=noll_normalize)
+    result.flags.writeable = False  # don't let caller modify cached copy in-place
+    return result
 
 def zernike_basis(nterms=15, npix=512, rho=None, theta=None, **kwargs):
     """

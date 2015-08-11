@@ -5,6 +5,31 @@ Full featured backport from Python 3.3. It passes the 3.3 test suite.
 Full-featured O(1) LRU cache backported from Python3.3. The full Py3.3 API is supported (thread 
 safety, maxsize, keyword args, type checking, __wrapped__, and cache_info). Includes Py3.3 
 optimizations for better memory utilization, fewer dependencies, and fewer dict lookups.
+
+http://code.activestate.com/recipes/578078-py26-and-py30-backport-of-python-33s-lru-cache/
+Created by Raymond Hettinger on Sat, 17 Mar 2012
+
+The MIT License (MIT)
+
+Copyright (c) 2012 Raymond Hettinger
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 """
 
 from collections import namedtuple

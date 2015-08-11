@@ -6,24 +6,34 @@ For a list of contributors, see :ref:`about`.
 
 .. _whatsnew:
 
-0.3.5 (or 0.4.0)?
---------------------
+0.3.6
+-----
 
-2015 April Sometime
+*in development*
 
- * Now compatible with Python 3.4 in addition to 2.7!  ( `#83 <https://github.com/mperrin/poppy/pull/82>`_, @josephoenix)
+0.3.5
+-----
+
+2015 June 19
+
+ * Now compatible with Python 3.4 in addition to 2.7!  (`#83 <https://github.com/mperrin/poppy/pull/82>`_, @josephoenix)
  * Updated version numbers for dependencies (@josephoenix)
  * Update to most recent astropy package template (@josephoenix)
- * AsymmetricSecondaryObscuration enhanced to allow secondary mirror supports offset from the center of the optical system. (@mperrin)
+ * :py:obj:`~poppy.optics.AsymmetricSecondaryObscuration` enhanced to allow secondary mirror supports offset from the center of the optical system. (@mperrin)
+ * New optic :py:obj:`~poppy.optics.AnnularFieldStop` that defines a circular field stop with an (optional) opaque circular center region (@mperrin)
  * display() functions now return Matplotlib.Axes instances to the calling functions.
+ * :py:obj:`~poppy.optics.FITSOpticalElement` will now determine if you are initializing a pupil plane optic or image plane optic based on the presence of a ``PUPLSCAL`` or ``PIXSCALE`` header keyword in the supplied transmission or OPD files (with the transmission file header taking precedence). (`#97 <https://github.com/mperrin/poppy/pull/97>`_, @josephoenix)
+ * The :py:func:`poppy.zernike.zernike` function now actually returns a NumPy masked array when called with ``mask_array=True``
+ * poppy.optics.ZernikeAberration and poppy.optics.ParameterizedAberration have been moved to poppy.wfe and renamed :py:obj:`~poppy.wfe.ZernikeWFE` and :py:obj:`~poppy.wfe.ParameterizedWFE`. Also, ZernikeWFE now takes an iterable of Zernike coefficients instead of (n, m, k) tuples.
  * Various small documentation updates
  * Bug fixes for: 
 
    * redundant colorbar display (`#82 <https://github.com/mperrin/poppy/pull/82>`_)
-   * Unnecessary DeprecationWarnings in imshow_with_mouseover (`#53 <https://github.com/mperrin/poppy/issues/53>`_)
+   * Unnecessary DeprecationWarnings in :py:func:`poppy.utils.imshow_with_mouseover` (`#53 <https://github.com/mperrin/poppy/issues/53>`_)
    * Error in saving intermediate planes during calculation (`#81 <https://github.com/mperrin/poppy/issues/81>`_)
-   * Multiprocessing causes Python to hang if used with Apple Accelerate (`#23 <https://github.com/mperrin/poppy/issues/23>`_)
-
+   * Multiprocessing causes Python to hang if used with Apple Accelerate (`#23 <https://github.com/mperrin/poppy/issues/23>`_, n.b. the fix depends on Python 3.4)
+   * Copy in-memory FITS HDULists that are passed in to FITSOpticalElement so that in-place modifications don't affect the caller's copy of the data (`#89 <https://github.com/mperrin/poppy/issues/89>`_)
+   * Error in the :py:func:`poppy.utils.measure_EE` function produced values for the edges of the radial bins that were too large, biasing EE values and leading to weird interpolation behavior near r = 0. (`#96 <https://github.com/mperrin/poppy/pull/96>`_)
 
 
 
