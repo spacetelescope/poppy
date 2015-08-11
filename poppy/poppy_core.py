@@ -382,6 +382,11 @@ class Wavefront(object):
         extent = np.array([-0.5 ,intens.shape[1]-1+0.5, -0.5,intens.shape[0]-1+0.5]) * self.pixelscale
         if self.planetype == _PUPIL:
             # For pupils, we just let the 0 point be that of the array, off to the side of the actual clear aperture
+            # No - now let's be consistent with how OpticalElement.display() works
+            cenx = (intens.shape[1]-1)/2.
+            ceny = (intens.shape[0]-1)/2.
+            extent -= np.asarray([cenx, cenx, ceny, ceny])*self.pixelscale
+
             unit = "m"
         else:
             # for image planes, we make coordinates relative to center.
@@ -1967,9 +1972,9 @@ class OpticalElement(object):
         return ax
 
     def __str__(self):
-        if self.planetype is _PUPIL:
+        if self.planetype == _PUPIL:
             return "Pupil plane: %s " % (self.name)
-        elif self.planetype is _IMAGE:
+        elif self.planetype == _IMAGE:
             desc = "(%dx%d pixels, scale=%f arcsec/pixel)" % (self.shape[0], self.shape[0], self.pixelscale) if self.pixelscale is not None else "(Analytic)"
             return "Image plane: %s %s" % (self.name, desc)
         else:

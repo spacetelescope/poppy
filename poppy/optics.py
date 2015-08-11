@@ -55,9 +55,9 @@ class AnalyticOpticalElement(OpticalElement):
         return None
 
     def __str__(self):
-        if self.planetype is _PUPIL:
+        if self.planetype == _PUPIL:
             return "Pupil plane: %s (Analytic)" % (self.name)
-        elif self.planetype is _IMAGE:
+        elif self.planetype == _IMAGE:
             return "Image plane: %s (Analytic)" % (self.name)
         else:
             return "Optic: " + self.name
@@ -230,6 +230,36 @@ class AnalyticOpticalElement(OpticalElement):
 
         return hdul
 
+    def get_coordinates(self, wave):
+        """ Get coordinates of this optic, optionally including shifts
+
+        Method: Calls the supplied wave object's coordinates() method,
+        then checks for the existence of the following attributes:
+            "shift_x", "shift_y", "rotation"
+        If any of them are present, then the coordinates are modified accordingly.
+
+        Shifts are given in meters for pupil optics and arcseconds for image
+        optics.
+        """
+
+        y, x = wave.coordinates()
+        if hasattr(self, "shift_x"):
+            x-= float(self.shift_x)
+        if hasattr(self, "shift_y"):
+            y-= float(self.shift_y)
+        if hasattr(self, "rotation"):
+            angle = np.deg2rad(self.rotation)
+            xp = np.cos(angle) * x + np.sin(angle) * y
+            yp = -np.sin(angle) * x + np.cos(angle) * y
+
+            x = xp
+            y = yp
+
+        return y,x
+
+
+
+
 class ScalarTransmission(AnalyticOpticalElement):
     """ Uniform transmission between 0 and 1.0 in intensity.
 
@@ -326,7 +356,7 @@ class BandLimitedCoron(AnalyticOpticalElement):
             raise ValueError("BLC getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == _IMAGE)
 
-        y, x = wave.coordinates()
+        y, x = self.get_coordinates(wave)
         if self.kind == 'circular':
             # larger sigma implies narrower peak? TBD verify if this is correct
             #
@@ -503,7 +533,8 @@ class RectangularFieldStop(AnalyticOpticalElement):
     width, height: float
         Size of the field stop, in arcseconds. Default 0.5 width, height 5.
     angle : float
-        Position angle of the field stop sides relative to the detector +Y direction, in degrees.
+        Position angle of the field stop sides relative to
+        the detector +Y direction, in degrees counterclockwise.
 
     """
 
@@ -512,7 +543,8 @@ class RectangularFieldStop(AnalyticOpticalElement):
         self.name = name
         self.width = float(width)  # width of square stop in arcseconds.
         self.height = float(height)  # height of square stop in arcseconds.
-        self.angle = float(angle)
+        #self.angle = float(angle)
+        self.rotation= float(angle)
         self._default_display_size = max(height, width) * 1.2
 
     def getPhasor(self, wave):
@@ -523,10 +555,11 @@ class RectangularFieldStop(AnalyticOpticalElement):
                              "to define the spacing")
         assert (wave.planetype == _IMAGE)
 
-        y, x = wave.coordinates()
-        xnew = x * np.cos(np.deg2rad(self.angle)) + y * np.sin(np.deg2rad(self.angle))
-        ynew = -x * np.sin(np.deg2rad(self.angle)) + y * np.cos(np.deg2rad(self.angle))
-        x, y = xnew, ynew
+#        y, x = wave.coordinates()
+#        xnew = x * np.cos(np.deg2rad(self.angle)) + y * np.sin(np.deg2rad(self.angle))
+#        ynew = -x * np.sin(np.deg2rad(self.angle)) + y * np.cos(np.deg2rad(self.angle))
+#        x, y = xnew, ynew
+        y, x = self.get_coordinates(wave)
 
         w_outside = np.where(
             (abs(y) > (self.height / 2)) |
@@ -589,7 +622,7 @@ class AnnularFieldStop(AnalyticOpticalElement):
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == _IMAGE)
 
-        y, x = wave.coordinates()
+        y, x = self.get_coordinates(wave)
         r = np.sqrt(x ** 2 + y ** 2)  #* wave.pixelscale
 
         self.transmission = np.ones(wave.shape)
@@ -649,7 +682,7 @@ class BarOcculter(AnalyticOpticalElement):
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == _IMAGE)
 
-        y, x = wave.coordinates()
+        y, x = self.get_coordinates(wave)
 
         xnew = x * np.cos(np.deg2rad(self.angle)) + y * np.sin(np.deg2rad(self.angle))
         w_inside = np.where(np.abs(xnew) <= self.width / 2)
@@ -747,7 +780,7 @@ class ParityTestAperture(AnalyticOpticalElement):
                              "to define the spacing")
         assert (wave.planetype == _PUPIL)
 
-        y, x = wave.coordinates()
+        y, x = self.get_coordinates(wave)
         r = np.sqrt(x ** 2 + y ** 2)  #* wave.pixelscale
 
         w_outside = np.where(r > self.radius)
@@ -808,7 +841,7 @@ class CircularAperture(AnalyticOpticalElement):
                              "to define the spacing")
         assert (wave.planetype == _PUPIL)
 
-        y, x = wave.coordinates()
+        y, x = self.get_coordinates(wave)
         r = np.sqrt(x ** 2 + y ** 2)
         del x
         del y
@@ -858,7 +891,7 @@ class HexagonAperture(AnalyticOpticalElement):
                              "to define the spacing")
         assert (wave.planetype == _PUPIL)
 
-        y, x = wave.coordinates()
+        y, x = self.get_coordinates(wave)
         absy = np.abs(y)
 
         self.transmission = np.zeros(wave.shape)
@@ -1058,8 +1091,8 @@ class MultiHexagonAperture(AnalyticOpticalElement):
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == _PUPIL)
 
-        y, x = wave.coordinates()
-        absy = np.abs(y)
+        #y, x = self.get_coordinates(wave)
+        #absy = np.abs(y)
 
         self.transmission = np.zeros(wave.shape)
 
@@ -1071,7 +1104,7 @@ class MultiHexagonAperture(AnalyticOpticalElement):
     def _oneHexagon(self, wave, index):
         """ Draw one hexagon into the self.transmission array """
 
-        y, x = wave.coordinates()
+        y, x = self.get_coordinates(wave)
 
         ceny, cenx = self._hexCenter(index)
 
@@ -1130,7 +1163,7 @@ class NgonAperture(AnalyticOpticalElement):
         if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == _PUPIL)
-        y, x = wave.coordinates()
+        y, x = self.get_coordinates(wave)
 
         phase = self.rotation * np.pi / 180
         vertices = np.zeros((self.nsides, 2), dtype=np.float64)
@@ -1181,15 +1214,17 @@ class RectangleAperture(AnalyticOpticalElement):
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == _PUPIL)
 
-        y, x = wave.coordinates()
-
-        if self.rotation != 0:
-            angle = np.deg2rad(self.rotation)
-            xp = np.cos(angle) * x + np.sin(angle) * y
-            yp = -np.sin(angle) * x + np.cos(angle) * y
-
-            x = xp
-            y = yp
+#        y, x = wave.coordinates()
+#
+#        if self.rotation != 0:
+#            angle = np.deg2rad(self.rotation)
+#            xp = np.cos(angle) * x + np.sin(angle) * y
+#            yp = -np.sin(angle) * x + np.cos(angle) * y
+#
+#            x = xp
+#            y = yp
+#
+        y, x = self.get_coordinates(wave)
 
         w_outside = np.where(
             (abs(y) > (self.height / 2)) |
@@ -1280,7 +1315,7 @@ class SecondaryObscuration(AnalyticOpticalElement):
 
         self.transmission = np.ones(wave.shape)
 
-        y, x = wave.coordinates()
+        y, x = self.get_coordinates(wave)
         r = np.sqrt(x ** 2 + y ** 2)  #* wave.pixelscale
 
         self.transmission[r < self.secondary_radius] = 0
@@ -1354,7 +1389,7 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
 
         self.transmission = np.ones(wave.shape)
 
-        y, x = wave.coordinates()
+        y, x = self.get_coordinates(wave)
         r = np.sqrt(x ** 2 + y ** 2)  #* wave.pixelscale
 
         self.transmission[r < self.secondary_radius] = 0
@@ -1401,7 +1436,7 @@ class ThinLens(CircularAperture):
         CircularAperture.__init__(self, name=name, radius=radius, **kwargs)
 
     def getPhasor(self, wave):
-        y, x = wave.coordinates()
+        y, x = self.get_coordinates(wave)
         r = np.sqrt(x ** 2 + y ** 2)
         r_norm = r / self.radius
 

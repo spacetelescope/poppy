@@ -23,7 +23,7 @@ Example skeleton code::
             """ If your optic has adjustible parameters, then save them as attributes here """
 
         def getPhasor(self, wave):
-            y, x = wave.coordinates() 
+            y, x = self.get_coordinates(wave) 
 
             opd = some_function(x,y)
             transmission = other_function(x,y)
@@ -32,13 +32,19 @@ Example skeleton code::
             return phasor
 
 
-Note the use of the `wave.coordinates()` helper function, which returns `y` and
-`x` arrays giving the coordinates (in units of meters for pupil plane optics,
+Note the use of the `self.get_coordinates()` helper function, which returns `y` and
+`x` arrays giving the coordinates as appopriate for the sampling of the supplied
+`wave` object (in units of meters for pupil plane optics,
 in arcseconds ofr image plane optics).  You can use these coordinates to
 calculate the transmission and phase retardance appropriate for your optic.  If
 your optic has wavelength dependent properties, access the `wave.wavelength`
 property to determine the the appropriate wavelength; this will be in units of
 meters. 
+
+The `get_coordinates()` function automatically includes support for offset shifts
+and rotations for any analytic optic: just add a `shift_x`, `shift_y` or 
+`rotation` attribute for your optic object, and the coordinates will be shifted 
+accordingly.
 
 
 Defining a custom optic from a FITS file
