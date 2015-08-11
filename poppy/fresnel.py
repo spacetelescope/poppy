@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import astropy.io.fits as fits
 from astropy import units as u
 
-from . import utils
+import utils
 
 import logging
 _log = logging.getLogger('poppy')
@@ -24,12 +24,15 @@ except:
 
 
 # internal constants for types of plane
-_PUPIL = 1
-_IMAGE = 2
+#_PUPIL = 1
+#_IMAGE = 2
+from poppy.poppy_core import _PUPIL, _IMAGE
+
 _DETECTOR = 3 # specialized type of image plane.
 _ROTATION = 4 # not a real optic, just a coordinate transform
 _INTERMED = 5
 _typestrs = ['', 'Pupil plane', 'Image plane', 'Detector', 'Rotation','Intermediate Surface']
+
 
 
 #conversions
@@ -63,7 +66,7 @@ class QuadPhase(poppy.AnalyticOpticalElement):
                  reference_wavelength = 2e-6,
                  units=u.m,
                  **kwargs):
-        poppy.AnalyticOpticalElement.__init__(self,name=name, planetype=_PUPIL, **kwargs)
+        poppy.AnalyticOpticalElement.__init__(self,name=name, planetype=planetype, **kwargs)
         self.z=z
         self.reference_wavelength = reference_wavelength*units
         self.name = name
@@ -492,8 +495,8 @@ class Wavefront(poppy.Wavefront):
             self.display('both',colorbar=True)
 
         self.wavefront = np.fft.fftshift(self.wavefront)
-
-        _log.debug("------ Propagated to: z = {0:0.2e} ------".format(z))
+        self.planetype = _INTERMED
+        _log.debug("------ Propagated to plane of type "+str(self.planetype)+" at z = {0:0.2e} ------".format(z))
 
     
     def apply_optic(self,optic,z_lens,ignore_wavefront=False):
@@ -536,7 +539,7 @@ class Wavefront(poppy.Wavefront):
         else:
             R_input_beam = np.inf
  
-        if (self.planetype == _PUPIL or self.planetype ==_IMAGE):
+        if (self.planetype == _PUPIL or self.planetype == _IMAGE):
             #we are at a focus or pupil, so the new optic is the only curvature of the beam
             r_curve = -optic.fl
             _log.debug("flat wavefront and "+ str(optic.name) +" has a curvature of ={0:0.2e}".format(r_curve))
@@ -612,5 +615,6 @@ class Wavefront(poppy.Wavefront):
 
         #update wavefront location:
         #self.z = zl
+        self.planetype = optic.planetype
         _log.debug("------ Optic: "+str(optic.name)+" applied ------")
         return 
