@@ -38,11 +38,13 @@ class PlaneType(enum.Enum):
     image = 2
     detector = 3
     rotation = 4
+    intermediate = 5
 
 _PUPIL = PlaneType.pupil
 _IMAGE = PlaneType.image
 _DETECTOR = PlaneType.detector  # specialized type of image plane
 _ROTATION = PlaneType.rotation  # not a real optic, just a coordinate transform
+_INTERMED = PlaneType.intermediate  # for Fresnel propagation
 
 _RADIANStoARCSEC = 180.*60*60 / np.pi
 

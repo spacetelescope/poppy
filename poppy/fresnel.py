@@ -22,14 +22,7 @@ try:
 except:
     pass
 
-
-# internal constants for types of plane
-_PUPIL = 1
-_IMAGE = 2
-_DETECTOR = 3 # specialized type of image plane.
-_ROTATION = 4 # not a real optic, just a coordinate transform
-_INTERMED = 5
-_typestrs = ['', 'Pupil plane', 'Image plane', 'Detector', 'Rotation','Intermediate Surface']
+from poppy.poppy_core import _PUPIL, _IMAGE, _DETECTOR, _ROTATION, _INTERMED
 
 
 #conversions
