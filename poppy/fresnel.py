@@ -22,22 +22,8 @@ try:
 except:
     pass
 
-<<<<<<< HEAD
+
 from poppy.poppy_core import _PUPIL, _IMAGE, _DETECTOR, _ROTATION, _INTERMED
-=======
-
-# internal constants for types of plane
-#_PUPIL = 1
-#_IMAGE = 2
-from poppy.poppy_core import _PUPIL, _IMAGE
-
-_DETECTOR = 3 # specialized type of image plane.
-_ROTATION = 4 # not a real optic, just a coordinate transform
-_INTERMED = 5
-_typestrs = ['', 'Pupil plane', 'Image plane', 'Detector', 'Rotation','Intermediate Surface']
->>>>>>> bc5cb0f7a4778ee2a6edb88eb5c61ba063430de8
-
-
 
 #conversions
 _RADIANStoARCSEC = 180.*60*60 / np.pi
@@ -70,12 +56,7 @@ class QuadPhase(poppy.AnalyticOpticalElement):
                  reference_wavelength = 2e-6,
                  units=u.m,
                  **kwargs):
-<<<<<<< HEAD
-        poppy.AnalyticOpticalElement.__init__(self,name=name, planetype=_PUPIL, **kwargs)
-        self.planetype = _INTERMED  # TODO check if AnalyticOpticalElement will be happy with _INTERMED
-=======
         poppy.AnalyticOpticalElement.__init__(self,name=name, planetype=planetype, **kwargs)
->>>>>>> bc5cb0f7a4778ee2a6edb88eb5c61ba063430de8
         self.z=z
         self.reference_wavelength = reference_wavelength*units
         self.name = name
