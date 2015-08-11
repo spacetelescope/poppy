@@ -6,13 +6,13 @@ import multiprocessing
 import copy
 import numpy as np
 import matplotlib.pyplot as plt
-
+ 
 #---- astropy dependencies
 
 import astropy.io.fits as fits
 from astropy import units as u
 
-import utils
+from . import utils
 
 import logging
 _log = logging.getLogger('poppy')
