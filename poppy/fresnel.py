@@ -187,7 +187,7 @@ class Wavefront(poppy.Wavefront):
         else:
             self.n=self.shape
         
-        if self.planetype is _IMAGE:
+        if self.planetype == _IMAGE:
             raise ValueError("Input wavefront needs to be a pupil plane in units of m/pix. Specify a diameter not a pixelscale.")
         
     @property
@@ -529,7 +529,7 @@ class Wavefront(poppy.Wavefront):
         else:
             R_input_beam = np.inf
  
-        if (self.planetype == _PUPIL or self.planetype ==_IMAGE):
+        if (self.planetype == _PUPIL or self.planetype == _IMAGE):
             #we are at a focus or pupil, so the new optic is the only curvature of the beam
             r_curve = -optic.fl
             _log.debug("flat wavefront and "+ str(optic.name) +" has a curvature of ={0:0.2e}".format(r_curve))

@@ -55,9 +55,9 @@ class AnalyticOpticalElement(OpticalElement):
         return None
 
     def __str__(self):
-        if self.planetype is _PUPIL:
+        if self.planetype == _PUPIL:
             return "Pupil plane: %s (Analytic)" % (self.name)
-        elif self.planetype is _IMAGE:
+        elif self.planetype == _IMAGE:
             return "Image plane: %s (Analytic)" % (self.name)
         else:
             return "Optic: " + self.name

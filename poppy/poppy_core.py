@@ -1967,9 +1967,9 @@ class OpticalElement(object):
         return ax
 
     def __str__(self):
-        if self.planetype is _PUPIL:
+        if self.planetype == _PUPIL:
             return "Pupil plane: %s " % (self.name)
-        elif self.planetype is _IMAGE:
+        elif self.planetype == _IMAGE:
             desc = "(%dx%d pixels, scale=%f arcsec/pixel)" % (self.shape[0], self.shape[0], self.pixelscale) if self.pixelscale is not None else "(Analytic)"
             return "Image plane: %s %s" % (self.name, desc)
         else:
