@@ -242,16 +242,16 @@ of the optic. Set the `shift_x`, `shift_y` or `rotation` attributes.
 The shifts are given in meters for pupil plane optics, or arcseconds
 for image plane optics. 
 
-For instance we can demonstrate the shift invariance of PSFs:
+For instance we can demonstrate the shift invariance of PSFs::
 
-    ap = poppy.CircularAperture(radius=2)
-    ap2 = poppy.CircularAperture(radius=2)
-    ap2.shift_x =-0.75
-    ap2.shift_y = 0.25
+    ap_regular = poppy.CircularAperture(radius=2)
+    ap_shifted = poppy.CircularAperture(radius=2)
+    ap_shifted.shift_x =-0.75
+    ap_shifted.shift_y = 0.25
 
     plt.figure(figsize=(6,6))
 
-    for optic, title, i in [(ap, 'Unshifted', 1), (ap2, 'Shifted', 3)]:
+    for optic, title, i in [(ap_regular, 'Unshifted', 1), (ap_shifted, 'Shifted', 3)]:
 
         sys = poppy.OpticalSystem()
         sys.addPupil(optic)
@@ -266,10 +266,20 @@ For instance we can demonstrate the shift invariance of PSFs:
         ax2.set_title(title+' PSF')
 
 .. image:: ./example_shift_invariance.png
-   :scale: 50%
+   :scale: 100%
    :align: center
    :alt: Sample calculation result
 
 
+In addition to setting the attributes as shown in the above example, these
+options can be set directly in the initialization of such elements::
+
+    ap = poppy.RectangleAperture(rotation=30, shift_x=0.1)
+    ap.display(colorbar=False)
+
+.. image:: ./example_shift_and_rotate.png
+   :scale: 100%
+   :align: center
+   :alt: Sample calculation result
 
 

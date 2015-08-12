@@ -26,12 +26,15 @@ __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'InverseTransmission'
 # ------ Generic Analytic elements -----
 
 class AnalyticOpticalElement(OpticalElement):
-    """ Defines an abstract analytic optical element, i.e. one definable by some formula rather than
-        by an input OPD or pupil file.
+    """ Defines an abstract analytic optical element, i.e. one definable by some
+        formula rather than by an input OPD or pupil file.
 
-        This class is useless on its own; instead use its various subclasses that implement
-        appropriate getPhasor functions. It exists mostly to provide some behaviors &
-        initialization common to all analytic optical elements.
+        This class is useless on its own; instead use its various subclasses
+        that implement appropriate getPhasor functions. It exists mostly to
+        provide some behaviors & initialization common to all analytic optical
+        elements.
+
+
 
         Parameters
         ----------
@@ -40,12 +43,23 @@ class AnalyticOpticalElement(OpticalElement):
         transmission, opd : string
             These are *not allowed* for Analytic optical elements, and this class will raise an
             error if you try to set one.
-
+        shift_x, shift_y : Optional floats
+            Translations of this optic, given in meters relative to the optical
+            axis.
+        rotation : Optional float
+            Rotation of the optic around its center, given in degrees
+            counterclockwise.  Note that if you apply both shift and rotation,
+            the optic rotates around its own center, rather than the optical
+            axis.
 
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, shift_x=None, shift_y=None, rotation=None, **kwargs):
         OpticalElement.__init__(self, **kwargs)
+
+        if shift_x is not None: self.shift_x = shift_x
+        if shift_y is not None: self.shift_y = shift_y
+        if rotation is not None: self.rotation = rotation
 
         #self.shape = None  # no explicit shape required
         self.pixelscale = None

@@ -1,16 +1,11 @@
 from __future__ import division
 
-#---- core dependencies
 import poppy
-import multiprocessing
-import copy
 import numpy as np
 import matplotlib.pyplot as plt
 
-#---- astropy dependencies
-
 import astropy.io.fits as fits
-from astropy import units as u
+import astropy.units as u
 
 from . import utils
 
@@ -24,29 +19,23 @@ except:
 
 from poppy.poppy_core import _PUPIL, _IMAGE, _DETECTOR, _ROTATION, _INTERMED, _FFTW_AVAILABLE
 
-#conversions
-_RADIANStoARCSEC = 180.*60*60 / np.pi
-
-#---end top of poppy_core.py
-
-
 
 
 class QuadPhase(poppy.AnalyticOpticalElement):
     '''
     Quadratic phase factor,  q(z)
-    suitable for representing a converging or diverging 
+    suitable for representing a radially-dependent wavefront curvature.
 
     Parameters
     -----------------
     z : float or astropy.Quantity of type length
-        distance?
+        radius of curvature
     planetype : poppy.PlaneType constant
         plane type
     name : string
         Descriptive string name
     reference_wavelength : float
-        wavelength 
+        wavelength
     units : astropy.unit of type length
         Unit to apply to reference wavelength; default is meter
 
@@ -82,18 +71,17 @@ class QuadPhase(poppy.AnalyticOpticalElement):
             a Fresnel Wavefront object
         """
 
-        y, x = wave.fft_coords()
-        self.rsqd = (x**2+y**2)*u.m**2
-        #quad_phase_1st= np.exp(i*k*(x**2+y**2)/(2*self.z_m))#eq. 6.68
+        y, x = wave.coordinates()
+        rsqd = (x**2+y**2)*u.m**2
         _log.debug("Applying spherical phase curvature ={0:0.2e}".format(self.z_m))
         _log.debug("Applying spherical lens phase ={0:0.2e}".format(1.0/self.z_m))
-        _log.debug("max_rsqd ={0:0.2e}".format(np.max(self.rsqd)))
+        _log.debug("max_rsqd ={0:0.2e}".format(np.max(rsqd)))
 
 
         k = 2* np.pi/self.reference_wavelength
-        lens_phasor = np.exp(1.j * k * self.rsqd/(2.0*self.z_m))
-        #stop()
+        lens_phasor = np.exp(1.j * k * rsqd/(2.0*self.z_m))
         return lens_phasor
+
 
 class GaussianLens(QuadPhase):
     '''
@@ -170,7 +158,7 @@ class Wavefront(poppy.Wavefront):
             even between planes of type _PUPIL or _IMAGE
             if False the wavefront reverts to standard wavefront propagation for _PUPIL <-> _IMAGE planes
         oversample : float
-            Padding factor to apply to the wavefront array, multiplying on top of the beam radius. 
+            Padding factor to apply to the wavefront array, multiplying on top of the beam radius.
 
 
         References:
@@ -207,8 +195,9 @@ class Wavefront(poppy.Wavefront):
         super(Wavefront,self).__init__(diam=beam_radius.to(u.m).value*2.0, oversample=self.oversample,**kwds)
 
         self.z  =  0*units
-        """Distance"""
+        """Current wavefront coordinate along the optical axis"""
         self.z_w0 = 0*units
+        """Coordinate along the optical axis of the latest beam waist"""
         self.waists_w0 = [self.w_0.value]
         """ List of beam waist radii, in series as encountered during the course of an optical propagation."""
         self.waists_z = [self.z_w0.value]
@@ -263,7 +252,7 @@ class Wavefront(poppy.Wavefront):
         Divergence of the gaussian beam
 
         I.e. the angle between the optical axis and the beam radius at a large distance.
-        Angle in radians. 
+        Angle in radians.
         '''
         return 2*self.wavelen_m/(np.pi*self.w_0)
 
@@ -598,7 +587,6 @@ class Wavefront(poppy.Wavefront):
         self.planetype = _INTERMED
         _log.debug("------ Propagated to plane of type "+str(self.planetype)+" at z = {0:0.2e} ------".format(z))
 
-
     def apply_optic(self,optic,z_lens,ignore_wavefront=False):
         '''
 
@@ -613,7 +601,7 @@ class Wavefront(poppy.Wavefront):
         optic : GaussianLens
             An optic
         z_lens : float
-            location of lens relative to the wavefront origin
+            location of lens relative to the wavefront
         ignore_wavefront : boolean
             If True then only gaussian beam propagation parameters will be updated and the wavefront surface will not be calculated.
             Useful for quick calculations of gaussian laser beams
@@ -640,11 +628,11 @@ class Wavefront(poppy.Wavefront):
         if self.planetype == _PUPIL or self.planetype == _IMAGE:
             #we are at a focus or pupil, so the new optic is the only curvature of the beam
             r_curve = -optic.fl
-            _log.debug("flat wavefront and "+ str(optic.name) +" has a curvature of ={0:0.2e}".format(r_curve))
+            _log.debug(" input flat wavefront and "+ str(optic.name) +" has a curvature of ={0:0.2e}".format(r_curve))
 
         else:
             r_curve = 1.0/(1.0/self.R_c(zl) - 1.0/optic.fl)
-            _log.debug("curved wavefront"+str(optic.name) +" has a curvature of ={0:0.2e}".format(r_curve))
+            _log.debug(" input curved wavefront "+str(optic.name) +" has a curvature of ={0:0.2e}".format(r_curve))
 
         #update the wavefront to the post-lens beam waist
         if self.R_c(zl) == optic.fl:
@@ -652,7 +640,6 @@ class Wavefront(poppy.Wavefront):
             self.z_w0 = zl
             self.w_0 = new_waist
         else:
-
             self.z_w0 = -r_curve/(1.0 + (self.wavelen_m*r_curve/(np.pi*new_waist**2))**2) + zl
             self.w_0 = new_waist/np.sqrt(1.0+(np.pi*new_waist**2/(self.wavelen_m*r_curve))**2)
             _log.debug(str(optic.name) +" has a curvature of ={0:0.2e}".format(r_curve))
