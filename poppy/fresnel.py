@@ -22,31 +22,39 @@ try:
 except:
     pass
 
-from poppy.poppy_core import _PUPIL, _IMAGE, _DETECTOR, _ROTATION, _INTERMED
+from poppy.poppy_core import _PUPIL, _IMAGE, _DETECTOR, _ROTATION, _INTERMED, _FFTW_AVAILABLE
 
 #conversions
 _RADIANStoARCSEC = 180.*60*60 / np.pi
 
 #---end top of poppy_core.py
 
-#define Discrete Fourier Transform functions
-if poppy.conf.use_fftw:
-    try:
-        # try to import FFTW and use it
-        import pyfftw
-        _FFTW_AVAILABLE =True
-    except:
-        _log.debug("conf.use_fftw is set to True, but we cannot import pyfftw. Therefore overriding the config setting to False. Everything will work fine using numpy.fft, it just may be slightly slower.")
-        # we tried but failed to import it.
-        _FFTW_AVAILABLE = False
-
-
 
 
 
 class QuadPhase(poppy.AnalyticOpticalElement):
     '''
-    Class, q(z), Lawrence eq. 88
+    Quadratic phase factor,  q(z)
+    suitable for representing a converging or diverging 
+
+    Parameters
+    -----------------
+    z : float or astropy.Quantity of type length
+        distance?
+    planetype : poppy.PlaneType constant
+        plane type
+    name : string
+        Descriptive string name
+    reference_wavelength : float
+        wavelength 
+    units : astropy.unit of type length
+        Unit to apply to reference wavelength; default is meter
+
+
+    References
+    -------------------
+    Lawrence eq. 88
+
     '''
     def __init__(self,
                  z,
@@ -58,7 +66,7 @@ class QuadPhase(poppy.AnalyticOpticalElement):
         poppy.AnalyticOpticalElement.__init__(self,name=name, planetype=planetype, **kwargs)
         self.z=z
         self.reference_wavelength = reference_wavelength*units
-        self.name = name
+
         if  isinstance(z,u.quantity.Quantity):
             self.z_m = (z).to(u.m) #convert to meters.
         else:
@@ -66,6 +74,14 @@ class QuadPhase(poppy.AnalyticOpticalElement):
             self.z_m=z*u.m
 
     def getPhasor(self, wave):
+        """ return complex phasor for the quadratic phase
+
+        Parameters
+        ----------
+        wave : obj
+            a Fresnel Wavefront object
+        """
+
         y, x = wave.fft_coords()
         self.rsqd = (x**2+y**2)*u.m**2
         #quad_phase_1st= np.exp(i*k*(x**2+y**2)/(2*self.z_m))#eq. 6.68
@@ -81,7 +97,24 @@ class QuadPhase(poppy.AnalyticOpticalElement):
 
 class GaussianLens(QuadPhase):
     '''
-    Class
+    Gaussian Lens
+
+    Thin wrapper for QuadPhase
+
+    Parameters
+    -----------------
+    f_lens : float or astropy.Quantity of type length
+        Focal length of this lens
+    name : string
+        Descriptive string name
+    planetype : poppy.PlaneType constant
+        plane type
+    reference_wavelength : float
+        wavelength
+    units : astropy.unit of type length
+        Unit to apply to reference_wavelength; defaults to meters
+
+
     '''
     def __init__(self,
                  f_lens,
@@ -108,30 +141,40 @@ class GaussianLens(QuadPhase):
 
 
 class Wavefront(poppy.Wavefront):
+    @u.quantity_input(beam_radius=u.m)
     def __init__(self,
                  beam_radius,
                  units=u.m,
                  force_fresnel=True,
                  rayl_factor=2.0,
-                    oversample=2,
+                 oversample=2,
                  **kwds):
         '''
+        Wavefront for Fresnel diffraction calculation.
+
+        This class inherits from and extends the Fraunhofer-domain
+        poppy.Wavefront class.
+
 
         Parameters:
-
-        units:
+        --------------------
+        beam_radius :
+            Radius of the illuminated beam at the initial optical plane.
+            I.e. this would be the pupil aperture radius in an entrance pupil.
+        units :
             astropy units of input parameters
-        force_fresnel:
-
         rayl_factor:
             Threshold for considering a wave spherical.
-        force_fresnel:
+        force_fresnel : bool
             If True then the Fresnel propagation will always be used,
             even between planes of type _PUPIL or _IMAGE
             if False the wavefront reverts to standard wavefront propagation for _PUPIL <-> _IMAGE planes
+        oversample : float
+            Padding factor to apply to the wavefront array, multiplying on top of the beam radius. 
 
 
         References:
+        -------------------
         - Lawrence, G. N. (1992), Optical Modeling, in Applied Optics and Optical Engineering., vol. XI,
             edited by R. R. Shannon and J. C. Wyant., Academic Press, New York.
 
@@ -154,19 +197,30 @@ class Wavefront(poppy.Wavefront):
         #        https://stackoverflow.com/questions/576169/understanding-python-super-with-init-methods
 
         self.units = units
+        """Astropy.units for measuring distance"""
+
         self.w_0 = (beam_radius).to( self.units) #convert to base units.
+        """Beam waist radius at initial plane"""
         self.oversample=oversample
+        """Oversampling factor for zero-padding arrays"""
         #print(oversample)
         super(Wavefront,self).__init__(diam=beam_radius.to(u.m).value*2.0, oversample=self.oversample,**kwds)
 
         self.z  =  0*units
+        """Distance"""
         self.z_w0 = 0*units
         self.waists_w0 = [self.w_0.value]
+        """ List of beam waist radii, in series as encountered during the course of an optical propagation."""
         self.waists_z = [self.z_w0.value]
+        """ List of beam waist distances along the optical axis, in series as encountered during the course of an optical propagation."""
         self.wavelen_m = self.wavelength*u.m #wavelengths should always be in meters
+        """ Wavelength as an Astropy.Quantity"""
         self.spherical = False
+        """is this wavefront spherical or planar?"""
         self.k = np.pi*2.0/self.wavelength
+        """ Wavenumber"""
         self.force_fresnel = force_fresnel
+        """Force Fresnel calculation if true, even for cases wher Fraunhofer would work"""
         self.rayl_factor= rayl_factor
 
         if self.oversample > 1 and not self.ispadded: #add padding for oversampling, if necessary
@@ -181,6 +235,7 @@ class Wavefront(poppy.Wavefront):
         if self.oversample < 2:
             _log.warn("Oversampling > 2x suggested for reliable results.")
 
+        # FIXME MP: this self.n attribute appears unnecessary?
         if self.shape[0]==self.shape[1]:
             self.n=self.shape[0]
         else:
@@ -192,15 +247,23 @@ class Wavefront(poppy.Wavefront):
     @property
     def z_R(self):
         '''
-        The Rayleigh distance for the gaussian beam.
+        Rayleigh distance for the gaussian beam, based on
+        current beam waist and wavelength.
+
+        I.e. the distance along the propagation direction from the
+        beam waist at which the area of the cross section has doubled.
+        The depth of focus is conventionally twice this distance.
         '''
 
         return np.pi*self.w_0**2/(self.wavelen_m)
 
     @property
-    def divergance(self):
+    def divergence(self):
         '''
         Divergence of the gaussian beam
+
+        I.e. the angle between the optical axis and the beam radius at a large distance.
+        Angle in radians. 
         '''
         return 2*self.wavelen_m/(np.pi*self.w_0)
 
@@ -254,7 +317,7 @@ class Wavefront(poppy.Wavefront):
 
     def R_c(self,z):
         '''
-        The gaussian beam radius of curvature as a function of distance
+        The gaussian beam radius of curvature as a function of distance z
         '''
         dz=(z-self.z_w0) #z relative to waist
         if dz==0:
@@ -263,7 +326,12 @@ class Wavefront(poppy.Wavefront):
 
     def spot_radius(self,z):
         '''
-        radius of a propagating gaussian wavefront
+        radius of a propagating gaussian wavefront, at a distance z
+
+        Parameters
+        -------------
+        z : float
+            Distance from the current optical plane
         '''
         return self.w_0 * np.sqrt(1.0 + ((z-self.z_w0)/self.z_R)**2 )
 
@@ -295,7 +363,8 @@ class Wavefront(poppy.Wavefront):
         Implements the direct propagation algorithm described in Andersen & Enmark (2011). Works best for far field propagation.
         Not part of the Gaussian beam propagation method.
 
-        Parameters:
+        Parameters
+        ----------
         z :  float
             the distance from the current location to propagate the beam.
         '''
@@ -325,14 +394,27 @@ class Wavefront(poppy.Wavefront):
         return
 
     def ptp(self,dz):
-        '''
-        Parameters:
+        ''' Plane-to-Plane Fresnel propagation.
 
+        This function propagates a planar wavefront some distance
+        while keeping it planar, yielding a planar output wavefront.
+        This is used for propagation entirely within the Rayleigh
+        distance of the beam waist.
+
+
+        Parameters
+        ----------
         dz :  float
             the distance from the current location to propagate the beam.
 
+        References
+        ----------
         Lawrence eq. 82, 86,87
         '''
+
+        # FIXME MP: should check here to confirm the starting wavefront
+        # is indeed planar rather than spherical
+
         if  isinstance(dz,u.quantity.Quantity):
             z_direct = (dz).to(u.m).value #convert to meters.
         else:
@@ -340,7 +422,7 @@ class Wavefront(poppy.Wavefront):
             z_direct = dz
 
         if np.abs(dz) < 1*u.Angstrom:
-            _log.debug("Skipping Small dz = " + str(dz))
+            _log.debug("Skipping small dz = " + str(dz))
             return
 
         x,y = self.fft_coords() #meters
@@ -357,17 +439,25 @@ class Wavefront(poppy.Wavefront):
         self.history.append("Propagated Plane-to-Plane, dz = " + str(z_direct))
 
     def wts(self,dz):
-        '''
-        Parameters:
+        ''' Waist-to-Spherical Fresnel propagation
 
+        This function propagates a planar input wavefront to become a spherical wavefront.
+        The starting position should be within the Rayleigh distance of the waist, and the
+        ending position will be outside of that. 
+
+        Parameters:
+        -----------
         dz :  float
             the distance from the current location to propagate the beam.
 
-        Lawrence eq. 83,88
+        References
+        ----------
+         Lawrence eq. 83,88
         '''
         #dz = z2-self.z
         _log.debug("Waist to Spherical propagation, dz=" + str(dz))
 
+        # FIXME MP: check for planar input wavefront
         if dz ==0:
             _log.error("Waist to Spherical propagation stopped, no change in distance.")
             return
@@ -384,16 +474,27 @@ class Wavefront(poppy.Wavefront):
         self.z = self.z + dz
         self.history.append("Propagated Waist to Spherical, dz = " + str(dz))
 
+        # FIXME MP: update self.spherical to be true here?
 
     def stw(self,dz):
-        '''
-        Parameters:
+        '''Spherical-to-Waist Fresnel propagation
+
+        This function propagates a spherical wavefront to become a planar wavefront.
+        The starting position should be outside the Rayleigh distance of the waist,
+        and the ending position will be inside of it. 
+
+
+        Parameters
+        ----------
         dz :  float
             the distance from the current location to propagate the beam.
 
-        Lawrence eq. 89
+        References
+        ----------
+         Lawrence eq. 89
         '''
 
+        # FIXME MP: check for spherical input wavefront
         #dz = z2 - self.z
         _log.debug("Spherical to Waist propagation,dz="+str(dz))
 
@@ -415,28 +516,35 @@ class Wavefront(poppy.Wavefront):
 
     def planar_range(self,z):
         '''
-        Parameters:
-             z : float
-
         Returns True if the input range z is within the Rayleigh range of the waist.
+
+        Parameters:
+        ----------
+        z : float
+            distance from the beam waist
+
         '''
 
-        if np.abs(self.z_w0 - z) < self.z_R:
-            return True
-        else:
-            return False
+        #if np.abs(self.z_w0 - z) < self.z_R:
+        #    return True
+        #else:
+        #    return False
+        return np.abs(self.z_w0 - z) < self.z_R
 
     def propagate_fresnel(self,delta_z,display_intermed=False):
-        '''
-        Parameters:
+        '''Top-level routine for Fresnel diffraction propagation
+
+
+        Each spherical wavefront is propagated to a waist and then to the next appropriate plane
+         (spherical or planar).
+
+        Parameters
+        ----------
         delta_z :  float
             the distance from the current location to propagate the beam.
         display_interm : boolean
              If True, display the complex start, intermediates waist and end surfaces.
 
-        Description:
-        Each spherical wavefront is propagated to a waist and then to the next appropriate plane
-         (spherical or planar).
 
         '''
         #self.pad_wavefront()
@@ -450,11 +558,12 @@ class Wavefront(poppy.Wavefront):
 
         if not self.spherical:
             if self.planar_range(z):
+                # Plane waves inside planar range:  use plane-to-plane
                 _log.debug('Plane to Plane Regime, dz='+str(delta_z))
                 _log.debug('Constant Pixelscale: %.2g'%self.pixelscale)
-
                 self.ptp(delta_z)
             else:
+                # Plane wave to spherical. First use PTP to the waist, then WTS to Spherical
                 _log.debug('Plane to Spherical, inside Z_R to outside Z_R')
                 self.ptp(self.z_w0 - self.z)
                 if display_intermed:
@@ -463,6 +572,7 @@ class Wavefront(poppy.Wavefront):
                 self.wts(z-self.z_w0)
         else:
             if self.planar_range(z):
+                # Spherical to plane. First use STW to the waist, then PTP to the desired plane
                 _log.debug('Spherical to Plane Regime, outside Z_R to inside Z_R')
                 self.stw(self.z_w0 - self.z)
                 if display_intermed:
@@ -470,10 +580,11 @@ class Wavefront(poppy.Wavefront):
                     self.display('both',colorbar=True,title='Intermediate Waist')
                 self.ptp(z-self.z_w0)
             else:
+                #Spherical to Spherical. First STW to the waist, then WTS to the desired spherical surface
                 _log.debug('Spherical to Spherical, Outside Z_R to waist (z_w0) to outside Z_R')
-                _log.debug('Starting Pixelscale:%.2g'%self.pixelscale)
+                _log.debug('Starting Pixelscale: %.2g'%self.pixelscale)
                 self.stw(self.z_w0 - self.z)
-                _log.debug('Intermediate Pixelscale:%.2g'%self.pixelscale)
+                _log.debug('Intermediate Pixelscale: %.2g'%self.pixelscale)
                 self.pixelscale
                 if display_intermed:
                     plt.figure()
@@ -498,16 +609,14 @@ class Wavefront(poppy.Wavefront):
         Eventually this should be called by a modified multiply function.
 
         Parameters
-        -------------
+        ----------
         optic : GaussianLens
-
-        f_lens : float
-             lens focal length
+            An optic
         z_lens : float
-             location of lens relative to the wavefront origin
+            location of lens relative to the wavefront origin
         ignore_wavefront : boolean
-             If True then only gaussian the beam propagation parameters will be updated and the wavefront surface will not be calculated.
-              Useful for quick calculations of gaussian laser beams
+            If True then only gaussian beam propagation parameters will be updated and the wavefront surface will not be calculated.
+            Useful for quick calculations of gaussian laser beams
 
         '''
 
@@ -606,4 +715,3 @@ class Wavefront(poppy.Wavefront):
         #self.z = zl
         self.planetype = optic.planetype
         _log.debug("------ Optic: "+str(optic.name)+" applied ------")
-        return
