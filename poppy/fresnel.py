@@ -327,11 +327,16 @@ class Wavefront(poppy.Wavefront):
         '''
         return self.w_0 * np.sqrt(1.0 + ((z-self.z_w0)/self.z_R)**2 )
 
-    def coordinates(self):
+    def _fft_coordinates(self):
         """
-        Return Y, X coordinates for this wavefront, in the manner of numpy.indices()
+        Return Y, X coordinates for this wavefront, in the manner of numpy.indices(),
+        with centering consistent with the FFT convention.
+        This function returns the FFT center of the array always.
 
-        This function returns the FFT center of the array always. Replaces poppy.wavefront.coordinates().
+        This function is intentionally distinct from the regular Wavefront.coordinates(), and behaves
+        slightly differently. This is required for use in the angular spectrum propagation in the PTP and
+        Direct propagations. Not intended as a general purpose replacement for coordinates() in other
+        cases. See https://github.com/mperrin/poppy/issues/104 for discussion.
 
         Returns
         -------
@@ -366,7 +371,7 @@ class Wavefront(poppy.Wavefront):
         else:
             _log.warn("z= {0:0.2e}, has no units, assuming meters ".format(z))
             z_direct=z
-        y,x = self.coordinates()#*self.units
+        y,x = self._fft_coordinates()#*self.units
         k = np.pi*2.0/self.wavelen_m.value
         S = self.n*self.pixelscale
         _log.debug("Propagation Parameters: k={0:0.2e},".format(k)+"S={0:0.2e},".format(S)+"z={0:0.2e},".format(z_direct))
@@ -416,7 +421,7 @@ class Wavefront(poppy.Wavefront):
             _log.debug("Skipping small dz = " + str(dz))
             return
 
-        x,y = self.coordinates() #meters
+        x,y = self._fft_coordinates() #meters
         rho = np.fft.fftshift((x/self.pixelscale/2.0/self.oversample)**2 + (y/self.pixelscale/2.0/self.oversample)**2)
         T = -1.0j*np.pi*self.wavelength*(z_direct)*rho #Transfer Function of diffraction propagation eq. 22, eq. 87
 

@@ -39,9 +39,13 @@ def test_CircularAperturePropagation(display=False):
 
         plt.figure()
         gw.display('both',colorbar=True)
-        plt.figure()
+        plt.figure(figsize=(12,6))
+
         plt.plot(np.arange(gw.intensity.shape[0]), gw.intensity[gw.intensity.shape[1]/2,:])
         plt.title("z={:0.2e} , compare to Anderson and Enmark fig.6.15".format(z))
+        plt.text(1300,2, "Max value: {0:.4f}".format(np.max(gw.intensity)))
+        plt.set_xlim(0,2048)
+
     assert(np.round(3.3633280006866424,9) == np.round(np.max(gw.intensity),9))
 
 def test_spherical_lens(display=False):
