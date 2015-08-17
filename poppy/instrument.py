@@ -474,7 +474,7 @@ class Instrument(object):
 
 
         #---- apply pupil intensity and OPD to the optical model
-        optsys.addPupil(name='Entrance Pupil', optic=pupil_optic, transmission=full_pupil_path, opd=full_opd_path, opdunits='micron', rotation=self._rotation)
+        optsys.addPupil(name='Entrance Pupil', optic=pupil_optic, transmission=full_pupil_path, opd=full_opd_path, rotation=self._rotation)
 
         # Allow instrument subclass to add field-dependent aberrations
         aberration_optic = self.get_aberrations()

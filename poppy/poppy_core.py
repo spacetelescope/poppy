@@ -2048,7 +2048,7 @@ class FITSOpticalElement(OpticalElement):
 
     """
 
-    def __init__(self, name="unnamed optic", transmission=None, opd= None, opdunits="meters",
+    def __init__(self, name="unnamed optic", transmission=None, opd=None, opdunits=None,
             shift=None, rotation=None, pixelscale=None, planetype=None,
             transmission_index=None, opd_index=None,
             **kwargs):
@@ -2158,16 +2158,14 @@ class FITSOpticalElement(OpticalElement):
                     _log.error("No opdunit keyword supplied, and BUNIT keyword not found in header. Cannot determine OPD units")
                     raise Exception("No opdunit keyword supplied, and BUNIT keyword not found in header. Cannot determine OPD units.")
 
-
-            if opdunits.lower().endswith('s'): opdunits = opdunits[:-1] # drop trailing s if present
-            if opdunits.lower() == 'meter' or opdunits.lower() == 'm':
-                pass # no need to rescale
-            elif opdunits.lower() == 'micron' or opdunits.lower() == 'um' or opdunits.lower() == 'micrometer':
+            opdunits = opdunits.lower()
+            # rescale to meters if necessary
+            if opdunits in ('meter', 'meters', 'm'):
+                pass
+            elif opdunits in ('micron', 'microns', 'um', 'micrometer', 'micrometers'):
                 self.opd *= 1e-6
-            elif opdunits.lower() == 'nanometer' or opdunits.lower() == 'nm':
+            elif opdunits in ('nanometer', 'nanometers', 'nm'):
                 self.opd *= 1e-9
-
-
 
             if len (self.opd.shape) != 2 or self.opd.shape[0] != self.opd.shape[1]:
                 _log.debug('OPD shape: '+str(self.opd.shape))
