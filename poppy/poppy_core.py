@@ -203,7 +203,6 @@ class Wavefront(object):
         return new
     __rmul__ = __mul__  # either way works.
 
-
     def __iadd__(self,wave):
         "Add another wavefront to this one"
         if not isinstance(wave,Wavefront):
@@ -380,7 +379,7 @@ class Wavefront(object):
         # This is needed to get the coordinates right when displaying very small arrays
 
         extent = np.array([-0.5 ,intens.shape[1]-1+0.5, -0.5,intens.shape[0]-1+0.5]) * self.pixelscale
-        if self.planetype == _PUPIL:
+        if self.planetype  != PlaneType.image:  # == _PUPIL:
             # For pupils, we just let the 0 point be that of the array, off to the side of the actual clear aperture
             # No - now let's be consistent with how OpticalElement.display() works
             cenx = (intens.shape[1]-1)/2.
@@ -647,8 +646,6 @@ class Wavefront(object):
 
         if conf.enable_flux_tests: _log.debug("\tPost-FFT total intensity: "+str(self.totalIntensity))
 
-
-
     def _propagateMFT(self, det):
         """ Compute from pupil to an image using the Soummer et al. 2007 MFT algorithm
 
@@ -761,7 +758,6 @@ class Wavefront(object):
         self.planetype=_PUPIL
         self.pixelscale = self.diam / self.wavefront.shape[0]
 
-
     def tilt(self, Xangle=0.0, Yangle=0.0):
         """ Tilt a wavefront in X and Y.
 
@@ -832,7 +828,9 @@ class Wavefront(object):
 
         self.history.append('Rotated by %f degrees, CCW' %(angle))
 
-
+    # note: the following are implemented as static methods to
+    # allow for reuse outside of this class in the Zernike polynomial
+    # caching mechanisms. See zernike.py.
     @staticmethod
     def pupil_coordinates(shape, pixelscale):
         """Utility function to generate coordinates arrays for a pupil
@@ -923,7 +921,7 @@ class Wavefront(object):
         """
 
         if self.planetype == _PUPIL:
-            return Wavefront.pupil_coordinates(self.shape, self.pixelscale)
+            return type(self).pupil_coordinates(self.shape, self.pixelscale)
         elif self.planetype == _IMAGE:
             return Wavefront.image_coordinates(self.shape, self.pixelscale,
                                                self._last_transform_type, self._image_centered)

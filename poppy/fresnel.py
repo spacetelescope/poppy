@@ -46,7 +46,7 @@ class QuadPhase(poppy.AnalyticOpticalElement):
 
     '''
     def __init__(self,
-                 z,
+                 z,     #FIXME consider renaming fl? z seems ambiguous with distance.
                  planetype = _INTERMED,
                  name = 'Quadratic Wavefront Curvature Operator',
                  reference_wavelength = 2e-6,
@@ -126,6 +126,10 @@ class GaussianLens(QuadPhase):
             _log.warn("Assuming meters, focal length (%.3g) has no units for Optic: "%(f_lens)+self.name)
             self.fl=f_lens*u.m
         _log.debug("Initialized: "+self.name+", fl ={0:0.2e}".format(self.fl))
+
+    def __str__(self):
+        return "Lens: {0}, with focal length {1}".format(self.name, self.fl)
+
 
 
 class Wavefront(poppy.Wavefront):
@@ -517,6 +521,47 @@ class Wavefront(poppy.Wavefront):
         self.wavefront = result
         self.history.append("Direct propagation to z= {0:0.2e}".format(z))
 
+    def propagateTo(self, optic, distance):
+        """Propagates a wavefront object to the next optic in the list, after
+        some separation distance (which might be zero).
+        Modifies this wavefront object itself.
+
+        Transformations between most planes use Fresnel propagation.
+        If the target plane is an image plane, the output wavefront will be set to provide its
+        coordinates in arcseconds based on its focal length, but it retains its internal dimensions
+        in meters for future Fresnel propagations.
+        Transformations to a Detector plane are handled separately to allow adjusting the pixel scale
+        to match the target scale.
+        Transformations from any frame through a rotation plane simply rotate the wavefront accordingly.
+
+        Parameters
+        -----------
+        optic : OpticalElement
+            The optic to propagate to. Used for determining the appropriate optical plane.
+        distance : astropy.Quantity of dimension length
+            separation distance of this optic relative to the prior optic in the system.
+        """
+        msg = "  Propagating wavefront to {0} after distance {1} ".format(str(optic), distance)
+        _log.debug(msg)
+        self.history.append(msg)
+
+        # Apply Fresnel propagation for the specified distance, regardless of 
+        # what type of plane is next
+        if distance != 0*u.m:
+            self.propagate_fresnel(distance)
+
+        # Now we may do some further manipulations depending on the next plane
+        self._angular_coordinates=False # by default coordinates in meters
+        if optic.planetype == _ROTATION:     # rotate
+            self.rotate(optic.angle)
+            self.location='after '+optic.name
+        elif optic.planetype == _IMAGE:
+            self.location='before '+optic.name
+            self._angular_coordinates=True # image planes want angular coordinates
+        elif optic.planetype == _DETECTOR:
+            raise NotImplemented('image plane to detector propagation (resampling!) not implemented yet')
+        else:
+            self.location='before '+optic.name
 
     def _propagate_ptp(self,dz):
         ''' Plane-to-Plane Fresnel propagation.
@@ -871,3 +916,199 @@ class Wavefront(poppy.Wavefront):
         #self.z = zl
         self.planetype = optic.planetype
         _log.debug("------ Optic: "+str(optic.name)+" applied ------")
+
+
+FresnelWavefront=Wavefront # alias for now, potentially rename soon?
+
+
+class FresnelOpticalSystem(poppy.OpticalSystem):
+    """ Class representing a series of optical elements,
+    through which light can be propagated using the Fresnel formalism.
+
+    This is comparable to the "regular" (Fraunhofer-domain)
+    OpticalSystem, but adds functionality for propagation to
+    arbitrary optical planes rather than just pupil and image planes.
+
+    Parameters
+    -------------
+    name : string
+        descriptive name of optical system
+    pupil_diameter : astropy.Quantity of dimension length
+        Diameter of entrance pupil
+    npix : int
+        Number of pixels across the entrance pupil by default 1024
+    beam_ratio : int
+        Padding factor for the entrance pupil; what fraction of the array should
+        correspond to the entrance pupil. Default is 0.5, which corresponds to
+        Nyquist sampling (2 pixels per resolution element)
+    verbose : bool
+        whether to be more verbose with log output while computing
+    """
+
+    @u.quantity_input(pupil_diameter=u.m)
+    def __init__(self, name="unnamed system", pupil_diameter=1*u.m, 
+            npix=512, beam_ratio=0.5, verbose=True):
+        super(FresnelOpticalSystem, self).__init__(name=name, verbose=verbose)
+        self.pupil_diameter = pupil_diameter
+        self.beam_ratio = beam_ratio
+        self.npix=npix
+
+        self.distances = [] # distance along the optical axis to each successive optic
+
+    def addPupil(self, *args, **kwargs):
+        raise NotImplementedError('Use add_optic for Fresnel instead')
+
+    def addImage(self, *args, **kwargs):
+        raise NotImplementedError('Use add_optic for Fresnel instead')
+
+    @u.quantity_input(distance=u.m)
+    def add_optic(self, optic=None, distance=0.0*u.m):
+        """ Add an optic to the optical system
+
+        Parameters
+        ---------------
+        optic : OpticalElement instance
+            Some optic
+        distance : astropy.Quantity of dimension length
+            separation distance of this optic relative to the prior optic in the system.
+        """
+        self.planes.append(optic)
+        self.distances.append(distance.to(u.m))
+        if self.verbose: _log.info("Added optic: {0} after separation: {1:.2e} ".format(self.planes[-1].name, distance))
+
+        return optic
+
+    @u.quantity_input(distance=u.m)
+    def add_detector(self, pixelscale, distance=0.0*u.m, **kwargs):
+        super(self,FresnelOpticalSystem).addDetector(pixelscale, **kwargs)
+        self.distances.append(distance)
+        if self.verbose: _log.info("Added detector: {0} after separation: {1:.2e} ".format(self.planes[-1].name, distance))
+
+    addDetector=add_detector # for compatibility with pre-pep8 names 
+
+    def inputWavefront(self, wavelength=1e-6):
+        """Create a Wavefront object suitable for sending through a given optical system.
+
+        Uses self.source_offset to assign an off-axis tilt, if requested.
+        (FIXME does not work for Fresnel yet)
+
+        Parameters
+        ----------
+        wavelength : float
+            Wavelength in meters
+
+        Returns
+        -------
+        wavefront : poppy.Wavefront instance
+            A wavefront appropriate for passing through this optical system.
+
+        """
+        inwave= FresnelWavefront(self.pupil_diameter/2, wavelength=wavelength,
+            npix=self.npix, oversample=1./self.beam_ratio)
+        _log.debug("Creating input wavefront with wavelength={0:e} microns, npix={1}, pixel scale={2:f} meters/pixel".format(
+            wavelength*1e6, self.npix, self.pupil_diameter/self.npix))
+        return inwave
+
+
+
+    def propagate_mono(self, wavelength=2e-6, normalize='first',
+                       retain_intermediates=False, display_intermediates=False):
+        """Propagate a monochromatic wavefront through the optical system, via Fresnel calculations. 
+        Called from within `calcPSF`.
+        Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s (empty if
+        `retain_intermediates=False`).
+
+        Parameters
+        ----------
+        wavelength : float
+            Wavelength in meters
+        normalize : string, {'first', 'last'}
+            how to normalize the wavefront?
+            * 'first' = set total flux = 1 after the first optic, presumably a pupil
+            * 'last' = set total flux = 1 after the entire optical system.
+            * 'first=2' = set total flux = 2 after the first optic (used for debugging only)
+        display_intermediates : bool
+            Should intermediate steps in the calculation be displayed on screen? Default: False.
+        retain_intermediates : bool
+            Should intermediate steps in the calculation be retained? Default: False.
+            If True, the second return value of the method will be a list of `poppy.Wavefront` objects
+            representing intermediate optical planes from the calculation.
+
+        Returns
+        -------
+        final_wf : fits.HDUList
+            The final result of the monochromatic propagation as a FITS HDUList
+        intermediate_wfs : list
+            A list of `poppy.Wavefront` objects representing the wavefront at intermediate optical planes.
+            The 0th item is "before first optical plane", 1st is "after first plane and before second plane", and so on.
+            (n.b. This will be empty if `retain_intermediates` is False.)
+        """
+
+        if poppy.conf.enable_speed_tests:
+            t_start = time.time()
+        if self.verbose:
+           _log.info(" Propagating wavelength = {0:g} meters".format(wavelength))
+        wavefront = self.inputWavefront(wavelength)
+
+        intermediate_wfs = []
+
+        # note: 0 is 'before first optical plane; 1 = 'after first plane and before second plane' and so on
+        current_plane_index = 0
+        for optic,distance in zip(self.planes, self.distances):
+            # The actual propagation:
+            wavefront.propagateTo(optic, distance)
+            wavefront *= optic
+            current_plane_index += 1
+
+            # Normalize if appropriate:
+            if normalize.lower()=='first' and current_plane_index==1 :  # set entrance plane to 1.
+                wavefront.normalize()
+                _log.debug("normalizing at first plane (entrance pupil) to 1.0 total intensity")
+            elif normalize.lower()=='first=2' and current_plane_index==1 : # this undocumented option is present only for testing/validation purposes
+                wavefront.normalize()
+                wavefront *= np.sqrt(2)
+            elif normalize.lower()=='exit_pupil': # normalize the last pupil in the system to 1
+                last_pupil_plane_index = np.where(np.asarray([p.planetype is PlaneType.pupil for p in self.planes]))[0].max() +1
+                if current_plane_index == last_pupil_plane_index:
+                    wavefront.normalize()
+                    _log.debug("normalizing at exit pupil (plane {0}) to 1.0 total intensity".format(current_plane_index))
+            elif normalize.lower()=='last' and current_plane_index==len(self.planes):
+                wavefront.normalize()
+                _log.debug("normalizing at last plane to 1.0 total intensity")
+
+
+            # Optional outputs:
+            if poppy.conf.enable_flux_tests: _log.debug("  Flux === "+str(wavefront.totalIntensity))
+
+            if retain_intermediates: # save intermediate wavefront, summed for polychromatic if needed
+                intermediate_wfs.append(wavefront.copy())
+
+            if display_intermediates:
+                if poppy.conf.enable_speed_tests: t0 = time.time()
+                title = None if current_plane_index > 1 else "propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6)
+                wavefront.display(what='best',nrows=len(self.planes),row=current_plane_index, colorbar=False, title=title)
+                #plt.title("propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6))
+
+                if poppy.conf.enable_speed_tests:
+                    t1 = time.time()
+                    _log.debug("\tTIME %f s\t for displaying the wavefront." % (t1-t0))
+
+        if poppy.conf.enable_speed_tests:
+            t_stop = time.time()
+            _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop-t_start))
+
+        return wavefront.asFITS(), intermediate_wfs
+
+
+    def describe(self):
+        """ Print out a string table describing all planes in an optical system"""
+        res = (str(self)+
+                "\n\tEntrance pupil diam: {0}\tnpix: {1}\tBeam ratio:{2}".format(self.pupil_diameter, self.npix, self.beam_ratio))
+        
+        for optic, distance in zip(self.planes, self.distances):
+            if distance !=0: res += "\n\tPropagation distance: {0}".format(distance)
+            res+= "\n\t"+str(optic)
+
+        print(res)
+
+
