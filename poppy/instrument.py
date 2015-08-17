@@ -492,15 +492,10 @@ class Instrument(object):
 
         return optsys
 
-    def get_aberrations(self, options):
+    def get_aberrations(self):
         """Incorporate a pupil-plane optic that represents optical aberrations
         (e.g. field-dependence as an OPD map). Subclasses should override this method.
         (If no aberration optic should be applied, None should be returned.)
-
-        Parameters
-        ----------
-        options : dict
-            Options dictionary for the instrument (e.g. to specify a pixel position)
 
         Returns
         -------
