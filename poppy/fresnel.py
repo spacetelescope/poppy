@@ -71,7 +71,10 @@ class QuadPhase(poppy.AnalyticOpticalElement):
             a Fresnel Wavefront object
         """
 
-        y, x = wave.coordinates()
+        if not isinstance(wave,Wavefront):
+            raise TypeError("Must supply a Fresnel Wavefront")
+        #y, x = wave.coordinates()
+        y, x = wave._fft_coordinates()
         rsqd = (x**2+y**2)*u.m**2
         _log.debug("Applying spherical phase curvature ={0:0.2e}".format(self.z_m))
         _log.debug("Applying spherical lens phase ={0:0.2e}".format(1.0/self.z_m))
@@ -81,7 +84,6 @@ class QuadPhase(poppy.AnalyticOpticalElement):
         k = 2* np.pi/self.reference_wavelength
         lens_phasor = np.exp(1.j * k * rsqd/(2.0*self.z_m))
         return lens_phasor
-
 
 class GaussianLens(QuadPhase):
     '''
@@ -110,7 +112,6 @@ class GaussianLens(QuadPhase):
                  name = 'Gaussian Lens',
                  reference_wavelength = 2e-6,
                  units=u.m,
-                 oversample=2,
                  **kwargs):
         QuadPhase.__init__(self,
                  f_lens,
@@ -118,7 +119,6 @@ class GaussianLens(QuadPhase):
                  name = name,
                  reference_wavelength = reference_wavelength,
                  units=units,
-                 oversample=oversample,
                  **kwargs)
         if  isinstance(f_lens,u.quantity.Quantity):
             self.fl = (f_lens).to(u.m) #convert to meters.
@@ -146,7 +146,7 @@ class Wavefront(poppy.Wavefront):
 
         Parameters:
         --------------------
-        beam_radius :
+        beam_radius : astropy.Quantity of type length
             Radius of the illuminated beam at the initial optical plane.
             I.e. this would be the pupil aperture radius in an entrance pupil.
         units :
@@ -184,8 +184,12 @@ class Wavefront(poppy.Wavefront):
         #        in Python 3 this will change,
         #        https://stackoverflow.com/questions/576169/understanding-python-super-with-init-methods
 
+        try:
+            units.to(u.m)
+        except (AttributeError,u.UnitsError):
+            raise ValueError("The 'units' parameter must be an astropy.units.Unit representing length.")
         self.units = units
-        """Astropy.units for measuring distance"""
+        """Astropy.units.Unit for measuring distance"""
 
         self.w_0 = (beam_radius).to( self.units) #convert to base units.
         """Beam waist radius at initial plane"""
@@ -211,6 +215,9 @@ class Wavefront(poppy.Wavefront):
         self.force_fresnel = force_fresnel
         """Force Fresnel calculation if true, even for cases wher Fraunhofer would work"""
         self.rayl_factor= rayl_factor
+
+        self._angular_coordinates = False
+        """Should coordinates be expressed in arcseconds instead of meters at the current plane? """
 
         if self.oversample > 1 and not self.ispadded: #add padding for oversampling, if necessary
             self.wavefront = utils.padToOversample(self.wavefront, self.oversample)
@@ -307,24 +314,40 @@ class Wavefront(poppy.Wavefront):
             _log.debug("Using numpy FFT")
             self.wavefront=inverse_FFT(self.wavefront)*self.shape[0]
 
-    def R_c(self,z):
+    def R_c(self,z=None):
         '''
         The gaussian beam radius of curvature as a function of distance z
+
+        Parameters
+        -------------
+        z : float, optional
+            Distance along the optical axis.
+            If not specified, the wavefront's current z coordinate will
+            be used, returning the beam radius of curvature at the current position.
+
+        Returns: Astropy.units.Quantity of dimension length
+
         '''
+        if z is None: z = self.z
         dz=(z-self.z_w0) #z relative to waist
         if dz==0:
-            return np.inf
+            return np.inf * u.m
         return dz*(1+(self.z_R/dz)**2)
 
-    def spot_radius(self,z):
+    def spot_radius(self,z=None):
         '''
         radius of a propagating gaussian wavefront, at a distance z
 
         Parameters
         -------------
-        z : float
-            Distance from the current optical plane
+        z : float, optional
+            Distance along the optical axis.
+            If not specified, the wavefront's current z coordinate will
+            be used, returning the beam radius at the current position.
+
+        Returns: Astropy.units.Quantity of dimension length
         '''
+        if z is None: z = self.z
         return self.w_0 * np.sqrt(1.0 + ((z-self.z_w0)/self.z_R)**2 )
 
     def _fft_coordinates(self):
@@ -354,6 +377,112 @@ class Wavefront(poppy.Wavefront):
         #x *= xscale
         #y *= yscale
         return y*yscale, x*xscale
+
+    # Override parent class method to provide one that's comparatible with
+    # FFT indexing conventions. Centered one one pixel not on the middle
+    # of the array.
+    @staticmethod
+    def pupil_coordinates(shape, pixelscale):
+        """Utility function to generate coordinates arrays for a pupil
+        plane wavefront
+
+        Parameters
+        ----------
+
+        shape : tuple of ints
+            Shape of the wavefront array
+        pixelscale : float or 2-tuple of floats
+            the pixel scale in meters/pixel, optionally different in
+            X and Y
+        """
+        y, x = np.indices(shape, dtype=float)
+        if not np.isscalar(pixelscale):
+            pixel_scale_x, pixel_scale_y = pixelscale
+        else:
+            pixel_scale_x, pixel_scale_y = pixelscale, pixelscale
+
+        y -= (shape[0] ) / 2.0
+        x -= (shape[1] ) / 2.0
+
+        return pixel_scale_y * y, pixel_scale_x * x
+
+    @staticmethod
+    def image_coordinates(shape, pixelscale, last_transform_type, image_centered):
+        """Utility function to generate coordinates arrays for an image
+        plane wavefront
+
+        Parameters
+        ----------
+
+        shape : tuple of ints
+            Shape of the wavefront array
+        pixelscale : float or 2-tuple of floats
+            the pixelscale in meters/pixel, optionally different in
+            X and Y
+        last_transform_type : string
+            Was the last transformation on the Wavefront an FFT
+            or an MFT?
+        image_centered : string
+            Was POPPY trying to keeping the center of the image on
+            a pixel, crosshairs ('array_center'), or corner?
+        """
+        y, x = np.indices(shape, dtype=float)
+
+        raise NotImplementedError('need to calculate pixel scale from focal length')
+        if not np.isscalar(pixelscale):
+            pixel_scale_x, pixel_scale_y = pixelscale
+        else:
+            pixel_scale_x, pixel_scale_y = pixelscale, pixelscale
+
+        # in most cases, the x and y values are centered around the exact center of the array.
+        # This is not true in general for FFT-produced image planes where the center is in the
+        # middle of one single pixel (the 0th-order term of the FFT), even though that means that
+        # the PSF center is slightly offset from the array center.
+        # On the other hand, if we used the FQPM FFT Aligner optic, then that forces the PSF center
+        # to the exact center of an array.
+
+        # The following are just relevant for the FFT-created images, not for the Detector MFT
+        # image at the end.
+        if last_transform_type == 'FFT':
+            # FFT array sizes will always be even, right?
+            if image_centered == 'pixel':
+                # so this goes to an integer pixel
+                y -= shape[0] / 2.0
+                x -= shape[1] / 2.0
+            elif image_centered == 'array_center' or image_centered == 'corner':
+                # and this goes to a pixel center
+                y -= (shape[0] - 1) / 2.0
+                x -= (shape[1] - 1) / 2.0
+        else:
+            # MFT produced images are always exactly centered.
+            y -= (shape[0] - 1) / 2.0
+            x -= (shape[1] - 1) / 2.0
+
+        return pixel_scale_y * y, pixel_scale_x * x
+
+    def coordinates(self):
+        """ Return Y, X coordinates for this wavefront, in the manner of numpy.indices()
+
+        This function knows about the offset resulting from FFTs. Use it whenever computing anything
+        measured in wavefront coordinates.
+
+        For Fresnel wavefronts, this depends on the focal length to get the image scale right.
+
+        Returns
+        -------
+        Y, X :  array_like
+            Wavefront coordinates in either meters or arcseconds for pupil and image, respectively
+        """
+
+        if self.planetype == _PUPIL:
+            return type(self).pupil_coordinates(self.shape, self.pixelscale)
+        elif self.planetype == _IMAGE:
+            return Wavefront.image_coordinates(self.shape, self.pixelscale,
+                                               self._last_transform_type, self._image_centered)
+        else:
+            raise RuntimeError("Unknown plane type (should be pupil or image!)")
+
+
 
     def propagate_direct(self,z):
         '''
@@ -410,6 +539,9 @@ class Wavefront(poppy.Wavefront):
 
         # FIXME MP: should check here to confirm the starting wavefront
         # is indeed planar rather than spherical
+        if self.spherical:
+            raise RuntimeError('_propagate_ptp can only start from a planar wavefront, but was called with a spherical one.')
+
 
         if  isinstance(dz,u.quantity.Quantity):
             z_direct = (dz).to(u.m).value #convert to meters.
@@ -454,6 +586,9 @@ class Wavefront(poppy.Wavefront):
         _log.debug("Waist to Spherical propagation, dz=" + str(dz))
 
         # FIXME MP: check for planar input wavefront
+        if self.spherical:
+            raise RuntimeError('_propagate_ptp can only start from a planar wavefront, but was called with a spherical one.')
+
         if dz ==0:
             _log.error("Waist to Spherical propagation stopped, no change in distance.")
             return
@@ -596,6 +731,22 @@ class Wavefront(poppy.Wavefront):
         self.planetype = _INTERMED
         _log.debug("------ Propagated to plane of type "+str(self.planetype)+" at z = {0:0.2e} ------".format(z))
 
+
+
+    def __imul__(self, optic):
+        "Multiply a Wavefront by an OpticalElement or scalar"
+        if isinstance(optic, GaussianLens):
+            # Special case: if we have a lens, call the routine for that,
+            # which will modify the properties of this wavefront more fundamentally
+            # than most other optics
+            self.apply_optic(optic, self.z)
+            return self
+        else:
+            # Otherwise fall back to the parent class
+            return super(Wavefront,self).__imul__(optic)
+
+
+
     def apply_optic(self,optic,z_lens,ignore_wavefront=False):
         '''
 
@@ -618,18 +769,27 @@ class Wavefront(poppy.Wavefront):
         '''
 
         #test optic and wavefront have equal oversampling
-        assert self.oversample == optic.oversample
+        # MP: why? the optic should adapt to whatever the input wavefront has
+        #assert self.oversample == optic.oversample
+
         #self.pad_wavefront()
-        _log.debug("Pre-Lens Parameters:"+self.param_str)
+        _log.debug("------ Applying Optic: "+str(optic.name)+" ------")
+        _log.debug("   wavefront oversample: {0}  optic oversample: {1}".format(self.oversample, optic.oversample))
+        _log.debug("  Pre-Lens Beam Parameters: "+self.param_str)
 
         zl = (z_lens).to(u.m) #convert to meters.
+        _log.debug(" Lens z_lens: {0}   wavefront z: {1}".format(zl, self.z))
+
+        # MP: calculate beam radius at current surface
         new_waist = self.spot_radius(zl)
-        _log.debug("Beam radius at"+ str(optic.name)+" ={0:0.2e}".format(new_waist))
+        _log.debug("  Beam radius at "+ str(optic.name)+" ={0:0.2e}".format(new_waist))
+
+        # Is the incident beam planar or spherical?
         #is the last surface outside the rayleigh distance?
         if np.abs(self.z_w0 - self.z) > self.rayl_factor*self.z_R:
-            _log.debug("spherical")
+            _log.debug("spherical beam")
             _log.debug(self.param_str)
-            self.spherical = True
+            self.spherical = True #FIXME seems like this is in the wrong place
             R_input_beam = self.z - self.z_w0
         else:
             R_input_beam = np.inf
