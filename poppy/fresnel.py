@@ -24,6 +24,9 @@ except:
 
 from poppy.poppy_core import _PUPIL, _IMAGE, _DETECTOR, _ROTATION, _INTERMED, _FFTW_AVAILABLE
 
+if _FFTW_AVAILABLE:
+    import pyfftw
+
 #conversions
 _RADIANStoARCSEC = 180.*60*60 / np.pi
 
@@ -368,6 +371,8 @@ class Wavefront(poppy.Wavefront):
         z :  float
             the distance from the current location to propagate the beam.
         '''
+        _USE_FFTW = (poppy.conf.use_fftw and _FFTW_AVAILABLE)
+        forward_FFT= pyfftw.interfaces.numpy_fft.fft2 if _USE_FFTW else np.fft.fft2
 
         if  isinstance(z,u.quantity.Quantity):
             z_direct = (z).to(u.m).value #convert to meters.
@@ -386,8 +391,7 @@ class Wavefront(poppy.Wavefront):
 
         result= np.fft.fftshift(forward_FFT(stage1))*self.pixelscale**2*QuadPhase_2nd  #eq.6.69 and #6.80
 
-        result=np.fft.fftshift(result)
-
+        self.pixelscale=self.wavelength*z/S
         self.wavefront=result
         self.history.append("Direct propagation to z= {0:0.2e}".format(z))
 
