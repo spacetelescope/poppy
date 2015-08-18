@@ -610,8 +610,8 @@ class Wavefront(poppy.Wavefront):
             return
 
         x,y = self._fft_coordinates() #meters
-        rho = np.fft.fftshift((x/self.pixelscale/2.0/self.oversample)**2 + (y/self.pixelscale/2.0/self.oversample)**2)
-        T = -1.0j*np.pi*self.wavelength*(z_direct)*rho #Transfer Function of diffraction propagation eq. 22, eq. 87
+        rhosqr = np.fft.fftshift((x/self.pixelscale/self.oversample)**2 + (y/self.pixelscale/self.oversample)**2)
+        T = -1.0j*np.pi*self.wavelength*(z_direct)*rhosqr #Transfer Function of diffraction propagation eq. 22, eq. 87
 
         self._fft()
 
