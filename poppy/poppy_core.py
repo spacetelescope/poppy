@@ -2149,8 +2149,6 @@ class FITSOpticalElement(OpticalElement):
                 _log.info("No info supplied on amplitude transmission; assuming uniform throughput = 1")
                 self.amplitude = np.ones(self.opd.shape)
 
-            # convert OPD into meters
-
             if opdunits is None:
                 try:
                     opdunits = self.opd_header['BUNIT']
@@ -2158,13 +2156,17 @@ class FITSOpticalElement(OpticalElement):
                     _log.error("No opdunit keyword supplied, and BUNIT keyword not found in header. Cannot determine OPD units")
                     raise Exception("No opdunit keyword supplied, and BUNIT keyword not found in header. Cannot determine OPD units.")
 
+            # normalize and drop any trailing 's'
             opdunits = opdunits.lower()
-            # rescale to meters if necessary
-            if opdunits in ('meter', 'meters', 'm'):
+            if opdunits.endswith('s'):
+                opdunits = opdunits[:-1]
+
+            # rescale OPD to meters if necessary
+            if opdunits in ('meter', 'm'):
                 pass
-            elif opdunits in ('micron', 'microns', 'um', 'micrometer', 'micrometers'):
+            elif opdunits in ('micron', 'um', 'micrometer'):
                 self.opd *= 1e-6
-            elif opdunits in ('nanometer', 'nanometers', 'nm'):
+            elif opdunits in ('nanometer', 'nm'):
                 self.opd *= 1e-9
 
             if len (self.opd.shape) != 2 or self.opd.shape[0] != self.opd.shape[1]:
