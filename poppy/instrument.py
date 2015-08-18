@@ -474,8 +474,12 @@ class Instrument(object):
 
 
         #---- apply pupil intensity and OPD to the optical model
-        optsys.addPupil(name='Entrance Pupil', optic=pupil_optic, transmission=full_pupil_path, opd=full_opd_path, opdunits='micron', rotation=self._rotation)
+        optsys.addPupil(name='Entrance Pupil', optic=pupil_optic, transmission=full_pupil_path, opd=full_opd_path, rotation=self._rotation)
 
+        # Allow instrument subclass to add field-dependent aberrations
+        aberration_optic = self._get_aberrations()
+        if aberration_optic is not None:
+            optsys.addPupil(aberration_optic)
 
         #--- add the detector element. 
         if fov_pixels is None:
@@ -487,6 +491,19 @@ class Instrument(object):
         optsys.addDetector(self.pixelscale, fov_pixels = fov_pixels, oversample = detector_oversample, name=self.name+" detector")
 
         return optsys
+
+    def _get_aberrations(self):
+        """Incorporate a pupil-plane optic that represents optical aberrations
+        (e.g. field-dependence as an OPD map). Subclasses should override this method.
+        (If no aberration optic should be applied, None should be returned.)
+
+        Returns
+        -------
+        aberration_optic : poppy.OpticalElement subclass or None
+            Optional. Will be added to the optical system immediately after the
+            entrance pupil (and any pupil OPD map).
+        """
+        return None
 
     def _applyJitter(self, result, local_options=None):
         """ Modify a PSF to account for the blurring effects of image jitter.

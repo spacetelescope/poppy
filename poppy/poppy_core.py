@@ -2048,7 +2048,7 @@ class FITSOpticalElement(OpticalElement):
 
     """
 
-    def __init__(self, name="unnamed optic", transmission=None, opd= None, opdunits="meters",
+    def __init__(self, name="unnamed optic", transmission=None, opd=None, opdunits=None,
             shift=None, rotation=None, pixelscale=None, planetype=None,
             transmission_index=None, opd_index=None,
             **kwargs):
@@ -2149,8 +2149,6 @@ class FITSOpticalElement(OpticalElement):
                 _log.info("No info supplied on amplitude transmission; assuming uniform throughput = 1")
                 self.amplitude = np.ones(self.opd.shape)
 
-            # convert OPD into meters
-
             if opdunits is None:
                 try:
                     opdunits = self.opd_header['BUNIT']
@@ -2158,16 +2156,18 @@ class FITSOpticalElement(OpticalElement):
                     _log.error("No opdunit keyword supplied, and BUNIT keyword not found in header. Cannot determine OPD units")
                     raise Exception("No opdunit keyword supplied, and BUNIT keyword not found in header. Cannot determine OPD units.")
 
+            # normalize and drop any trailing 's'
+            opdunits = opdunits.lower()
+            if opdunits.endswith('s'):
+                opdunits = opdunits[:-1]
 
-            if opdunits.lower().endswith('s'): opdunits = opdunits[:-1] # drop trailing s if present
-            if opdunits.lower() == 'meter' or opdunits.lower() == 'm':
-                pass # no need to rescale
-            elif opdunits.lower() == 'micron' or opdunits.lower() == 'um' or opdunits.lower() == 'micrometer':
+            # rescale OPD to meters if necessary
+            if opdunits in ('meter', 'm'):
+                pass
+            elif opdunits in ('micron', 'um', 'micrometer'):
                 self.opd *= 1e-6
-            elif opdunits.lower() == 'nanometer' or opdunits.lower() == 'nm':
+            elif opdunits in ('nanometer', 'nm'):
                 self.opd *= 1e-9
-
-
 
             if len (self.opd.shape) != 2 or self.opd.shape[0] != self.opd.shape[1]:
                 _log.debug('OPD shape: '+str(self.opd.shape))
