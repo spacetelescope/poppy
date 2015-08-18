@@ -18,15 +18,17 @@ Summary
 
 **What this software does:**
 
-* Allows users to define an optical system consisting of multiple image and pupil planes
-* Provides flexible and extensible optical element classes, including a wide variety of stops, masks, lenses and other optics
-* Computes monochromatic and polychromatic point spread functions through those optics
+* Allows users to define an optical system consisting of multiple planes, such as pupils and imagesa.
+* Provides flexible and extensible optical element classes, including a wide variety of stops, masks, lenses and other optics.
+* Computes monochromatic and polychromatic point spread functions through those optics.
 * Provides an extensible framework for defining models of optical instruments, including
   selection of broad- and narrow-band filters, selectable optical components such as pupil stops, etc.
+* Propagates wavefronts between planes using either the :ref:`Fraunhofer <fraunhofer>` or :ref:`Fresnel <fresnel>` approximations.
+
 
 **What this software does not do:**
 
-* Fresnel, Talbot, or Huygens propagation.
+* Rayleigh-Sommerfeldt or full Huygens-Fresnel electromagnetic propagation.
 * Modelling of any kind of detector noise or imperfections. 
 
 While this current version only supports far-field calculations, future versions may add
@@ -53,6 +55,7 @@ Contents
   relnotes.rst
   overview.rst
   examples.rst
+  fresnel.rst
   options.rst
   classes.rst
   extending.rst
