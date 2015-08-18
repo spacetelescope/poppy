@@ -477,7 +477,7 @@ class Instrument(object):
         optsys.addPupil(name='Entrance Pupil', optic=pupil_optic, transmission=full_pupil_path, opd=full_opd_path, rotation=self._rotation)
 
         # Allow instrument subclass to add field-dependent aberrations
-        aberration_optic = self.get_aberrations()
+        aberration_optic = self._get_aberrations()
         if aberration_optic is not None:
             optsys.addPupil(aberration_optic)
 
@@ -492,7 +492,7 @@ class Instrument(object):
 
         return optsys
 
-    def get_aberrations(self):
+    def _get_aberrations(self):
         """Incorporate a pupil-plane optic that represents optical aberrations
         (e.g. field-dependence as an OPD map). Subclasses should override this method.
         (If no aberration optic should be applied, None should be returned.)
