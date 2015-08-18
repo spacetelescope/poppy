@@ -1,5 +1,7 @@
 from .. import poppy_core  as poppy
 from .. import optics
+from poppy.poppy_core import _log
+
 
 from .. import fresnel
 import astropy.units as u
@@ -20,6 +22,49 @@ def test_GaussianBeamParams():
 
 
 
+def test_Gaussian_Beam_curvature_near_waist(npoints=5, plot=False):
+    """Verify the beam curvature and spreading near the waist
+    are as expected from simple analytic theory forg
+    Gaussian beams
+    """
+    # setup an initial Gaussian beam in an aperture.g
+    ap = optics.CircularAperture()
+    wf0 = fresnel.Wavefront(2*u.m, wavelength=1e-6)
+
+    # use that to scale theg
+    z_rayleigh = wf0.z_R
+    z = z_rayleigh * np.logspace(-1,1,num=npoints)
+    zdzr = z/z_rayleigh
+
+    calc_rz = []
+    calc_wz = []
+    for zi in z:
+        #setup entrance wave and propagate to z
+        wf = fresnel.Wavefront(2*u.m, wavelength=1e-6)
+        wf.propagate_fresnel(zi)
+
+        # calculate the beam radius and curvature at z
+        calc_rz.append( (wf.R_c()/z_rayleigh).value)
+        calc_wz.append( (wf.spot_radius()/wf.w_0).value)
+
+    # Calculate analytic solution for Gaussian beam propagation
+    # compare to the results from Fresnel prop.
+    rz = (z**2 + z_rayleigh**2)/z
+    wz = wf0.w_0*np.sqrt(1+zdzr**2)
+
+    if plot:
+        plt.plot(zdzr, rz/z_rayleigh, label="$R(z)/z_R$ (analytical)", color='blue')
+        plt.plot(zdzr, calc_rz, ls='dashed', linewidth=3, color='purple', label="$R(z)/z_R$ (calc.)")
+
+        plt.plot(zdzr, wz/wf.w_0, label="$w(z)/w_0$ (analytical)", color='orange')
+        plt.plot(zdzr, calc_wz, ls='dashed', linewidth=3, color='red', label="$w(z)/w_0$ (calc.)")
+
+        plt.xlabel("$z/z_R$")
+        plt.legend(loc='lower right', frameon=False)
+
+    assert np.allclose(rz/z_rayleigh, calc_rz)
+    assert np.allclose(wz/wf.w_0, calc_wz)
+
 
 def test_CircularAperturePropagation(display=False):
     """Confirm that magnitude of central spike from diffraction
@@ -32,9 +77,9 @@ def test_CircularAperturePropagation(display=False):
         plt.figure()
         gw.display('both',colorbar=True)
 
-    z = 5e3*u.m
+  #  z = 5e3*u.m
 
-    gw.propagate_fresnel(z)
+    gw.propagate_fresnel(5e3*u.m)
     if display:
 
         plt.figure()
@@ -47,6 +92,14 @@ def test_CircularAperturePropagation(display=False):
         plt.set_xlim(0,2048)
 
     assert(np.round(3.3633280006866424,9) == np.round(np.max(gw.intensity),9))
+
+
+    # also let's test that the output is centered on the array as expected.
+    # If so, we can flip in either X or Y without changing the value appreciably
+    inten = gw.intensity
+    assert(np.allclose(inten, inten[:, ::-1]))
+    assert(np.allclose(inten, inten[::-1, :]))
+
 
 def test_spherical_lens(display=False):
     """Make sure that spherical lens operator is working"""

@@ -378,29 +378,16 @@ class Wavefront(object):
         # at the *center* of the pixel, so we compute here the coordinates at the outside of those pixels.
         # This is needed to get the coordinates right when displaying very small arrays
 
-        extent = np.array([-0.5 ,intens.shape[1]-1+0.5, -0.5,intens.shape[0]-1+0.5]) * self.pixelscale
-        if self.planetype  != PlaneType.image:  # == _PUPIL:
-            # For pupils, we just let the 0 point be that of the array, off to the side of the actual clear aperture
-            # No - now let's be consistent with how OpticalElement.display() works
-            cenx = (intens.shape[1]-1)/2.
-            ceny = (intens.shape[0]-1)/2.
-            extent -= np.asarray([cenx, cenx, ceny, ceny])*self.pixelscale
+        y, x = self.coordinates()
+        halfpix = self.pixelscale*0.5
 
+        extent = [x.min()-halfpix, x.max()+halfpix, y.min()-halfpix, y.max()+halfpix]
+
+        if self.planetype  != PlaneType.image:  # == _PUPIL:
             unit = "m"
         else:
-            # for image planes, we make coordinates relative to center.
-            # image plane coordinates depend slightly on whether the optical center is at a
-            # pixel-center or the corner between 4 pixels...
-            if self._image_centered == 'array_center' or self._image_centered=='corner':
-                cenx = (intens.shape[1]-1)/2.
-                ceny = (intens.shape[0]-1)/2.
-            elif self._image_centered == 'pixel':
-                cenx = (intens.shape[1])/2.
-                ceny = (intens.shape[0])/2.
-
-            extent -= np.asarray([cenx, cenx, ceny, ceny])*self.pixelscale
-            halffov_x = intens.shape[1]/2.*self.pixelscale #for use later
-            halffov_y = intens.shape[0]/2.*self.pixelscale #for use later
+            halffov_x = intens.shape[1]/2.*self.pixelscale #for use later in cropping
+            halffov_y = intens.shape[0]/2.*self.pixelscale #for use later in cropping
             unit="arcsec"
 
         # implement semi-intellegent selection of what to display, if the user wants

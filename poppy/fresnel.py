@@ -17,7 +17,7 @@ try:
 except:
     pass
 
-from poppy.poppy_core import _PUPIL, _IMAGE, _DETECTOR, _ROTATION, _INTERMED, _FFTW_AVAILABLE
+from poppy.poppy_core import PlaneType, _PUPIL, _IMAGE, _DETECTOR, _ROTATION, _INTERMED, _FFTW_AVAILABLE
 
 
 
@@ -85,6 +85,7 @@ class QuadPhase(poppy.AnalyticOpticalElement):
         lens_phasor = np.exp(1.j * k * rsqd/(2.0*self.z_m))
         return lens_phasor
 
+
 class GaussianLens(QuadPhase):
     '''
     Gaussian Lens
@@ -129,7 +130,6 @@ class GaussianLens(QuadPhase):
 
     def __str__(self):
         return "Lens: {0}, with focal length {1}".format(self.name, self.fl)
-
 
 
 class Wavefront(poppy.Wavefront):
@@ -226,9 +226,10 @@ class Wavefront(poppy.Wavefront):
         if self.oversample > 1 and not self.ispadded: #add padding for oversampling, if necessary
             self.wavefront = utils.padToOversample(self.wavefront, self.oversample)
             self.ispadded = True
-            _log.debug("Padded WF array for oversampling by %dx" % self.oversample)
+            logmsg = "Padded WF array for oversampling by {0:d}, to {1}.".format(self.oversample, self.wavefront.shape)
+            _log.debug(logmsg)
 
-            self.history.append("    Padded WF array for oversampling by %dx" % self.oversample)
+            self.history.append(logmsg)
         else:
             _log.debug("Skipping oversampling, oversample < 1 or already padded ")
 
@@ -290,33 +291,35 @@ class Wavefront(poppy.Wavefront):
         Apply normalized forward 2D Fast Fourier Transform to wavefront
         '''
         _USE_FFTW = (poppy.conf.use_fftw and _FFTW_AVAILABLE)
-        forward_FFT= pyfftw.interfaces.numpy_fft.fft2 if _USE_FFTW else np.fft.fft2
 
         if _USE_FFTW:
             #FFTW wisdom could be implemented here.
-            _log.debug("Using pyfftw")
-            self.wavefront=forward_FFT(self.wavefront, overwrite_input=True,
+            # MP: not sure that anything needs manual implementation?
+            #     wisdom should be already loaded during poppy.__init__
+            _log.debug("   Using pyfftw")
+            self.wavefront=pyfftw.interfaces.numpy_fft.fft2(self.wavefront, overwrite_input=True,
                                      planner_effort='FFTW_MEASURE',
                                      threads=poppy.conf.n_processes)/self.shape[0]
         else:
-            _log.debug("Using numpy FFT")
-            self.wavefront=forward_FFT(self.wavefront)/self.shape[0]
+            _log.debug("   Using numpy FFT")
+            self.wavefront=np.fft.fft2(self.wavefront)/self.shape[0]
 
     def _inv_fft(self):
         '''
         Apply normalized Inverse 2D Fast Fourier Transform to wavefront
         '''
         _USE_FFTW = (poppy.conf.use_fftw and _FFTW_AVAILABLE)
-        inverse_FFT= pyfftw.interfaces.numpy_fft.ifft2 if _USE_FFTW else np.fft.ifft2
 
         if _USE_FFTW:
             #FFTW wisdom could be implemented here.
-            self.wavefront=inverse_FFT(self.wavefront, overwrite_input=True,
+            # MP: see above comment
+            _log.debug("   Using pyfftw")
+            self.wavefront=pyfftw.interfaces.numpy_fft.ifft2(self.wavefront, overwrite_input=True,
                                      planner_effort='FFTW_MEASURE',
                                      threads=poppy.conf.n_processes)*self.shape[0]
         else:
-            _log.debug("Using numpy FFT")
-            self.wavefront=inverse_FFT(self.wavefront)*self.shape[0]
+            _log.debug("   Using numpy FFT")
+            self.wavefront=np.fft.ifft2(self.wavefront)*self.shape[0]
 
     def R_c(self,z=None):
         '''
@@ -470,6 +473,14 @@ class Wavefront(poppy.Wavefront):
         This function knows about the offset resulting from FFTs. Use it whenever computing anything
         measured in wavefront coordinates.
 
+        The behavior for Fresnel wavefronts is slightly different from
+        Fraunhofer wavefronts, in that the optical axis is *not* the exact
+        center of an array (the corner between pixels for an even number of pixels),
+        but rather is a specific pixel (e.g. pixel 512,512 for a 1024x1024 array).
+        This is for consistency with the array indexing convention used in FFTs since
+        this class depends on FFTs rather than the more flexible matrix DFTs for its
+        propagation.
+
         For Fresnel wavefronts, this depends on the focal length to get the image scale right.
 
         Returns
@@ -478,13 +489,13 @@ class Wavefront(poppy.Wavefront):
             Wavefront coordinates in either meters or arcseconds for pupil and image, respectively
         """
 
-        if self.planetype == _PUPIL:
+        if self.planetype == PlaneType.pupil or self.planetype == PlaneType.intermediate:
             return type(self).pupil_coordinates(self.shape, self.pixelscale)
-        elif self.planetype == _IMAGE:
+        elif self.planetype == PlaneType.image:
             return Wavefront.image_coordinates(self.shape, self.pixelscale,
                                                self._last_transform_type, self._image_centered)
         else:
-            raise RuntimeError("Unknown plane type (should be pupil or image!)")
+            raise RuntimeError("Unknown plane type {0} (should be pupil or image!)".format(self.planetype))
 
 
 
@@ -545,7 +556,7 @@ class Wavefront(poppy.Wavefront):
         _log.debug(msg)
         self.history.append(msg)
 
-        # Apply Fresnel propagation for the specified distance, regardless of 
+        # Apply Fresnel propagation for the specified distance, regardless of
         # what type of plane is next
         if distance != 0*u.m:
             self.propagate_fresnel(distance)
@@ -737,12 +748,13 @@ class Wavefront(poppy.Wavefront):
         if not self.spherical:
             if self.planar_range(z):
                 # Plane waves inside planar range:  use plane-to-plane
-                _log.debug('Plane to Plane Regime, dz='+str(delta_z))
-                _log.debug('Constant Pixelscale: %.2g'%self.pixelscale)
+                _log.debug('  Plane to Plane Regime, dz='+str(delta_z))
+                _log.debug('  Constant Pixelscale: %.2g m/pix'%self.pixelscale)
                 self._propagate_ptp(delta_z)
             else:
                 # Plane wave to spherical. First use PTP to the waist, then WTS to Spherical
-                _log.debug('Plane to Spherical, inside Z_R to outside Z_R')
+                _log.debug('  Plane to Spherical, inside Z_R to outside Z_R')
+                _log.debug('  Starting Pixelscale: %.2g m/pix'%self.pixelscale)
                 self._propagate_ptp(self.z_w0 - self.z)
                 if display_intermed:
                     plt.figure()
@@ -751,7 +763,7 @@ class Wavefront(poppy.Wavefront):
         else:
             if self.planar_range(z):
                 # Spherical to plane. First use STW to the waist, then PTP to the desired plane
-                _log.debug('Spherical to Plane Regime, outside Z_R to inside Z_R')
+                _log.debug('  Spherical to Plane Regime, outside Z_R to inside Z_R')
                 self._propagate_stw(self.z_w0 - self.z)
                 if display_intermed:
                     plt.figure()
@@ -759,10 +771,10 @@ class Wavefront(poppy.Wavefront):
                 self._propagate_ptp(z-self.z_w0)
             else:
                 #Spherical to Spherical. First STW to the waist, then WTS to the desired spherical surface
-                _log.debug('Spherical to Spherical, Outside Z_R to waist (z_w0) to outside Z_R')
-                _log.debug('Starting Pixelscale: %.2g'%self.pixelscale)
+                _log.debug('  Spherical to Spherical, Outside Z_R to waist (z_w0) to outside Z_R')
+                _log.debug('  Starting Pixelscale: %.2g m/pix'%self.pixelscale)
                 self._propagate_stw(self.z_w0 - self.z)
-                _log.debug('Intermediate Pixelscale: %.2g'%self.pixelscale)
+                _log.debug('  Intermediate Pixelscale: %.2g m/pix'%self.pixelscale)
                 self.pixelscale
                 if display_intermed:
                     plt.figure()
@@ -946,7 +958,7 @@ class FresnelOpticalSystem(poppy.OpticalSystem):
     """
 
     @u.quantity_input(pupil_diameter=u.m)
-    def __init__(self, name="unnamed system", pupil_diameter=1*u.m, 
+    def __init__(self, name="unnamed system", pupil_diameter=1*u.m,
             npix=512, beam_ratio=0.5, verbose=True):
         super(FresnelOpticalSystem, self).__init__(name=name, verbose=verbose)
         self.pupil_diameter = pupil_diameter
@@ -984,7 +996,7 @@ class FresnelOpticalSystem(poppy.OpticalSystem):
         self.distances.append(distance)
         if self.verbose: _log.info("Added detector: {0} after separation: {1:.2e} ".format(self.planes[-1].name, distance))
 
-    addDetector=add_detector # for compatibility with pre-pep8 names 
+    addDetector=add_detector # for compatibility with pre-pep8 names
 
     def inputWavefront(self, wavelength=1e-6):
         """Create a Wavefront object suitable for sending through a given optical system.
@@ -1013,7 +1025,7 @@ class FresnelOpticalSystem(poppy.OpticalSystem):
 
     def propagate_mono(self, wavelength=2e-6, normalize='first',
                        retain_intermediates=False, display_intermediates=False):
-        """Propagate a monochromatic wavefront through the optical system, via Fresnel calculations. 
+        """Propagate a monochromatic wavefront through the optical system, via Fresnel calculations.
         Called from within `calcPSF`.
         Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s (empty if
         `retain_intermediates=False`).
@@ -1104,7 +1116,7 @@ class FresnelOpticalSystem(poppy.OpticalSystem):
         """ Print out a string table describing all planes in an optical system"""
         res = (str(self)+
                 "\n\tEntrance pupil diam: {0}\tnpix: {1}\tBeam ratio:{2}".format(self.pupil_diameter, self.npix, self.beam_ratio))
-        
+
         for optic, distance in zip(self.planes, self.distances):
             if distance !=0: res += "\n\tPropagation distance: {0}".format(distance)
             res+= "\n\t"+str(optic)
