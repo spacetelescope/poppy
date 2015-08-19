@@ -377,8 +377,13 @@ def test_ThinLens(display=False):
     osys2.addDetector(pixelscale=0.01, fov_arcsec=3.0)
     psf2 = osys2.calcPSF()
 
-    THRESHOLD = 1e-19
-    assert np.std(psf[0].data - psf2[0].data) < THRESHOLD, (
+
+    if display:
+        import poppy
+        poppy.display_PSF(psf)
+        poppy.display_PSF(psf2)
+
+    assert np.allclose(psf[0].data,psf2[0].data), (
         "ThinLens shouldn't be affected by null optical elements! Introducing extra image planes "
-        "raised std(psf_with_extras - psf_without_extras) above {}".format(THRESHOLD)
+        "made the output PSFs differ beyond numerical tolerances."
     )

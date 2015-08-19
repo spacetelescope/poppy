@@ -57,7 +57,7 @@ def test_fft_blc_coronagraph():
 
     lyot_radius = 6.5/2.5
     osys = poppy_core.OpticalSystem("test", oversample=2)
-    osys.addPupil( optics.CircularAperture(radius=radius) )
+    osys.addPupil( optics.CircularAperture(radius=radius, pad_factor=1.5) )
     osys.addImage()
     osys.addImage( optics.BandLimitedCoron( kind='circular', sigma=5.0))
     osys.addPupil()

@@ -22,14 +22,15 @@ def test_nonsquare_detector_axes_lengths():
             assert(psf[0].data.shape[1] == fov_pixels[1])
 
 
-def test_nonsquare_detector_values(oversample=1, pixelscale=0.010, wavelength=1e-6):
+def test_nonsquare_detector_values(oversample=1, pixelscale=0.010, wavelength=1e-6,
+        verbose=False):
         """ Test that the MFT onto non-square detectors yields the same pixel
         values as onto square detectors
 
         Do this by first computing a square detector then two different
         rectangular detector grids, all from the same pupil and detector pixel sampling.
         Check that the center pixels of the various results are identical
-        
+
         """
         # verified working properly on Jan 28 2013
 
@@ -67,7 +68,11 @@ def test_nonsquare_detector_values(oversample=1, pixelscale=0.010, wavelength=1e
         # the maximum ought to be the same no matter what 
         for i in range(1, len(fovs_to_test)):
             thispsf = results[i]
-            assert(psf0.max() == thispsf.max())
+            if verbose: print("i = {}, shape={}, Maxes= {}, {}, diff={}".format(i,
+                fovs_to_test[i], psf0.max(), thispsf.max(), psf0.max() - thispsf.max()))
+
+
+            assert(np.allclose(psf0.max(), thispsf.max()))
 
             #pl.subplot(1, len(fovs_to_test),  i+1)
 
@@ -81,5 +86,5 @@ def test_nonsquare_detector_values(oversample=1, pixelscale=0.010, wavelength=1e
 
             #print (thiscut-cut0).sum()
 
-            assert( (thiscut-cut0).sum()  == 0)
 
+            assert(np.allclose(thiscut, cut0))
