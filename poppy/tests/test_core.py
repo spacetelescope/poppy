@@ -301,7 +301,7 @@ def test_inverse_MFT():
 
     fov_arcsec  = 5.0
 
-    test_ap = optics.ParityTestAperture(radius=6.5/2)
+    test_ap = optics.ParityTestAperture(radius=6.5/2, pad_factor=1.5)
 
     osys = poppy_core.OpticalSystem("test", oversample=4)
     osys.addPupil(test_ap)
