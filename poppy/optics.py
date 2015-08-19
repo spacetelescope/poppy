@@ -779,7 +779,7 @@ class ParityTestAperture(AnalyticOpticalElement):
 
     """
 
-    def __init__(self, name=None, radius=1.0, pad_factor=1.5, **kwargs):
+    def __init__(self, name=None, radius=1.0, pad_factor=1.0, **kwargs):
         if name is None: name = "Circle, radius=%.2f m" % radius
         AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
         self.radius = radius
