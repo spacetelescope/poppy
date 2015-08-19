@@ -834,7 +834,7 @@ class CircularAperture(AnalyticOpticalElement):
         does not make any numerical difference in the final result.
     """
 
-    def __init__(self, name=None, radius=1.0, pad_factor=1.5, **kwargs):
+    def __init__(self, name=None, radius=1.0, pad_factor=1.0, **kwargs):
         try:
             self.radius = float(radius)
         except ValueError:
