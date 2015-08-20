@@ -1,5 +1,8 @@
 language: python
 
+# Setting sudo to false opts in to Travis-CI container-based builds.
+sudo: false
+
 python:
     - 2.7
     # - 3.3
@@ -46,6 +49,14 @@ matrix:
         - python: 2.7
           env: NUMPY_VERSION=1.8 ASTROPY_VERSION=development SETUP_CMD='test'
 
+addons:
+    apt:
+        packages:
+        - graphviz                  # actually only needed for build_spinx
+        - texlive-latex-extra       # actually only needed for build_spinx
+        - dvipng                    # actually only needed for build_spinx
+
+
 before_install:
 
     # Use utf8 encoding. Should be default, but this is insurance against
@@ -56,12 +67,6 @@ before_install:
     - ./miniconda.sh -b
     - export PATH=/home/travis/miniconda/bin:$PATH
     - conda update --yes conda
-
-    # UPDATE APT-GET LISTINGS
-    - sudo apt-get update
-
-    # DOCUMENTATION DEPENDENCIES
-    - if [[ $SETUP_CMD == build_sphinx* ]]; then sudo apt-get install graphviz texlive-latex-extra dvipng; fi
 
 install:
 

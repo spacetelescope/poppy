@@ -754,7 +754,9 @@ class Instrument(object):
             poppy_core._log.warn("CAUTION: Just interpolating rather than integrating filter profile, over {0} steps".format(nlambda))
             wtrans = np.where(filterdata.THROUGHPUT > 0.4)
             lrange = filterdata.WAVELENGTH[wtrans] * 1e-10  # convert from Angstroms to Meters
-            lambd = np.linspace(np.min(lrange), np.max(lrange), nlambda)
+            # get evenly spaced points within the range of allowed lambdas, centered on each bin
+            lambd = np.linspace(np.min(lrange), np.max(lrange), nlambda, endpoint=False) +  (np.max(lrange)-np.min(lrange))/(2*nlambda)
+
             filter_fn = scipy.interpolate.interp1d(filterdata.WAVELENGTH * 1e-10, filterdata.THROUGHPUT, kind='cubic', bounds_error=False)
             weights = filter_fn(lambd)
             return lambd, weights
