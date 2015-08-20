@@ -20,7 +20,7 @@ from . import conf
 import logging
 _log = logging.getLogger('poppy')
 
-__all__ = ['Wavefront',  'OpticalSystem', 'SemiAnalyticCoronagraph', 'OpticalElement', 'FITSOpticalElement', 'Rotation', 'Detector' ]
+__all__ = ['Wavefront',  'OpticalSystem', 'SemiAnalyticCoronagraph', 'OpticalElement', 'FITSOpticalElement', 'Rotation', 'Detector', 'PlaneType']
 
 # Setup infrastructure for FFTW
 _FFTW_INIT = {}  # dict of array sizes for which we have already performed the required FFTW planning step
@@ -433,8 +433,8 @@ class Wavefront(object):
                 if crosshairs:
                     plt.axhline(0,ls=":", color='k')
                     plt.axvline(0,ls=":", color='k')
-                imsize_x = min( (imagecrop, halffov_x))
-                imsize_y = min( (imagecrop, halffov_y))
+                imsize_x = min( (imagecrop/2, halffov_x))
+                imsize_y = min( (imagecrop/2, halffov_y))
                 ax.set_xbound(-imsize_x, imsize_x)
                 ax.set_ybound(-imsize_y, imsize_y)
             to_return = ax
@@ -1913,7 +1913,7 @@ class OpticalElement(object):
                 ax = plt.subplot(nrows, 2, row*2-1)
             self.display(what='intensity', ax=ax, crosshairs=crosshairs, colorbar=colorbar, nrows=nrows)
             ax2 = plt.subplot(nrows, 2, row*2)
-            self.display(what='phase', ax=ax2, crosshairs=crosshairs, colorbar=colorbar, nrows=nrows)
+            self.display(what='phase', ax=ax2, crosshairs=crosshairs, colorbar=colorbar, nrows=nrows, opd_vmax=opd_vmax)
             return (ax,ax2)
         elif what=='amplitude':
             plot_array = ampl

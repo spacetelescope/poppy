@@ -78,11 +78,14 @@ conf = Conf()
 from . import poppy_core
 from . import utils
 from . import optics
+from . import misc
+from . import fresnel
 
 from .poppy_core import *
-from .utils import * 
+from .utils import *
 from .optics import *
 from .wfe import *
+from .fresnel import *
 
 from .instrument import Instrument
 
@@ -93,4 +96,4 @@ if conf.autosave_fftw_wisdom:  # if we might have autosaved, then auto reload as
     # the following will just return if FFTW is not present
     utils.fftw_load_wisdom()
 
-__all__ = ['conf', 'Instrument'] + utils.__all__ + poppy_core.__all__ + optics.__all__
+__all__ = ['conf', 'Instrument'] + utils.__all__ + poppy_core.__all__ + optics.__all__ + fresnel.__all__

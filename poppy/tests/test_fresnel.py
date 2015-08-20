@@ -1,24 +1,25 @@
-from .. import poppy_core  as poppy
+from .. import poppy_core
 from .. import optics
+from .. import misc
+from .. import fresnel
+from .. import utils
 from poppy.poppy_core import _log
 
-
-from .. import fresnel
 import astropy.units as u
 import matplotlib.pyplot as plt
 import numpy as np
 
 def test_GaussianBeamParams():
     """Confirm that gaussian beam parameters agree with expectations"""
-    gw=fresnel.Wavefront(100*u.um,wavelength=830e-9)
+    gw=fresnel.FresnelWavefront(100*u.um,wavelength=830e-9)
     gw.propagate_fresnel(50*u.mm)
     gl=fresnel.GaussianLens(50*u.mm,planetype=fresnel._INTERMED)
-    gw.apply_optic(gl,78.0*u.mm,ignore_wavefront=True)
+    gw.propagate_fresnel(28*u.mm)
+    gw.apply_lens_power(gl,ignore_wavefront=True)
     assert(np.round(gw.w_0.value,9) == np.round(0.0001061989749146441,9))
     assert(np.round(gw.z_w0.value,9) == np.round(0.15957902236417937,9))
     assert(np.round(gw.z_R.value,9) == np.round(0.042688650889351865,9))
     # FIXME MP: where do the above values come from?
-
 
 
 
@@ -29,7 +30,7 @@ def test_Gaussian_Beam_curvature_near_waist(npoints=5, plot=False):
     """
     # setup an initial Gaussian beam in an aperture.g
     ap = optics.CircularAperture()
-    wf0 = fresnel.Wavefront(2*u.m, wavelength=1e-6)
+    wf0 = fresnel.FresnelWavefront(2*u.m, wavelength=1e-6)
 
     # use that to scale theg
     z_rayleigh = wf0.z_R
@@ -40,7 +41,7 @@ def test_Gaussian_Beam_curvature_near_waist(npoints=5, plot=False):
     calc_wz = []
     for zi in z:
         #setup entrance wave and propagate to z
-        wf = fresnel.Wavefront(2*u.m, wavelength=1e-6)
+        wf = fresnel.FresnelWavefront(2*u.m, wavelength=1e-6)
         wf.propagate_fresnel(zi)
 
         # calculate the beam radius and curvature at z
@@ -102,7 +103,7 @@ def test_Circular_Aperture_PTP(display=False, npix=512, display_proper=False):
     # close to that with lower sampling.  we do not want to add too high a
     # computation load to the unit test system, so we have to tolerate some
     # imprecision here.
-    # 
+    #
     # Therefore tune the expected tolerance based on empirical past results.
     # N.B.  this is only approximate and the test may still fail depending
     # on particular choice of npix, without indicating anything
@@ -120,11 +121,11 @@ def test_Circular_Aperture_PTP(display=False, npix=512, display_proper=False):
         tolerance=0.03
 
     # Note there is a slight error in the text of Anderson and Enmark; the
-    # paragraph just before Fig 6.15 says "diameter D=0.5 m", but the 
+    # paragraph just before Fig 6.15 says "diameter D=0.5 m", but the
     # figure actually depicts a case with radius r=0.5 m, as is immediately
-    # and obviously the case based on the x axis of the figure. 
+    # and obviously the case based on the x axis of the figure.
 
-    gw = fresnel.Wavefront(beam_radius=0.5*u.m,wavelength=2200e-9,npix=npix,oversample=4)
+    gw = fresnel.FresnelWavefront(beam_radius=0.5*u.m,wavelength=2200e-9,npix=npix,oversample=4)
     gw *= optics.CircularAperture(radius=0.5,oversample=gw.oversample)
 
     gw.propagate_fresnel(z)
@@ -177,7 +178,98 @@ def test_Circular_Aperture_PTP(display=False, npix=512, display_proper=False):
     assert(np.all((center_cut_y- center_cut_y[::-1])/center_cut_y < 0.001))
 
 
-
 def test_spherical_lens(display=False):
     """Make sure that spherical lens operator is working"""
     # not yet implemented.
+
+
+def test_fresnel_optical_system_Hubble(display=False):
+    """ Test the FresnelOpticalSystem infrastructure
+    This is a fairly comprehensive test case using as its
+    example a simplified version of the Hubble Space Telescope.
+
+    The specific numeric values used for Hubble are taken from
+    the HST example case in the PROPER manual by John Krist,
+    version 2.0a available from http://proper-library.sourceforge.net
+    This is not intended as a high-fidelity model of Hubble, and this
+    test case neglects the primary aperture obscuration as well as the
+    specific conic constants of the optics including the infamous
+    spherical aberration.
+
+    This function tests the FresnelOpticalSystem functionality including
+    assembly of the optical system and propagation of wavefronts,
+    intermediate beam sizes through the optical system,
+    intermediate and final system focal lengths,
+    toggling between different types of optical planes,
+    and the properties of the output PSF including FWHM and
+    comparison to the Airy function.
+
+    """
+
+    # HST example - Following example in PROPER Manual V2.0 page 49.
+    # This is an idealized case and does not correspond precisely to the real telescope
+    # Define system with units
+    diam = 2.4 * u.m
+    fl_pri = 5.52085 * u.m
+    d_pri_sec = 4.907028205 * u.m  # This is what's used in the PROPER example
+    #d_pri_sec = 4.9069 * u.m      # however Lallo 2012 gives this value, which differs slightly
+                                   # from what is used in the PROPER example case.
+    fl_sec = -0.6790325 * u.m
+    d_sec_to_focus = 6.3919974 * u.m
+
+    osamp = 2 #oversampling factor
+    npix = 512
+
+    hst = fresnel.FresnelOpticalSystem(pupil_diameter=2.4*u.m, beam_ratio=0.25)
+    g1 = fresnel.GaussianLens(fl_pri, name='Primary', planetype=poppy_core.PlaneType.pupil)
+    g2 = fresnel.GaussianLens(fl_sec, name='Secondary')
+
+    hst.add_optic(optics.CircularAperture(radius=diam.value/2))
+    hst.add_optic(g1)
+    hst.add_optic(g2, distance=d_pri_sec)
+    hst.add_optic(optics.ScalarTransmission(planetype=poppy_core.PlaneType.image), distance=d_sec_to_focus)
+
+    # Create a PSF
+    psf, waves = hst.calcPSF(wavelength=0.5e-6, display_intermediates=display, return_intermediates=True)
+
+
+    ### check the beam size is as expected at primary and secondary mirror
+    assert(np.allclose(waves[1].spot_radius().value, 1.2))
+    # can't find a definitive reference for the beam diam at the SM, but
+    # the secondary mirror's radius is 14.05 cm
+    # We find that the beam is indeed slightly smaller than that.
+    assert(waves[2].spot_radius() > 13*u.cm )
+    assert(waves[2].spot_radius() < 14*u.cm )
+
+    ### check the focal length of the overall system is as expected
+    expected_system_focal_length = 1./(1./fl_pri + 1./fl_sec - (d_pri_sec)/(fl_pri*fl_sec))
+    # n.b. the value calculated here, 57.48 m, is a bit less than the 
+    # generally stated focal length of Hubble, 57.6 meters. Adjusting the
+    # primary-to-secondary spacing by about 100 microns can resolve this
+    # discrepancy. We here opt to stick with the values used in the PROPER
+    # example, to facilitate cross-checking the two codes. 
+
+    assert(not np.isfinite(waves[0].focal_length))  # plane wave after circular aperture
+    assert(waves[1].focal_length==fl_pri)           # after primary
+    assert(np.allclose(waves[2].focal_length,expected_system_focal_length)) # after secondary
+
+    ### check the FWHM of the PSF is as expected
+    measured_fwhm = utils.measure_fwhm(psf)
+    expected_fwhm = 1.028*0.5e-6/2.4*206265
+    # we only require this to have < 5% accuracy with respect to the theoretical value
+    # given discrete pixelization etc.
+    assert(np.abs((measured_fwhm-expected_fwhm)/expected_fwhm) < 0.05)
+
+    ### check the various plane types are as expected, including toggling into angular coordinates
+    pt = poppy_core.PlaneType
+    assert(np.allclose([w.planetype for w in waves], [pt.pupil, pt.pupil, pt.intermediate, pt.image]))
+    assert(np.allclose([w.angular_coordinates for w in waves], [False, False, False, True]))
+
+    ### and check that the resulting function is a 2D Airy function
+    #create an airy function matching the center part of this array
+    airy = misc.airy_2d(diameter=diam.value, wavelength=0.5e-6,
+                              shape=(128,128), pixelscale=psf[0].header['PIXELSCL'],
+                             center=(64,64))
+    cutout = psf[0].data[1024-64:1024+64, 1024-64:1024+64] / psf[0].data[1024,1024]
+    assert( np.abs(cutout-airy).max() < 1e-4 )
+
