@@ -1,25 +1,24 @@
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 import multiprocessing
 import copy
+import time
+import enum
+
 import six
+
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.ndimage.interpolation
 import matplotlib
-import time
 
 import astropy.io.fits as fits
-
 
 from .matrixDFT import MatrixFourierTransform
 from . import utils
 from . import conf
 
-
-
 import logging
 _log = logging.getLogger('poppy')
-
 
 __all__ = ['Wavefront',  'OpticalSystem', 'SemiAnalyticCoronagraph', 'OpticalElement', 'FITSOpticalElement', 'Rotation', 'Detector' ]
 
@@ -34,17 +33,18 @@ except ImportError:
     _FFTW_AVAILABLE = False
 
 # internal constants for types of plane
-_PUPIL = 'PUPIL'
-_IMAGE = 'IMAGE'
-_DETECTOR = 'DETECTOR' # specialized type of image plane.
-_ROTATION = 'ROTATION' # not a real optic, just a coordinate transform
-#_typestrs = {0:'', 1:'Pupil plane', 2:'Image plane', 3:'Detector', 4:'Rotation', 'PUPIL':'Pupil plane','IMAGE':'Image plane'}
+class PlaneType(enum.Enum):
+    pupil = 1
+    image = 2
+    detector = 3
+    rotation = 4
 
+_PUPIL = PlaneType.pupil
+_IMAGE = PlaneType.image
+_DETECTOR = PlaneType.detector  # specialized type of image plane
+_ROTATION = PlaneType.rotation  # not a real optic, just a coordinate transform
 
-#conversions
 _RADIANStoARCSEC = 180.*60*60 / np.pi
-
-
 
 #------ Utility functions for parallelization ------
 
@@ -1264,7 +1264,7 @@ class OpticalSystem(object):
                 wavefront.normalize()
                 wavefront *= np.sqrt(2)
             elif normalize.lower()=='exit_pupil': # normalize the last pupil in the system to 1
-                last_pupil_plane_index = np.where(np.asarray([p.planetype =='PUPIL' for p in self.planes]))[0].max() +1
+                last_pupil_plane_index = np.where(np.asarray([p.planetype is PlaneType.pupil for p in self.planes]))[0].max() +1
                 if current_plane_index == last_pupil_plane_index:
                     wavefront.normalize()
                     _log.debug("normalizing at exit pupil (plane {0}) to 1.0 total intensity".format(current_plane_index))
