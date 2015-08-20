@@ -245,11 +245,11 @@ class AnalyticOpticalElement(OpticalElement):
         return hdul
 
     def get_coordinates(self, wave):
-        """ Get coordinates of this optic, optionally including shifts
+        """Get coordinates of this optic, optionally including shifts
 
         Method: Calls the supplied wave object's coordinates() method,
         then checks for the existence of the following attributes:
-            "shift_x", "shift_y", "rotation"
+        "shift_x", "shift_y", "rotation"
         If any of them are present, then the coordinates are modified accordingly.
 
         Shifts are given in meters for pupil optics and arcseconds for image
