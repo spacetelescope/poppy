@@ -384,7 +384,13 @@ class Wavefront(object):
 
         extent = [x.min()-halfpix, x.max()+halfpix, y.min()-halfpix, y.max()+halfpix]
 
-        if self.planetype  != PlaneType.image:  # == _PUPIL:
+        if hasattr(self, 'angular_coordinates'):
+            is_angular = self.angular_coordinates  # compatibility hook for FresnelWavefront subclass
+        else:
+            is_angular = self.planetype==PlaneType.image
+
+
+        if not is_angular:
             unit = "m"
         else:
             halffov_x = intens.shape[1]/2.*self.pixelscale #for use later in cropping
@@ -426,11 +432,11 @@ class Wavefront(object):
                 title = "Intensity "+self.location
                 title = title.replace('after', 'after\n')
                 title = title.replace('before', 'before\n')
-            plt.title(title)
-            plt.xlabel(unit)
+            ax.set_title(title)
+            ax.set_xlabel(unit)
             if colorbar: plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
 
-            if self.planetype ==_IMAGE:
+            if is_angular:
                 if crosshairs:
                     plt.axhline(0,ls=":", color='k')
                     plt.axvline(0,ls=":", color='k')

@@ -877,7 +877,7 @@ class FresnelWavefront(Wavefront):
 
 
         # Apply phase to the wavefront array
-        effective_optic = QuadPhase(-z_eff, reference_wavelength=self.wavelength)
+        effective_optic = QuadPhase(-z_eff, reference_wavelength=self.wavelength, name=optic.name)
         self *= effective_optic
 
         _log.debug("------ Optic: "+str(optic.name)+" applied ------")

@@ -13,7 +13,7 @@ def test_GaussianBeamParams():
     """Confirm that gaussian beam parameters agree with expectations"""
     gw=fresnel.FresnelWavefront(100*u.um,wavelength=830e-9)
     gw.propagate_fresnel(50*u.mm)
-    gl=fresnel.GaussianLens(50*u.mm,planetype=fresnel._INTERMED)
+    gl=fresnel.GaussianLens(50*u.mm)
     gw.propagate_fresnel(28*u.mm)
     gw.apply_lens_power(gl,ignore_wavefront=True)
     assert(np.round(gw.w_0.value,9) == np.round(0.0001061989749146441,9))
@@ -28,11 +28,11 @@ def test_Gaussian_Beam_curvature_near_waist(npoints=5, plot=False):
     are as expected from simple analytic theory forg
     Gaussian beams
     """
-    # setup an initial Gaussian beam in an aperture.g
+    # setup an initial Gaussian beam in an aperture.
     ap = optics.CircularAperture()
     wf0 = fresnel.FresnelWavefront(2*u.m, wavelength=1e-6)
 
-    # use that to scale theg
+    # use that to scale the
     z_rayleigh = wf0.z_R
     z = z_rayleigh * np.logspace(-1,1,num=npoints)
     zdzr = z/z_rayleigh
