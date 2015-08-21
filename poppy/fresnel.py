@@ -14,6 +14,10 @@ from poppy.poppy_core import PlaneType, _FFTW_AVAILABLE, OpticalSystem, Wavefron
 from poppy.optics import AnalyticOpticalElement
 from . import utils
 
+if _FFTW_AVAILABLE:
+    import pyfftw
+
+
 __all__ = ['QuadPhase','GaussianLens','FresnelWavefront','FresnelOpticalSystem']
 
 
@@ -463,6 +467,8 @@ class FresnelWavefront(Wavefront):
             the distance from the current location to propagate the beam.
         '''
         self.angular_coordinates=False # coordinates must be in meters for propagation
+        _USE_FFTW = (poppy.conf.use_fftw and _FFTW_AVAILABLE)
+        forward_FFT= pyfftw.interfaces.numpy_fft.fft2 if _USE_FFTW else np.fft.fft2
 
         if  isinstance(z,u.quantity.Quantity):
             z_direct = (z).to(u.m).value #convert to meters.
@@ -481,9 +487,8 @@ class FresnelWavefront(Wavefront):
 
         result = np.fft.fftshift(forward_FFT(stage1))*self.pixelscale**2*QuadPhase_2nd  #eq.6.69 and #6.80
 
-        result = np.fft.fftshift(result)
-
-        self.wavefront = result
+        self.pixelscale=self.wavelength*z/S
+        self.wavefront=result
         self.history.append("Direct propagation to z= {0:0.2e}".format(z))
 
     def propagateTo(self, optic, distance):
