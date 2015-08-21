@@ -355,9 +355,10 @@ class Wavefront(object):
         use_angular_coordinates : bool, optional
             Should the axes be labeled in angular units of arcseconds?
             This is used by FresnelWavefront, where non-angular
-            coordinates are possible everywhere. Behavior for Wavefront
-            is undefined.
-            (Default: None, infer coordinates from PlaneType)
+            coordinates are possible everywhere. When using Fraunhofer
+            propagation, this should be left as None so that the
+            coordinates are inferred from the planetype attribute.
+            (Default: None, infer coordinates from planetype)
 
         Returns
         -------
