@@ -18,7 +18,7 @@ Summary
 
 **What this software does:**
 
-* Allows users to define an optical system consisting of multiple planes, such as pupils and imagesa.
+* Allows users to define an optical system consisting of multiple planes, such as pupils and images.
 * Provides flexible and extensible optical element classes, including a wide variety of stops, masks, lenses and other optics.
 * Computes monochromatic and polychromatic point spread functions through those optics.
 * Provides an extensible framework for defining models of optical instruments, including

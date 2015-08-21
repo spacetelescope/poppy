@@ -1,24 +1,18 @@
 from __future__ import division
 
-import poppy
 import numpy as np
 import matplotlib.pyplot as plt
 
 import astropy.io.fits as fits
 import astropy.units as u
 
-from . import utils
-
 import logging
 _log = logging.getLogger('poppy')
 
-try:
-    from IPython.core.debugger import Tracer; stop = Tracer()
-except:
-    pass
-
-from poppy.poppy_core import PlaneType, _PUPIL, _IMAGE, _DETECTOR, _ROTATION, _INTERMED, _FFTW_AVAILABLE, OpticalSystem, Wavefront
+import poppy
+from poppy.poppy_core import PlaneType, _FFTW_AVAILABLE, OpticalSystem, Wavefront
 from poppy.optics import AnalyticOpticalElement
+from . import utils
 
 __all__ = ['QuadPhase','GaussianLens','FresnelWavefront','FresnelOpticalSystem']
 
@@ -49,7 +43,7 @@ class QuadPhase(AnalyticOpticalElement):
     '''
     def __init__(self,
                  z,     #FIXME consider renaming fl? z seems ambiguous with distance.
-                 planetype = _INTERMED,
+                 planetype = PlaneType.intermediate,
                  name = 'Quadratic Wavefront Curvature Operator',
                  reference_wavelength = 2e-6,
                  units=u.m,
@@ -111,7 +105,7 @@ class GaussianLens(QuadPhase):
     '''
     def __init__(self,
                  f_lens,
-                 planetype = _INTERMED,
+                 planetype = PlaneType.unspecified,
                  name = 'Gaussian Lens',
                  reference_wavelength = 2e-6,
                  units=u.m,
@@ -139,7 +133,6 @@ class FresnelWavefront(Wavefront):
     def __init__(self,
                  beam_radius,
                  units=u.m,
-                 force_fresnel=True,
                  rayleigh_factor=2.0,
                  oversample=2,
                  **kwds):
@@ -150,7 +143,7 @@ class FresnelWavefront(Wavefront):
         poppy.Wavefront class.
 
 
-        Parameters:
+        Parameters
         --------------------
         beam_radius : astropy.Quantity of type length
             Radius of the illuminated beam at the initial optical plane.
@@ -159,10 +152,6 @@ class FresnelWavefront(Wavefront):
             astropy units of input parameters
         rayleigh_factor:
             Threshold for considering a wave spherical.
-        force_fresnel : bool
-            If True then the Fresnel propagation will always be used,
-            even between planes of type _PUPIL or _IMAGE
-            if False the wavefront reverts to standard wavefront propagation for _PUPIL <-> _IMAGE planes
         oversample : float
             Padding factor to apply to the wavefront array, multiplying on top of the beam radius.
 
@@ -221,8 +210,6 @@ class FresnelWavefront(Wavefront):
         """is this wavefront spherical or planar?"""
         self.k = np.pi*2.0/self.wavelength
         """ Wavenumber"""
-        self.force_fresnel = force_fresnel
-        """Force Fresnel calculation if true, even for cases wher Fraunhofer would work"""
         self.rayleigh_factor= rayleigh_factor
         """ Threshold for considering a wave spherical, in units of Rayleigh distance """
 
@@ -249,7 +236,7 @@ class FresnelWavefront(Wavefront):
         else:
             self.n=self.shape
 
-        if self.planetype == _IMAGE:
+        if self.planetype == PlaneType.image:
             raise ValueError("Input wavefront needs to be a pupil plane in units of m/pix. Specify a diameter not a pixelscale.")
 
     # properties and methods supporting fresnel propagation
@@ -372,7 +359,7 @@ class FresnelWavefront(Wavefront):
         plane wavefront
 
         Parameters
-        ----------
+        ------------
 
         shape : tuple of ints
             Shape of the wavefront array
@@ -530,15 +517,15 @@ class FresnelWavefront(Wavefront):
             self.propagate_fresnel(distance)
 
         # Now we may do some further manipulations depending on the next plane
-        if optic.planetype == _ROTATION:     # rotate
+        if optic.planetype == PlaneType.rotation:     # rotate
             self.rotate(optic.angle)
             self.location='after '+optic.name
-        elif optic.planetype == _IMAGE:
+        elif optic.planetype == PlaneType.image:
             self.location='before '+optic.name
             self.angular_coordinates=True # image planes want angular coordinates
-            self.planetype=_IMAGE   # needed for back compatibility when using image plane optics
-        elif optic.planetype == _DETECTOR:
-            raise NotImplemented('image plane to detector propagation (resampling!) not implemented yet')
+            self.planetype=PlaneType.image   # needed for back compatibility when using image plane optics
+        elif optic.planetype ==PlaneType.detector :
+            raise NotImplemented('image plane to detector propagation (resampling) not implemented yet')
         else:
             self.location='before '+optic.name
 
@@ -597,7 +584,7 @@ class FresnelWavefront(Wavefront):
         The starting position should be within the Rayleigh distance of the waist, and the
         ending position will be outside of that.
 
-        Parameters:
+        Parameters
         -----------
         dz :  float
             the distance from the current location to propagate the beam.
@@ -675,8 +662,8 @@ class FresnelWavefront(Wavefront):
         '''
         Returns True if the input range z is within the Rayleigh range of the waist.
 
-        Parameters:
-        ----------
+        Parameters
+        -----------
         z : float
             distance from the beam waist
 
@@ -753,7 +740,7 @@ class FresnelWavefront(Wavefront):
             self.display('both',colorbar=True)
 
         self.wavefront = np.fft.fftshift(self.wavefront)
-        self.planetype = _INTERMED
+        self.planetype = PlaneType.intermediate
         _log.debug("------ Propagated to plane of type "+str(self.planetype)+" at z = {0:0.2e} ------".format(z))
 
     def __imul__(self, optic):
@@ -794,23 +781,21 @@ class FresnelWavefront(Wavefront):
         _log.debug("  Beam radius at "+ str(optic.name)+" ={0:0.2e}".format(spot_radius))
 
         # Is the incident beam planar or spherical?
-        # We decided based on whether the last waist is outside the rayleigh distance?
+        # We decided based on whether the last waist is outside the rayleigh distance.
+        #  I.e. here we neglect small curvature just away from the waist
+        # Based on that, determine the radius of curvature of the output beam
         if np.abs(self.z_w0 - self.z) > self.rayleigh_factor*self.z_R:
             _log.debug("spherical beam")
             _log.debug(self.param_str)
             R_input_beam = self.z - self.z_w0
+            R_output_beam = 1.0/(1.0/self.R_c() - 1.0/optic.fl)
+            _log.debug(" input curved wavefront and "+str(optic.name) +" has output beam curvature of ={0:0.2e}".format(R_output_beam))
         else:
             R_input_beam = np.inf
-
-        # Determine the radius of curvature of the output beam
-        if self.planetype == _PUPIL or self.planetype == _IMAGE:
             #we are at a focus or pupil, so the new optic is the only curvature of the beam
             R_output_beam = -1*optic.fl
             _log.debug(" input flat wavefront and "+ str(optic.name) +" has output beam curvature of ={0:0.2e}".format(R_output_beam))
 
-        else:
-            R_output_beam = 1.0/(1.0/self.R_c() - 1.0/optic.fl)
-            _log.debug(" input curved wavefront and "+str(optic.name) +" has output beam curvature of ={0:0.2e}".format(R_output_beam))
 
         #update the wavefront parameters to the post-lens beam waist 
         if self.R_c() == optic.fl:
@@ -839,23 +824,12 @@ class FresnelWavefront(Wavefront):
             _log.debug("Magnification: {}  from R_in = {}, R_out = {}".format(mag, R_input_beam, R_output_beam))
             _log.debug("Output beam focal length is now {}".format(self.focal_length))
 
-
-
-
-#        #check that this Fresnel business is necessary.
-#        if (not self.force_fresnel) and (self.planetype == _PUPIL or self.planetype ==_IMAGE) \
-#            and (optic.planetype ==_IMAGE or optic.planetype ==_PUPIL):
-#            _log.debug("Simple pupil / image propagation, Fresnel unnecessary. \
-#                       Reverting to Fraunhofer.")
-#            self.propagateTo(optic)
-#            return
-#
-
         self.waists_z.append(self.z_w0.value)
         self.waists_w0.append(self.w_0.value)
 
         #update wavefront location:
-        self.planetype = optic.planetype
+        if optic.planetype != PlaneType.unspecified:
+            self.planetype = optic.planetype
 
         if ignore_wavefront:
             # What we have done above is sufficient for Gaussian beam propagation,

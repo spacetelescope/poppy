@@ -264,6 +264,7 @@ def test_fresnel_optical_system_Hubble(display=False):
     pt = poppy_core.PlaneType
     assert(np.allclose([w.planetype for w in waves], [pt.pupil, pt.pupil, pt.intermediate, pt.image]))
     assert(np.allclose([w.angular_coordinates for w in waves], [False, False, False, True]))
+    assert(np.allclose([w.spherical for w in waves], [False, True, True, False]))
 
     ### and check that the resulting function is a 2D Airy function
     #create an airy function matching the center part of this array

@@ -34,6 +34,7 @@ except ImportError:
 
 # internal constants for types of plane
 class PlaneType(enum.Enum):
+    unspecified = 0
     pupil = 1
     image = 2
     detector = 3
