@@ -275,7 +275,7 @@ def test_fresnel_optical_system_Hubble(display=False):
         )
 
     spherical_flags = [False, True, True, False]
-    for idx, (wavefront, spherical) in enumerate(zip(waves, angular_coordinates_flags)):
+    for idx, (wavefront, spherical) in enumerate(zip(waves, spherical_flags)):
         assert wavefront.spherical == spherical, assert_message.format(
             idx, "spherical", spherical, wavefront.spherical
         )
