@@ -3,7 +3,7 @@ from .. import optics
 from .. import misc
 from .. import fresnel
 from .. import utils
-from poppy.poppy_core import _log
+from poppy.poppy_core import _log, PlaneType
 
 import astropy.units as u
 import matplotlib.pyplot as plt
@@ -261,10 +261,24 @@ def test_fresnel_optical_system_Hubble(display=False):
     assert(np.abs((measured_fwhm-expected_fwhm)/expected_fwhm) < 0.05)
 
     ### check the various plane types are as expected, including toggling into angular coordinates
-    pt = poppy_core.PlaneType
-    assert(np.allclose([w.planetype for w in waves], [pt.pupil, pt.pupil, pt.intermediate, pt.image]))
-    assert(np.allclose([w.angular_coordinates for w in waves], [False, False, False, True]))
-    assert(np.allclose([w.spherical for w in waves], [False, True, True, False]))
+    assert_message = ("Expected FresnelWavefront at plane #{} to have {} == {}, but got {}")
+    system_planetypes = [PlaneType.pupil, PlaneType.pupil, PlaneType.intermediate, PlaneType.image]
+    for idx, (wavefront, planetype) in enumerate(zip(waves, system_planetypes)):
+        assert wavefront.planetype == planetype, assert_message.format(
+            idx, "planetype", plane_type, wavefront.planetype
+        )
+
+    angular_coordinates_flags = [False, False, False, True]
+    for idx, (wavefront, angular_coordinates) in enumerate(zip(waves, angular_coordinates_flags)):
+        assert wavefront.angular_coordinates == angular_coordinates, assert_message.format(
+            idx, "angular_coordinates", angular_coordinates, wavefront.angular_coordinates
+        )
+
+    spherical_flags = [False, True, True, False]
+    for idx, (wavefront, spherical) in enumerate(zip(waves, angular_coordinates_flags)):
+        assert wavefront.spherical == spherical, assert_message.format(
+            idx, "spherical", spherical, wavefront.spherical
+        )
 
     ### and check that the resulting function is a 2D Airy function
     #create an airy function matching the center part of this array

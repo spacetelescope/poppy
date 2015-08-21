@@ -326,7 +326,8 @@ class Wavefront(object):
         self.asFITS(**kwargs).writeto(filename, clobber=clobber)
         _log.info("  Wavefront saved to %s" % filename)
 
-    def display(self,what='intensity', nrows=1,row=1,showpadding=False,imagecrop=None, colorbar=False, crosshairs=True, ax=None, title=None,vmin=1e-8,vmax=1e0):
+    def display(self, what='intensity', nrows=1, row=1, showpadding=False, imagecrop=None,
+                colorbar=False, crosshairs=True, ax=None, title=None, vmin=1e-8, vmax=1e0, use_angular_coordinates=None):
         """Display wavefront on screen
 
         Parameters
@@ -351,13 +352,18 @@ class Wavefront(object):
             Display colorbar
         ax : matplotlib Axes
             axes to display into
+        use_angular_coordinates : bool, optional
+            Should the axes be labeled in angular units of arcseconds?
+            This is used by FresnelWavefront, where non-angular
+            coordinates are possible everywhere. When using Fraunhofer
+            propagation, this should be left as None so that the
+            coordinates are inferred from the planetype attribute.
+            (Default: None, infer coordinates from planetype)
 
         Returns
         -------
         figure : matplotlib figure
             The current figure is modified.
-
-
         """
         if imagecrop is None: imagecrop = conf.default_image_display_fov
 
@@ -384,13 +390,10 @@ class Wavefront(object):
 
         extent = [x.min()-halfpix, x.max()+halfpix, y.min()-halfpix, y.max()+halfpix]
 
-        if hasattr(self, 'angular_coordinates'):
-            is_angular = self.angular_coordinates  # compatibility hook for FresnelWavefront subclass
-        else:
-            is_angular = self.planetype==PlaneType.image
+        if use_angular_coordinates is None:
+            use_angular_coordinates = self.planetype == _IMAGE
 
-
-        if not is_angular:
+        if not use_angular_coordinates:
             unit = "m"
         else:
             halffov_x = intens.shape[1]/2.*self.pixelscale #for use later in cropping
@@ -436,7 +439,7 @@ class Wavefront(object):
             ax.set_xlabel(unit)
             if colorbar: plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
 
-            if is_angular:
+            if use_angular_coordinates:
                 if crosshairs:
                     plt.axhline(0,ls=":", color='k')
                     plt.axvline(0,ls=":", color='k')
