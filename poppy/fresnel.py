@@ -129,13 +129,16 @@ class GaussianLens(QuadPhase):
 
 
 class FresnelWavefront(Wavefront):
+    angular_coordinates = False
+    """Should coordinates be expressed in arcseconds instead of meters at the current plane? """
+
     @u.quantity_input(beam_radius=u.m)
     def __init__(self,
                  beam_radius,
                  units=u.m,
                  rayleigh_factor=2.0,
                  oversample=2,
-                 **kwds):
+                 **kwargs):
         '''
         Wavefront for Fresnel diffraction calculation.
 
@@ -148,8 +151,8 @@ class FresnelWavefront(Wavefront):
         beam_radius : astropy.Quantity of type length
             Radius of the illuminated beam at the initial optical plane.
             I.e. this would be the pupil aperture radius in an entrance pupil.
-        units :
-            astropy units of input parameters
+        units : astropy.units.Unit
+            Astropy units of input parameters
         rayleigh_factor:
             Threshold for considering a wave spherical.
         oversample : float
@@ -174,53 +177,47 @@ class FresnelWavefront(Wavefront):
         - Andersen, T., and A. Enmark (2011), Integrated Modeling of Telescopes, Springer Science & Business Media.
 
         '''
-
-        #        initialize general wavefront class first,
-        #        in Python 3 this will change,
-        #        https://stackoverflow.com/questions/576169/understanding-python-super-with-init-methods
-
+        super(FresnelWavefront,self).__init__(
+            diam=beam_radius.to(u.m).value * 2.0,
+            oversample=oversample,
+            **kwargs
+        )
         try:
             units.to(u.m)
-        except (AttributeError,u.UnitsError):
+        except (AttributeError, u.UnitsError):
             raise ValueError("The 'units' parameter must be an astropy.units.Unit representing length.")
         self.units = units
-        """Astropy.units.Unit for measuring distance"""
+        """`astropy.units.Unit` for measuring distance"""
 
         self.w_0 = (beam_radius).to( self.units) #convert to base units.
         """Beam waist radius at initial plane"""
-        self.oversample=oversample
-        """Oversampling factor for zero-padding arrays"""
-
-        self.angular_coordinates = False   # must be set prior to calling super's __init__
-        """Should coordinates be expressed in arcseconds instead of meters at the current plane? """
-
-        super(FresnelWavefront,self).__init__(diam=beam_radius.to(u.m).value*2.0, oversample=self.oversample,**kwds)
-
-        self.z  =  0*units
+        self.z = 0 * units
         """Current wavefront coordinate along the optical axis"""
-        self.z_w0 = 0*units
+        self.z_w0 = 0 * units
         """Coordinate along the optical axis of the latest beam waist"""
         self.waists_w0 = [self.w_0.value]
-        """ List of beam waist radii, in series as encountered during the course of an optical propagation."""
+        """List of beam waist radii, in series as encountered during the course of an optical propagation."""
         self.waists_z = [self.z_w0.value]
-        """ List of beam waist distances along the optical axis, in series as encountered during the course of an optical propagation."""
+        """List of beam waist distances along the optical axis, in series as encountered during the course of an optical propagation."""
         self.wavelen_m = self.wavelength*u.m #wavelengths should always be in meters
-        """ Wavelength as an Astropy.Quantity"""
+        """Wavelength as an Astropy.Quantity"""
         self.spherical = False
-        """is this wavefront spherical or planar?"""
-        self.k = np.pi*2.0/self.wavelength
+        """Is this wavefront spherical or planar?"""
+        self.k = np.pi * 2.0 / self.wavelength
         """ Wavenumber"""
         self.rayleigh_factor= rayleigh_factor
-        """ Threshold for considering a wave spherical, in units of Rayleigh distance """
+        """Threshold for considering a wave spherical, in units of Rayleigh distance"""
 
         self.focal_length = np.inf * u.m
-        """ Focal length of the current beam, or infinity if not a focused beam """
+        """Focal length of the current beam, or infinity if not a focused beam"""
 
-        if self.oversample > 1 and not self.ispadded: #add padding for oversampling, if necessary
+        if self.oversample > 1 and not self.ispadded:  # add padding for oversampling, if necessary
             self.wavefront = utils.padToOversample(self.wavefront, self.oversample)
             self.ispadded = True
-            #print(("Oversample: ",self.oversample))
-            logmsg = "Padded WF array for oversampling by {0:d}, to {1}.".format(self.oversample, self.wavefront.shape)
+            logmsg = "Padded WF array for oversampling by {0:d}, to {1}.".format(
+                self.oversample,
+                self.wavefront.shape
+            )
             _log.debug(logmsg)
 
             self.history.append(logmsg)
@@ -238,6 +235,15 @@ class FresnelWavefront(Wavefront):
 
         if self.planetype == PlaneType.image:
             raise ValueError("Input wavefront needs to be a pupil plane in units of m/pix. Specify a diameter not a pixelscale.")
+
+    def display(self, *args, **kwargs):
+        # Is this FresnelWavefront in angular units?
+        return super(FresnelWavefront, self).display(
+            *args,
+            use_angular_coordinates=self.angular_coordinates,
+            **kwargs
+        )
+    display.__doc__ = Wavefront.display.__doc__
 
     # properties and methods supporting fresnel propagation
 
