@@ -237,12 +237,17 @@ class FresnelWavefront(Wavefront):
             raise ValueError("Input wavefront needs to be a pupil plane in units of m/pix. Specify a diameter not a pixelscale.")
 
     def display(self, *args, **kwargs):
-        # Is this FresnelWavefront in angular units?
-        return super(FresnelWavefront, self).display(
-            *args,
-            use_angular_coordinates=self.angular_coordinates,
-            **kwargs
-        )
+        if not 'use_angular_coordinates' in kwargs:
+            # Is this FresnelWavefront in angular units?
+            return super(FresnelWavefront, self).display(
+                *args,
+                use_angular_coordinates=self.angular_coordinates,
+                **kwargs
+            )
+        else:
+            return super(FresnelWavefront, self).display(
+                *args, **kwargs
+            )
     display.__doc__ = Wavefront.display.__doc__
 
     # properties and methods supporting fresnel propagation
