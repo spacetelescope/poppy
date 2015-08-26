@@ -38,9 +38,9 @@ def test_cached_zernike1(nterms=10):
     cached_results = []
 
     for j in range(1, nterms + 1):
-        cached_output = zernike.cached_zernike1(j, wave.shape, wave.pixelscale, radius, mask_outside=False, outside=0.0)
+        cached_output = zernike.cached_zernike1(j, wave.shape, wave.pixelscale, radius, outside=0.0)
         cached_results.append(cached_output)
-        uncached_output = zernike.zernike1(j, rho=rho, theta=theta, mask_outside=False, outside=0.0)
+        uncached_output = zernike.zernike1(j, rho=rho, theta=theta, outside=0.0)
         assert np.allclose(cached_output, uncached_output)
 
     try:
@@ -51,7 +51,7 @@ def test_cached_zernike1(nterms=10):
 
     # Check that we're getting cached copies
     for j, array_ref in enumerate(cached_results, start=1):
-        cached_array_ref = zernike.cached_zernike1(j, wave.shape, wave.pixelscale, radius, mask_outside=False, outside=0.0)
+        cached_array_ref = zernike.cached_zernike1(j, wave.shape, wave.pixelscale, radius, outside=0.0)
         assert id(array_ref) == id(cached_array_ref), "cached_zernike1 returned a new array object for the same arguments"
 
 def _test_cross_zernikes(testj=4, nterms=10, npix=500):
