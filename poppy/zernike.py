@@ -451,8 +451,8 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
 
 def opd_expand(opd, aperture=None, nterms=15, basis=zernike_basis,
               **kwargs):
-    """Given a wavefront OPD map, return the list of Zernike
-    coefficients that best fit it.
+    """Given a wavefront OPD map, return the list of coefficients in a
+    given basis set (by default, Zernikes) that best fit the OPD map.
 
     Parameters
     ----------
@@ -469,6 +469,7 @@ def opd_expand(opd, aperture=None, nterms=15, basis=zernike_basis,
     basis : callable, optional
         Callable (e.g. a function) that generates a sequence
         of basis arrays given arguments `nterms`, `npix`, and `outside`.
+        Default is `poppy.zernike.zernike_basis`.
 
     Additional keyword arguments to this function are passed
     through to the `basis` callable.
@@ -488,7 +489,8 @@ def opd_expand(opd, aperture=None, nterms=15, basis=zernike_basis,
     """
 
     if aperture is None:
-        _log.warn("No aperture supplied - using the finite (non-NaN) part of the OPD map as a guess.")
+        _log.warn("No aperture supplied - "
+                  "using the finite (non-NaN) part of the OPD map as a guess.")
         aperture = np.isfinite(opd).astype(np.float)
 
     basis_set = basis(
