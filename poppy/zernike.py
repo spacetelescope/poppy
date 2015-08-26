@@ -436,3 +436,53 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None, vertical=False, **kw
 
     # drop the 0th null element, return the rest
     return H[1:]
+
+def wf_expand(wavefront, aperture=None, nterms=15, basis=zernike_basis,
+              **kwargs):
+    """Given a wavefront, return the list of Zernike coefficients that
+    best fit it.
+
+    Parameters
+    ----------
+    wavefront : 2D numpy.ndarray
+        The wavefront to expand in terms of the requested basis.
+        Must be square.
+    aperture : 2D numpy.ndarray, optional
+        ndarray giving the aperture mask to use. If not explicitly
+        specified, all finite points in the wavefront array
+        (i.e. not NaNs) are assumed to define the pupil aperture.
+    nterms : int
+        Number of terms to use. (Default: 15)
+    basis : callable, optional
+        Callable (e.g. a function) that generates a sequence
+        of basis arrays given arguments `nterms` and `npix`. Additional
+        keyword arguments to this function are passed through as well.
+
+    Note: Recovering coefficients used to generate synthetic/test data
+    depends greatly on the sampling (as one might expect). Generating
+    test data using zernike_basis with npix=512 and passing the result
+    through wf_expand reproduces the input coefficients within 0.1%.
+
+    Returns
+    -------
+    coeffs : list
+        List of coefficients (of length `nterms`) from which the
+        input wavefront can be constructed in the given basis.
+        (No additional unit conversions are performed. If the input
+        wavefront is in waves, coeffs will be in waves.)
+    """
+
+    if aperture is None:
+        _log.warn("No aperture supplied - using the nonzero part "
+                  "of the wavefront as a guess.")
+        aperture = np.asarray((wavefront != 0) & np.isfinite(wavefront), dtype=int)
+
+    basis_set =  basis(nterms=nterms, npix=wavefront.shape[0], **kwargs)
+
+    wgood = np.where(aperture & np.isfinite(basis_set[1]))
+    ngood = (wgood[0]).size
+
+    coeffs = [(wavefront * b)[wgood].sum() / ngood
+              for b in basis_set]
+
+    return coeffs
