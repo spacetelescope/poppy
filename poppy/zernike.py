@@ -308,8 +308,9 @@ def zernike_basis(nterms=15, npix=512, rho=None, theta=None, **kwargs):
         Desired pixel diameter for circular pupil. Only used if `rho`
         and `theta` are not provided.
     rho, theta : array_like
-        Image plane coordinates. `rho` should be 1.0 at the desired
-        pixel radius, `theta` should be in radians.
+        Image plane coordinates. `rho` should be 0 at the origin
+        and 1.0 at the edge of the circular pupil. `theta` should be
+        the angle in radians.
 
     Other parameters are passed through to `poppy.zernike.zernike`
     and are documented there.
