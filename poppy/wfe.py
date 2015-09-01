@@ -75,14 +75,21 @@ class ParameterizedWFE(WavefrontError):
         circumscribing the actual pupil shape.
     basis_factory : callable
         basis_factory will be called with the arguments `nterms`, `rho`,
-        and `theta`. `nterms` specifies how many terms to compute,
-        starting with the j=1 term in the Noll indexing convention for
-        `nterms` = 1 and counting up. `rho` and `theta` are square
-        arrays holding the rho and theta coordinates at each pixel in
-        the pupil plane.
+        `theta`, and `outside`.
 
-        `rho` is normalized such that `rho` == 1.0 for pixels at
-        `radius` meters from the center.
+        `nterms` specifies how many terms to compute, starting with the
+        j=1 term in the Noll indexing convention for `nterms` = 1 and
+        counting up.
+
+        `rho` and `theta` are square arrays holding the rho and theta
+        coordinates at each pixel in the pupil plane. `rho` is
+        normalized such that `rho` == 1.0 for pixels at `radius` meters
+        from the center.
+
+        `outside` contains the value to assign pixels outside the
+        radius `rho` == 1.0. (Always 0.0, but provided for
+        compatibility with `zernike.zernike_basis` and
+        `zernike.hexike_basis`.)
     """
     def __init__(self, name="Parameterized Distortion", coefficients=None, radius=None,
                  basis_factory=None, **kwargs):
@@ -103,7 +110,7 @@ class ParameterizedWFE(WavefrontError):
         combined_distortion = np.zeros(rho.shape)
 
         nterms = len(self.coefficients)
-        computed_terms = self.basis_factory(nterms=nterms, rho=rho, theta=theta)
+        computed_terms = self.basis_factory(nterms=nterms, rho=rho, theta=theta, outside=0.0)
 
         for idx, coefficient in enumerate(self.coefficients):
             if coefficient == 0.0:
@@ -160,7 +167,6 @@ class ZernikeWFE(WavefrontError):
                 wave.shape,
                 wave.pixelscale,
                 self.radius,
-                mask_outside=False,
                 outside=0.0
             )
 
