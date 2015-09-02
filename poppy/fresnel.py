@@ -807,7 +807,7 @@ class FresnelWavefront(Wavefront):
             R_output_beam = 1.0/(1.0/self.R_c() - 1.0/optic.fl)
             _log.debug(" input curved wavefront and "+str(optic.name) +" has output beam curvature of ={0:0.2e}".format(R_output_beam))
         else:
-            R_input_beam = np.inf
+            R_input_beam = np.inf *u.m
             #we are at a focus or pupil, so the new optic is the only curvature of the beam
             R_output_beam = -1*optic.fl
             _log.debug(" input flat wavefront and "+ str(optic.name) +" has output beam curvature of ={0:0.2e}".format(R_output_beam))
