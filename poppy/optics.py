@@ -792,7 +792,7 @@ class ParityTestAperture(AnalyticOpticalElement):
         if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("CircularAperture getPhasor must be called with a Wavefront "
                              "to define the spacing")
-        assert (wave.planetype == _PUPIL)
+        assert (wave.planetype != _IMAGE)
 
         y, x = self.get_coordinates(wave)
         r = np.sqrt(x ** 2 + y ** 2)  #* wave.pixelscale
@@ -853,7 +853,7 @@ class CircularAperture(AnalyticOpticalElement):
         if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("CircularAperture getPhasor must be called with a Wavefront "
                              "to define the spacing")
-        assert (wave.planetype == _PUPIL)
+        assert (wave.planetype != _IMAGE)
 
         y, x = self.get_coordinates(wave)
         r = np.sqrt(x ** 2 + y ** 2)
@@ -903,7 +903,7 @@ class HexagonAperture(AnalyticOpticalElement):
         if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("HexagonAperture getPhasor must be called with a Wavefront "
                              "to define the spacing")
-        assert (wave.planetype == _PUPIL)
+        assert (wave.planetype != _IMAGE)
 
         y, x = self.get_coordinates(wave)
         absy = np.abs(y)
@@ -1103,7 +1103,7 @@ class MultiHexagonAperture(AnalyticOpticalElement):
         """
         if not isinstance(wave, Wavefront):
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL)
+        assert (wave.planetype != _IMAGE)
 
         #y, x = self.get_coordinates(wave)
         #absy = np.abs(y)
@@ -1176,7 +1176,7 @@ class NgonAperture(AnalyticOpticalElement):
         """
         if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL)
+        assert (wave.planetype != _IMAGE)
         y, x = self.get_coordinates(wave)
 
         phase = self.rotation * np.pi / 180
@@ -1226,7 +1226,7 @@ class RectangleAperture(AnalyticOpticalElement):
         """
         if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL)
+        assert (wave.planetype != _IMAGE)
 
 #        y, x = wave.coordinates()
 #
@@ -1325,7 +1325,7 @@ class SecondaryObscuration(AnalyticOpticalElement):
         """
         if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL)
+        assert (wave.planetype != _IMAGE)
 
         self.transmission = np.ones(wave.shape)
 
@@ -1399,7 +1399,7 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
         """
         if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL)
+        assert (wave.planetype != _IMAGE)
 
         self.transmission = np.ones(wave.shape)
 
