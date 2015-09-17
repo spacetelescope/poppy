@@ -82,7 +82,7 @@ class QuadPhase(AnalyticOpticalElement):
 
 
         k = 2* np.pi/self.reference_wavelength
-        lens_phasor = np.exp(1.j * k * rsqd/(2.0*self.z_m))
+        lens_phasor = np.fft.fftshift(np.exp(1.j * k * rsqd/(2.0*self.z_m)))
         return lens_phasor
 
 
