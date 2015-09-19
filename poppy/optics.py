@@ -857,7 +857,7 @@ class HexagonAperture(AnalyticOpticalElement):
     """ Defines an ideal hexagonal pupil aperture
 
     Specify either the side length (= corner radius) or the
-    flat-to-flat distance.
+    flat-to-flat distance, or the point-to-point diameter.
 
     Parameters
     ----------
@@ -867,20 +867,36 @@ class HexagonAperture(AnalyticOpticalElement):
         side length (and/or radius) of hexagon, in meters. Overrides flattoflat if both are present.
     flattoflat : float, optional
         Distance between sides (flat-to-flat) of the hexagon, in meters. Default is 1.0
+    diameter : float, optional
+        point-to-point diameter of hexagon. Twice the side length. Overrides flattoflat, but is overridden by side. 
+
     """
 
-    def __init__(self, name=None, flattoflat=None, side=None, **kwargs):
-        if flattoflat is None and side is None:
+    def __init__(self, name=None, side=None, diameter=None, flattoflat=None, **kwargs):
+        if flattoflat is None and side is None and diameter is None:
             self.side = 1.0
         elif side is not None:
             self.side = float(side)
+        elif diameter is not None:
+            self.side = float(diameter/2)
         else:
             self.side = float(flattoflat) / np.sqrt(3.)
+
+
         self.pupil_diam = 2 * self.side  # for creating input wavefronts
         if name is None:
             name = "Hexagon, side length= %.1f m" % self.side
 
         AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
+
+
+    @property
+    def diameter(self):
+        return self.side*2
+
+    @property
+    def flat_to_flat(self):
+        return self.side*np.sqrt(3.)
 
 
     def getPhasor(self, wave):
