@@ -85,73 +85,21 @@ class QuadPhase(AnalyticOpticalElement):
         lens_phasor = np.exp(1.j * k * rsqd/(2.0*self.z_m))
         return lens_phasor
 
-class _QuadPhaseShifted(AnalyticOpticalElement):
-    '''
-    Quadratic phase factor,  q(z)
-    suitable for representing a radially-dependent wavefront curvature.
-    This function for operating on FFT shifted arrays, with the origin in the corner,
-     for centered "physical" coordinate system optics with an origin at the image center use 'QuadPhase'.
-
-    Parameters
-    -----------------
-    z : float or astropy.Quantity of type length
-        radius of curvature
-    planetype : poppy.PlaneType constant
-        plane type
-    name : string
-        Descriptive string name
-    reference_wavelength : float
-        wavelength
-    units : astropy.unit of type length
-        Unit to apply to reference wavelength; default is meter
-
-
-    References
-    -------------------
-    Lawrence eq. 88
-
-    '''
-    def __init__(self,
-                 z,     #FIXME consider renaming fl? z seems ambiguous with distance.
-                 planetype = PlaneType.intermediate,
-                 name = 'Quadratic Wavefront Curvature Operator',
-                 reference_wavelength = 2e-6,
-                 units=u.m,
-                 **kwargs):
-        poppy.AnalyticOpticalElement.__init__(self,name=name, planetype=planetype, **kwargs)
-        self.z=z
-        self.reference_wavelength = reference_wavelength*units
-
-        if  isinstance(z,u.quantity.Quantity):
-            self.z_m = (z).to(u.m) #convert to meters.
-        else:
-            _log.debug("Assuming meters, phase (%.3g) has no units for Optic: "%(z)+self.name)
-            self.z_m=z*u.m
+class _QuadPhaseShifted(QuadPhase):
+    """
+    Identical to class 'QuadPhase' except for array origin.
+    This class provides a quadratic phase factor for application to FFT shifted wavefronts,
+    with the origin in the corner.
+    For centered "physical" coordinate system optics with an origin at the wavefront center use  `QuadPhase`.
+    """
+    def __init__(self,z,**kwargs):
+        QuadPhase.__init__(self,z, **kwargs)
 
     def getPhasor(self, wave):
-        """ return complex phasor for the quadratic phase
-
-        Parameters
-        ----------
-        wave : obj
-            a Fresnel Wavefront object
-        """
-
-        #if not isinstance(wave,Wavefront):
-            #raise TypeError("Must supply a Fresnel Wavefront")
-        #y, x = wave.coordinates()
-        y, x = wave.coordinates()
-        rsqd = (x**2+y**2)*u.m**2
-        _log.debug("Applying spherical phase curvature ={0:0.2e}".format(self.z_m))
-        _log.debug("Applying spherical lens phase ={0:0.2e}".format(1.0/self.z_m))
-        _log.debug("max_rsqd ={0:0.2e}".format(np.max(rsqd)))
-
-
-        k = 2* np.pi/self.reference_wavelength
-        lens_phasor = np.fft.fftshift(np.exp(1.j * k * rsqd/(2.0*self.z_m)))
-        return lens_phasor
-
+        """ Return complex phasor, for FFT shifted array"""
+        return np.fft.fftshift( super(_QuadPhaseShifted, self).getPhasor(wave))
     
+
 class GaussianLens(QuadPhase):
     '''
     Gaussian Lens
