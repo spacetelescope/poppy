@@ -85,6 +85,20 @@ class QuadPhase(AnalyticOpticalElement):
         lens_phasor = np.exp(1.j * k * rsqd/(2.0*self.z_m))
         return lens_phasor
 
+class _QuadPhaseShifted(QuadPhase):
+    """
+    Identical to class 'QuadPhase' except for array origin.
+    This class provides a quadratic phase factor for application to FFT shifted wavefronts,
+    with the origin in the corner.
+    For centered "physical" coordinate system optics with an origin at the wavefront center use  `QuadPhase`.
+    """
+    def __init__(self,z,**kwargs):
+        QuadPhase.__init__(self,z, **kwargs)
+
+    def getPhasor(self, wave):
+        """ Return complex phasor, for FFT shifted array"""
+        return np.fft.fftshift( super(_QuadPhaseShifted, self).getPhasor(wave))
+    
 
 class GaussianLens(QuadPhase):
     '''
@@ -620,7 +634,7 @@ class FresnelWavefront(Wavefront):
             _log.error("Waist to Spherical propagation stopped, no change in distance.")
             return
 
-        self *= QuadPhase(dz, reference_wavelength=self.wavelength)
+        self *= _QuadPhaseShifted(dz, reference_wavelength=self.wavelength)
 
         if dz > 0:
             self._fft()
@@ -669,7 +683,7 @@ class FresnelWavefront(Wavefront):
 
         #update to new pixel scale before applying curvature
         self.pixelscale = self.wavelength*np.abs(dz.value)/(self.n*self.pixelscale)
-        self *= QuadPhase(dz, reference_wavelength=self.wavelength)
+        self *= _QuadPhaseShifted(dz, reference_wavelength=self.wavelength)
         self.z = self.z + dz
         self.history.append("Propagated Spherical to Waist, dz = " + str(dz))
         self.spherical=False    # wavefront is now planar
