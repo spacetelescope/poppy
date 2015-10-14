@@ -30,16 +30,19 @@ __all__ = [ 'display_PSF', 'display_PSF_difference', 'display_EE', 'display_prof
 
 
 def imshow_with_mouseover(image, ax=None,  *args, **kwargs):
-    """ wrapper for matplotlib imshow that displays the value under the cursor position
+    """Wrapper for matplotlib imshow that displays the value under the
+    cursor position and defaults to placing the image origin
+    (pixel 0, 0) at the lower left corner of the plot
 
-    Wrapper for pyplot.imshow that sets up a custom mouseover display formatter
-    so that mouse motions over the image are labeled in the status bar with
-    pixel numerical value as well as X and Y coords.
-
-    Why this behavior isn't the matplotlib default, I have no idea...
+    Wrapper for pyplot.imshow that sets up a custom mouseover display
+    formatter so that mouse motions over the image are labeled in the
+    status bar with pixel numerical value as well as X and Y coords.
     """
     if ax is None:
         ax = plt.gca()
+    if 'origin' not in kwargs:
+        # default to placing pixel (0, 0) at lower left unless specified otherwise
+        kwargs['origin'] = 'lower'
     myax = ax.imshow(image, *args, **kwargs)
     aximage = ax.images[0].properties()['array']
     # need to account for half pixel offset of array coordinates for mouseover relative to pixel center,
