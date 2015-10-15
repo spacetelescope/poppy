@@ -1951,11 +1951,13 @@ class OpticalElement(object):
             if ax is None:
                 ax = plt.subplot(nrows, 2, row * 2 - 1)
             self.display(what='intensity', ax=ax, crosshairs=crosshairs, colorbar=colorbar,
+                         colorbar_orientation=colorbar_orientation, title=None, opd_vmax=opd_vmax,
                          nrows=nrows)
             ax2 = plt.subplot(nrows, 2, row * 2)
             self.display(what='phase', ax=ax2, crosshairs=crosshairs, colorbar=colorbar,
+                         colorbar_orientation=colorbar_orientation, title=None, opd_vmax=opd_vmax,
                          nrows=nrows)
-            return (ax, ax2)
+            return ax, ax2
         elif what == 'amplitude':
             plot_array = ampl
             title = 'Transmissivity'
