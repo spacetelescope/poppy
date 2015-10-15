@@ -440,7 +440,7 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, title=None,
         HDUlist = HDUlist_or_filename
     else: raise ValueError("input must be a filename or HDUlist")
 
-    radius, profile, EE = radial_profile(HDUlist, EE=True, **kwargs)
+    radius, profile, EE = radial_profile(HDUlist, EE=True, ext=ext, **kwargs)
 
     if title is None:
         try:
