@@ -70,7 +70,7 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
                 adjust_for_oversampling=False, normalize='None',
                 crosshairs=False, markcentroid=False, colorbar=True,
                 colorbar_orientation='vertical', pixelscale='PIXELSCL',
-                ax=None, return_ax=False, interpolation='nearest'):
+                ax=None, return_ax=False, interpolation=None):
     """Display nicely a PSF from a given HDUlist or filename
 
     This is extensively configurable. In addition to making an attractive display, for
