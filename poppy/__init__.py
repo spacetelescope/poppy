@@ -73,7 +73,7 @@ class Conf(_config.ConfigNamespace):
         'verbose printout of fluxes and flux conservation during '+
         'calculations. Useful for testing.')
     cmap_sequential = _config.ConfigItem(
-        'gist_heat',
+        'afmhot',
         'Select a default colormap to represent sequential data (e.g. intensity)'
     )
     cmap_diverging = _config.ConfigItem(
