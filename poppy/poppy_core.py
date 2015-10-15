@@ -1485,7 +1485,7 @@ class OpticalSystem(object):
 
             if display:
                 # Add final intensity panel to intermediate WF plot
-                cmap = matplotlib.cm.jet
+                cmap = getattr(matplotlib.cm, conf.cmap_sequential)
                 cmap.set_bad('0.3')
                 #cmap.set_bad('k', 0.8)
                 halffov_x =outFITS[0].header['PIXELSCL']*outFITS[0].data.shape[1]/2
