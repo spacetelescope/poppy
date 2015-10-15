@@ -3,13 +3,13 @@
 """Physical Optics Propagation in PYthon (POPPY)
 
 
-POPPY is a Python package that simulates physical optical propagation including diffraction. 
+POPPY is a Python package that simulates physical optical propagation including diffraction.
 It implements a flexible framework for modeling Fraunhofer (far-field) diffraction
 and point spread function formation, particularly in the context of astronomical telescopes.
-POPPY was developed as part of a simulation package for JWST, but is more broadly applicable to many kinds of 
-imaging simulations. 
+POPPY was developed as part of a simulation package for JWST, but is more broadly applicable to many kinds of
+imaging simulations.
 
-Developed by Marshall Perrin at STScI, 2010-2014, for use simulating the James Webb Space Telescope. 
+Developed by Marshall Perrin at STScI, 2010-2014, for use simulating the James Webb Space Telescope.
 
 Documentation can be found online at https://pythonhosted.org/poppy/
 
@@ -19,7 +19,7 @@ This is an Astropy affiliated package.
 # Affiliated packages may add whatever they like to this file, but
 # should keep this content at the top.
 # ----------------------------------------------------------------------------
-# make use of astropy affiliate framework to set __version__, __githash__, and 
+# make use of astropy affiliate framework to set __version__, __githash__, and
 # add the test() helper function
 from ._astropy_init import *
 # ----------------------------------------------------------------------------
@@ -31,11 +31,11 @@ if _astropy.version.major + _astropy.version.minor*0.1 < 0.4: # pragma: no cover
 
 from astropy import config as _config
 class Conf(_config.ConfigNamespace):
-    """ 
+    """
     Configuration parameters for `poppy`.
     """
 
-    use_multiprocessing = _config.ConfigItem(False, 
+    use_multiprocessing = _config.ConfigItem(False,
             'Should PSF calculations run in parallel using multiple processors'
             'using the Python multiprocessing framework (if True; faster but '
             'does not allow display of each wavelength) or run serially in a '
@@ -72,6 +72,18 @@ class Conf(_config.ConfigNamespace):
     enable_flux_tests =  _config.ConfigItem(False, 'Enable additional '+
         'verbose printout of fluxes and flux conservation during '+
         'calculations. Useful for testing.')
+    cmap_sequential = _config.ConfigItem(
+        'gist_heat',
+        'Select a default colormap to represent sequential data (e.g. intensity)'
+    )
+    cmap_diverging = _config.ConfigItem(
+        'RdBu_r',
+        'Select a default colormap to represent diverging data (e.g. OPD)'
+    )
+    cmap_mask = _config.ConfigItem(
+        'gray',
+        'Select a default colormap to represent 0 or 1 mask data (e.g. aperture masks)'
+    )
 
 conf = Conf()
 
@@ -80,7 +92,7 @@ from . import utils
 from . import optics
 
 from .poppy_core import *
-from .utils import * 
+from .utils import *
 from .optics import *
 from .wfe import *
 
