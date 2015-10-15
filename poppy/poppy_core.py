@@ -433,24 +433,32 @@ class Wavefront(object):
         if what == 'intensity':
             if self.planetype == _PUPIL:
                 norm = matplotlib.colors.Normalize(vmin=0)
-                cmap = matplotlib.cm.gray
+                cmap = getattr(matplotlib.cm, conf.cmap_mask)
                 cmap.set_bad('0.0')
             else:
                 norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
-                cmap = matplotlib.cm.jet
+                cmap = getattr(matplotlib.cm, conf.cmap_sequential)
                 cmap.set_bad(cmap(0))
 
             if ax is None:
                 ax = plt.subplot(nr, nc, int(row))
 
-            utils.imshow_with_mouseover(intens, ax=ax, extent=extent, norm=norm, cmap=cmap)
+            utils.imshow_with_mouseover(
+                intens,
+                ax=ax,
+                extent=extent,
+                norm=norm,
+                cmap=cmap,
+                origin='lower'
+            )
             if title is None:
                 title = "Intensity " + self.location
                 title = title.replace('after', 'after\n')
                 title = title.replace('before', 'before\n')
             plt.title(title)
             plt.xlabel(unit)
-            if colorbar: plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
+            if colorbar:
+                plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
 
             if self.planetype == _IMAGE:
                 if crosshairs:
@@ -463,13 +471,19 @@ class Wavefront(object):
             to_return = ax
         elif what == 'phase':
             # Display phase in waves.
-            cmap = matplotlib.cm.jet
+            cmap = getattr(matplotlib.cm, conf.cmap_diverging)
             cmap.set_bad('0.3')
             norm = matplotlib.colors.Normalize(vmin=-0.25, vmax=0.25)
             if ax is None:
                 ax = plt.subplot(nr, nc, int(row))
-            utils.imshow_with_mouseover(phase / (np.pi * 2), ax=ax, extent=extent, norm=norm,
-                                        cmap=cmap)
+            utils.imshow_with_mouseover(
+                phase / (np.pi * 2),
+                ax=ax,
+                extent=extent,
+                norm=norm,
+                cmap=cmap,
+                origin='lower'
+            )
             if title is None:
                 title = "Phase " + self.location
             plt.title(title)
@@ -481,9 +495,9 @@ class Wavefront(object):
         else:
             if ax is None:
                 ax = plt.subplot(nr, nc, int(row))
-            cmap = matplotlib.cm.gray
+            cmap = getattr(matplotlib.cm, conf.cmap_sequential)
             ax1 = plt.subplot(nrows, 2, (row * 2) - 1)
-            plt.imshow(amp, extent=extent, cmap=cmap)
+            plt.imshow(amp, extent=extent, cmap=cmap, origin='lower')
             plt.title("Wavefront amplitude")
             plt.ylabel(unit)
             plt.xlabel(unit)
@@ -491,7 +505,8 @@ class Wavefront(object):
             if colorbar: plt.colorbar(orientation='vertical', shrink=0.8)
 
             ax2 = plt.subplot(nrows, 2, row * 2)
-            plt.imshow(phase, extent=extent, cmap=cmap)
+            cmap_phase = getattr(matplotlib.cm, conf.cmap_diverging)
+            plt.imshow(phase, extent=extent, cmap=cmap_phase, origin='lower')
             if colorbar: plt.colorbar(orientation='vertical', shrink=0.8)
 
             plt.xlabel(unit)
@@ -1480,7 +1495,8 @@ class OpticalSystem(object):
                 norm=matplotlib.colors.LogNorm(vmin=1e-8,vmax=1e-1)
                 plt.xlabel(unit)
 
-                utils.imshow_with_mouseover(outFITS[0].data, extent=extent, norm=norm, cmap=cmap)
+                utils.imshow_with_mouseover(outFITS[0].data, extent=extent, norm=norm, cmap=cmap,
+                                            origin='lower')
 
         if save_intermediates:
             _log.info('Saving intermediate wavefronts:')
@@ -1904,9 +1920,12 @@ class OpticalElement(object):
         if colorbar_orientation is None:
             colorbar_orientation = "horizontal" if nrows == 1 else 'vertical'
 
-        cmap_amp = matplotlib.cm.gray
+        if self.planetype is _PUPIL:
+            cmap_amp = getattr(matplotlib.cm, conf.cmap_mask)
+        else:
+            cmap_amp = getattr(matplotlib.cm, conf.cmap_sequential)
         cmap_amp.set_bad('0.0')
-        cmap_opd = matplotlib.cm.jet
+        cmap_opd = getattr(matplotlib.cm, conf.cmap_diverging)
         cmap_opd.set_bad('0.3')
         norm_amp = matplotlib.colors.Normalize(vmin=0, vmax=1)
         norm_opd = matplotlib.colors.Normalize(vmin=-opd_vmax, vmax=opd_vmax)
@@ -1965,7 +1984,8 @@ class OpticalElement(object):
                 ax = plt.subplot(nrows, 2, row * 2 - 1)
             else:
                 ax = plt.subplot(111)
-        utils.imshow_with_mouseover(plot_array, ax=ax, extent=extent, cmap=cmap, norm=norm)
+        utils.imshow_with_mouseover(plot_array, ax=ax, extent=extent, cmap=cmap, norm=norm,
+                                    origin='lower')
         if nrows == 1:
             plt.title(title + " for " + self.name)
         plt.ylabel(units)
