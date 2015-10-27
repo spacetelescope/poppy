@@ -613,7 +613,7 @@ class AnnularFieldStop(AnalyticOpticalElement):
         self.name = name
         self.radius_inner = radius_inner  # radius of circular occulter in arcseconds.
         self.radius_outer = radius_outer  # radius of circular field stop in arcseconds.
-        self._default_display_size = 10 #radius_outer 
+        self._default_display_size = 10 #radius_outer
 
     def getPhasor(self, wave):
         """ Compute the transmission inside/outside of the field stop.
@@ -823,7 +823,7 @@ class CircularAperture(AnalyticOpticalElement):
     def __init__(self, name=None, radius=1.0, pad_factor=1.0, **kwargs):
         try:
             self.radius = float(radius)
-        except ValueError:
+        except (ValueError, TypeError):
             raise TypeError("Argument 'radius' must be the radius of the pupil in meters")
 
         if name is None:

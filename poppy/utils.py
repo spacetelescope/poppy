@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
 import matplotlib
 import logging
+import poppy
 _log = logging.getLogger('poppy')
 import astropy.io.fits as fits
 
@@ -30,13 +31,12 @@ __all__ = [ 'display_PSF', 'display_PSF_difference', 'display_EE', 'display_prof
 
 
 def imshow_with_mouseover(image, ax=None,  *args, **kwargs):
-    """ wrapper for matplotlib imshow that displays the value under the cursor position
+    """Wrapper for matplotlib imshow that displays the value under the
+    cursor position
 
-    Wrapper for pyplot.imshow that sets up a custom mouseover display formatter
-    so that mouse motions over the image are labeled in the status bar with
-    pixel numerical value as well as X and Y coords.
-
-    Why this behavior isn't the matplotlib default, I have no idea...
+    Wrapper for pyplot.imshow that sets up a custom mouseover display
+    formatter so that mouse motions over the image are labeled in the
+    status bar with pixel numerical value as well as X and Y coords.
     """
     if ax is None:
         ax = plt.gca()
@@ -70,7 +70,7 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
                 adjust_for_oversampling=False, normalize='None',
                 crosshairs=False, markcentroid=False, colorbar=True,
                 colorbar_orientation='vertical', pixelscale='PIXELSCL',
-                ax=None, return_ax=False):
+                ax=None, return_ax=False, interpolation=None):
     """Display nicely a PSF from a given HDUlist or filename
 
     This is extensively configurable. In addition to making an attractive display, for
@@ -89,25 +89,24 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
         'linear' or 'log', default is log
     cmap : matplotlib.cm.Colormap instance or None
         Colormap to use. If not given, taken from user's
-        `matplotlib.rcParams['image.cmap']` (or matplotlib's default).
-    ax : matplotlib.Axes instance
-        Axes to display into.
-    return_ax : bool
-        Return the axes to the caller for later use? (Default: False)
-        When True, this function returns a matplotlib.Axes instance, or a
-        tuple of (ax, cb) where the second is the colorbar Axes.
+        `poppy.conf.cmap_sequential` (Default: 'gist_heat').
     title : string, optional
+        Set the plot title explicitly.
     imagecrop : float
         size of region to display (default is whole image)
-    normalize : string
-        set to 'peak' to normalize peak intensity =1, or to 'total' to normalize total flux=1. Default is no normalization.
     adjust_for_oversampling : bool
         rescale to conserve surface brightness for oversampled PSFs?
-        (making this True conserves surface brightness but not total flux)
-        default is False, to conserve total flux.
+        (Making this True conserves surface brightness but not
+        total flux.) Default is False, to conserve total flux.
+    normalize : string
+        set to 'peak' to normalize peak intensity =1, or to 'total' to
+        normalize total flux=1. Default is no normalization.
+    crosshairs : bool
+        Draw a crosshairs at the image center (0, 0)? Default: False.
     markcentroid : bool
         Draw a crosshairs at the image centroid location?
-        Centroiding is computed with the JWST-standard moving box algorithm.
+        Centroiding is computed with the JWST-standard moving box
+        algorithm. Default: False.
     colorbar : bool
         Draw a colorbar on the image?
     colorbar_orientation : 'vertical' (default) or 'horizontal'
@@ -117,6 +116,16 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
     pixelscale : str or float
         if str, interpreted as the FITS keyword name for the pixel scale in arcsec/pixels.
         if float, used as the pixelscale directly.
+    ax : matplotlib.Axes instance
+        Axes to display into.
+    return_ax : bool
+        Return the axes to the caller for later use? (Default: False)
+        When True, this function returns a matplotlib.Axes instance, or a
+        tuple of (ax, cb) where the second is the colorbar Axes.
+    interpolation : string
+        Interpolation technique for PSF image. Default is None,
+        meaning it is taken from matplotlib's `image.interpolation`
+        rcParam.
     """
     if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename)
@@ -161,8 +170,18 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
     unit = "arcsec"
     extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
 
+    if cmap is None:
+        cmap = getattr(matplotlib.cm, poppy.conf.cmap_sequential)
     # update and get (or create) image axes
-    ax = imshow_with_mouseover(im, extent=extent, cmap=cmap, norm=norm, ax=ax)
+    ax = imshow_with_mouseover(
+        im,
+        extent=extent,
+        cmap=cmap,
+        norm=norm,
+        ax=ax,
+        interpolation=interpolation,
+        origin='lower'
+    )
     if imagecrop is not None:
         halffov_x = min((imagecrop / 2.0, halffov_x))
         halffov_y = min((imagecrop / 2.0, halffov_y))
@@ -323,7 +342,8 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
     extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
 
 
-    ax = imshow_with_mouseover( diff_im   ,extent=extent,cmap=cmap, norm=norm, ax=ax)
+    ax = imshow_with_mouseover(diff_im, extent=extent,cmap=cmap, norm=norm, ax=ax,
+                               origin='lower')
     if imagecrop is not None:
         halffov_x = min( (imagecrop/2, halffov_x))
         halffov_y = min( (imagecrop/2, halffov_y))
@@ -412,7 +432,7 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, title=None,
         whether to overplot or clear and produce an new plot. Default false
     title : string, optional
         Title for plot
- 
+
     """
     if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename,ext=ext)
@@ -420,7 +440,7 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, title=None,
         HDUlist = HDUlist_or_filename
     else: raise ValueError("input must be a filename or HDUlist")
 
-    radius, profile, EE = radial_profile(HDUlist, EE=True, **kwargs)
+    radius, profile, EE = radial_profile(HDUlist, EE=True, ext=ext, **kwargs)
 
     if title is None:
         try:
