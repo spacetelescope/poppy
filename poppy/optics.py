@@ -140,7 +140,7 @@ class AnalyticOpticalElement(OpticalElement):
             return output_array
 
 
-    def display(self, nrows=1, row=1, wavelength=2e-6, npix=512, **kwargs):
+    def display(self, nrows=1, row=1, wavelength=2e-6, npix=512, grid_size=None, **kwargs):
         """Display an Analytic optic by first computing it onto a grid...
 
         Parameters
@@ -149,7 +149,9 @@ class AnalyticOpticalElement(OpticalElement):
             Wavelength to evaluate this optic's properties at
         npix : int
             Number of pixels to use when sampling the analytic optical element.
-
+        grid_size : float
+            Diameter of the grid on which to sample this optic in
+            meters (for pupil planes) or arcseconds (for image planes)
         what : str
             What to display: 'intensity', 'phase', or 'both'
         ax : matplotlib.Axes instance
@@ -167,13 +169,11 @@ class AnalyticOpticalElement(OpticalElement):
             Max value for OPD image display, in meters.
         title : string
             Plot label
-
-
         """
 
         _log.debug("Displaying " + self.name)
         phasor, pixelscale = self.sample(wavelength=wavelength, npix=npix, what='complex',
-                                         return_scale=True)
+                                         grid_size=grid_size, return_scale=True)
 
         # temporarily set attributes appropriately as if this were a regular OpticalElement
         self.amplitude = np.abs(phasor)
@@ -613,7 +613,7 @@ class AnnularFieldStop(AnalyticOpticalElement):
         self.name = name
         self.radius_inner = radius_inner  # radius of circular occulter in arcseconds.
         self.radius_outer = radius_outer  # radius of circular field stop in arcseconds.
-        self._default_display_size = 10 #radius_outer 
+        self._default_display_size = 10 #radius_outer
 
     def getPhasor(self, wave):
         """ Compute the transmission inside/outside of the field stop.
@@ -823,7 +823,7 @@ class CircularAperture(AnalyticOpticalElement):
     def __init__(self, name=None, radius=1.0, pad_factor=1.0, **kwargs):
         try:
             self.radius = float(radius)
-        except ValueError:
+        except (ValueError, TypeError):
             raise TypeError("Argument 'radius' must be the radius of the pupil in meters")
 
         if name is None:

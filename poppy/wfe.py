@@ -75,14 +75,21 @@ class ParameterizedWFE(WavefrontError):
         circumscribing the actual pupil shape.
     basis_factory : callable
         basis_factory will be called with the arguments `nterms`, `rho`,
-        and `theta`. `nterms` specifies how many terms to compute,
-        starting with the j=1 term in the Noll indexing convention for
-        `nterms` = 1 and counting up. `rho` and `theta` are square
-        arrays holding the rho and theta coordinates at each pixel in
-        the pupil plane.
+        `theta`, and `outside`.
 
-        `rho` is normalized such that `rho` == 1.0 for pixels at
-        `radius` meters from the center.
+        `nterms` specifies how many terms to compute, starting with the
+        j=1 term in the Noll indexing convention for `nterms` = 1 and
+        counting up.
+
+        `rho` and `theta` are square arrays holding the rho and theta
+        coordinates at each pixel in the pupil plane. `rho` is
+        normalized such that `rho` == 1.0 for pixels at `radius` meters
+        from the center.
+
+        `outside` contains the value to assign pixels outside the
+        radius `rho` == 1.0. (Always 0.0, but provided for
+        compatibility with `zernike.zernike_basis` and
+        `zernike.hexike_basis`.)
     """
     def __init__(self, name="Parameterized Distortion", coefficients=None, radius=None,
                  basis_factory=None, **kwargs):
@@ -103,7 +110,7 @@ class ParameterizedWFE(WavefrontError):
         combined_distortion = np.zeros(rho.shape)
 
         nterms = len(self.coefficients)
-        computed_terms = self.basis_factory(nterms=nterms, rho=rho, theta=theta)
+        computed_terms = self.basis_factory(nterms=nterms, rho=rho, theta=theta, outside=0.0)
 
         for idx, coefficient in enumerate(self.coefficients):
             if coefficient == 0.0:
@@ -141,7 +148,21 @@ class ZernikeWFE(WavefrontError):
         kwargs.update({'name': name})
         super(ZernikeWFE, self).__init__(**kwargs)
 
-    def getPhasor(self, wave):
+    def get_opd(self, wave, units='meters'):
+        """
+        Parameters
+        ----------
+
+        wave : poppy.Wavefront (or float)
+            Incoming Wavefront before this optic to set wavelength and
+            scale, or a float giving the wavelength in meters
+            for a temporary Wavefront used to compute the OPD.
+        units : 'meters' or 'waves'
+            Coefficients are supplied in `ZernikeWFE.coefficients` as
+            meters of OPD, but the resulting OPD can be converted to
+            waves based on the `Wavefront` wavelength or a supplied
+            wavelength value.
+        """
         # getPhasor specified to accept wave as float wavelength or
         # Wavefront instance:
         if not isinstance(wave, Wavefront):
@@ -160,12 +181,17 @@ class ZernikeWFE(WavefrontError):
                 wave.shape,
                 wave.pixelscale,
                 self.radius,
-                mask_outside=False,
-                outside=0.0
+                outside=0.0,
+                noll_normalize=True
             )
 
         combined_zernikes *= aperture_intensity
+        if units == 'waves':
+            combined_zernikes /= wave.wavelength
+        return combined_zernikes
 
+    def getPhasor(self, wave):
+        combined_zernikes = self.get_opd(wave, units='meters')
         opd_as_phase = 2 * np.pi * combined_zernikes / wave.wavelength
         zernike_wfe_phasor = np.exp(1.j * opd_as_phase)
         return zernike_wfe_phasor
