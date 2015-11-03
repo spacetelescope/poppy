@@ -787,33 +787,27 @@ class Wavefront(object):
             tilt angles, specified in arcseconds
 
         """
-        if self.planetype==_IMAGE:
+        if self.planetype == _IMAGE:
             raise NotImplementedError("Are you sure you want to tilt a wavefront in an _IMAGE plane?")
 
-        if np.abs(Xangle) > 0 or np.abs(Yangle)>0:
-            xangle_rad = Xangle * (np.pi/180/60/60)
-            yangle_rad = Yangle * (np.pi/180/60/60)
+        if np.abs(Xangle) > 0 or np.abs(Yangle) > 0:
+            xangle_rad = Xangle * (np.pi / 180 / 60 / 60)
+            yangle_rad = Yangle * (np.pi / 180 / 60 / 60)
 
             npix = self.wavefront.shape[0]
             V, U = np.indices(self.wavefront.shape, dtype=float)
-            V -= (npix-1)/2.0
+            V -= (npix - 1) / 2.0
             V *= self.pixelscale
-            U -= (npix-1)/2.0
+            U -= (npix - 1) / 2.0
             U *= self.pixelscale
 
-            tiltphasor = np.exp( 2j*np.pi * (U * xangle_rad + V * yangle_rad)/self.wavelength)
+            tiltphasor = np.exp(2.0j * np.pi * (U * xangle_rad + V * yangle_rad) / self.wavelength)
+            self.wavefront *= tiltphasor
+            self.history.append("Tilted wavefront by "
+                                "X={:2.2}, Y={:2.2} arcsec".format(Xangle, Yangle))
 
         else:
             _log.warn("Wavefront.tilt() called, but requested tilt was zero. No change.")
-            tiltphasor = 1.
-
-        #Compute the tilt of the wavefront required to shift it by some amount in the image plane.
-
-
-
-
-        self.wavefront *= tiltphasor
-        self.history.append("Tilted wavefront")
 
     def rotate(self, angle=0.0):
         """Rotate a wavefront by some amount
