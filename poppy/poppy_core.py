@@ -433,7 +433,7 @@ class Wavefront(object):
         if what == 'intensity':
             if self.planetype == _PUPIL:
                 norm = matplotlib.colors.Normalize(vmin=0)
-                cmap = getattr(matplotlib.cm, conf.cmap_mask)
+                cmap = getattr(matplotlib.cm, conf.cmap_pupil_intensity)
                 cmap.set_bad('0.0')
             else:
                 norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
@@ -1921,7 +1921,7 @@ class OpticalElement(object):
             colorbar_orientation = "horizontal" if nrows == 1 else 'vertical'
 
         if self.planetype is _PUPIL:
-            cmap_amp = getattr(matplotlib.cm, conf.cmap_mask)
+            cmap_amp = getattr(matplotlib.cm, conf.cmap_pupil_intensity)
         else:
             cmap_amp = getattr(matplotlib.cm, conf.cmap_sequential)
         cmap_amp.set_bad('0.0')

@@ -80,9 +80,9 @@ class Conf(_config.ConfigNamespace):
         'RdBu_r',
         'Select a default colormap to represent diverging data (e.g. OPD)'
     )
-    cmap_mask = _config.ConfigItem(
+    cmap_pupil_intensity = _config.ConfigItem(
         'gray',
-        'Select a default colormap to represent 0 or 1 mask data (e.g. aperture masks)'
+        'Select a default colormap to represent intensity at pupils or aperture masks'
     )
 
 conf = Conf()
