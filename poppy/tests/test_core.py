@@ -339,16 +339,32 @@ def test_optic_resizing():
     creating an optic with a large pixel scale, and checking the returned
     phasor of each has the dimensions of the input wavefront.
     '''
-    osys = poppy_core.OpticalSystem("test", oversample=1)
+
+    # diameter 1 meter, pixel scale 2 mm
+    inputwf = poppy_core.Wavefront(diam=1.0, npix=500)
+
+    # Test rescaling from finer scales: diameter 1 meter, pixel scale 1 mm 
     test_optic_small=fits.HDUList([fits.PrimaryHDU(np.zeros([1000,1000]))])
-    test_optic_small[0].header["PIXSCALE"]=.001
-
+    test_optic_small[0].header["PUPLSCAL"]=.001
     test_optic_small_element=poppy_core.FITSOpticalElement(transmission=test_optic_small)
+    assert(test_optic_small_element.getPhasor(inputwf).shape ==inputwf.shape )
 
-    test_optic_large=fits.HDUList([fits.PrimaryHDU(np.zeros([1000,1000]))])
-    test_optic_large[0].header["PIXSCALE"]=.1
+    # Test rescaling from coarser scales: diameter 1 meter, pixel scale 10 mm
+    test_optic_large=fits.HDUList([fits.PrimaryHDU(np.zeros([100,100]))])
+    test_optic_large[0].header["PUPLSCAL"]=.01
     test_optic_large_element=poppy_core.FITSOpticalElement(transmission=test_optic_large)
+    assert(test_optic_large_element.getPhasor(inputwf).shape ==inputwf.shape )
 
-    osys.addPupil(optics.CircularAperture(radius=3.25))
-    assert(test_optic_small_element.getPhasor(osys.inputWavefront()).shape ==osys.inputWavefront().shape )
-    assert(test_optic_large_element.getPhasor(osys.inputWavefront()).shape ==osys.inputWavefront().shape )
+    # Test rescaling where we have to pad with extra zeros: 
+    # diameter 0.8 mm, pixel scale 1 mm
+    test_optic_pad=fits.HDUList([fits.PrimaryHDU(np.zeros([800,800]))])
+    test_optic_pad[0].header["PUPLSCAL"]=.001
+    test_optic_pad_element=poppy_core.FITSOpticalElement(transmission=test_optic_pad)
+    assert(test_optic_pad_element.getPhasor(inputwf).shape ==inputwf.shape )
+
+    # Test rescaling where we have to trim to a smaller size:
+    # diameter 1.2 mm, pixel scale 1 mm
+    test_optic_crop=fits.HDUList([fits.PrimaryHDU(np.zeros([1200,1200]))])
+    test_optic_crop[0].header["PUPLSCAL"]=.001
+    test_optic_crop_element=poppy_core.FITSOpticalElement(transmission=test_optic_crop)
+    assert(test_optic_crop_element.getPhasor(inputwf).shape ==inputwf.shape )

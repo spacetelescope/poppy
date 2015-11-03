@@ -1849,6 +1849,7 @@ class OpticalElement(object):
                 resampled_opd = scipy.ndimage.interpolation.zoom(self.opd,zoom,output=self.opd.dtype,order=self.interp_order)
                 resampled_amplitude = scipy.ndimage.interpolation.zoom(self.amplitude,zoom,output=self.amplitude.dtype,order=self.interp_order)
                 _log.debug("resampled optic to match wavefront via spline interpolation by a zoom factor of %.3g"%(zoom))
+                _log.debug("resampled optic shape: {}   wavefront shape: {}".format(resampled_amplitude.shape, wave.shape))
 
                 lx,ly=resampled_amplitude.shape
                 #crop down to match size of wavefront:
