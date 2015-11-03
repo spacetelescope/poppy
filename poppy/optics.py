@@ -140,7 +140,7 @@ class AnalyticOpticalElement(OpticalElement):
             return output_array
 
 
-    def display(self, nrows=1, row=1, wavelength=2e-6, npix=512, **kwargs):
+    def display(self, nrows=1, row=1, wavelength=2e-6, npix=512, grid_size=None, **kwargs):
         """Display an Analytic optic by first computing it onto a grid...
 
         Parameters
@@ -149,7 +149,9 @@ class AnalyticOpticalElement(OpticalElement):
             Wavelength to evaluate this optic's properties at
         npix : int
             Number of pixels to use when sampling the analytic optical element.
-
+        grid_size : float
+            Diameter of the grid on which to sample this optic in
+            meters (for pupil planes) or arcseconds (for image planes)
         what : str
             What to display: 'intensity', 'phase', or 'both'
         ax : matplotlib.Axes instance
@@ -167,13 +169,11 @@ class AnalyticOpticalElement(OpticalElement):
             Max value for OPD image display, in meters.
         title : string
             Plot label
-
-
         """
 
         _log.debug("Displaying " + self.name)
         phasor, pixelscale = self.sample(wavelength=wavelength, npix=npix, what='complex',
-                                         return_scale=True)
+                                         grid_size=grid_size, return_scale=True)
 
         # temporarily set attributes appropriately as if this were a regular OpticalElement
         self.amplitude = np.abs(phasor)
@@ -613,7 +613,7 @@ class AnnularFieldStop(AnalyticOpticalElement):
         self.name = name
         self.radius_inner = radius_inner  # radius of circular occulter in arcseconds.
         self.radius_outer = radius_outer  # radius of circular field stop in arcseconds.
-        self._default_display_size = 10 #radius_outer 
+        self._default_display_size = 10 #radius_outer
 
     def getPhasor(self, wave):
         """ Compute the transmission inside/outside of the field stop.
@@ -823,7 +823,7 @@ class CircularAperture(AnalyticOpticalElement):
     def __init__(self, name=None, radius=1.0, pad_factor=1.0, **kwargs):
         try:
             self.radius = float(radius)
-        except ValueError:
+        except (ValueError, TypeError):
             raise TypeError("Argument 'radius' must be the radius of the pupil in meters")
 
         if name is None:
@@ -857,7 +857,7 @@ class HexagonAperture(AnalyticOpticalElement):
     """ Defines an ideal hexagonal pupil aperture
 
     Specify either the side length (= corner radius) or the
-    flat-to-flat distance.
+    flat-to-flat distance, or the point-to-point diameter.
 
     Parameters
     ----------
@@ -867,20 +867,36 @@ class HexagonAperture(AnalyticOpticalElement):
         side length (and/or radius) of hexagon, in meters. Overrides flattoflat if both are present.
     flattoflat : float, optional
         Distance between sides (flat-to-flat) of the hexagon, in meters. Default is 1.0
+    diameter : float, optional
+        point-to-point diameter of hexagon. Twice the side length. Overrides flattoflat, but is overridden by side. 
+
     """
 
-    def __init__(self, name=None, flattoflat=None, side=None, **kwargs):
-        if flattoflat is None and side is None:
+    def __init__(self, name=None, side=None, diameter=None, flattoflat=None, **kwargs):
+        if flattoflat is None and side is None and diameter is None:
             self.side = 1.0
         elif side is not None:
             self.side = float(side)
+        elif diameter is not None:
+            self.side = float(diameter/2)
         else:
             self.side = float(flattoflat) / np.sqrt(3.)
+
+
         self.pupil_diam = 2 * self.side  # for creating input wavefronts
         if name is None:
             name = "Hexagon, side length= %.1f m" % self.side
 
         AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
+
+
+    @property
+    def diameter(self):
+        return self.side*2
+
+    @property
+    def flat_to_flat(self):
+        return self.side*np.sqrt(3.)
 
 
     def getPhasor(self, wave):

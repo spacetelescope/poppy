@@ -5,15 +5,26 @@
 #
 
 from __future__ import (absolute_import, division, print_function, unicode_literals)
+import os.path
+import json
 import six
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
 import matplotlib
 import logging
+import poppy
 _log = logging.getLogger('poppy')
+
+from astropy import config
 import astropy.io.fits as fits
 
+try:
+    import pyfftw
+except ImportError:
+    pyfftw = None
+
+_loaded_fftw_wisdom = False
 
 _Strehl_perfect_cache = {} # dict for caching perfect images used in Strehl calcs.
 
@@ -30,13 +41,12 @@ __all__ = [ 'display_PSF', 'display_PSF_difference', 'display_EE', 'display_prof
 
 
 def imshow_with_mouseover(image, ax=None,  *args, **kwargs):
-    """ wrapper for matplotlib imshow that displays the value under the cursor position
+    """Wrapper for matplotlib imshow that displays the value under the
+    cursor position
 
-    Wrapper for pyplot.imshow that sets up a custom mouseover display formatter
-    so that mouse motions over the image are labeled in the status bar with
-    pixel numerical value as well as X and Y coords.
-
-    Why this behavior isn't the matplotlib default, I have no idea...
+    Wrapper for pyplot.imshow that sets up a custom mouseover display
+    formatter so that mouse motions over the image are labeled in the
+    status bar with pixel numerical value as well as X and Y coords.
     """
     if ax is None:
         ax = plt.gca()
@@ -70,7 +80,7 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
                 adjust_for_oversampling=False, normalize='None',
                 crosshairs=False, markcentroid=False, colorbar=True,
                 colorbar_orientation='vertical', pixelscale='PIXELSCL',
-                ax=None, return_ax=False):
+                ax=None, return_ax=False, interpolation=None):
     """Display nicely a PSF from a given HDUlist or filename
 
     This is extensively configurable. In addition to making an attractive display, for
@@ -89,25 +99,24 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
         'linear' or 'log', default is log
     cmap : matplotlib.cm.Colormap instance or None
         Colormap to use. If not given, taken from user's
-        `matplotlib.rcParams['image.cmap']` (or matplotlib's default).
-    ax : matplotlib.Axes instance
-        Axes to display into.
-    return_ax : bool
-        Return the axes to the caller for later use? (Default: False)
-        When True, this function returns a matplotlib.Axes instance, or a
-        tuple of (ax, cb) where the second is the colorbar Axes.
+        `poppy.conf.cmap_sequential` (Default: 'gist_heat').
     title : string, optional
+        Set the plot title explicitly.
     imagecrop : float
         size of region to display (default is whole image)
-    normalize : string
-        set to 'peak' to normalize peak intensity =1, or to 'total' to normalize total flux=1. Default is no normalization.
     adjust_for_oversampling : bool
         rescale to conserve surface brightness for oversampled PSFs?
-        (making this True conserves surface brightness but not total flux)
-        default is False, to conserve total flux.
+        (Making this True conserves surface brightness but not
+        total flux.) Default is False, to conserve total flux.
+    normalize : string
+        set to 'peak' to normalize peak intensity =1, or to 'total' to
+        normalize total flux=1. Default is no normalization.
+    crosshairs : bool
+        Draw a crosshairs at the image center (0, 0)? Default: False.
     markcentroid : bool
         Draw a crosshairs at the image centroid location?
-        Centroiding is computed with the JWST-standard moving box algorithm.
+        Centroiding is computed with the JWST-standard moving box
+        algorithm. Default: False.
     colorbar : bool
         Draw a colorbar on the image?
     colorbar_orientation : 'vertical' (default) or 'horizontal'
@@ -117,6 +126,16 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
     pixelscale : str or float
         if str, interpreted as the FITS keyword name for the pixel scale in arcsec/pixels.
         if float, used as the pixelscale directly.
+    ax : matplotlib.Axes instance
+        Axes to display into.
+    return_ax : bool
+        Return the axes to the caller for later use? (Default: False)
+        When True, this function returns a matplotlib.Axes instance, or a
+        tuple of (ax, cb) where the second is the colorbar Axes.
+    interpolation : string
+        Interpolation technique for PSF image. Default is None,
+        meaning it is taken from matplotlib's `image.interpolation`
+        rcParam.
     """
     if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename)
@@ -161,8 +180,18 @@ def display_PSF(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
     unit = "arcsec"
     extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
 
+    if cmap is None:
+        cmap = getattr(matplotlib.cm, poppy.conf.cmap_sequential)
     # update and get (or create) image axes
-    ax = imshow_with_mouseover(im, extent=extent, cmap=cmap, norm=norm, ax=ax)
+    ax = imshow_with_mouseover(
+        im,
+        extent=extent,
+        cmap=cmap,
+        norm=norm,
+        ax=ax,
+        interpolation=interpolation,
+        origin='lower'
+    )
     if imagecrop is not None:
         halffov_x = min((imagecrop / 2.0, halffov_x))
         halffov_y = min((imagecrop / 2.0, halffov_y))
@@ -323,7 +352,8 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
     extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
 
 
-    ax = imshow_with_mouseover( diff_im   ,extent=extent,cmap=cmap, norm=norm, ax=ax)
+    ax = imshow_with_mouseover(diff_im, extent=extent,cmap=cmap, norm=norm, ax=ax,
+                               origin='lower')
     if imagecrop is not None:
         halffov_x = min( (imagecrop/2, halffov_x))
         halffov_y = min( (imagecrop/2, halffov_y))
@@ -412,7 +442,7 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, title=None,
         whether to overplot or clear and produce an new plot. Default false
     title : string, optional
         Title for plot
- 
+
     """
     if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename,ext=ext)
@@ -420,7 +450,7 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False, title=None,
         HDUlist = HDUlist_or_filename
     else: raise ValueError("input must be a filename or HDUlist")
 
-    radius, profile, EE = radial_profile(HDUlist, EE=True, **kwargs)
+    radius, profile, EE = radial_profile(HDUlist, EE=True, ext=ext, **kwargs)
 
     if title is None:
         try:
@@ -1298,33 +1328,25 @@ def fftw_save_wisdom(filename=None):
     Parameters
     ------------
     filename : string, optional
-        Filename to use (instead of the default, poppy_fftw_wisdom.txt)
+        Filename to use (instead of the default, poppy_fftw_wisdom.json)
     """
-    import os
-    import astropy.config
-    try:
-        import pyfftw
-    except ImportError:
-        return # FFTW is not present, therefore this is a null op
-
     if filename is None:
-        filename=os.path.join( astropy.config.get_config_dir(), "poppy_fftw_wisdom.txt")
+        filename = os.path.join(config.get_config_dir(), "poppy_fftw_wisdom.json")
 
-
+    # PyFFTW exports as bytestrings, but `json` uses only real strings in Python 3.x+
     double, single, longdouble = pyfftw.export_wisdom()
-    f = open(filename, 'w')
-    f.write("# FFTW wisdom information saved by POPPY\n")
-    f.write("#   Do not edit this file by hand; that will likely break it.\n")
-    f.write("# See http://hgomersall.github.io/pyFFTW/pyfftw/pyfftw.html?#wisdom-functions for more information\n")
-    f.write('# the following three lines are the double, single, and longdouble wisdoms\n')
-    f.write(double.replace('\n','\\n')+'\n')
-    f.write(single.replace('\n','\\n')+'\n')
-    f.write(longdouble.replace('\n','\\n')+'\n')
+    wisdom = {
+        'double': double.decode('ascii'),
+        'single': single.decode('ascii'),
+        'longdouble': longdouble.decode('ascii'),
+    }
+    with open(filename, 'w') as wisdom_file:
+        json.dump(wisdom, wisdom_file)
     _log.debug("FFTW wisdom saved to "+filename)
 
 
 def fftw_load_wisdom(filename=None):
-    """ Read accumulated FFTW wisdom previously saved in previously saved in a file
+    """Read accumulated FFTW wisdom previously saved in previously saved in a file
 
     By default this file will be in the user's astropy configuration directory.
     (Another location could be chosen - this is simple and works easily cross-platform.)
@@ -1332,38 +1354,31 @@ def fftw_load_wisdom(filename=None):
     Parameters
     ------------
     filename : string, optional
-        Filename to use (instead of the default, poppy_fftw_wisdom.txt)
+        Filename to use (instead of the default, poppy_fftw_wisdom.json)
     """
-
-    import os
-    from astropy import config
-    try:
-        import pyfftw
-    except ImportError:
-        return # FFTW is not present, therefore this is a null op
-
+    global _loaded_fftw_wisdom
+    if _loaded_fftw_wisdom:
+        _log.debug("Already loaded wisdom prior to this calculation, not reloading.")
+        return
     if filename is None:
-        filename=os.path.join( config.get_config_dir(), "poppy_fftw_wisdom.txt")
+        filename = os.path.join(config.get_config_dir(), "poppy_fftw_wisdom.json")
 
-    if not os.path.exists(filename): return # gracefully ignore the case of lacking wisdom yet.
+    if not os.path.exists(filename):
+        return  # No wisdom yet, but that's not an error
 
     _log.debug("Trying to reload wisdom from file "+filename)
-    try:
-        lines = open(filename,'r').readlines()
-        # the first four lines are comments and should be ignored.
-        wisdom = [lines[i].replace(r'\n', '\n') for i in [4,5,6]]
-        wisdom = tuple(wisdom)
-    except IOError:
-        _log.debug("ERROR - wisdom tuple could not be loaded from file :"+filename)
-        return False
+    with open(filename) as wisdom_file:
+        wisdom = json.load(wisdom_file)
 
-    success = pyfftw.import_wisdom(wisdom)
-    _log.debug("Reloaded double precision wisdom: "+str(success[0]))
-    _log.debug("Reloaded single precision wisdom: "+str(success[1]))
-    _log.debug("Reloaded longdouble precision wisdom: "+str(success[2]))
+    # Python 3.x+ doesn't let us use ascii implicitly, but PyFFTW only accepts bytestrings
+    # in this version...
+    wisdom_tuple = (wisdom['double'].encode('ascii'),
+                    wisdom['single'].encode('ascii'),
+                    wisdom['longdouble'].encode('ascii'))
 
-    return True
+    success_double, success_single, success_longdouble = pyfftw.import_wisdom(wisdom_tuple)
 
-
-
-
+    _log.debug("Reloaded double precision wisdom: {}".format(success_double))
+    _log.debug("Reloaded single precision wisdom: {}".format(success_single))
+    _log.debug("Reloaded longdouble precision wisdom: {}".format(success_longdouble))
+    _loaded_fftw_wisdom = True
