@@ -140,7 +140,7 @@ class AnalyticOpticalElement(OpticalElement):
             return output_array
 
 
-    def display(self, nrows=1, row=1, wavelength=2e-6, npix=512, **kwargs):
+    def display(self, nrows=1, row=1, wavelength=2e-6, npix=512, grid_size=None, **kwargs):
         """Display an Analytic optic by first computing it onto a grid...
 
         Parameters
@@ -149,7 +149,9 @@ class AnalyticOpticalElement(OpticalElement):
             Wavelength to evaluate this optic's properties at
         npix : int
             Number of pixels to use when sampling the analytic optical element.
-
+        grid_size : float
+            Diameter of the grid on which to sample this optic in
+            meters (for pupil planes) or arcseconds (for image planes)
         what : str
             What to display: 'intensity', 'phase', or 'both'
         ax : matplotlib.Axes instance
@@ -167,13 +169,11 @@ class AnalyticOpticalElement(OpticalElement):
             Max value for OPD image display, in meters.
         title : string
             Plot label
-
-
         """
 
         _log.debug("Displaying " + self.name)
         phasor, pixelscale = self.sample(wavelength=wavelength, npix=npix, what='complex',
-                                         return_scale=True)
+                                         grid_size=grid_size, return_scale=True)
 
         # temporarily set attributes appropriately as if this were a regular OpticalElement
         self.amplitude = np.abs(phasor)
