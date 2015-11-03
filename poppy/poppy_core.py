@@ -30,6 +30,7 @@ try:
     import pyfftw
     _FFTW_AVAILABLE = True
 except ImportError:
+    pyfftw = None
     _FFTW_AVAILABLE = False
 
 # internal constants for types of plane
@@ -62,10 +63,13 @@ def _wrap_propagate_for_multiprocessing(args):
     unpacking the results, and *then* at last making our instance method call.
     """
     optical_system, wavelength, retain_intermediates, normalize, usefftwflag = args
-    conf.use_fftw = usefftwflag  #passed in from parent process
+    conf.use_fftw = usefftwflag  # passed in from parent process
 
-    if conf.use_fftw and _FFTW_AVAILABLE: # we're in a different Python interpreter process so we
-        utils.fftw_load_wisdom()          # need to load the wisdom here too
+    # we're in a different Python interpreter process so we
+    # need to load the wisdom here too
+    if conf.use_fftw and _FFTW_AVAILABLE:
+        utils._loaded_fftw_wisdom = False
+        utils.fftw_load_wisdom()
 
     return optical_system.propagate_mono(wavelength, retain_intermediates=retain_intermediates, normalize=normalize)
 
@@ -1373,7 +1377,7 @@ class OpticalSystem(object):
             utils.fftw_load_wisdom()
 
         if conf.use_multiprocessing and len(wavelength) > 1: ######### Parallellized computation ############
-            # Avoid a Mac OS incompatibility that can lead to hard-to-reproduce crashes. 
+            # Avoid a Mac OS incompatibility that can lead to hard-to-reproduce crashes.
             import sys
             import platform
             if ( (sys.version_info < (3,4,0)) and platform.system()=='Darwin' and
@@ -1407,7 +1411,7 @@ class OpticalSystem(object):
             if ((sys.version_info.major+sys.version_info.minor*0.1) < 3.4):
                 pool = multiprocessing.Pool(int(nproc))
             else:
-                # Use new forkserver for more robustness; 
+                # Use new forkserver for more robustness;
                 # Resolves https://github.com/mperrin/poppy/issues/23 ?
                 ctx = multiprocessing.get_context('forkserver')
                 pool =ctx.Pool(int(nproc))
