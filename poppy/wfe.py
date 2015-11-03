@@ -148,7 +148,7 @@ class ZernikeWFE(WavefrontError):
         kwargs.update({'name': name})
         super(ZernikeWFE, self).__init__(**kwargs)
 
-    def getOPD(self, wave, units='meters'):
+    def get_opd(self, wave, units='meters'):
         """
         Parameters
         ----------
@@ -191,7 +191,7 @@ class ZernikeWFE(WavefrontError):
         return combined_zernikes
 
     def getPhasor(self, wave):
-        combined_zernikes = self.getOPD(wave, units='meters')
+        combined_zernikes = self.get_opd(wave, units='meters')
         opd_as_phase = 2 * np.pi * combined_zernikes / wave.wavelength
         zernike_wfe_phasor = np.exp(1.j * opd_as_phase)
         return zernike_wfe_phasor
