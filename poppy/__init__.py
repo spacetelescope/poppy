@@ -72,6 +72,18 @@ class Conf(_config.ConfigNamespace):
     enable_flux_tests =  _config.ConfigItem(False, 'Enable additional '+
         'verbose printout of fluxes and flux conservation during '+
         'calculations. Useful for testing.')
+    cmap_sequential = _config.ConfigItem(
+        'gist_heat',
+        'Select a default colormap to represent sequential data (e.g. intensity)'
+    )
+    cmap_diverging = _config.ConfigItem(
+        'RdBu_r',
+        'Select a default colormap to represent diverging data (e.g. OPD)'
+    )
+    cmap_pupil_intensity = _config.ConfigItem(
+        'gray',
+        'Select a default colormap to represent intensity at pupils or aperture masks'
+    )
 
 conf = Conf()
 
