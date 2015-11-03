@@ -27,12 +27,12 @@ from . import utils
 __all__ = ['Instrument']
 
 class Instrument(object):
-    """ A generic astronomical instrument, composed of 
+    """ A generic astronomical instrument, composed of
         (1) an optical system implemented using POPPY, optionally with several configurations such as
             selectable image plane or pupil plane stops, and
-        (2) some defined spectral bandpass(es) such as selectable filters, implemented using pysynphot. 
+        (2) some defined spectral bandpass(es) such as selectable filters, implemented using pysynphot.
 
-    This provides the capability to model both the optical and spectral responses of a given system. 
+    This provides the capability to model both the optical and spectral responses of a given system.
     PSFs may be calculated for given source
     spectral energy distributions and output as FITS files, with substantial flexibility.
 
@@ -41,7 +41,7 @@ class Instrument(object):
 
 
     This is a base class for Instrument functionality - you cannot easily use this directly, but
-    rather should subclass it for your particular instrument of interest.   Some of the complexity of this class 
+    rather should subclass it for your particular instrument of interest.   Some of the complexity of this class
     is due to splitting up functionality into many separate routines to allow users to subclass just the relevant
     portions for a given task. There's a fair amount of functionality here but the learning curve is steeper than
     elsewhere in POPPY.
@@ -140,12 +140,12 @@ class Instrument(object):
         a FITS HDUlist object.
 
 
-        Output sampling may be specified in one of two ways: 
+        Output sampling may be specified in one of two ways:
 
         1) Set `oversample=<number>`. This will use that oversampling factor beyond detector pixels
-           for output images, and beyond Nyquist sampling for any FFTs to prior optical planes. 
+           for output images, and beyond Nyquist sampling for any FFTs to prior optical planes.
         2) set `detector_oversample=<number>` and `fft_oversample=<other_number>`. This syntax lets
-           you specify distinct oversampling factors for intermediate and final planes. 
+           you specify distinct oversampling factors for intermediate and final planes.
 
         By default, both oversampling factors are set equal to 2.
 
@@ -159,10 +159,10 @@ class Instrument(object):
         source : pysynphot.SourceSpectrum or dict
             specification of source input spectrum. Default is a 5700 K sunlike star.
         nlambda : int
-            How many wavelengths to model for broadband? 
+            How many wavelengths to model for broadband?
             The default depends on how wide the filter is: (5,3,1) for types (W,M,N) respectively
         monochromatic : float, optional
-            Setting this to a wavelength value (in meters) will compute a monochromatic PSF at that 
+            Setting this to a wavelength value (in meters) will compute a monochromatic PSF at that
             wavelength, overriding filter and nlambda settings.
         fov_arcsec : float
             field of view in arcsec. Default=5
@@ -171,8 +171,8 @@ class Instrument(object):
         outfile : string
             Filename to write. If None, then result is returned as an HDUList
         oversample, detector_oversample, fft_oversample : int
-            How much to oversample. Default=4. By default the same factor is used for final output 
-            pixels and intermediate optical planes, but you may optionally use different factors 
+            How much to oversample. Default=4. By default the same factor is used for final output
+            pixels and intermediate optical planes, but you may optionally use different factors
             if so desired.
         rebin : bool, optional
             If set, the output file will contain a FITS image extension containing the PSF rebinned
@@ -183,7 +183,7 @@ class Instrument(object):
         display : bool
             Whether to display the PSF when done or not.
         save_intermediates, return_intermediates : bool
-            Options for saving to disk or returning to the calling function the intermediate optical planes during the propagation. 
+            Options for saving to disk or returning to the calling function the intermediate optical planes during the propagation.
             This is useful if you want to e.g. examine the intensity in the Lyot plane for a coronagraphic propagation.
 
         Returns
@@ -198,7 +198,7 @@ class Instrument(object):
                                       # ease of handing off to the various subroutines of
                                       # calcPSF. Don't just modify the global self.options
                                       # structure since that would pollute it with temporary
-                                      # state as well as persistent state. 
+                                      # state as well as persistent state.
         local_options['monochromatic'] = monochromatic
 
         #----- choose # of wavelengths intelligently. Do this first before generating the source spectrum weighting.
@@ -244,7 +244,7 @@ class Instrument(object):
         #---- now at last, actually do the PSF calc:
         #  instantiate an optical system using the current parameters
         self.optsys = self._getOpticalSystem(fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
-            fft_oversample=fft_oversample, detector_oversample=detector_oversample, 
+            fft_oversample=fft_oversample, detector_oversample=detector_oversample,
             options=local_options)
         # and use it to compute the PSF (the real work happens here, in code in poppy.py)
         result = self.optsys.calcPSF(wavelens, weights, display_intermediates=display, display=display, save_intermediates=save_intermediates, return_intermediates=return_intermediates)
@@ -255,7 +255,7 @@ class Instrument(object):
         self._applyJitter(result, local_options)  # will immediately return if there is no jitter parameter in local_options
 
 
-        self._getFITSHeader(result, local_options) 
+        self._getFITSHeader(result, local_options)
 
         self._calcPSF_format_output(result, local_options)
 
@@ -286,10 +286,10 @@ class Instrument(object):
                  - rebin to detector pixel scale if desired
                  - set up FITS extensions if desired
                  - output either the oversampled, rebinned, or both
-        Which image(s) get output depends on the value of the options['output_mode'] 
+        Which image(s) get output depends on the value of the options['output_mode']
         parameter. It may be set to 'Oversampled image' to output just the oversampled image,
         'Detector sampled image' to output just the image binned down onto detector pixels, or
-        'Both as FITS extensions' to output the oversampled image as primary HDU and the 
+        'Both as FITS extensions' to output the oversampled image as primary HDU and the
         rebinned image as the first image extension. For convenience, the option can be set
         to just 'oversampled', 'detector', or 'both'.
 
@@ -308,7 +308,7 @@ class Instrument(object):
             # need to downsample it and replace the existing primary HDU
             poppy_core._log.info(" Downsampling to detector pixel scale.")
             if options['detector_oversample'] > 1:
-                result[0].data = utils.rebin_array(result[0].data, 
+                result[0].data = utils.rebin_array(result[0].data,
                         rc=(detector_oversample, detector_oversample))
             result[0].header['OVERSAMP'] = ( 1, 'These data are rebinned to detector pixels')
             result[0].header['CALCSAMP'] = ( detector_oversample, 'This much oversampling used in calculation')
@@ -404,8 +404,8 @@ class Instrument(object):
     def _getOpticalSystem(self,fft_oversample=2, detector_oversample = None, fov_arcsec=2, fov_pixels=None, options=dict()):
         """ Return an OpticalSystem instance corresponding to the instrument as currently configured.
 
-        When creating such an OpticalSystem, you must specify the parameters needed to define the 
-        desired sampling, specifically the oversampling and field of view. 
+        When creating such an OpticalSystem, you must specify the parameters needed to define the
+        desired sampling, specifically the oversampling and field of view.
 
 
         Parameters
@@ -420,7 +420,7 @@ class Instrument(object):
             by still using some oversampling (i.e. *not* setting `oversample_detector=1`) and instead rebinning
             down the oversampled data.
         fov_pixels : float
-            Field of view in pixels. Overrides fov_arcsec if both set. 
+            Field of view in pixels. Overrides fov_arcsec if both set.
         fov_arcsec : float
             Field of view, in arcseconds. Default is 2
         options : dict
@@ -429,7 +429,7 @@ class Instrument(object):
 
         Returns
         -------
-        osys : poppy.OpticalSystem 
+        osys : poppy.OpticalSystem
             an optical system instance representing the desired configuration.
 
         """
@@ -452,11 +452,11 @@ class Instrument(object):
             full_pupil_path = None
         elif isinstance(self.pupil, str): # simple filename
             if os.path.exists( self.pupil) :
-                full_pupil_path = self.pupil 
+                full_pupil_path = self.pupil
             else: raise IOError("File not found: "+full_pupil_path)
         elif isinstance(self.pupil, fits.HDUList): # pupil supplied as FITS HDUList object
             full_pupil_path = self.pupil
-        else: 
+        else:
             raise TypeError("Not sure what to do with a pupil of that type:"+str(type(self.pupil)))
 
         #---- set pupil OPD
@@ -466,7 +466,7 @@ class Instrument(object):
             full_opd_path =  (self.pupilopd[0] if os.path.exists( self.pupilopd[0]) else os.path.join(self._datapath, "OPD",self.pupilopd[0]), self.pupilopd[1])
         elif isinstance(self.pupilopd, fits.HDUList): # OPD supplied as FITS HDUList object
             full_opd_path = self.pupilopd # not a path per se but this works correctly to pass it to poppy
-        elif self.pupilopd is None: 
+        elif self.pupilopd is None:
             full_opd_path = None
         else:
             raise TypeError("Not sure what to do with a pupilopd of that type:"+str(type(self.pupilopd)))
@@ -481,7 +481,7 @@ class Instrument(object):
         if aberration_optic is not None:
             optsys.addPupil(aberration_optic)
 
-        #--- add the detector element. 
+        #--- add the detector element.
         if fov_pixels is None:
             fov_pixels = np.round(fov_arcsec/self.pixelscale)
             if 'parity' in self.options:
@@ -511,16 +511,16 @@ class Instrument(object):
 
         Parameters
         -----------
-        result : fits.HDUList 
+        result : fits.HDUList
             HDU list containing a point spread function
         local_options : dict, optional
-            Options dictionary. If not present, options will be taken from self.options. 
+            Options dictionary. If not present, options will be taken from self.options.
 
         The key configuration argument is options['jitter'] which defines the type of jitter.
         If this is the string 'gaussian', then a Gaussian blurring kernel will be applied, the
         amount of the blur is taken from the options['jitter_sigma'] value.
 
-        Other types of jitter are not yet implemented. 
+        Other types of jitter are not yet implemented.
 
         The image in the 'result' HDUlist will be modified by this function.
         """
@@ -565,18 +565,22 @@ class Instrument(object):
     # Display routines
 
     def display(self):
-        """Display the currently configured optical system on screen """
-        #if coronagraphy is set, then we have to temporarily disable semi-analytic coronagraphic mode
-        # to get a regular displayable optical system
+        """Display the currently configured optical system on screen"""
+        # if coronagraphy is set, then we have to temporarily disable
+        # semi-analytic coronagraphic mode to get a regular displayable optical system
         try:
             old_no_sam = self.options['no_sam']
             self.options['no_sam'] = True
         except KeyError:
             old_no_sam = None
-
+        # Trigger config validation to update any optical planes
+        # (specifically auto-selected pupils based on filter selection)
+        wavelengths, _ = self._getWeights()
+        self._validateConfig(wavelengths=wavelengths)
         optsys = self._getOpticalSystem()
         optsys.display(what='both')
-        if old_no_sam is not None: self.options['no_sam'] = old_no_sam
+        if old_no_sam is not None:
+            self.options['no_sam'] = old_no_sam
 
     #####################################################
     #
@@ -589,7 +593,7 @@ class Instrument(object):
         return (self.filter, source.name, nlambda)
 
     def _getSynphotBandpass(self, filtername):
-        """ Return a pysynphot.ObsBandpass object for the given desired band. 
+        """ Return a pysynphot.ObsBandpass object for the given desired band.
 
         By subclassing this, you can define whatever custom bandpasses are appropriate for your instrument
 
@@ -600,7 +604,7 @@ class Instrument(object):
 
         Returns
         --------
-        a pysynphot.ObsBandpass object for that filter. 
+        a pysynphot.ObsBandpass object for that filter.
 
         """
         if not _HAS_PYSYNPHOT:
@@ -629,7 +633,7 @@ class Instrument(object):
 
     def _getFilterList(self):
         """ Returns a list of allowable filters, and the corresponding pysynphot ObsBandpass strings
-        for each. 
+        for each.
 
         If you need to define bandpasses that are not already available in pysynphot, consider subclassing
         _getSynphotBandpass instead to create a pysynphot spectrum based on data read from disk, etc.
@@ -738,7 +742,7 @@ class Instrument(object):
             # The existing FITS files all have wavelength in ANGSTROMS since that is the pysynphot convention...
             filterfile = self._filters[self.filter].filename
             filterfits = fits.open(filterfile)
-            filterdata = filterfits[1].data 
+            filterdata = filterfits[1].data
             try:
                 f1 = filterdata.WAVELENGTH
                 d2 = filterdata.THROUGHPUT
