@@ -18,7 +18,7 @@ if _FFTW_AVAILABLE:
     import pyfftw
 
 
-__all__ = ['QuadPhase','GaussianLens','FresnelWavefront','FresnelOpticalSystem']
+__all__ = ['QuadPhase','QuadraticLens','FresnelWavefront','FresnelOpticalSystem']
 
 
 class QuadPhase(AnalyticOpticalElement):
@@ -100,7 +100,7 @@ class _QuadPhaseShifted(QuadPhase):
         return np.fft.fftshift( super(_QuadPhaseShifted, self).getPhasor(wave))
     
 
-class GaussianLens(QuadPhase):
+class QuadraticLens(QuadPhase):
     '''
     Gaussian Lens
 
@@ -775,7 +775,7 @@ class FresnelWavefront(Wavefront):
 
     def __imul__(self, optic):
         "Multiply a Wavefront by an OpticalElement or scalar"
-        if isinstance(optic, GaussianLens):
+        if isinstance(optic, QuadraticLens):
             # Special case: if we have a lens, call the routine for that,
             # which will modify the properties of this wavefront more fundamentally
             # than most other optics, adjusting beam parameters and so forth
@@ -794,7 +794,7 @@ class FresnelWavefront(Wavefront):
 
         Parameters
         ----------
-        optic : GaussianLens
+        optic : QuadraticLens
             An optic
         ignore_wavefront : boolean
             If True then only gaussian beam propagation parameters will be updated and the wavefront surface will not be calculated.

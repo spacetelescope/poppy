@@ -13,7 +13,7 @@ def test_GaussianBeamParams():
     """Confirm that gaussian beam parameters agree with expectations"""
     gw=fresnel.FresnelWavefront(100*u.um,wavelength=830e-9)
     gw.propagate_fresnel(50*u.mm)
-    gl=fresnel.GaussianLens(50*u.mm)
+    gl=fresnel.QuadraticLens(50*u.mm)
     gw.propagate_fresnel(28*u.mm)
     gw.apply_lens_power(gl,ignore_wavefront=True)
     assert(np.round(gw.w_0.value,9) == np.round(0.0001061989749146441,9))
@@ -221,8 +221,8 @@ def test_fresnel_optical_system_Hubble(display=False):
     npix = 512
 
     hst = fresnel.FresnelOpticalSystem(pupil_diameter=2.4*u.m, beam_ratio=0.25)
-    g1 = fresnel.GaussianLens(fl_pri, name='Primary', planetype=poppy_core.PlaneType.pupil)
-    g2 = fresnel.GaussianLens(fl_sec, name='Secondary')
+    g1 = fresnel.QuadraticLens(fl_pri, name='Primary', planetype=poppy_core.PlaneType.pupil)
+    g2 = fresnel.QuadraticLens(fl_sec, name='Secondary')
 
     hst.add_optic(optics.CircularAperture(radius=diam.value/2))
     hst.add_optic(g1)
