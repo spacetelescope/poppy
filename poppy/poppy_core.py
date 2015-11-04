@@ -191,7 +191,7 @@ class Wavefront(object):
             # detectors don't modify a wavefront.
             return self
 
-        phasor = optic.getPhasor(self)
+        phasor = optic.get_phasor(self)
 
         if not np.isscalar(phasor) and phasor.size>1:  # actually isscalar() does not handle the case of a 1-element array properly
             assert self.wavefront.shape == phasor.shape
@@ -2022,11 +2022,41 @@ class OpticalElement(object):
         self.ispadded = False           # are we padded w/ zeros for oversampling the FFT?
         self._suppress_display=False    # should we avoid displaying this optic on screen? (useful for 'virtual' optics like FQPM aligner)
 
-        #_log.warn("Creating a null optical element. Are you sure that's what you want to do?")
         self.amplitude = np.asarray([1.])
         self.opd = np.asarray([0.])
         self.pixelscale = None
         self.interp_order=interp_order
+
+    def get_transmission(self, wave):
+        """ Return the amplitude transmission, given a wavelength.
+
+        Parameters
+        ----------
+        wave : float or obj
+            either a scalar wavelength or a Wavefront object
+
+        Returns
+        --------
+        ndarray giving amplitude transmission between 0 - 1.0
+
+        """
+        return self.amplitude
+
+    def get_opd(self, wave):
+        """ Return the optical path difference, given a wavelength.
+
+        Parameters
+        ----------
+        wave : float or obj
+            either a scalar wavelength or a Wavefront object
+
+        Returns
+        --------
+        ndarray giving OPD in meters
+
+        """
+        return self.opd
+
     def getPhasor(self,wave):
         """ Compute a complex phasor from an OPD, given a wavelength.
 
@@ -2103,6 +2133,8 @@ class OpticalElement(object):
             return utils.padToSize(self.phasor, wave.shape)
         else:
             return self.phasor
+
+
 
     def display(self, nrows=1, row=1, what='intensity', crosshairs=True, ax=None, colorbar=True,
                 colorbar_orientation=None, title=None, opd_vmax=0.5e-6):
