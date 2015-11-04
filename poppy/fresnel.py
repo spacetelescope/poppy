@@ -8,7 +8,6 @@ import time
 
 import poppy
 from poppy.poppy_core import PlaneType, _FFTW_AVAILABLE, OpticalSystem, Wavefront
-from poppy.optics import AnalyticOpticalElement
 from . import utils
 
 _log = logging.getLogger('poppy')
@@ -20,7 +19,7 @@ if _FFTW_AVAILABLE:
 __all__ = ['QuadPhase', 'QuadraticLens', 'FresnelWavefront', 'FresnelOpticalSystem']
 
 
-class QuadPhase(AnalyticOpticalElement):
+class QuadPhase(poppy.optics.AnalyticOpticalElement):
     """
     Quadratic phase factor,  q(z)
     suitable for representing a radially-dependent wavefront curvature.
@@ -33,11 +32,6 @@ class QuadPhase(AnalyticOpticalElement):
         plane type
     name : string
         Descriptive string name
-    reference_wavelength : float
-        wavelength
-    units : astropy.unit of type length
-        Unit to apply to reference wavelength; default is meter
-
 
     References
     -------------------
@@ -49,12 +43,9 @@ class QuadPhase(AnalyticOpticalElement):
                  z,  # FIXME consider renaming fl? z seems ambiguous with distance.
                  planetype=PlaneType.intermediate,
                  name='Quadratic Wavefront Curvature Operator',
-                 reference_wavelength=2e-6,
-                 units=u.m,
                  **kwargs):
         poppy.AnalyticOpticalElement.__init__(self, name=name, planetype=planetype, **kwargs)
         self.z = z
-        self.reference_wavelength = reference_wavelength * units
 
         if isinstance(z, u.quantity.Quantity):
             self.z_m = z.to(u.m)  # convert to meters.
@@ -80,7 +71,7 @@ class QuadPhase(AnalyticOpticalElement):
         _log.debug("Applying spherical lens phase ={0:0.2e}".format(1.0 / self.z_m))
         _log.debug("max_rsqd ={0:0.2e}".format(np.max(rsqd)))
 
-        k = 2 * np.pi / self.reference_wavelength
+        k = 2 * np.pi / wave.wavelength_m
         lens_phasor = np.exp(1.j * k * rsqd / (2.0 * self.z_m))
         return lens_phasor
 
@@ -97,7 +88,13 @@ class _QuadPhaseShifted(QuadPhase):
         QuadPhase.__init__(self, z, **kwargs)
 
     def getPhasor(self, wave):
-        """ Return complex phasor, for FFT shifted array"""
+        """ Return complex phasor, for FFT shifted array
+
+        Parameters
+        -----------
+        wave : object
+            FresnelWavefront instance
+        """
         return np.fft.fftshift(super(_QuadPhaseShifted, self).getPhasor(wave))
 
 
@@ -115,27 +112,18 @@ class QuadraticLens(QuadPhase):
         Descriptive string name
     planetype : poppy.PlaneType constant
         plane type
-    reference_wavelength : float
-        wavelength
-    units : astropy.unit of type length
-        Unit to apply to reference_wavelength; defaults to meters
-
 
     """
 
     def __init__(self,
                  f_lens,
                  planetype=PlaneType.unspecified,
-                 name='Gaussian Lens',
-                 reference_wavelength=2e-6,
-                 units=u.m,
+                 name='Quadratic Lens',
                  **kwargs):
         QuadPhase.__init__(self,
                            f_lens,
                            planetype=planetype,
                            name=name,
-                           reference_wavelength=reference_wavelength,
-                           units=units,
                            **kwargs)
         if isinstance(f_lens, u.quantity.Quantity):
             self.fl = f_lens.to(u.m)  # convert to meters.
@@ -220,7 +208,7 @@ class FresnelWavefront(Wavefront):
         self.waists_z = [self.z_w0.value]
         """List of beam waist distances along the optical axis, in series as encountered
         during the course of an optical propagation."""
-        self.wavelen_m = self.wavelength * u.m  # wavelengths should always be in meters
+        self.wavelength_m = self.wavelength*u.m #wavelengths should always be in meters
         """Wavelength as an Astropy.Quantity"""
         self.spherical = False
         """Is this wavefront spherical or planar?"""
@@ -273,12 +261,11 @@ class FresnelWavefront(Wavefront):
             # appropriate for displaying that type.
             tmp = self.angular_coordinates
             self.angular_coordinates = kwargs['use_angular_coordinates']
-            retval= super(FresnelWavefront, self).display(
+            retval = super(FresnelWavefront, self).display(
                 *args, **kwargs
             )
             self.angular_coordinates = tmp
             return retval
-
 
     display.__doc__ = Wavefront.display.__doc__
 
@@ -295,7 +282,7 @@ class FresnelWavefront(Wavefront):
         The depth of focus is conventionally twice this distance.
         """
 
-        return np.pi * self.w_0 ** 2 / self.wavelen_m
+        return np.pi * self.w_0 ** 2 / self.wavelength_m
 
     @property
     def divergence(self):
@@ -305,7 +292,7 @@ class FresnelWavefront(Wavefront):
         I.e. the angle between the optical axis and the beam radius at a large distance.
         Angle in radians.
         """
-        return 2 * self.wavelen_m / (np.pi * self.w_0)
+        return 2 * self.wavelength_m / (np.pi * self.w_0)
 
     @property
     def param_str(self):
@@ -521,7 +508,7 @@ class FresnelWavefront(Wavefront):
             _log.warn("z= {0:0.2e}, has no units, assuming meters ".format(z))
             z_direct = z
         y, x = self.coordinates()  # *self.units
-        k = np.pi * 2.0 / self.wavelen_m.value
+        k = np.pi * 2.0 / self.wavelength_m.value
         s = self.n * self.pixelscale
         _log.debug(
             "Propagation Parameters: k={0:0.2e},".format(k) + "S={0:0.2e},".format(s) + "z={0:0.2e},".format(z_direct))
@@ -659,7 +646,7 @@ class FresnelWavefront(Wavefront):
             _log.error("Waist to Spherical propagation stopped, no change in distance.")
             return
 
-        self *= _QuadPhaseShifted(dz, reference_wavelength=self.wavelength)
+        self *= _QuadPhaseShifted(dz)
 
         if dz > 0:
             self._fft()
@@ -708,7 +695,7 @@ class FresnelWavefront(Wavefront):
 
         # update to new pixel scale before applying curvature
         self.pixelscale = self.wavelength * np.abs(dz.value) / (self.n * self.pixelscale)
-        self *= _QuadPhaseShifted(dz, reference_wavelength=self.wavelength)
+        self *= _QuadPhaseShifted(dz)
         self.z += dz
         self.history.append("Propagated Spherical to Waist, dz = " + str(dz))
         self.spherical = False  # wavefront is now planar
@@ -862,8 +849,8 @@ class FresnelWavefront(Wavefront):
             _log.debug(str(optic.name) + " has a flat output wavefront")
         else:
             self.z_w0 = -r_output_beam / (
-                1.0 + (self.wavelen_m * r_output_beam / (np.pi * spot_radius ** 2)) ** 2) + self.z
-            self.w_0 = spot_radius / np.sqrt(1.0 + (np.pi * spot_radius ** 2 / (self.wavelen_m * r_output_beam)) ** 2)
+                1.0 + (self.wavelength_m * r_output_beam / (np.pi * spot_radius ** 2)) ** 2) + self.z
+            self.w_0 = spot_radius / np.sqrt(1.0 + (np.pi * spot_radius ** 2 / (self.wavelength_m * r_output_beam)) ** 2)
             _log.debug(str(optic.name) + " has a curvature of ={0:0.2e}".format(r_output_beam))
             _log.debug(str(optic.name) + " has a curved output wavefront, with waist at {}".format(self.z_w0))
 
@@ -931,7 +918,7 @@ class FresnelWavefront(Wavefront):
                 self.spherical = False
 
         # Apply phase to the wavefront array
-        effective_optic = QuadPhase(-z_eff, reference_wavelength=self.wavelength, name=optic.name)
+        effective_optic = QuadPhase(-z_eff, name=optic.name)
         self *= effective_optic
 
         _log.debug("------ Optic: " + str(optic.name) + " applied ------")
