@@ -53,6 +53,7 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
             _log.debug("Assuming meters, phase {:.3g} has no units for Optic: " .format(z) + self.name)
             self.z_m = z * u.m
 
+
     def getPhasor(self, wave):
         """ return complex phasor for the quadratic phase
 
@@ -135,6 +136,34 @@ class QuadraticLens(QuadPhase):
     def __str__(self):
         return "Lens: {0}, with focal length {1}".format(self.name, self.fl)
 
+
+class ConicLens(poppy.optics.CircularAperture):
+    @u.quantity_input(f_lens=u.m, radius=u.m)
+    def __init__(self,
+            f_lens=1.0*u.m,
+            K=1.0,
+            radius=1.0*u.m,
+            planetype=PlaneType.unspecified,
+            name="Conic lens"):
+        """Conic Lens/Mirror
+        Parabolic, elliptical, hyperbolic, or spherical powered optic.
+
+        Parameters
+        ----------------
+        f_lens : astropy.quantities.Quantity of dimension length
+            Focal length of the optic
+        K : float
+            Conic constant
+        radius: astropy.quantities.Quantity of dimension length
+            Radius of the clear aperture of the optic as seen on axis.
+        name : string
+            Descriptive name
+        planetype : poppy.PlaneType, optional
+            Optional optical plane type specifier
+        """
+        CircularAperture.__init__(self, name=name, radius=radius.value, planetype=planetype **kwargs)
+        self.f_lens = f_lens
+        self.K=K
 
 class FresnelWavefront(Wavefront):
     angular_coordinates = False
