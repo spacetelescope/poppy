@@ -250,8 +250,11 @@ def test_fresnel_optical_system_Hubble(display=False):
     # example, to facilitate cross-checking the two codes. 
 
     assert(not np.isfinite(waves[0].focal_length))  # plane wave after circular aperture
-    assert(waves[1].focal_length==fl_pri)           # after primary
-    assert(np.allclose(waves[2].focal_length,expected_system_focal_length)) # after secondary
+    assert(waves[1].focal_length==fl_pri)           # focal len after primary
+    # NB. using astropy.Quantities with np.allclose() doesn't work that well
+    # so pull out the values here:
+    assert(np.allclose(waves[2].focal_length.to(u.m).value,
+           expected_system_focal_length.to(u.m).value)) # focal len after secondary
 
     ### check the FWHM of the PSF is as expected
     measured_fwhm = utils.measure_fwhm(psf)
