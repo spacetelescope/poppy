@@ -330,9 +330,10 @@ class Wavefront(object):
         self.asFITS(**kwargs).writeto(filename, clobber=clobber)
         _log.info("  Wavefront saved to %s" % filename)
 
-    def display(self, what='intensity', nrows=1, row=1, showpadding=False, imagecrop=None,
-                colorbar=False, crosshairs=True, ax=None, title=None, vmin=1e-8,
-                vmax=1e0, use_angular_coordinates=None):
+    def display(self, what='intensity', nrows=1, row=1, showpadding=False,
+                imagecrop=None,pupilcrop=None,
+                colorbar=False, crosshairs=False, ax=None, title=None, vmin=None,
+                vmax=None, scale=None, use_angular_coordinates=None):
         """Display wavefront on screen
 
         Parameters
@@ -346,19 +347,32 @@ class Wavefront(object):
             showing steps in a calculation)
         row : int
             Which row to display this one in?
+        vmin, vmax : floats
+            min and maximum values to display.
+        scale : string
+            'log' or 'linear', to define the desired display scale type for
+            intensity. Default is log for image planes, linear otherwise.
         imagecrop : float, optional
-            For image planes, set the maximum # of arcseconds to
-            display. Default is 5, so only the innermost 5x5 arcsecond
+            Crop the displayed image to a smaller region than the full array.
+            For image planes in angular coordinates, this is given in units of
+            arcseconds. The default is 5, so only the innermost 5x5 arcsecond
             region will be shown. This default may be changed in the
             POPPY config file. If the image size is < 5 arcsec then the
             entire image is displayed.
+            For planes in linear physical coordinates such as pupils, this
+            is given in units of meters, and the default is no cropping
+            (i.e. the entire array will be displayed unless this keyword
+            is set explicitly).
         showpadding : bool, optional
-            Show the entire padded arrays, or just the good parts?
-            Default is False
+            For wavefronts that have been padded with zeros for oversampling,
+            show the entire padded arrays, or just the good parts?
+            Default is False, to show just the central region of interest.
         colorbar : bool
             Display colorbar
-        ax : matplotlib Axes
-            axes to display into
+        crosshairs : bool
+            Display a crosshairs indicator showing the axes centered on (0,0)
+        ax : matplotlib Axes, optional
+            axes to display into. If not set, will create new axes.
         use_angular_coordinates : bool, optional
             Should the axes be labeled in angular units of arcseconds?
             This is used by FresnelWavefront, where non-angular
@@ -372,18 +386,21 @@ class Wavefront(object):
         figure : matplotlib figure
             The current figure is modified.
         """
-        if imagecrop is None:
-            imagecrop = conf.default_image_display_fov
+        if scale is None:
+            scale = 'log' if self.planetype == _IMAGE else 'linear'
 
         intens = self.intensity.copy()
         phase = self.phase.copy()
         phase[np.where(intens == 0)] = np.nan
         amp = self.amplitude
 
+        y, x = self.coordinates()
         if self.planetype == _PUPIL and self.ispadded and not showpadding:
             intens = utils.removePadding(intens, self.oversample)
             phase = utils.removePadding(phase, self.oversample)
             amp = utils.removePadding(amp, self.oversample)
+            y = utils.removePadding(y, self.oversample)
+            x = utils.removePadding(x, self.oversample)
 
         # extent specifications need to include the *full* data region, including the half pixel
         # on either side outside of the pixel center coordinates.  And remember to swap Y and X.
@@ -394,20 +411,14 @@ class Wavefront(object):
         # outside of those pixels.
         # This is needed to get the coordinates right when displaying very small arrays
 
-        y, x = self.coordinates()
-        halfpix = self.pixelscale*0.5
 
+        halfpix = self.pixelscale*0.5
         extent = [x.min()-halfpix, x.max()+halfpix, y.min()-halfpix, y.max()+halfpix]
 
         if use_angular_coordinates is None:
             use_angular_coordinates = self.planetype == _IMAGE
 
-        if not use_angular_coordinates:
-            unit = "m"
-        else:
-            halffov_x = intens.shape[1]/2.*self.pixelscale #for use later in cropping
-            halffov_y = intens.shape[0]/2.*self.pixelscale #for use later in cropping
-            unit="arcsec"
+        unit = 'arcsec' if use_angular_coordinates else 'm'
 
         # implement semi-intellegent selection of what to display, if the user wants
         if what == 'best':
@@ -427,17 +438,25 @@ class Wavefront(object):
             nr -= 1
             nc += 1
 
+        # prepare color maps and normalizations for intensity and phase
+        if vmax is None:
+           vmax = intens.max()
+        if scale == 'linear':
+            if vmin is None: vmin=0
+            norm_inten = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+            cmap_inten = getattr(matplotlib.cm, conf.cmap_pupil_intensity)
+            cmap_inten.set_bad('0.0')
+        else:
+            if vmin is None: vmin = vmax*1e-6
+            norm_inten = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
+            cmap_inten = getattr(matplotlib.cm, conf.cmap_sequential)
+            cmap_inten.set_bad(cmap_inten(0))
+        cmap_phase = getattr(matplotlib.cm, conf.cmap_diverging)
+        cmap_phase.set_bad('0.3')
+        norm_phase = matplotlib.colors.Normalize(vmin=-0.25, vmax=0.25)
+
         # now display the chosen selection..
         if what == 'intensity':
-            if self.planetype == _PUPIL:
-                norm = matplotlib.colors.Normalize(vmin=0)
-                cmap = getattr(matplotlib.cm, conf.cmap_pupil_intensity)
-                cmap.set_bad('0.0')
-            else:
-                norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
-                cmap = getattr(matplotlib.cm, conf.cmap_sequential)
-                cmap.set_bad(cmap(0))
-
             if ax is None:
                 ax = plt.subplot(nr, nc, int(row))
 
@@ -445,8 +464,8 @@ class Wavefront(object):
                 intens,
                 ax=ax,
                 extent=extent,
-                norm=norm,
-                cmap=cmap,
+                norm=norm_inten,
+                cmap=cmap_inten,
                 origin='lower'
             )
             if title is None:
@@ -457,29 +476,18 @@ class Wavefront(object):
             ax.set_xlabel(unit)
             if colorbar:
                 plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
-
-            if use_angular_coordinates:
-                if crosshairs:
-                    plt.axhline(0,ls=":", color='k')
-                    plt.axvline(0,ls=":", color='k')
-                imsize_x = min( (imagecrop/2, halffov_x))
-                imsize_y = min( (imagecrop/2, halffov_y))
-                ax.set_xbound(-imsize_x, imsize_x)
-                ax.set_ybound(-imsize_y, imsize_y)
+            plot_axes = [ax]
             to_return = ax
         elif what == 'phase':
             # Display phase in waves.
-            cmap = getattr(matplotlib.cm, conf.cmap_diverging)
-            cmap.set_bad('0.3')
-            norm = matplotlib.colors.Normalize(vmin=-0.25, vmax=0.25)
             if ax is None:
                 ax = plt.subplot(nr, nc, int(row))
             utils.imshow_with_mouseover(
                 phase / (np.pi * 2),
                 ax=ax,
                 extent=extent,
-                norm=norm,
-                cmap=cmap,
+                norm=norm_phase,
+                cmap=cmap_phase,
                 origin='lower'
             )
             if title is None:
@@ -488,14 +496,14 @@ class Wavefront(object):
             plt.xlabel(unit)
             if colorbar: plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
 
+            plot_axes = [ax]
             to_return = ax
 
-        else:
+        elif what == 'both':
             if ax is None:
                 ax = plt.subplot(nr, nc, int(row))
-            cmap = getattr(matplotlib.cm, conf.cmap_sequential)
             ax1 = plt.subplot(nrows, 2, (row * 2) - 1)
-            plt.imshow(amp, extent=extent, cmap=cmap, origin='lower')
+            plt.imshow(amp, extent=extent, cmap=cmap_inten, norm=norm_inten, origin='lower')
             plt.title("Wavefront amplitude")
             plt.ylabel(unit)
             plt.xlabel(unit)
@@ -503,17 +511,35 @@ class Wavefront(object):
             if colorbar: plt.colorbar(orientation='vertical', shrink=0.8)
 
             ax2 = plt.subplot(nrows, 2, row * 2)
-            cmap_phase = getattr(matplotlib.cm, conf.cmap_diverging)
-            plt.imshow(phase, extent=extent, cmap=cmap_phase, origin='lower')
+            plt.imshow(phase, extent=extent, cmap=cmap_phase, norm=norm_phase, origin='lower')
             if colorbar: plt.colorbar(orientation='vertical', shrink=0.8)
 
             plt.xlabel(unit)
             plt.title("Wavefront phase [radians]")
 
+            plot_axes = [ax1, ax2]
             to_return = (ax1, ax2)
+        else:
+            raise ValueError("Invalid value for what to display; must be 'amplitude', 'phase', or 'both'.")
 
-        ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5))
-        ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5))
+        # now apply axes cropping and/or overplots, if requested.
+        for ax in plot_axes:
+            if crosshairs:
+                ax.axhline(0,ls=":", color='white')
+                ax.axvline(0,ls=":", color='white')
+
+            if use_angular_coordinates:
+                if imagecrop is None:
+                    imagecrop = conf.default_image_display_fov
+
+            if imagecrop is not None:
+                cropsize_x = min( (imagecrop/2, intens.shape[1]/2.*self.pixelscale))
+                cropsize_y = min( (imagecrop/2, intens.shape[0]/2.*self.pixelscale))
+                ax.set_xbound(-cropsize_x, cropsize_x)
+                ax.set_ybound(-cropsize_y, cropsize_y)
+
+            ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5))
+            ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5))
 
         plt.draw()
         return to_return
