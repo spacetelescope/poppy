@@ -232,7 +232,7 @@ class ZernikeWFE(WavefrontError):
 
         # the Zernike optic, being normalized on a circle, is
         # implicitly also a circular aperture:
-        aperture_intensity = self.circular_aperture.getPhasor(wave)
+        aperture_intensity = self.circular_aperture.get_transmission(wave)
 
         combined_zernikes = np.zeros(wave.shape, dtype=np.float64)
         for j, k in enumerate(self.coefficients, start=1):
