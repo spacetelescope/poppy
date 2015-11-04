@@ -30,6 +30,7 @@ try:
     import pyfftw
     _FFTW_AVAILABLE = True
 except ImportError:
+    pyfftw = None
     _FFTW_AVAILABLE = False
 
 # internal constants for types of plane
@@ -65,10 +66,13 @@ def _wrap_propagate_for_multiprocessing(args):
     unpacking the results, and *then* at last making our instance method call.
     """
     optical_system, wavelength, retain_intermediates, normalize, usefftwflag = args
-    conf.use_fftw = usefftwflag  #passed in from parent process
+    conf.use_fftw = usefftwflag  # passed in from parent process
 
-    if conf.use_fftw and _FFTW_AVAILABLE: # we're in a different Python interpreter process so we
-        utils.fftw_load_wisdom()          # need to load the wisdom here too
+    # we're in a different Python interpreter process so we
+    # need to load the wisdom here too
+    if conf.use_fftw and _FFTW_AVAILABLE:
+        utils._loaded_fftw_wisdom = False
+        utils.fftw_load_wisdom()
 
     return optical_system.propagate_mono(wavelength, retain_intermediates=retain_intermediates, normalize=normalize)
 
@@ -327,27 +331,30 @@ class Wavefront(object):
         _log.info("  Wavefront saved to %s" % filename)
 
     def display(self, what='intensity', nrows=1, row=1, showpadding=False, imagecrop=None,
-                colorbar=False, crosshairs=True, ax=None, title=None, vmin=1e-8, vmax=1e0, use_angular_coordinates=None):
+                colorbar=False, crosshairs=True, ax=None, title=None, vmin=1e-8,
+                vmax=1e0, use_angular_coordinates=None):
         """Display wavefront on screen
 
         Parameters
         ----------
         what : string
            What to display. Must be one of {intensity, phase, best}.
-           'Best' implies to display the phase if there is nonzero OPD, or else
-           display the intensity for a perfect pupil.
-
+           'Best' implies to display the phase if there is nonzero OPD,
+           or else display the intensity for a perfect pupil.
         nrows : int
-            Number of rows to display in current figure (used for showing steps in a calculation)
+            Number of rows to display in current figure (used for
+            showing steps in a calculation)
         row : int
             Which row to display this one in?
         imagecrop : float, optional
-            For image planes, set the maximum # of arcseconds to display. Default is 5, so
-            only the innermost 5x5 arcsecond region will be shown. This default may be
-            changed in the POPPY config file. If the image size is < 5 arcsec then the
+            For image planes, set the maximum # of arcseconds to
+            display. Default is 5, so only the innermost 5x5 arcsecond
+            region will be shown. This default may be changed in the
+            POPPY config file. If the image size is < 5 arcsec then the
             entire image is displayed.
         showpadding : bool, optional
-            Show the entire padded arrays, or just the good parts? Default is False
+            Show the entire padded arrays, or just the good parts?
+            Default is False
         colorbar : bool
             Display colorbar
         ax : matplotlib Axes
@@ -365,24 +372,26 @@ class Wavefront(object):
         figure : matplotlib figure
             The current figure is modified.
         """
-        if imagecrop is None: imagecrop = conf.default_image_display_fov
+        if imagecrop is None:
+            imagecrop = conf.default_image_display_fov
 
         intens = self.intensity.copy()
-        phase  = self.phase.copy()
-        phase[np.where(intens ==0)] = np.nan
-        amp    = self.amplitude
+        phase = self.phase.copy()
+        phase[np.where(intens == 0)] = np.nan
+        amp = self.amplitude
 
-        if self.planetype==_PUPIL and self.ispadded and not showpadding :
-            intens = utils.removePadding(intens,self.oversample)
-            phase = utils.removePadding(phase,self.oversample)
-            amp = utils.removePadding(amp,self.oversample)
+        if self.planetype == _PUPIL and self.ispadded and not showpadding:
+            intens = utils.removePadding(intens, self.oversample)
+            phase = utils.removePadding(phase, self.oversample)
+            amp = utils.removePadding(amp, self.oversample)
 
-
-        # extent specifications need to include the *full* data region, including the half pixel on either
-        # side outside of the pixel center coordinates.  And remember to swap Y and X.  Recall that for matplotlib,
+        # extent specifications need to include the *full* data region, including the half pixel
+        # on either side outside of the pixel center coordinates.  And remember to swap Y and X.
+        # Recall that for matplotlib,
         #    extent = [xmin, xmax, ymin, ymax]
-        # in this case those are coordinates in units of pixels. Recall that we define pixel coordinates to be
-        # at the *center* of the pixel, so we compute here the coordinates at the outside of those pixels.
+        # in this case those are coordinates in units of pixels. Recall that we define pixel
+        # coordinates to be at the *center* of the pixel, so we compute here the coordinates at the
+        # outside of those pixels.
         # This is needed to get the coordinates right when displaying very small arrays
 
         y, x = self.coordinates()
@@ -401,43 +410,53 @@ class Wavefront(object):
             unit="arcsec"
 
         # implement semi-intellegent selection of what to display, if the user wants
-        if what =='best':
-            if self.planetype ==_IMAGE:
-                what = 'intensity' # always show intensity for image planes
+        if what == 'best':
+            if self.planetype == _IMAGE:
+                what = 'intensity'  # always show intensity for image planes
             elif phase[np.where(np.isfinite(phase))].sum() == 0:
-                what = 'intensity' # for perfect pupils
-            elif int(row) > 2: what='intensity'  # show intensity for coronagraphic downstream propagation.
-            else: what='phase' # for aberrated pupils
+                what = 'intensity'  # for perfect pupils
+            elif int(row) > 2:
+                what = 'intensity'  # show intensity for coronagraphic downstream propagation.
+            else:
+                what = 'phase'  # for aberrated pupils
 
         # compute plot parameters for the subplot grid
         nc = int(np.ceil(np.sqrt(nrows)))
-        nr = int(np.ceil(float(nrows)/nc))
-        if (nrows - nc*(nc-1) == 1) and (nr>1): # avoid just one alone on a row by itself...
+        nr = int(np.ceil(float(nrows) / nc))
+        if (nrows - nc * (nc - 1) == 1) and (nr > 1):  # avoid just one alone on a row by itself...
             nr -= 1
             nc += 1
 
         # now display the chosen selection..
         if what == 'intensity':
             if self.planetype == _PUPIL:
-                norm=matplotlib.colors.Normalize(vmin=0)
-                cmap = matplotlib.cm.gray
+                norm = matplotlib.colors.Normalize(vmin=0)
+                cmap = getattr(matplotlib.cm, conf.cmap_pupil_intensity)
                 cmap.set_bad('0.0')
             else:
-                norm=matplotlib.colors.LogNorm(vmin=vmin,vmax=vmax)
-                cmap = matplotlib.cm.jet
+                norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
+                cmap = getattr(matplotlib.cm, conf.cmap_sequential)
                 cmap.set_bad(cmap(0))
 
             if ax is None:
-                ax = plt.subplot(nr,nc,int(row))
+                ax = plt.subplot(nr, nc, int(row))
 
-            utils.imshow_with_mouseover(intens, ax=ax, extent=extent, norm=norm, cmap=cmap)
+            utils.imshow_with_mouseover(
+                intens,
+                ax=ax,
+                extent=extent,
+                norm=norm,
+                cmap=cmap,
+                origin='lower'
+            )
             if title is None:
-                title = "Intensity "+self.location
+                title = "Intensity " + self.location
                 title = title.replace('after', 'after\n')
                 title = title.replace('before', 'before\n')
             ax.set_title(title)
             ax.set_xlabel(unit)
-            if colorbar: plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
+            if colorbar:
+                plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
 
             if use_angular_coordinates:
                 if crosshairs:
@@ -448,16 +467,23 @@ class Wavefront(object):
                 ax.set_xbound(-imsize_x, imsize_x)
                 ax.set_ybound(-imsize_y, imsize_y)
             to_return = ax
-        elif what =='phase':
+        elif what == 'phase':
             # Display phase in waves.
-            cmap = matplotlib.cm.jet
+            cmap = getattr(matplotlib.cm, conf.cmap_diverging)
             cmap.set_bad('0.3')
-            norm=matplotlib.colors.Normalize(vmin=-0.25,vmax=0.25)
+            norm = matplotlib.colors.Normalize(vmin=-0.25, vmax=0.25)
             if ax is None:
-                ax = plt.subplot(nr,nc,int(row))
-            utils.imshow_with_mouseover(phase/(np.pi*2), ax=ax, extent=extent, norm=norm, cmap=cmap)
+                ax = plt.subplot(nr, nc, int(row))
+            utils.imshow_with_mouseover(
+                phase / (np.pi * 2),
+                ax=ax,
+                extent=extent,
+                norm=norm,
+                cmap=cmap,
+                origin='lower'
+            )
             if title is None:
-                title= "Phase "+self.location
+                title = "Phase " + self.location
             plt.title(title)
             plt.xlabel(unit)
             if colorbar: plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
@@ -466,28 +492,28 @@ class Wavefront(object):
 
         else:
             if ax is None:
-                ax = plt.subplot(nr,nc,int(row))
-            cmap = matplotlib.cm.gray
-            ax1 = plt.subplot(nrows,2,(row*2)-1)
-            plt.imshow(amp,extent=extent,cmap=cmap)
+                ax = plt.subplot(nr, nc, int(row))
+            cmap = getattr(matplotlib.cm, conf.cmap_sequential)
+            ax1 = plt.subplot(nrows, 2, (row * 2) - 1)
+            plt.imshow(amp, extent=extent, cmap=cmap, origin='lower')
             plt.title("Wavefront amplitude")
             plt.ylabel(unit)
             plt.xlabel(unit)
 
-            if colorbar: plt.colorbar(orientation='vertical',shrink=0.8)
+            if colorbar: plt.colorbar(orientation='vertical', shrink=0.8)
 
-            ax2 = plt.subplot(nrows,2,row*2)
-            plt.imshow(phase,extent=extent, cmap=cmap)
-            if colorbar: plt.colorbar(orientation='vertical',shrink=0.8)
+            ax2 = plt.subplot(nrows, 2, row * 2)
+            cmap_phase = getattr(matplotlib.cm, conf.cmap_diverging)
+            plt.imshow(phase, extent=extent, cmap=cmap_phase, origin='lower')
+            if colorbar: plt.colorbar(orientation='vertical', shrink=0.8)
 
             plt.xlabel(unit)
             plt.title("Wavefront phase [radians]")
 
-            to_return = (ax1,ax2)
+            to_return = (ax1, ax2)
 
         ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5))
         ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5))
-
 
         plt.draw()
         return to_return
@@ -778,33 +804,27 @@ class Wavefront(object):
             tilt angles, specified in arcseconds
 
         """
-        if self.planetype==_IMAGE:
+        if self.planetype == _IMAGE:
             raise NotImplementedError("Are you sure you want to tilt a wavefront in an _IMAGE plane?")
 
-        if np.abs(Xangle) > 0 or np.abs(Yangle)>0:
-            xangle_rad = Xangle * (np.pi/180/60/60)
-            yangle_rad = Yangle * (np.pi/180/60/60)
+        if np.abs(Xangle) > 0 or np.abs(Yangle) > 0:
+            xangle_rad = Xangle * (np.pi / 180 / 60 / 60)
+            yangle_rad = Yangle * (np.pi / 180 / 60 / 60)
 
             npix = self.wavefront.shape[0]
             V, U = np.indices(self.wavefront.shape, dtype=float)
-            V -= (npix-1)/2.0
+            V -= (npix - 1) / 2.0
             V *= self.pixelscale
-            U -= (npix-1)/2.0
+            U -= (npix - 1) / 2.0
             U *= self.pixelscale
 
-            tiltphasor = np.exp( 2j*np.pi * (U * xangle_rad + V * yangle_rad)/self.wavelength)
+            tiltphasor = np.exp(2.0j * np.pi * (U * xangle_rad + V * yangle_rad) / self.wavelength)
+            self.wavefront *= tiltphasor
+            self.history.append("Tilted wavefront by "
+                                "X={:2.2}, Y={:2.2} arcsec".format(Xangle, Yangle))
 
         else:
             _log.warn("Wavefront.tilt() called, but requested tilt was zero. No change.")
-            tiltphasor = 1.
-
-        #Compute the tilt of the wavefront required to shift it by some amount in the image plane.
-
-
-
-
-        self.wavefront *= tiltphasor
-        self.history.append("Tilted wavefront")
 
     def rotate(self, angle=0.0):
         """Rotate a wavefront by some amount
@@ -1370,7 +1390,7 @@ class OpticalSystem(object):
             utils.fftw_load_wisdom()
 
         if conf.use_multiprocessing and len(wavelength) > 1: ######### Parallellized computation ############
-            # Avoid a Mac OS incompatibility that can lead to hard-to-reproduce crashes. 
+            # Avoid a Mac OS incompatibility that can lead to hard-to-reproduce crashes.
             import sys
             import platform
             if ( (sys.version_info < (3,4,0)) and platform.system()=='Darwin' and
@@ -1404,7 +1424,7 @@ class OpticalSystem(object):
             if ((sys.version_info.major+sys.version_info.minor*0.1) < 3.4):
                 pool = multiprocessing.Pool(int(nproc))
             else:
-                # Use new forkserver for more robustness; 
+                # Use new forkserver for more robustness;
                 # Resolves https://github.com/mperrin/poppy/issues/23 ?
                 ctx = multiprocessing.get_context('forkserver')
                 pool =ctx.Pool(int(nproc))
@@ -1456,7 +1476,7 @@ class OpticalSystem(object):
 
             if display:
                 # Add final intensity panel to intermediate WF plot
-                cmap = matplotlib.cm.jet
+                cmap = getattr(matplotlib.cm, conf.cmap_sequential)
                 cmap.set_bad('0.3')
                 #cmap.set_bad('k', 0.8)
                 halffov_x =outFITS[0].header['PIXELSCL']*outFITS[0].data.shape[1]/2
@@ -1466,7 +1486,8 @@ class OpticalSystem(object):
                 norm=matplotlib.colors.LogNorm(vmin=1e-8,vmax=1e-1)
                 plt.xlabel(unit)
 
-                utils.imshow_with_mouseover(outFITS[0].data, extent=extent, norm=norm, cmap=cmap)
+                utils.imshow_with_mouseover(outFITS[0].data, extent=extent, norm=norm, cmap=cmap,
+                                            origin='lower')
 
         if save_intermediates:
             _log.info('Saving intermediate wavefronts:')
@@ -1821,6 +1842,7 @@ class OpticalElement(object):
                 resampled_opd = scipy.ndimage.interpolation.zoom(self.opd,zoom,output=self.opd.dtype,order=self.interp_order)
                 resampled_amplitude = scipy.ndimage.interpolation.zoom(self.amplitude,zoom,output=self.amplitude.dtype,order=self.interp_order)
                 _log.debug("resampled optic to match wavefront via spline interpolation by a zoom factor of %.3g"%(zoom))
+                _log.debug("resampled optic shape: {}   wavefront shape: {}".format(resampled_amplitude.shape, wave.shape))
 
                 lx,ly=resampled_amplitude.shape
                 #crop down to match size of wavefront:
@@ -1862,17 +1884,19 @@ class OpticalElement(object):
         else:
             return self.phasor
 
-    def display(self, nrows=1, row=1, what='intensity', crosshairs=True, ax=None, colorbar=True, colorbar_orientation=None, title=None, opd_vmax=0.5e-6):
+    def display(self, nrows=1, row=1, what='intensity', crosshairs=True, ax=None, colorbar=True,
+                colorbar_orientation=None, title=None, opd_vmax=0.5e-6):
         """Display plots showing an optic's transmission and OPD.
 
         Parameters
         ----------
         what : str
-            What to display: 'intensity', 'amplitude', 'phase', or 'both' (meaning intensity + phase)
+            What to display: 'intensity', 'amplitude', 'phase',
+            or 'both' (meaning intensity and phase in two subplots)
         ax : matplotlib.Axes instance
             Axes to display into
         nrows, row : integers
-            # of rows and row index for subplot display
+            number of rows and row index for subplot display
         crosshairs : bool
             Display crosshairs indicating the center?
         colorbar : bool
@@ -1881,80 +1905,83 @@ class OpticalElement(object):
             Desired orientation, horizontal or vertical?
             Default is horizontal if only 1 row of plots, else vertical
         opd_vmax : float
-            Max value for OPD image display, in meters.
+            Max absolute value for OPD image display, in meters.
         title : string
             Plot label
-
-
         """
         if colorbar_orientation is None:
-            colorbar_orientation= "horizontal" if nrows == 1 else 'vertical'
+            colorbar_orientation = "horizontal" if nrows == 1 else 'vertical'
 
-        _log.debug('colorbar_orientation = '+colorbar_orientation)
-        cmap_amp = matplotlib.cm.gray
+        if self.planetype is _PUPIL:
+            cmap_amp = getattr(matplotlib.cm, conf.cmap_pupil_intensity)
+        else:
+            cmap_amp = getattr(matplotlib.cm, conf.cmap_sequential)
         cmap_amp.set_bad('0.0')
-        cmap_opd = matplotlib.cm.jet
+        cmap_opd = getattr(matplotlib.cm, conf.cmap_diverging)
         cmap_opd.set_bad('0.3')
-        norm_amp=matplotlib.colors.Normalize(vmin=0, vmax=1)
-        norm_opd=matplotlib.colors.Normalize(vmin=-opd_vmax, vmax=opd_vmax)
+        norm_amp = matplotlib.colors.Normalize(vmin=0, vmax=1)
+        norm_opd = matplotlib.colors.Normalize(vmin=-opd_vmax, vmax=opd_vmax)
 
         units = "[meters]" if self.planetype == _PUPIL else "[arcsec]"
-        if nrows > 1: units = self.name+"\n"+units
-
+        if nrows > 1:
+            units = self.name + "\n" + units
 
         if self.pixelscale is not None:
-            halfsize = self.pixelscale*self.amplitude.shape[0]/2
+            halfsize = self.pixelscale * self.amplitude.shape[0] / 2
             _log.debug("Display pixel scale = %.3f " % self.pixelscale)
         else:
             _log.debug("No defined pixel scale - this must be an analytic optic")
-            halfsize=1.0
+            halfsize = 1.0
         extent = [-halfsize, halfsize, -halfsize, halfsize]
 
-
-        #ampl = np.ma.masked_equal(self.amplitude, 0)
         ampl = self.amplitude
-        #opd= np.ma.masked_array(self.opd, mask=(self.amplitude ==0))
         opd = self.opd.copy()
-        opd[np.where(self.amplitude ==0)] = np.nan
+        opd[np.where(self.amplitude == 0)] = np.nan
 
-        if what =='both':
+        if what == 'both':
             # recursion!
             if ax is None:
-                ax = plt.subplot(nrows, 2, row*2-1)
-            self.display(what='intensity', ax=ax, crosshairs=crosshairs, colorbar=colorbar, nrows=nrows)
-            ax2 = plt.subplot(nrows, 2, row*2)
-            self.display(what='phase', ax=ax2, crosshairs=crosshairs, colorbar=colorbar, nrows=nrows, opd_vmax=opd_vmax)
-            return (ax,ax2)
-        elif what=='amplitude':
+                ax = plt.subplot(nrows, 2, row * 2 - 1)
+            self.display(what='intensity', ax=ax, crosshairs=crosshairs, colorbar=colorbar,
+                         colorbar_orientation=colorbar_orientation, title=None, opd_vmax=opd_vmax,
+                         nrows=nrows)
+            ax2 = plt.subplot(nrows, 2, row * 2)
+            self.display(what='phase', ax=ax2, crosshairs=crosshairs, colorbar=colorbar,
+                         colorbar_orientation=colorbar_orientation, title=None, opd_vmax=opd_vmax,
+                         nrows=nrows)
+            return ax, ax2
+        elif what == 'amplitude':
             plot_array = ampl
             title = 'Transmissivity'
             cb_label = 'Fraction'
-            cb_values = [0,0.25, 0.5, 0.75, 1.0]
+            cb_values = [0, 0.25, 0.5, 0.75, 1.0]
             cmap = cmap_amp
             norm = norm_amp
-        elif what=='intensity':
-            plot_array = ampl**2
+        elif what == 'intensity':
+            plot_array = ampl ** 2
             title = "Transmittance"
             cb_label = 'Fraction'
-            cb_values = [0,0.25, 0.5, 0.75, 1.0]
+            cb_values = [0, 0.25, 0.5, 0.75, 1.0]
             cmap = cmap_amp
             norm = norm_amp
-        elif what =='phase':
+        elif what == 'phase':
             plot_array = opd
             title = "OPD"
             cb_label = 'meters'
-            cb_values = np.array([-1, -0.5, 0, 0.5, 1])*opd_vmax
+            cb_values = np.array([-1, -0.5, 0, 0.5, 1]) * opd_vmax
             cmap = cmap_opd
             norm = norm_opd
 
         # now we plot whichever was chosen...
         if ax is None:
             if nrows > 1:
-                ax = plt.subplot(nrows, 2, row*2-1)
-            else: ax = plt.subplot(111)
-        utils.imshow_with_mouseover(plot_array, ax=ax, extent=extent, cmap=cmap, norm=norm)
+                ax = plt.subplot(nrows, 2, row * 2 - 1)
+            else:
+                ax = plt.subplot(111)
+        utils.imshow_with_mouseover(plot_array, ax=ax, extent=extent, cmap=cmap, norm=norm,
+                                    origin='lower')
         if nrows == 1:
-            plt.title(title+" for "+self.name)
+            plt.title(title + " for " + self.name)
         plt.ylabel(units)
         ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
         ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
@@ -1962,8 +1989,8 @@ class OpticalElement(object):
             cb = plt.colorbar(ax.images[0], orientation=colorbar_orientation, ticks=cb_values)
             cb.set_label(cb_label)
         if crosshairs:
-            ax.axhline(0,ls=":", color='k')
-            ax.axvline(0,ls=":", color='k')
+            ax.axhline(0, ls=":", color='k')
+            ax.axvline(0, ls=":", color='k')
         return ax
 
     def __str__(self):
