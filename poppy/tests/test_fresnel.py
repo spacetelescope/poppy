@@ -18,7 +18,7 @@ def test_GaussianBeamParams():
     gw.apply_lens_power(gl,ignore_wavefront=True)
     assert(np.round(gw.w_0.value,9) == np.round(0.0001061989749146441,9))
     assert(np.round(gw.z_w0.value,9) == np.round(0.15957902236417937,9))
-    assert(np.round(gw.z_R.value,9) == np.round(0.042688650889351865,9))
+    assert(np.round(gw.z_r.value,9) == np.round(0.042688650889351865,9))
     # FIXME MP: where do the above values come from?
 
 
@@ -33,7 +33,7 @@ def test_Gaussian_Beam_curvature_near_waist(npoints=5, plot=False):
     wf0 = fresnel.FresnelWavefront(2*u.m, wavelength=1e-6)
 
     # use that to scale the
-    z_rayleigh = wf0.z_R
+    z_rayleigh = wf0.z_r
     z = z_rayleigh * np.logspace(-1,1,num=npoints)
     zdzr = z/z_rayleigh
 
@@ -45,7 +45,7 @@ def test_Gaussian_Beam_curvature_near_waist(npoints=5, plot=False):
         wf.propagate_fresnel(zi)
 
         # calculate the beam radius and curvature at z
-        calc_rz.append( (wf.R_c()/z_rayleigh).value)
+        calc_rz.append( (wf.r_c()/z_rayleigh).value)
         calc_wz.append( (wf.spot_radius()/wf.w_0).value)
 
     # Calculate analytic solution for Gaussian beam propagation
@@ -54,13 +54,13 @@ def test_Gaussian_Beam_curvature_near_waist(npoints=5, plot=False):
     wz = wf0.w_0*np.sqrt(1+zdzr**2)
 
     if plot:
-        plt.plot(zdzr, rz/z_rayleigh, label="$R(z)/z_R$ (analytical)", color='blue')
-        plt.plot(zdzr, calc_rz, ls='dashed', linewidth=3, color='purple', label="$R(z)/z_R$ (calc.)")
+        plt.plot(zdzr, rz/z_rayleigh, label="$R(z)/z_r$ (analytical)", color='blue')
+        plt.plot(zdzr, calc_rz, ls='dashed', linewidth=3, color='purple', label="$R(z)/z_r$ (calc.)")
 
         plt.plot(zdzr, wz/wf.w_0, label="$w(z)/w_0$ (analytical)", color='orange')
         plt.plot(zdzr, calc_wz, ls='dashed', linewidth=3, color='red', label="$w(z)/w_0$ (calc.)")
 
-        plt.xlabel("$z/z_R$")
+        plt.xlabel("$z/z_r$")
         plt.legend(loc='lower right', frameon=False)
 
     assert np.allclose(rz/z_rayleigh, calc_rz)
@@ -77,7 +77,7 @@ def test_Circular_Aperture_PTP(display=False, npix=512, display_proper=False):
     case using PROPER.
 
     Note this tests only the Plane-to-Plane propagation method,
-    since the propagation distance z < z_Rayleigh ~ 360 km
+    since the propagation distance z < z_rayleigh ~ 360 km
 
     See https://github.com/mperrin/poppy/issues/106 for further
     discussion of this test case.

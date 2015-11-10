@@ -301,7 +301,7 @@ class FresnelWavefront(Wavefront):
     # properties and methods supporting fresnel propagation
 
     @property
-    def z_R(self):
+    def z_r(self):
         """
         Rayleigh distance for the gaussian beam, based on
         current beam waist and wavelength.
@@ -329,7 +329,7 @@ class FresnelWavefront(Wavefront):
         Formatted string of gaussian beam parameters.
         """
         string = "w_0:{0:0.3e},".format(self.w_0) + " z_w0={0:0.3e}".format(self.z_w0) + "\n" + \
-                 "z={0:0.3e},".format(self.z) + " z_R={0:0.3e}".format(self.z_R)
+                 "z={0:0.3e},".format(self.z) + " z_r={0:0.3e}".format(self.z_r)
         return string
 
     @property
@@ -374,7 +374,7 @@ class FresnelWavefront(Wavefront):
             _log.debug("   Using numpy FFT")
             self.wavefront = np.fft.ifft2(self.wavefront) * self.shape[0]
 
-    def R_c(self, z=None):
+    def r_c(self, z=None):
         """
         The gaussian beam radius of curvature as a function of distance z
 
@@ -395,7 +395,7 @@ class FresnelWavefront(Wavefront):
         dz = (z - self.z_w0)  # z relative to waist
         if dz == 0:
             return np.inf * u.m
-        return dz * (1 + (self.z_R / dz) ** 2)
+        return dz * (1 + (self.z_r / dz) ** 2)
 
     def spot_radius(self, z=None):
         """
@@ -414,7 +414,7 @@ class FresnelWavefront(Wavefront):
         """
         if z is None:
             z = self.z
-        return self.w_0 * np.sqrt(1.0 + ((z - self.z_w0) / self.z_R) ** 2)
+        return self.w_0 * np.sqrt(1.0 + ((z - self.z_w0) / self.z_r) ** 2)
 
     #  methods supporting coordinates, including switching between distance and angular units
 
@@ -740,11 +740,11 @@ class FresnelWavefront(Wavefront):
 
         """
 
-        # if np.abs(self.z_w0 - z) < self.z_R:
+        # if np.abs(self.z_w0 - z) < self.z_r:
         #    return True
         # else:
         #    return False
-        return np.abs(self.z_w0 - z) < self.z_R
+        return np.abs(self.z_w0 - z) < self.z_r
 
     def propagate_fresnel(self, delta_z, display_intermed=False):
         """Top-level routine for Fresnel diffraction propagation
@@ -855,11 +855,11 @@ class FresnelWavefront(Wavefront):
         # We decided based on whether the last waist is outside the rayleigh distance.
         #  I.e. here we neglect small curvature just away from the waist
         # Based on that, determine the radius of curvature of the output beam
-        if np.abs(self.z_w0 - self.z) > self.rayleigh_factor * self.z_R:
+        if np.abs(self.z_w0 - self.z) > self.rayleigh_factor * self.z_r:
             _log.debug("spherical beam")
             _log.debug(self.param_str)
             r_input_beam = self.z - self.z_w0
-            r_output_beam = 1.0 / (1.0 / self.R_c() - 1.0 / optic.fl)
+            r_output_beam = 1.0 / (1.0 / self.r_c() - 1.0 / optic.fl)
             _log.debug(
                 " input curved wavefront and " + str(optic.name) + " has output beam curvature of ={0:0.2e}".format(
                     r_output_beam))
@@ -872,7 +872,7 @@ class FresnelWavefront(Wavefront):
                     r_output_beam))
 
         # update the wavefront parameters to the post-lens beam waist
-        if self.R_c() == optic.fl:
+        if self.r_c() == optic.fl:
             self.z_w0 = self.z
             self.w_0 = spot_radius
             _log.debug(str(optic.name) + " has a flat output wavefront")
@@ -915,7 +915,7 @@ class FresnelWavefront(Wavefront):
         # Now we need to figure out the phase term to apply to the wavefront
         # data array
         if not self.spherical:
-            if np.abs(self.z_w0 - self.z) < self.z_R:
+            if np.abs(self.z_w0 - self.z) < self.z_r:
                 _log.debug('Near-field, Plane-to-Plane Propagation.')
                 z_eff = 1 * optic.fl
 
@@ -930,7 +930,7 @@ class FresnelWavefront(Wavefront):
                 self.spherical = True
 
         else:  # spherical input wavefront
-            if np.abs(self.z_w0 - self.z) > self.z_R:
+            if np.abs(self.z_w0 - self.z) > self.z_r:
                 _log.debug('Spherical to Spherical wavefront propagation.')
                 _log.debug("1/fl={0:0.4e}".format(1.0 / optic.fl))
                 _log.debug("1.0/(R_input_beam)={0:0.4e}".format(1.0 / r_input_beam))
