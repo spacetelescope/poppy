@@ -90,11 +90,14 @@ conf = Conf()
 from . import poppy_core
 from . import utils
 from . import optics
+from . import misc
+from . import fresnel
 
 from .poppy_core import *
 from .utils import *
 from .optics import *
 from .wfe import *
+from .fresnel import *
 
 from .instrument import Instrument
 
@@ -109,4 +112,4 @@ if conf.use_fftw and conf.autosave_fftw_wisdom:
     except ImportError:
         pyfftw = None
 
-__all__ = ['conf', 'Instrument'] + utils.__all__ + poppy_core.__all__ + optics.__all__
+__all__ = ['conf', 'Instrument'] + utils.__all__ + poppy_core.__all__ + optics.__all__ + fresnel.__all__

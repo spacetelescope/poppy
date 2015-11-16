@@ -26,12 +26,15 @@ __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'InverseTransmission'
 # ------ Generic Analytic elements -----
 
 class AnalyticOpticalElement(OpticalElement):
-    """ Defines an abstract analytic optical element, i.e. one definable by some formula rather than
-        by an input OPD or pupil file.
+    """ Defines an abstract analytic optical element, i.e. one definable by some
+        formula rather than by an input OPD or pupil file.
 
-        This class is useless on its own; instead use its various subclasses that implement
-        appropriate getPhasor functions. It exists mostly to provide some behaviors &
-        initialization common to all analytic optical elements.
+        This class is useless on its own; instead use its various subclasses
+        that implement appropriate getPhasor functions. It exists mostly to
+        provide some behaviors & initialization common to all analytic optical
+        elements.
+
+
 
         Parameters
         ----------
@@ -40,12 +43,23 @@ class AnalyticOpticalElement(OpticalElement):
         transmission, opd : string
             These are *not allowed* for Analytic optical elements, and this class will raise an
             error if you try to set one.
-
+        shift_x, shift_y : Optional floats
+            Translations of this optic, given in meters relative to the optical
+            axis.
+        rotation : Optional float
+            Rotation of the optic around its center, given in degrees
+            counterclockwise.  Note that if you apply both shift and rotation,
+            the optic rotates around its own center, rather than the optical
+            axis.
 
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, shift_x=None, shift_y=None, rotation=None, **kwargs):
         OpticalElement.__init__(self, **kwargs)
+
+        if shift_x is not None: self.shift_x = shift_x
+        if shift_y is not None: self.shift_y = shift_y
+        if rotation is not None: self.rotation = rotation
 
         #self.shape = None  # no explicit shape required
         self.pixelscale = None
@@ -55,9 +69,9 @@ class AnalyticOpticalElement(OpticalElement):
         return None
 
     def __str__(self):
-        if self.planetype is _PUPIL:
+        if self.planetype == _PUPIL:
             return "Pupil plane: %s (Analytic)" % (self.name)
-        elif self.planetype is _IMAGE:
+        elif self.planetype == _IMAGE:
             return "Image plane: %s (Analytic)" % (self.name)
         else:
             return "Optic: " + self.name
@@ -304,7 +318,7 @@ class InverseTransmission(OpticalElement):
         return 1 - self.uninverted_optic.getPhasor(wave)
 
 
-#------ Analytic Image Plane elements -----
+#------ Analytic Image Plane elements (coordinates in arcsec) -----
 
 class BandLimitedCoron(AnalyticOpticalElement):
     """ Defines an ideal band limited coronagraph occulting mask.
@@ -692,7 +706,7 @@ class BarOcculter(AnalyticOpticalElement):
         return self.transmission
 
 
-#------ Analytic Pupil Plane elements -----
+#------ Analytic Pupil or Intermedian Plane elements (coordinates in meters) -----
 
 class FQPM_FFT_aligner(AnalyticOpticalElement):
     """  Helper class for modeling FQPMs accurately
@@ -778,7 +792,7 @@ class ParityTestAperture(AnalyticOpticalElement):
         if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("CircularAperture getPhasor must be called with a Wavefront "
                              "to define the spacing")
-        assert (wave.planetype == _PUPIL)
+        assert (wave.planetype != _IMAGE)
 
         y, x = self.get_coordinates(wave)
         r = np.sqrt(x ** 2 + y ** 2)  #* wave.pixelscale
@@ -839,7 +853,7 @@ class CircularAperture(AnalyticOpticalElement):
         if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("CircularAperture getPhasor must be called with a Wavefront "
                              "to define the spacing")
-        assert (wave.planetype == _PUPIL)
+        assert (wave.planetype != _IMAGE)
 
         y, x = self.get_coordinates(wave)
         r = np.sqrt(x ** 2 + y ** 2)
@@ -905,7 +919,7 @@ class HexagonAperture(AnalyticOpticalElement):
         if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("HexagonAperture getPhasor must be called with a Wavefront "
                              "to define the spacing")
-        assert (wave.planetype == _PUPIL)
+        assert (wave.planetype != _IMAGE)
 
         y, x = self.get_coordinates(wave)
         absy = np.abs(y)
@@ -1105,7 +1119,7 @@ class MultiHexagonAperture(AnalyticOpticalElement):
         """
         if not isinstance(wave, Wavefront):
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL)
+        assert (wave.planetype != _IMAGE)
 
         #y, x = self.get_coordinates(wave)
         #absy = np.abs(y)
@@ -1178,7 +1192,7 @@ class NgonAperture(AnalyticOpticalElement):
         """
         if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL)
+        assert (wave.planetype != _IMAGE)
         y, x = self.get_coordinates(wave)
 
         phase = self.rotation * np.pi / 180
@@ -1228,7 +1242,7 @@ class RectangleAperture(AnalyticOpticalElement):
         """
         if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL)
+        assert (wave.planetype != _IMAGE)
 
 #        y, x = wave.coordinates()
 #
@@ -1327,7 +1341,7 @@ class SecondaryObscuration(AnalyticOpticalElement):
         """
         if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL)
+        assert (wave.planetype != _IMAGE)
 
         self.transmission = np.ones(wave.shape)
 
@@ -1401,7 +1415,7 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
         """
         if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL)
+        assert (wave.planetype != _IMAGE)
 
         self.transmission = np.ones(wave.shape)
 
@@ -1467,6 +1481,65 @@ class ThinLens(CircularAperture):
         lens_phasor = np.exp(1.j * 2 * np.pi * defocus_zernike * aperture_intensity)
 
         return lens_phasor
+
+
+class GaussianAperture(AnalyticOpticalElement):
+    """ Defines an ideal Gaussian apodized pupil aperture,
+    or at least as much of one as can be fit into a finite-sized
+    array
+
+    The Gaussian's width must be set with either the fwhm or w parameters.
+
+    Note that this makes an optic whose electric *field amplitude*
+    transmission is the specified Gaussian; thus the intensity
+    transmission will be the square of that Gaussian.
+
+
+    Parameters
+    ----------
+    name : string
+        Descriptive name
+    fwhm : float, optional.
+        Full width at half maximum for the Gaussian, in meters.
+    w : float, optional
+        Beam width parameter, equal to fwhm/(2*sqrt(ln(2))).
+    pupil_diam : float, optional
+        default pupil diameter for cases when it is not otherwise
+        specified (e.g. displaying the optic by itself.) Default
+        value is 3x the FWHM.
+
+    """
+    def __init__(self, name=None, fwhm=None, w=None, pupil_diam=None, **kwargs):
+        if fwhm is None and w is None:
+            raise ValueError("Either the fwhm or w parameter must be set.")
+        elif w is not None:
+            self.w = float(w)
+        elif fwhm is not None:
+            self.w = float(fwhm)/(2*np.sqrt(np.log(2)))
+
+        if pupil_diam is None:
+            pupil_diam = 3 * self.fwhm # for creating input wavefronts
+        self.pupil_diam = pupil_diam
+        if name is None: name = "Gaussian aperture with fwhm ={0}".format(self.fwhm)
+        AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
+
+    @property
+    def fwhm(self):
+        return self.w*(2*np.sqrt(np.log(2)))
+
+    def getPhasor(self, wave):
+        """ Compute the transmission inside/outside of the aperture.
+        """
+        if not isinstance(wave, Wavefront):  # pragma: no cover
+            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
+        y, x = self.get_coordinates(wave)
+
+        r = np.sqrt(x**2+y**2)
+
+        transmission = np.exp( (- (r/self.w)**2))
+
+        return transmission
+
 
 #------ generic analytic optics ------
 
