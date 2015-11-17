@@ -1445,6 +1445,7 @@ class OpticalSystem(object):
             # This is a memory-intensive task so that can end up swapping to disk and thrashing IO
             nproc = conf.n_processes if conf.n_processes > 1 \
                                      else utils.estimate_optimal_nprocesses(self, nwavelengths=len(wavelength))
+            nproc = min(nproc, len(wavelength)) # never try more processes than wavelengths. 
             # be sure to cast nproc to int below; will fail if given a float even if of integer value
 
             if ((sys.version_info.major+sys.version_info.minor*0.1) < 3.4):
