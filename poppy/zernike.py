@@ -364,7 +364,7 @@ def hex_aperture(npix=1024, rho=None, theta=None, vertical=False):
         y = rho * np.sin(theta)
     else:
         # the coordinates here must be consistent with those used elsewhere in poppy
-        # see issue #119
+        # see issue #111
         x_ = (np.arange(npix, dtype=np.float64) - (npix - 1) / 2.) / (npix / 2.)
         x, y = np.meshgrid(x_, x_)
 
