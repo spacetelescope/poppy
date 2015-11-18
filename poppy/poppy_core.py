@@ -1858,10 +1858,10 @@ class MatrixFTCoronagraph(OpticalSystem):
         for optic in self.planes:
             # The actual propagation:
             if optic.planetype == _IMAGE:
-                if optic.amplitude is not None: # Match detector object to the loaded FPM transmission array
+                if len(optic.amplitude.shape) == 2: # Match detector object to the loaded FPM transmission array
                     metadet = Detector(optic.pixelscale, fov_pixels = optic.amplitude.shape[0], name='Oversampled Occulter Plane')
                 else:
-                    metadet = Detector(optic.pixelscale, fov_arcsec = self.occulter_box*2, name='Oversampled Occulter Plane')
+                    metadet = Detector(wavefront.pixelscale, fov_arcsec = self.occulter_box*2, name='Oversampled Occulter Plane')
                 wavefront.propagateTo(metadet)
             else:
                 wavefront.propagateTo(optic)
