@@ -1448,11 +1448,11 @@ class OpticalSystem(object):
             nproc = min(nproc, len(wavelength)) # never try more processes than wavelengths. 
             # be sure to cast nproc to int below; will fail if given a float even if of integer value
 
-            if ((sys.version_info.major+sys.version_info.minor*0.1) < 3.4):
+            if sys.version_info < (3, 4, 0):
                 pool = multiprocessing.Pool(int(nproc))
             else:
                 # Use new forkserver for more robustness;
-                # Resolves https://github.com/mperrin/poppy/issues/23 ?
+                # Resolves https://github.com/mperrin/poppy/issues/23 
                 ctx = multiprocessing.get_context('forkserver')
                 pool =ctx.Pool(int(nproc))
 
@@ -1467,11 +1467,15 @@ class OpticalSystem(object):
             # Sum all the results up into one array, using the weights
             outFITS, intermediate_wfs = results[0]
             outFITS[0].data *= normwts[0]
-            _log.info("got results for wavelength channel %d / %d" % (0, len(tuple(wavelength))) )
+            for idx, wavefront in enumerate(intermediate_wfs):
+                 intermediate_wfs[idx] *= normwts[0]
+            _log.info("got results for wavelength channel {} / {} ({:g} meters)".format(
+                0, len(tuple(wavelength)), wavelength[0]) )
             for i in range(1, len(normwts)):
                 mono_psf, mono_intermediate_wfs = results[i]
                 wave_weight = normwts[i]
-                _log.info("got results for wavelength channel %d / %d" % (i, len(tuple(wavelength))) )
+                _log.info("got results for wavelength channel {} / {} ({:g} meters)".format(
+                    i, len(tuple(wavelength)), wavelength[i]) )
                 outFITS[0].data += mono_psf[0].data * wave_weight
                 for idx, wavefront in enumerate(mono_intermediate_wfs):
                     intermediate_wfs[idx] += wavefront * wave_weight
