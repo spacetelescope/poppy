@@ -1475,7 +1475,7 @@ class OpticalSystem(object):
                 outFITS[0].data += mono_psf[0].data * wave_weight
                 for idx, wavefront in enumerate(mono_intermediate_wfs):
                     intermediate_wfs[idx] += wavefront * wave_weight
-            outFITS[0].header.add_history("Multiwavelength PSF calc on %d processors completed." % conf.n_processes)
+            outFITS[0].header.add_history("Multiwavelength PSF calc using {} processes completed.".format(nproc) )
 
         else:  ########## single-threaded computations (may still use multi cores if FFTW enabled ######
             if display:
