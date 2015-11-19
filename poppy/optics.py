@@ -340,13 +340,20 @@ class BandLimitedCoron(AnalyticOpticalElement):
             Wavelength this BLC is optimized for, only for the linear ones.
 
     """
+    allowable_kinds = ['circular', 'linear']
+    """ Allowable types of BLC supported by this class"""
 
     def __init__(self, name="unnamed BLC", kind='circular', sigma=1, wavelength=None, **kwargs):
         AnalyticOpticalElement.__init__(self, name=name, planetype=_IMAGE, **kwargs)
 
         self.kind = kind.lower()  # either circular or linear
-        if self.kind not in ['circular', 'linear', 'nircamwedge', 'nircamcircular']:
-            raise ValueError("Invalid kind of BLC: " + self.kind)
+        if self.kind in ['nircamwedge', 'nircamcircular']:
+            import warnings
+            warnings.warn('JWST NIRCam specific functionality in poppy.BandLimitedCoron is moving to '+
+                    'webbpsf.NIRCam_BandLimitedCoron. The "nircamwedge" and "nircamcircular" options '+
+                    'in poppy will be removed in a future version of poppy.', DeprecationWarning)
+        elif self.kind not in self.allowable_kinds:  #['circular', 'linear', 'nircamwedge', 'nircamcircular']:
+            raise ValueError("Invalid value for kind of BLC: " + self.kind)
         self.sigma = float(sigma)  # size parameter. See section 2.1 of Krist et al. SPIE 2007, 2009
         if wavelength is not None:
             self.wavelength = float(wavelength)  # wavelength, for selecting the
@@ -379,7 +386,7 @@ class BandLimitedCoron(AnalyticOpticalElement):
             sigmar.clip(np.finfo(sigmar.dtype).tiny, out=sigmar)  # avoid divide by zero -> NaNs
 
             self.transmission = (1 - (2 * scipy.special.jn(1, sigmar) / sigmar) ** 2)
-        if self.kind == 'nircamcircular':
+        elif self.kind == 'nircamcircular':
             # larger sigma implies narrower peak? TBD verify if this is correct
             #
             r = np.sqrt(x ** 2 + y ** 2)
