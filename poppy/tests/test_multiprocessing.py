@@ -3,11 +3,13 @@
 from .. import poppy_core
 from .. import optics
 from .. import conf
+from .. import utils
 
 import numpy as np
+import astropy
 import astropy.io.fits as fits
 import sys
-
+from distutils.version import LooseVersion
 from astropy.tests.helper import remote_data
 
 try:
@@ -25,8 +27,8 @@ if _HAVE_PYTEST:
 
     @pytest.mark.skipif( (sys.version_info < (3,4,0) ),
             reason="Python 3.4 required for reliable forkserver start method")
-    @remote_data # not really but it does open sockets; this is needed to
-                 # stop the astropy test customizations from stomping on this function
+    @pytest.mark.skipif(LooseVersion(astropy.__version__) <  LooseVersion('1.0.3'),
+            reason="astropy >=1.0.3 required for tests of multiprocessing")
     def test_basic_multiprocessing():
         """For a simple optical system, test that single process and
         multiprocess calculation give the same results"""
@@ -52,8 +54,8 @@ if _HAVE_PYTEST:
 
     @pytest.mark.skipif( (sys.version_info < (3,4,0) ),
             reason="Python 3.4 required for reliable forkserver start method")
-    @remote_data # not really but it does open sockets; this is needed to
-                 # stop the astropy test customizations from stomping on this function
+    @pytest.mark.skipif(LooseVersion(astropy.__version__) <  LooseVersion('1.0.3'),
+            reason="astropy >=1.0.3 required for tests of multiprocessing")
     def test_multiprocessing_intermediate_planes():
         """ Test that using multiprocessing you can retrieve the intermediate planes,
         and they are consistent with the intermediate planes from a
@@ -84,3 +86,22 @@ if _HAVE_PYTEST:
                 "Intermediate plane {} from multiprocessing does not match same plane from single process.".format(i)
 
         return psf_single, psf_multi
+
+
+def test_estimate_nprocesses():
+    """ Apply some basic functionality tests to the
+    estimate nprocesses function.
+    """
+    osys = poppy_core.OpticalSystem("test")
+    osys.addPupil(optics.CircularAperture(radius=1))
+    osys.addPupil(optics.CircularAperture(radius=0.5))
+    osys.addDetector(pixelscale=0.1, fov_arcsec=2.0)
+
+    answer = utils.estimate_optimal_nprocesses(osys)
+
+    #see if it's an int with a reasonable value
+    assert type(answer) is int
+
+    assert answer > 0, "Estimated optimal nprocesses must be positive integer"
+    assert answer < 100, "Estimated optimal nprocesses is unreasonably large"
+
