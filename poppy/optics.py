@@ -14,7 +14,7 @@ import collections
 _log = logging.getLogger('poppy')
 
 from poppy import zernike
-from .poppy_core import OpticalElement, Wavefront, _PUPIL, _IMAGE, _RADIANStoARCSEC
+from .poppy_core import OpticalElement, Wavefront, PlaneType, _PUPIL, _IMAGE, _RADIANStoARCSEC
 
 __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'InverseTransmission',
            'BandLimitedCoron', 'IdealFQPM', 'RectangularFieldStop', 'SquareFieldStop',
@@ -834,7 +834,7 @@ class CircularAperture(AnalyticOpticalElement):
         does not make any numerical difference in the final result.
     """
 
-    def __init__(self, name=None, radius=1.0, pad_factor=1.0, **kwargs):
+    def __init__(self, name=None, radius=1.0, pad_factor=1.0, planetype=PlaneType.unspecified, **kwargs):
         try:
             self.radius = float(radius)
         except (ValueError, TypeError):
@@ -842,7 +842,7 @@ class CircularAperture(AnalyticOpticalElement):
 
         if name is None:
             name = "Circle, radius=%.2f m" % radius
-        super(CircularAperture, self).__init__( name=name, planetype=_PUPIL, **kwargs)
+        super(CircularAperture, self).__init__( name=name, planetype=planetype, **kwargs)
         # for creating input wavefronts - let's pad a bit:
         self.pupil_diam = pad_factor * 2 * self.radius
 
@@ -1595,7 +1595,8 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
                 # for subsequent optics, validate they have the same type
                 if len(self.opticslist) == 0:
                     self.planetype = optic.planetype
-                elif self.planetype != optic.planetype:
+                elif (self.planetype != optic.planetype and self.planetype != PlaneType.unspecified and
+                        optic.planetype != PlaneType.unspecified):
                     raise ValueError("Cannot mix image plane and pupil plane optics in "
                                      "the same CompoundAnalyticOptic")
 
