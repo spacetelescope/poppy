@@ -105,7 +105,7 @@ class AnalyticOpticalElement(OpticalElement):
             if True, will return a tuple containing the desired array and a float giving the
             pixel scale.
         """
-        if self.planetype is _PUPIL:
+        if self.planetype != _IMAGE:
             if grid_size is not None:
                 diam = grid_size
             elif hasattr(self, 'pupil_diam'):
@@ -751,7 +751,7 @@ class FQPM_FFT_aligner(AnalyticOpticalElement):
 
         if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("FQPM getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _PUPIL)
+        assert wave.planetype != _IMAGE, "This optic does not work on image planes"
 
         fft_im_pixelscale = wave.wavelength / wave.diam / wave.oversample * _RADIANStoARCSEC
         required_offset = -fft_im_pixelscale * 0.5
