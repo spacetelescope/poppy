@@ -6,6 +6,10 @@ Examples
 Let's dive right in to some example code. 
 
 
+(A runnable notebook version of this examples page is included in the `notebooks` subdirectory of the
+``poppy`` source, or is available from `here <https://github.com/mperrin/poppy/blob/master/notebooks/POPPY%20Examples.ipynb>`_.)
+
+
 For all of the following examples, you will have more informative text output when running the code
 if you first enable Python's logging mechanism to display log messages to screen::
 
