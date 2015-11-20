@@ -1486,7 +1486,7 @@ class ThinLens(CircularAperture):
         defocus_zernike = ((2 * r_norm ** 2 - 1) *
                            (0.5 * self.nwaves * self.reference_wavelength / wave.wavelength))
 
-        lens_phasor = np.exp(1.j * 2 * np.pi * defocus_zernike * aperture_intensity)
+        lens_phasor = aperture_intensity* np.exp(1.j * 2 * np.pi * defocus_zernike * aperture_intensity)
 
         return lens_phasor
 
