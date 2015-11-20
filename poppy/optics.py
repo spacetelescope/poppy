@@ -18,10 +18,11 @@ from .poppy_core import OpticalElement, Wavefront, PlaneType, _PUPIL, _IMAGE, _R
 
 __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'InverseTransmission',
            'BandLimitedCoron', 'IdealFQPM', 'RectangularFieldStop', 'SquareFieldStop',
+           'AnnularFieldStop',
            'CircularOcculter', 'BarOcculter', 'FQPM_FFT_aligner',  'CircularAperture',
            'HexagonAperture', 'MultiHexagonAperture', 'NgonAperture', 'RectangleAperture',
            'SquareAperture', 'SecondaryObscuration', 'AsymmetricSecondaryObscuration',
-           'ThinLens', 'CompoundAnalyticOptic']
+           'ThinLens', 'GaussianAperture', 'CompoundAnalyticOptic']
 
 # ------ Generic Analytic elements -----
 
