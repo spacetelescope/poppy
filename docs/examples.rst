@@ -83,7 +83,7 @@ Defocus can be added using a lens::
             psf = osys.calcPSF(wavelength=wavelen)
             psfs.append(psf)
 
-            pl.subplot(1,nsteps, nwaves+1)
+            plt.subplot(1,nsteps, nwaves+1)
             poppy.display_PSF(psf, title='Defocused by {0} waves'.format(nwaves),
                 colorbar_orientation='horizontal')
 
@@ -131,7 +131,7 @@ Four quadrant phase mask coronagraphs are a bit more complicated because one nee
 FFT result with the center of the phase mask. This is done using a virtual optic called an 'FQPM FFT aligner' as follows::
 
     optsys = poppy.OpticalSystem()
-    optsys.addPupil( poppy.CircularAperture( radius=3))
+    optsys.addPupil( poppy.CircularAperture( radius=3, pad_factor=1.5)) #pad display area by 50%
     optsys.addPupil( poppy.FQPM_FFT_aligner())   # ensure the PSF is centered on the FQPM cross hairs
     optsys.addImage()  # empty image plane for "before the mask"
     optsys.addImage( poppy.IdealFQPM(wavelength=2e-6))
@@ -227,6 +227,12 @@ The following code performs the same calculation both ways and compares their sp
         print "Elapsed time, SAM:  %.3s" % (t1s-t0s)
 
 
+.. image:: ./example_SAM_comparison.png
+   :scale: 50%
+   :align: center
+   :alt: Sample calculation result
+
+
 On my circa-2010 Mac Pro, the results are dramatic::
 
         Elapsed time, FFT:  62.
@@ -244,8 +250,8 @@ for image plane optics.
 
 For instance we can demonstrate the shift invariance of PSFs::
 
-    ap_regular = poppy.CircularAperture(radius=2)
-    ap_shifted = poppy.CircularAperture(radius=2)
+    ap_regular = poppy.CircularAperture(radius=2, pad_factor=1.5)  # pad_factor is important here - without it you will
+    ap_shifted = poppy.CircularAperture(radius=2, pad_factor=1.5)  # crop off part of the circle outside the array.
     ap_shifted.shift_x =-0.75
     ap_shifted.shift_y = 0.25
 
