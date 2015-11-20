@@ -28,7 +28,7 @@ This is very simple, as it should be::
         poppy.display_PSF(psf, title='The Airy Function')
 
 .. image:: ./example_airy.png
-   :scale: 50%
+   :scale: 100%
    :align: center
    :alt: Sample calculation result
 
@@ -58,7 +58,7 @@ And here's the PSF::
         poppy.display_PSF(psf, title="Mock ATLAST PSF")
 
 .. image:: ./example_atlast_psf.png
-   :scale: 50%
+   :scale: 100%
    :align: center
    :alt: Sample calculation result
 
@@ -118,7 +118,7 @@ As an example of a more complicated calculation, here's a NIRCam-style band limi
     psf = osys.calcPSF(wavelength=wavelength, display_intermediates=True)
 
 .. image:: ./example_BLC_offset.png
-   :scale: 50%
+   :scale: 60%
    :align: center
    :alt: Sample calculation result
 
@@ -143,7 +143,7 @@ FFT result with the center of the phase mask. This is done using a virtual optic
     psf = optsys.calcPSF(wavelength=2e-6, display_intermediates=True)
 
 .. image:: ./example_FQPM.png
-   :scale: 50%
+   :scale: 60%
    :align: center
    :alt: Sample calculation result
 
@@ -174,7 +174,7 @@ opaque circular obscuration. The latter we can make using the InverseTransmissio
 
 
 .. image:: ./example_FQPM_obscured.png
-   :scale: 50%
+   :scale: 60%
    :align: center
    :alt: Sample calculation result
 
