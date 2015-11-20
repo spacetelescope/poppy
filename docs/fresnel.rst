@@ -80,7 +80,7 @@ A worked example of a compound microscope in POPPY is available
 reproducing the microscope example case provided in the PROPER manual.
 
 References
----------------
+-------------
 
 The following references were helpful in the development of this code. 
 
@@ -97,6 +97,6 @@ The following references were helpful in the development of this code.
 
     - Andersen, T., and A. Enmark (2011), 
       `Integrated Modeling of Telescopes <http://www.amazon.com/Integrated-Modeling-Telescopes-Astrophysics-Science/dp/1461401488>`_,
-        Springer Science & Business Media.
+      Springer Science & Business Media.
 
 

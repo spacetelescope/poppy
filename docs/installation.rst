@@ -15,7 +15,7 @@ latest development version from git::
 
 .. note::
    Users at STScI may also access POPPY through the standard `SSB software
-   distributions <http://ssb.stsci.edu/ssb_software.shtml>`_.
+   distributions <http://ssb.stsci.edu/ssb_software.shtml>`__.
 
 Requirements
 --------------
@@ -27,7 +27,7 @@ Requirements
 * The standard Python scientific stack: :py:mod:`numpy`, :py:mod:`scipy`,
   :py:mod:`matplotlib` 
 * POPPY relies upon the `astropy
-  <http://www.astropy.org>`_ community-developed core library for astronomy.
+  <http://www.astropy.org>`__ community-developed core library for astronomy.
   astropy, version 1.0.1 or more recent, is needed. 
 
 The following are *optional*.  The first, :py:mod:`pysynphot`, is recommended
@@ -38,9 +38,9 @@ improvements if you are spending substantial time running calculations.
   of PSFs with proper spectral response to realistic source spectra.  Without
   this, PSF fidelity is reduced. See below for :ref:`installation instructions
   for pysynphot <pysynphot_install>`. 
-* `psutil <https://pypi.python.org/pypi/psutil>`_ enables slightly better
+* `psutil <https://pypi.python.org/pypi/psutil>`__ enables slightly better
   automatic selection of numbers of processes for multiprocess calculations.
-* `pyFFTW <https://pypi.python.org/pypi/pyFFTW>`_. The FFTW library can speed
+* `pyFFTW <https://pypi.python.org/pypi/pyFFTW>`__. The FFTW library can speed
   up the FFTs used in multi-plane optical simulations such as coronagraphiy or
   slit spectroscopy. Since direct imaging simulations use a discrete matrix FFT
   instead, direct imaging simulation speed is unchanged.  pyFFTW is recommended
@@ -103,5 +103,5 @@ that your installation is working properly::
 Some tests may be automatically skipped depending on whether certain optional packaged are
 installed, and other tests in development may be marked "expected to fail" (``xfail``), but 
 as long as no tests actually fail then your installation is working as expected. 
-(Note that you will need to run the test suite using a plain ``python`` interpreter, not
-inside an ``IPython`` or ``Jupyter`` session.)
+(Note that you will need to run the test suite using a plain python interpreter, not
+inside an IPython or Jupyter session.)
