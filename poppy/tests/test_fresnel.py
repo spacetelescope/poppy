@@ -179,9 +179,33 @@ def test_Circular_Aperture_PTP(display=False, npix=512, display_proper=False):
 
 
 def test_spherical_lens(display=False):
-    """Make sure that spherical lens operator is working"""
-    # not yet implemented.
+    """Make sure that spherical lens operator is working.
 
+    Comparison values were taken from a simple PROPER model, implemented in IDL:
+        sampling=1
+        wavel=500e-9
+        prop_begin,wavefront,.5,wavelength,gridsize
+        d = 0.025d
+        fl = 0.70d0
+        prop_begin, wavefront, d, wavel, 256, 1.0
+        prop_lens, wavefront, fl
+        print, mean(prop_get_phase(wavefront))
+        print, max(prop_get_phase(wavefront))
+    """
+    proper_wavefront_mean =  0.00047535727 #IDL> print,mean(prop_get_phase(wavefront))
+    proper_phase_max = 0.0014260283 #IDL> print,max(prop_get_phase(wavefront))
+    #build a simple system without apertures.
+    beam_diameter =  .025*u.m
+    fl = u.m*0.7
+    wavefront = fresnel.FresnelWavefront(beam_radius=beam_diameter/2., 
+                                   wavelength=500.0e-9, npix=256,
+                                   oversample=1)
+    diam = beam_diameter
+    lens = fresnel.QuadraticLens(fl, name='M1')
+    wavefront.apply_lens_power(lens)
+    #IDL/PROPER results should be within 10^(-11).
+    assert  1e-11 > abs(np.mean(wavefront.phase)-proper_wavefront_mean)
+    assert  1e-11 > abs(np.max(wavefront.phase)-proper_phase_max)
 
 def test_fresnel_optical_system_Hubble(display=False):
     """ Test the FresnelOpticalSystem infrastructure
