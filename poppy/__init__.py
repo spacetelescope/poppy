@@ -80,9 +80,9 @@ class Conf(_config.ConfigNamespace):
         'RdBu_r',
         'Select a default colormap to represent diverging data (e.g. OPD)'
     )
-    cmap_mask = _config.ConfigItem(
+    cmap_pupil_intensity = _config.ConfigItem(
         'gray',
-        'Select a default colormap to represent 0 or 1 mask data (e.g. aperture masks)'
+        'Select a default colormap to represent intensity at pupils or aperture masks'
     )
 
 conf = Conf()
@@ -101,8 +101,12 @@ from .instrument import Instrument
 # Not yet implemented:
 #from .wfe import ZernikeWFE, PowerSpectralDensityWFE, KolmogorovWFE
 
-if conf.autosave_fftw_wisdom:  # if we might have autosaved, then auto reload as well
-    # the following will just return if FFTW is not present
-    utils.fftw_load_wisdom()
+# if we might have autosaved, then auto reload as well
+if conf.use_fftw and conf.autosave_fftw_wisdom:
+    try:
+        import pyfftw
+        utils.fftw_load_wisdom()
+    except ImportError:
+        pyfftw = None
 
 __all__ = ['conf', 'Instrument'] + utils.__all__ + poppy_core.__all__ + optics.__all__

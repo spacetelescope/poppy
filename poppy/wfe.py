@@ -148,7 +148,21 @@ class ZernikeWFE(WavefrontError):
         kwargs.update({'name': name})
         super(ZernikeWFE, self).__init__(**kwargs)
 
-    def getPhasor(self, wave):
+    def get_opd(self, wave, units='meters'):
+        """
+        Parameters
+        ----------
+
+        wave : poppy.Wavefront (or float)
+            Incoming Wavefront before this optic to set wavelength and
+            scale, or a float giving the wavelength in meters
+            for a temporary Wavefront used to compute the OPD.
+        units : 'meters' or 'waves'
+            Coefficients are supplied in `ZernikeWFE.coefficients` as
+            meters of OPD, but the resulting OPD can be converted to
+            waves based on the `Wavefront` wavelength or a supplied
+            wavelength value.
+        """
         # getPhasor specified to accept wave as float wavelength or
         # Wavefront instance:
         if not isinstance(wave, Wavefront):
@@ -167,11 +181,17 @@ class ZernikeWFE(WavefrontError):
                 wave.shape,
                 wave.pixelscale,
                 self.radius,
-                outside=0.0
+                outside=0.0,
+                noll_normalize=True
             )
 
         combined_zernikes *= aperture_intensity
+        if units == 'waves':
+            combined_zernikes /= wave.wavelength
+        return combined_zernikes
 
+    def getPhasor(self, wave):
+        combined_zernikes = self.get_opd(wave, units='meters')
         opd_as_phase = 2 * np.pi * combined_zernikes / wave.wavelength
         zernike_wfe_phasor = np.exp(1.j * opd_as_phase)
         return zernike_wfe_phasor
