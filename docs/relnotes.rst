@@ -6,10 +6,51 @@ For a list of contributors, see :ref:`about`.
 
 .. _whatsnew:
 
-0.3.6
+0.4.0
 -----
 
-*in development*
+2015 November 20
+
+ * **Major enhancement: the addition of Fresnel propagation** (
+   `#95 <https://github.com/mperrin/poppy/issue/95>`_, 
+   `#100 <https://github.com/mperrin/poppy/pull/100>`_, 
+   `#103 <https://github.com/mperrin/poppy/issue/103>`_, 
+   `#106 <https://github.com/mperrin/poppy/issue/106>`_, 
+   `#107 <https://github.com/mperrin/poppy/pull/107>`_, 
+   `#108 <https://github.com/mperrin/poppy/pull/108>`_, 
+   `#113 <https://github.com/mperrin/poppy/pull/113>`_, 
+   `#114 <https://github.com/mperrin/poppy/issue/114>`_, 
+   `#115 <https://github.com/mperrin/poppy/pull/115>`_, 
+   `#100 <https://github.com/mperrin/poppy/pull/100>`_, 
+   `#100 <https://github.com/mperrin/poppy/pull/100>`_; @douglase, @mperrin, @josephoenix) *Many thanks to @douglase for the initiative and code contributions that made this happen.* 
+ * Improvements to Zernike aberration models (
+   `#99 <https://github.com/mperrin/poppy/pull/99>`_, 
+   `#110 <https://github.com/mperrin/poppy/pull/110>`_, 
+   `#121 <https://github.com/mperrin/poppy/pull/121>`_, 
+   `#125 <https://github.com/mperrin/poppy/pull/125>`_; @josephoenix)
+ * Consistent framework for applying arbitrary shifts and rotations to any AnalyticOpticalElement 
+   (`#7 <https://github.com/mperrin/poppy/pull/7>`_, @mperrin)
+ * When reading FITS files, OPD units are now selected based on BUNIT 
+   header keyword instead of always being "microns" by default, 
+   allowing the units of files to be set properly based on the FITS header.
+ * Added infrastructure for including field-dependent aberrations at an optical 
+   plane after the entrance pupil (
+   `#105 <https://github.com/mperrin/poppy/pull/105>`_, @josephoenix)
+ * Improved loading and saving of FFTW wisdom (
+   `#116 <https://github.com/mperrin/poppy/issue/116>`_,
+   `#120 <https://github.com/mperrin/poppy/issue/120>`_,
+   `#122 <https://github.com/mperrin/poppy/issue/122>`_,
+   @josephoenix)
+ * Allow configurable colormaps and make image origin position consistent
+   (`#117 <https://github.com/mperrin/poppy/pull/117>`_, @josephoenix)
+ * Wavefront.tilt calls are now recorded in FITS header HISTORY lines 
+   (`#123 <https://github.com/mperrin/poppy/pull/123>`_; @josephoenix)
+ * Various improvements to unit tests and test infrastructure
+   (`#111 <https://github.com/mperrin/poppy/pull/111>`_, 
+   `#124 <https://github.com/mperrin/poppy/pull/124>`_, 
+   `#126 <https://github.com/mperrin/poppy/pull/126>`_, 
+   `#127 <https://github.com/mperrin/poppy/pull/127>`_; @josephoenix, @mperrin)
+
 
 0.3.5
 -----

@@ -146,3 +146,15 @@ def test_opd_expand(npix=512, input_coefficients=[0.1, 0.2, 0.3, 0.4, 0.5]):
     recovered_coeffs = zernike.opd_expand(opd, nterms=len(input_coefficients))
     max_diff = np.max(np.abs(np.asarray(input_coefficients) - np.asarray(recovered_coeffs)))
     assert max_diff < 1e-3, "recovered coefficients from wf_expand more than 0.1% off"
+
+
+def test_hex_aperture():
+    """ Ensure the hex aperture used for Zernikes is consistent with the regular
+    poppy HexagonAperture
+    """
+
+    npix_to_try = [10,11,12,13, 100,101, 512, 513]
+
+    for npix in npix_to_try:
+        assert np.all( optics.HexagonAperture(side=1).sample(npix=npix) - zernike.hex_aperture(npix=npix) == 0 ), "hex_aperture and HexagonAperture outputs differ for npix={}".format(npix)
+

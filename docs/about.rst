@@ -22,7 +22,9 @@ The Team
 
 POPPY is developed primarily by a team of astronomers at the `Space Telescope
 Science Insitute <http://www.stsci.edu/>`_, but is open to contributions from
-scientists and software developers around the world.
+scientists and software developers around the world. Development takes place
+on Github at http://github.com/mperrin/poppy . See that page for the most up-to-date
+list of contributors. 
 
 Direct contributors to POPPY code
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -38,6 +40,8 @@ Indirect Contributors (algorithms, advice, ideas, inspirations)
  * Erin Elliot
  * Remi Soummer
  * Laurent Pueyo
+ * Charles Lajoie
+ * Kyle Van Gorkom
  * Mark Sienkiewicz
  * Perry Greenfield
 
