@@ -100,9 +100,9 @@ release = package.__version__
 # global configuration are listed below, commented out.
 
 html_theme_options = {
-    'logotext1': 'JWST ',  # white,  semi-bold
+    'logotext1': '',  # white,  semi-bold
     'logotext2': 'POPPY',     # orange, light
-    'logotext3': ':docs'   # white,  light
+    'logotext3': ' documentation'   # white,  light
     }
 
 # Add any paths that contain custom themes here, relative to this directory.

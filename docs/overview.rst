@@ -1,4 +1,4 @@
-Overview
+Overview 
 ====================
 
 The module ``poppy`` implements an object-oriented system for modeling physical optics
@@ -31,9 +31,16 @@ appropriate weights for multiwavelength computations through a spectral bandpass
 Given a specified instrument configuration, an appropriate `~poppy.OpticalSystem` is generated, the appropriate wavelengths and weights are calculated based on the bandpass filter and target source spectrum, the PSF is calculated, and optionally is then convolved with a blurring kernel due to pointing jitter.  For instance, all of the WebbPSF instruments are implemented by subclassing `poppy.Instrument`.
 
 
-``poppy`` presently assumes that optical propagation can be modeled using Fraunhofer diffraction (far-field), such that
-the relationship between pupil and image plane optics is given by two-dimensional Fourier transforms. Fresnel propagation is
-not currently supported. 
+.. _fraunhofer:
+
+Fraunhofer domain calculations
+================================
+
+``poppy``'s default mode assumes that optical propagation can be modeled using
+Fraunhofer diffraction (the "far field" approximation), such that the
+relationship between pupil and image plane optics is given by two-dimensional
+Fourier transforms.  (Fresnel propagation is also available, :ref:`with slightly
+different syntax <fresnel>`.)
 
 Two different algorithmic flavors of Fourier transforms are used in Poppy. The
 familiar FFT algorithm is used for transformations between pupil and image
@@ -88,7 +95,9 @@ Optical Plane Types
 -------------------------
 
 
-An `~poppy.OpticalSystem` consists of a series of two or more planes, of various types. The allowed types of planes are:
+An `~poppy.OpticalSystem` consists of a series of two or more planes, of various types. 
+The plane type of a given `OpticalElement` is encoded by its `.planetype` attribute. 
+The allowed types of planes are:
 
  * **Pupil** planes, which have spatial scale measured in meters. For instance
    a telescope could have a diameter of 1 meter and be represented inside an
@@ -115,16 +124,9 @@ An `~poppy.OpticalSystem` consists of a series of two or more planes, of various
    intermediate powered optics are not represented as such.  Rotations can take
    place after either an image or pupil plane. 
 
-POPPY thus is capable of representing a limited subset of optical systems,
-namely those which are well modeled by the Fraunhofer (far-field)
-approximation. If you need to model full physical propagation through
-intermediate optics, including Fresnel or Talbot effects, you should consider
-using another tool. (It is possible that POPPY will eventually be extended to
-include Fresnel propagation, but so far it has not yet become an immediate
-priority.)
-
-
-The plane type of a given optic is encoded by its `.planetype` attribute. 
+POPPY thus is capable of representing a moderate subset of optical imaging systems, 
+though it is not intended as a substitute for a professional optics design package
+such as Zemax or Code V for design of full optical systems. 
 
 
 

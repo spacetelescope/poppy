@@ -662,13 +662,16 @@ class Instrument(object):
 
     #def _getJitterKernel(self, type='Gaussian', sigma=10):
 
-    def _getWeights(self, source=None, nlambda=5, monochromatic=None, verbose=False):
+    def _getWeights(self, source=None, nlambda=None, monochromatic=None, verbose=False):
         """ Return the set of discrete wavelengths, and weights for each wavelength,
         that should be used for a PSF calculation.
 
         Uses pysynphot (if installed), otherwise assumes simple-minded flat spectrum
 
         """
+        if nlambda is None or nlambda==0:
+            nlambda = self._getDefaultNLambda(self.filter)
+
         if monochromatic is not None:
             poppy_core._log.info(" monochromatic calculation requested.")
             return (np.asarray([monochromatic]),  np.asarray([1]) )

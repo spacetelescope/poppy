@@ -6,6 +6,10 @@ Examples
 Let's dive right in to some example code. 
 
 
+(A runnable notebook version of this examples page is included in the `notebooks` subdirectory of the
+``poppy`` source, or is available from `here <https://github.com/mperrin/poppy/blob/master/notebooks/POPPY%20Examples.ipynb>`_.)
+
+
 For all of the following examples, you will have more informative text output when running the code
 if you first enable Python's logging mechanism to display log messages to screen::
 
@@ -28,7 +32,7 @@ This is very simple, as it should be::
         poppy.display_PSF(psf, title='The Airy Function')
 
 .. image:: ./example_airy.png
-   :scale: 50%
+   :scale: 100%
    :align: center
    :alt: Sample calculation result
 
@@ -58,7 +62,7 @@ And here's the PSF::
         poppy.display_PSF(psf, title="Mock ATLAST PSF")
 
 .. image:: ./example_atlast_psf.png
-   :scale: 50%
+   :scale: 100%
    :align: center
    :alt: Sample calculation result
 
@@ -83,7 +87,7 @@ Defocus can be added using a lens::
             psf = osys.calcPSF(wavelength=wavelen)
             psfs.append(psf)
 
-            pl.subplot(1,nsteps, nwaves+1)
+            plt.subplot(1,nsteps, nwaves+1)
             poppy.display_PSF(psf, title='Defocused by {0} waves'.format(nwaves),
                 colorbar_orientation='horizontal')
 
@@ -118,7 +122,7 @@ As an example of a more complicated calculation, here's a NIRCam-style band limi
     psf = osys.calcPSF(wavelength=wavelength, display_intermediates=True)
 
 .. image:: ./example_BLC_offset.png
-   :scale: 50%
+   :scale: 60%
    :align: center
    :alt: Sample calculation result
 
@@ -131,7 +135,7 @@ Four quadrant phase mask coronagraphs are a bit more complicated because one nee
 FFT result with the center of the phase mask. This is done using a virtual optic called an 'FQPM FFT aligner' as follows::
 
     optsys = poppy.OpticalSystem()
-    optsys.addPupil( poppy.CircularAperture( radius=3))
+    optsys.addPupil( poppy.CircularAperture( radius=3, pad_factor=1.5)) #pad display area by 50%
     optsys.addPupil( poppy.FQPM_FFT_aligner())   # ensure the PSF is centered on the FQPM cross hairs
     optsys.addImage()  # empty image plane for "before the mask"
     optsys.addImage( poppy.IdealFQPM(wavelength=2e-6))
@@ -143,7 +147,7 @@ FFT result with the center of the phase mask. This is done using a virtual optic
     psf = optsys.calcPSF(wavelength=2e-6, display_intermediates=True)
 
 .. image:: ./example_FQPM.png
-   :scale: 50%
+   :scale: 60%
    :align: center
    :alt: Sample calculation result
 
@@ -174,7 +178,7 @@ opaque circular obscuration. The latter we can make using the InverseTransmissio
 
 
 .. image:: ./example_FQPM_obscured.png
-   :scale: 50%
+   :scale: 60%
    :align: center
    :alt: Sample calculation result
 
@@ -227,6 +231,12 @@ The following code performs the same calculation both ways and compares their sp
         print "Elapsed time, SAM:  %.3s" % (t1s-t0s)
 
 
+.. image:: ./example_SAM_comparison.png
+   :scale: 50%
+   :align: center
+   :alt: Sample calculation result
+
+
 On my circa-2010 Mac Pro, the results are dramatic::
 
         Elapsed time, FFT:  62.
@@ -242,16 +252,16 @@ of the optic. Set the `shift_x`, `shift_y` or `rotation` attributes.
 The shifts are given in meters for pupil plane optics, or arcseconds
 for image plane optics. 
 
-For instance we can demonstrate the shift invariance of PSFs:
+For instance we can demonstrate the shift invariance of PSFs::
 
-    ap = poppy.CircularAperture(radius=2)
-    ap2 = poppy.CircularAperture(radius=2)
-    ap2.shift_x =-0.75
-    ap2.shift_y = 0.25
+    ap_regular = poppy.CircularAperture(radius=2, pad_factor=1.5)  # pad_factor is important here - without it you will
+    ap_shifted = poppy.CircularAperture(radius=2, pad_factor=1.5)  # crop off part of the circle outside the array.
+    ap_shifted.shift_x =-0.75
+    ap_shifted.shift_y = 0.25
 
     plt.figure(figsize=(6,6))
 
-    for optic, title, i in [(ap, 'Unshifted', 1), (ap2, 'Shifted', 3)]:
+    for optic, title, i in [(ap_regular, 'Unshifted', 1), (ap_shifted, 'Shifted', 3)]:
 
         sys = poppy.OpticalSystem()
         sys.addPupil(optic)
@@ -266,10 +276,20 @@ For instance we can demonstrate the shift invariance of PSFs:
         ax2.set_title(title+' PSF')
 
 .. image:: ./example_shift_invariance.png
-   :scale: 50%
+   :scale: 100%
    :align: center
    :alt: Sample calculation result
 
 
+In addition to setting the attributes as shown in the above example, these
+options can be set directly in the initialization of such elements::
+
+    ap = poppy.RectangleAperture(rotation=30, shift_x=0.1)
+    ap.display(colorbar=False)
+
+.. image:: ./example_shift_and_rotate.png
+   :scale: 100%
+   :align: center
+   :alt: Sample calculation result
 
 

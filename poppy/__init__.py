@@ -44,11 +44,12 @@ class Conf(_config.ConfigNamespace):
 
 
     # Caution: Do not make this next too large on high-CPU-count machines
-    # because this is a memory-intensive calculation and you willg
+    # because this is a memory-intensive calculation and you will
     # just end up thrashing IO and swapping out a ton, so everything
     # becomes super slow.
     n_processes = _config.ConfigItem(4, 'Maximum number of additional '+
-            'worker processes to spawn. PSF calculations are likely RAM '+
+            'worker processes to spawn, if multiprocessing is enabled. '+
+            'Set to 0 for autoselect. Note, PSF calculations are likely RAM '+
             'limited more than CPU limited for higher N on modern machines.')
 
     use_fftw = _config.ConfigItem(True, 'Use FFTW for FFTs (assuming it'+
@@ -90,11 +91,14 @@ conf = Conf()
 from . import poppy_core
 from . import utils
 from . import optics
+from . import misc
+from . import fresnel
 
 from .poppy_core import *
 from .utils import *
 from .optics import *
 from .wfe import *
+from .fresnel import *
 
 from .instrument import Instrument
 
@@ -109,4 +113,4 @@ if conf.use_fftw and conf.autosave_fftw_wisdom:
     except ImportError:
         pyfftw = None
 
-__all__ = ['conf', 'Instrument'] + utils.__all__ + poppy_core.__all__ + optics.__all__
+__all__ = ['conf', 'Instrument'] + utils.__all__ + poppy_core.__all__ + optics.__all__ + fresnel.__all__

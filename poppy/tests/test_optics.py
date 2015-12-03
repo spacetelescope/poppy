@@ -339,6 +339,38 @@ def test_AsymmetricObscuredAperture(display=False):
         utils.display_PSF(numeric, vmin=1e-8, vmax=1e-2, colorbar=False)
         #pl.title("Numeric")
 
+def test_GaussianAperture(display=False):
+    """ Test the Gaussian aperture """
+
+    ga = optics.GaussianAperture(fwhm=1)
+    w = poppy_core.Wavefront(npix=101) # enforce odd npix so there is a pixel at the exact center
+
+    w *= ga
+
+    assert(ga.w == ga.fwhm/(2*np.sqrt(np.log(2))))
+
+    assert(w.intensity.max() ==1)
+
+
+    # now mock up a wavefront with very specific coordinate values
+    # namely the origin, one HWHM away, and one w or sigma away.
+    class mock_wavefront(poppy_core.Wavefront):
+        def __init__(self, *args, **kwargs):
+            #super(poppy.Wavefront, self).__init__(*args, **kwargs) # super does not work for some reason?
+            poppy_core.Wavefront.__init__(self, *args, **kwargs)
+
+            self.wavefront = np.ones(5)
+            self.planetype=poppy_core.PlaneType.pupil
+            self.pixelscale = 0.5
+        def coordinates(self):
+            return (np.asarray([0,0.5, 0.0, ga.w, 0.0]), np.asarray([0, 0, 0.5, 0, -ga.w ]))
+
+    trickwave = mock_wavefront()
+    trickwave *= ga
+    assert(trickwave.amplitude[0]==1)
+    assert(np.allclose(trickwave.amplitude[1:3], 0.5))
+    assert(np.allclose(trickwave.amplitude[3:5], np.exp(-1)))
+
 
 def test_ThinLens(display=False):
     pupil_radius = 1
