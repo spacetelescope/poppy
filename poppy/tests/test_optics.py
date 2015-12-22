@@ -107,6 +107,27 @@ def test_AnnularFieldStop():
     assert np.abs(expected_area-area) < 0.01*expected_area
 
 
+def test_BandLimitedOcculter(halfsize = 5) :
+    # For now, just tests the center pixel value. 
+    # See https://github.com/mperrin/poppy/issues/137
+
+    mask = optics.BandLimitedCoron( kind = 'circular',  sigma = 1.)
+
+    # odd number of pixels; center pixel should be 0
+    sample = mask.sample(npix = 2*halfsize+1, grid_size = 10, what = 'amplitude')
+    assert sample[halfsize, halfsize] == 0
+    assert sample[halfsize, halfsize] != sample[halfsize-1, halfsize]
+    assert sample[halfsize+1, halfsize] == sample[halfsize-1, halfsize]
+
+    # even number of pixels; center 4 should be equal
+    sample2 = mask.sample(npix = 2*halfsize, grid_size = 10, what = 'amplitude')
+    assert sample2[halfsize, halfsize] != 0
+    assert sample2[halfsize-1, halfsize-1] == sample2[halfsize, halfsize]
+    assert sample2[halfsize-1, halfsize] == sample2[halfsize, halfsize]
+    assert sample2[halfsize, halfsize-1] == sample2[halfsize, halfsize]
+
+
+
 #def test_rotations_RectangularFieldStop():
 #
 #    # First let's do a rotation of the wavefront itself by 90^0 after an optic

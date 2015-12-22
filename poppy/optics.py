@@ -387,6 +387,7 @@ class BandLimitedCoron(AnalyticOpticalElement):
             sigmar.clip(np.finfo(sigmar.dtype).tiny, out=sigmar)  # avoid divide by zero -> NaNs
 
             self.transmission = (1 - (2 * scipy.special.jn(1, sigmar) / sigmar) ** 2)
+            self.transmission[r==0] = 0   # special case center point (value based on L'Hopital's rule)
         elif self.kind == 'nircamcircular':
             # larger sigma implies narrower peak? TBD verify if this is correct
             #
@@ -420,6 +421,7 @@ class BandLimitedCoron(AnalyticOpticalElement):
 
             self.transmission[wnd] = np.sqrt(1e-3)
             self.transmission[wborder] = 0
+            self.transmission[r==0] = 0   # special case center point (value based on L'Hopital's rule)
         elif self.kind == 'linear':
             #raise(NotImplemented("Generic linear not implemented"))
             sigmar = self.sigma * np.abs(y)
