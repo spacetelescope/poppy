@@ -128,6 +128,26 @@ def test_BandLimitedOcculter(halfsize = 5) :
 
 
 
+def test_rotations():
+    # Some simple tests of the rotation code on AnalyticOpticalElements. Incomplete!
+
+    # rotating a square by +45 and -45 should give the same result
+    ar1 = optics.SquareAperture(rotation=45, size=np.sqrt(2)).sample(npix=256, grid_size=2)
+    ar2 = optics.SquareAperture(rotation=-45, size=np.sqrt(2)).sample(npix=256, grid_size=2)
+    assert np.allclose(ar1,ar2)
+
+    # rotating a rectangle with flipped side lengths by 90 degrees should give the same result
+    fs1 = optics.RectangularFieldStop(width=1, height=10).sample(npix=256, grid_size=10)
+    fs2 = optics.RectangularFieldStop(width=10, height=1, rotation=90).sample(npix=256, grid_size=10)
+    assert np.allclose(fs1,fs2)
+
+    # check some pixel values for a 45-deg rotated rectangle
+    fs3 = optics.RectangularFieldStop(width=10, height=1, rotation=45).sample(npix=200, grid_size=10)
+    for i in [50, 100, 150]:
+        assert fs3[i, i]==1
+        assert fs3[i, i+20]!=1
+        assert fs3[i, i-20]!=1
+
 #def test_rotations_RectangularFieldStop():
 #
 #    # First let's do a rotation of the wavefront itself by 90^0 after an optic
