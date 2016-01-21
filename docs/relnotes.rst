@@ -6,6 +6,24 @@ For a list of contributors, see :ref:`about`.
 
 .. _whatsnew:
 
+
+
+0.4.1
+-----
+
+2016 Jan XX?
+
+
+Mostly minor bug fixes: 
+
+ * Fix inconsistency between older deprecated ``angle`` parameter to some optic classes versus new ``rotation`` parameter for any AnalyticOpticalElement  (`#140 <https://github.com/mperrin/poppy/issues/140>`_; @kvangorkom, @josephoenix, @mperrin)
+ * Update to newer API for ``psutil``  (`#139 <https://github.com/mperrin/poppy/issues/139>`_; Anand Sivaramakrishnan, @mperrin)
+ * "measure_strehl" function moved to ``webbpsf`` instead of ``poppy``.  (`#138 <https://github.com/mperrin/poppy/issues/138>`_; Kathryn St.Laurent, @josephoenix, @mperrin)
+ * Add special case to handle zero radius pixel in circular BandLimitedOcculter.  (`#137 <https://github.com/mperrin/poppy/issues/137>`_; @kvangorkom, @mperrin)
+
+
+
+
 0.4.0
 -----
 
