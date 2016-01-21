@@ -1224,7 +1224,7 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
     avail_ram -= 2* 1024.**3   # always leave at least 2 GB extra padding - let's be cautious to make sure we don't swap.
     recommendation = int(np.floor(float(avail_ram) / (mem_per_prop+mem_per_output)))
 
-    if recommendation > psutil.NUM_CPUS: recommendation = psutil.NUM_CPUS
+    if recommendation > psutil.cpu_count(): recommendation = psutil.cpu_count()
     if nwavelengths is not None:
         if recommendation > nwavelengths: recommendation = nwavelengths
 
