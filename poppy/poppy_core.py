@@ -20,7 +20,7 @@ from . import conf
 import logging
 _log = logging.getLogger('poppy')
 
-__all__ = ['Wavefront',  'OpticalSystem', 'SemiAnalyticCoronagraph', 'OpticalElement', 'FITSOpticalElement', 'Rotation', 'Detector', 'PlaneType']
+__all__ = ['Wavefront',  'OpticalSystem', 'SemiAnalyticCoronagraph', 'MatrixFTCoronagraph', 'OpticalElement', 'FITSOpticalElement', 'Rotation', 'Detector' ]
 
 # Setup infrastructure for FFTW
 _FFTW_INIT = {}  # dict of array sizes for which we have already performed the required FFTW planning step
@@ -1781,6 +1781,159 @@ class SemiAnalyticCoronagraph(OpticalSystem):
             _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop-t_start))
 
         return wavefront_combined.asFITS(), intermediate_wfs
+
+class MatrixFTCoronagraph(OpticalSystem):
+    """ A subclass of OpticalSystem that implements a specialized propagation
+    algorithm for coronagraphs which are most efficiently modeled by 
+    matrix Fourier transforms, and in which the semi-analytical/Babinet 
+    superposition approach does not apply.
+
+    The way to use this class is to build an OpticalSystem class the usual way, and then
+    cast it to a MatrixFTCoronagraph, and then you can just call calcPSF on that in the
+    usual fashion.
+
+    Parameters
+    -----------
+    ExistingOpticalSystem : OpticalSystem
+        An optical system which can be converted into a SemiAnalyticCoronagraph. This
+        means it must have exactly 4 planes, in order Pupil, Image, Pupil, Detector.
+    oversample : int
+        Oversampling factor in intermediate image plane. Default is 4
+    occulter_box : float
+        half size of field of view region entirely including the occulter, in arcseconds. Default 1.0
+        This can be a tuple or list to specify a rectangular region [deltaY,deltaX] if desired.
+
+
+    Notes
+    ------
+
+    This subclass is best suited for a coronagraph design in which the region
+    transmitted by the focal plane mask is bounded and small, thereby offering a
+    large speed gain over FFT propagation. In particular, the shaped pupil Lyot
+    coronagraphs in the baseline WFIRST CGI design, which use a diaphragm-type
+    focal plane mask, can benefit highly.
+
+    """
+
+    def __init__(self, ExistingOpticalSystem, oversample=4, occulter_box = 1.0):
+        from . import optics
+
+        if len(ExistingOpticalSystem.planes) < 4:
+            raise ValueError("Input optical system must have at least 4 planes to be convertible into a MatrixFTCoronagraph")
+        self.name = "MatrixFTCoronagraph for "+ExistingOpticalSystem.name
+        self.verbose = ExistingOpticalSystem.verbose
+        self.source_offset_r = ExistingOpticalSystem.source_offset_r
+        self.source_offset_theta = ExistingOpticalSystem.source_offset_theta
+        self.planes = ExistingOpticalSystem.planes
+
+        self.oversample = oversample
+
+        #if hasattr(occulter_box, '__getitem__'):
+        if not np.isscalar(occulter_box):
+            occulter_box = np.array(occulter_box) # cast to numpy array so the multiplication by 2 just below will work
+        self.occulter_box = occulter_box
+
+    def propagate_mono(self, wavelength=1e-6, normalize='first',
+                       retain_intermediates=False, display_intermediates=False):
+        """Propagate a monochromatic wavefront through the optical system using matrix FTs. Called from
+        within `calcPSF`. Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s
+        (empty if `retain_intermediates=False`).
+
+        We use the Detector subclass of OpticalElement as the destination in the first
+        pupil-to-image propagation, to force the propagation method to switch to the
+        matrix FT. Otherwise it would default to FFT.
+
+        Parameters
+        ----------
+        wavelength : float
+            Wavelength in meters
+        normalize : string, {'first', 'last'}
+            how to normalize the wavefront?
+            * 'first' = set total flux = 1 after the first optic, presumably a pupil
+            * 'last' = set total flux = 1 after the entire optical system.
+        display_intermediates : bool
+            Should intermediate steps in the calculation be displayed on screen? Default: False.
+        retain_intermediates : bool
+            Should intermediate steps in the calculation be retained? Default: False.
+            If True, the second return value of the method will be a list of `poppy.Wavefront` objects
+            representing intermediate optical planes from the calculation.
+
+        Returns
+        -------
+        final_wf : fits.HDUList
+            The final result of the monochromatic propagation as a FITS HDUList
+        intermediate_wfs : list
+            A list of `poppy.Wavefront` objects representing the wavefront at intermediate optical planes.
+            The 0th item is "before first optical plane", 1st is "after first plane and before second plane", and so on.
+            (n.b. This will be empty if `retain_intermediates` is False.)
+        """
+
+        if conf.enable_speed_tests:
+           t_start = time.time()
+        if self.verbose:
+           _log.info(" Propagating wavelength = {0:g} meters using "
+                     "Matrix FTs".format(wavelength))
+        wavefront = self.inputWavefront(wavelength)
+
+        intermediate_wfs = []
+
+        # note: 0 is 'before first optical plane; 1 = 'after first plane and before second plane' and so on
+        current_plane_index = 0
+        for optic in self.planes:
+            # The actual propagation:
+            if optic.planetype == _IMAGE:
+                if len(optic.amplitude.shape) == 2: # Match detector object to the loaded FPM transmission array
+                    metadet = Detector(optic.pixelscale, fov_pixels = optic.amplitude.shape[0], name='Oversampled Occulter Plane')
+                else:
+                    metadet_pixelscale = wavelength / self.planes[0].pupil_diam * _RADIANStoARCSEC / self.oversample / 2
+                    metadet = Detector(metadet_pixelscale, fov_arcsec = self.occulter_box*2, name='Oversampled Occulter Plane')
+                wavefront.propagateTo(metadet)
+            else:
+                wavefront.propagateTo(optic)
+            wavefront *= optic
+            current_plane_index += 1
+
+            # Normalize if appropriate:
+            if normalize.lower()=='first' and current_plane_index==1 :  # set entrance plane to 1.
+                wavefront.normalize()
+                _log.debug("normalizing at first plane (entrance pupil) to 1.0 total intensity")
+            elif normalize.lower()=='first=2' and current_plane_index==1 : # this undocumented option is present only for testing/validation purposes
+                wavefront.normalize()
+                wavefront *= np.sqrt(2)
+            elif normalize.lower()=='exit_pupil': # normalize the last pupil in the system to 1
+                last_pupil_plane_index = np.where(np.asarray([p.planetype is PlaneType.pupil for p in self.planes]))[0].max() +1
+                if current_plane_index == last_pupil_plane_index:
+                    wavefront.normalize()
+                    _log.debug("normalizing at exit pupil (plane {0}) to 1.0 total intensity".format(current_plane_index))
+            elif normalize.lower()=='last' and current_plane_index==len(self.planes):
+                wavefront.normalize()
+                _log.debug("normalizing at last plane to 1.0 total intensity")
+
+            # Optional outputs:
+            if conf.enable_flux_tests: _log.debug("  Flux === "+str(wavefront.totalIntensity))
+
+            if retain_intermediates: # save intermediate wavefront, summed for polychromatic if needed
+                intermediate_wfs.append(wavefront.copy())
+
+            if display_intermediates:
+                if conf.enable_speed_tests: t0 = time.time()
+                title = None if current_plane_index > 1 else "propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6)
+                wavefront.display(what='best',nrows=len(self.planes),row=current_plane_index, colorbar=False, title=title)
+                #plt.title("propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6))
+
+                if conf.enable_speed_tests:
+                    t1 = time.time()
+                    _log.debug("\tTIME %f s\t for displaying the wavefront." % (t1-t0))
+
+        # prepare output arrays
+        if normalize.lower()=='last':
+                wavefront.normalize()
+
+        if conf.enable_speed_tests:
+            t_stop = time.time()
+            _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop-t_start))
+
+        return wavefront.asFITS(), intermediate_wfs
 
 
 #------ core Optical Element Classes ------
