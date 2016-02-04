@@ -1,7 +1,6 @@
 #  
 #  Test functions for MatrixFTCoronagraph optical system subclass
 #
-#
 
 import numpy as np
 import matplotlib
@@ -21,16 +20,16 @@ def test_MatrixFT_FFT_Lyot_propagation_equivalence(display=False):
 
     D = 2.
     wavelen = 1e-6
-    ovsamp = 8
+    ovsamp = 4
 
     fftcoron_annFPM_osys = poppy.OpticalSystem( oversample=ovsamp )
     fftcoron_annFPM_osys.addPupil( poppy.CircularAperture(radius=D/2) )
     spot = poppy.CircularOcculter( radius=0.4  )
-    diaphragm = poppy.InverseTransmission( poppy.CircularOcculter( radius=1.6 ) )
+    diaphragm = poppy.InverseTransmission( poppy.CircularOcculter( radius=1.2 ) )
     annFPM = poppy.CompoundAnalyticOptic( opticslist = [diaphragm, spot] )
     fftcoron_annFPM_osys.addImage( annFPM )
     fftcoron_annFPM_osys.addPupil( poppy.CircularAperture(radius=0.9*D/2) )
-    fftcoron_annFPM_osys.addDetector( pixelscale=0.05, fov_arcsec=4. )
+    fftcoron_annFPM_osys.addDetector( pixelscale=0.05, fov_arcsec=3. )
     
     # Re-cast as MFT coronagraph with annular diaphragm FPM
     matrixFTcoron_annFPM_osys = poppy.MatrixFTCoronagraph( fftcoron_annFPM_osys, occulter_box=diaphragm.uninverted_optic.radius_inner )
@@ -55,4 +54,4 @@ def test_MatrixFT_FFT_Lyot_propagation_equivalence(display=False):
 
     print("Max of absolute difference: %.10g" % np.max(abs_diff_img))
 
-    assert( np.all(abs_diff_img < 1e-7) )
+    assert( np.all(abs_diff_img < 2e-7) )
