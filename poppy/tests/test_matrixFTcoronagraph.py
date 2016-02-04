@@ -1,7 +1,6 @@
 #  
 #  Test functions for MatrixFTCoronagraph optical system subclass
 #
-#
 
 import numpy as np
 import matplotlib
