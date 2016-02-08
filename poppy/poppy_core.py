@@ -1079,6 +1079,7 @@ class OpticalSystem(object):
 
         return optic
 
+
     def addImage(self, optic=None, function=None, **kwargs):
         """ Add an image plane optic to the optical system
 
@@ -1205,6 +1206,7 @@ class OpticalSystem(object):
             ))
 
         return detector
+
 
     def describe(self):
         """ Print out a string table describing all planes in an optical system"""
@@ -1569,7 +1571,6 @@ class OpticalSystem(object):
             _log.info("Displaying plane {0:s} in row {1:d} of {2:d}".format(plane.name, i+1, nplanes))
             plane.display(nrows=nplanes, row=i+1, **kwargs)
 
-
     def _propagation_info(self):
         """ Provide some summary information on the optical propagation calculations that
         would be done for a given optical system
@@ -1595,6 +1596,13 @@ class OpticalSystem(object):
 
         return {'steps': steps, 'output_shape': output_shape, 'output_size':output_size}
 
+    # PEP8 compliant aliases; the old versions will be deprecated in a future release.
+    add_pupil = addPupil
+    add_image = addImage
+    add_rotation = addRotation
+    add_detector = addDetector
+    input_wavefront = inputWavefront
+    calc_psf = calcPSF
 
 class SemiAnalyticCoronagraph(OpticalSystem):
     """ A subclass of OpticalSystem that implements a specialized propagation

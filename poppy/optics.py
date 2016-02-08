@@ -272,8 +272,8 @@ class AnalyticOpticalElement(OpticalElement):
 
         return y,x
 
-
-
+    #PEP8 compliant aliases; the old names will later be deprecated
+    to_fits = toFITS
 
 class ScalarTransmission(AnalyticOpticalElement):
     """ Uniform transmission between 0 and 1.0 in intensity.
@@ -321,7 +321,17 @@ class InverseTransmission(OpticalElement):
 
 #------ Analytic Image Plane elements (coordinates in arcsec) -----
 
-class BandLimitedCoron(AnalyticOpticalElement):
+class AnalyticImagePlaneElement(AnalyticOpticalElement):
+    """ Parent virtual class for AnalyticOptics which are
+    dimensioned in angular units such as arcseconds, rather
+    than physical length units such as meters.
+    """
+    def __init__(self, name='Generic image plane optic', *args, **kwargs):
+        AnalyticOpticalElement.__init__(self, name=name, planetype=_IMAGE, *args, **kwargs)
+
+
+
+class BandLimitedCoron(AnalyticImagePlaneElement):
     """ Defines an ideal band limited coronagraph occulting mask.
 
 
@@ -345,7 +355,7 @@ class BandLimitedCoron(AnalyticOpticalElement):
     """ Allowable types of BLC supported by this class"""
 
     def __init__(self, name="unnamed BLC", kind='circular', sigma=1, wavelength=None, **kwargs):
-        AnalyticOpticalElement.__init__(self, name=name, planetype=_IMAGE, **kwargs)
+        AnalyticImagePlaneElement.__init__(self, name=name, **kwargs)
 
         self.kind = kind.lower()  # either circular or linear
         if self.kind in ['nircamwedge', 'nircamcircular']:
@@ -498,7 +508,7 @@ class BandLimitedCoron(AnalyticOpticalElement):
         return self.transmission
 
 
-class IdealFQPM(AnalyticOpticalElement):
+class IdealFQPM(AnalyticImagePlaneElement):
     """ Defines an ideal 4-quadrant phase mask coronagraph, with its retardance
     set perfectly to 0.5 waves at one specific wavelength and varying linearly on
     either side of that.  "Ideal" in the sense of ignoring chromatic effects other
@@ -515,7 +525,7 @@ class IdealFQPM(AnalyticOpticalElement):
     """
 
     def __init__(self, name="unnamed FQPM ", wavelength=10.65e-6, **kwargs):
-        AnalyticOpticalElement.__init__(self, planetype=_IMAGE, **kwargs)
+        AnalyticImagePlaneElement.__init__(self, **kwargs)
         self.name = name
 
         self.central_wavelength = wavelength
@@ -547,7 +557,7 @@ class IdealFQPM(AnalyticOpticalElement):
         return FQPM_phasor
 
 
-class RectangularFieldStop(AnalyticOpticalElement):
+class RectangularFieldStop(AnalyticImagePlaneElement):
     """ Defines an ideal rectangular field stop
 
     Parameters
@@ -565,7 +575,7 @@ class RectangularFieldStop(AnalyticOpticalElement):
     """
 
     def __init__(self, name="unnamed field stop", width=0.5, height=5.0, angle=None, **kwargs):
-        AnalyticOpticalElement.__init__(self, planetype=_IMAGE, **kwargs)
+        AnalyticImagePlaneElement.__init__(self, **kwargs)
         self.name = name
         self.width = float(width)  # width of square stop in arcseconds.
         self.height = float(height)  # height of square stop in arcseconds.
@@ -625,7 +635,7 @@ class SquareFieldStop(RectangularFieldStop):
         self._default_display_size = size * 1.2
 
 
-class AnnularFieldStop(AnalyticOpticalElement):
+class AnnularFieldStop(AnalyticImagePlaneElement):
     """ Defines a circular field stop with an (optional) opaque circular center region
 
     Parameters
@@ -638,7 +648,7 @@ class AnnularFieldStop(AnalyticOpticalElement):
         Radius of the circular field stop outer edge. Default is 10. Set to 0.0 for no outer edge.
     """
     def __init__(self, name="unnamed annular field stop", radius_inner=0.0, radius_outer=1.0, **kwargs):
-        AnalyticOpticalElement.__init__(self, planetype=_IMAGE, **kwargs)
+        AnalyticImagePlaneElement.__init__(self, **kwargs)
         self.name = name
         self.radius_inner = radius_inner  # radius of circular occulter in arcseconds.
         self.radius_outer = radius_outer  # radius of circular field stop in arcseconds.
@@ -682,7 +692,7 @@ class CircularOcculter(AnnularFieldStop):
         self._default_display_size = 10
 
 
-class BarOcculter(AnalyticOpticalElement):
+class BarOcculter(AnalyticImagePlaneElement):
     """ Defines an ideal bar occulter (like in MIRI's Lyot coronagraph)
 
     Parameters
@@ -699,7 +709,7 @@ class BarOcculter(AnalyticOpticalElement):
     """
 
     def __init__(self, name="bar occulter", width=1.0, angle=None, **kwargs):
-        AnalyticOpticalElement.__init__(self, planetype=_IMAGE, **kwargs)
+        AnalyticImagePlaneElement.__init__(self, **kwargs)
         self.name = name
         self.width = width
         if angle is not None:
