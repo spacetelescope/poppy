@@ -103,6 +103,56 @@ def test_basic_functionality():
     assert abs(psf[0].data.max() - 0.201) < 0.001
 
 
+
+def test_input_wavefront_size():
+
+    # if absolutely nothing is set then the default is 1024. 
+    # the oversample parameter multiplies that *only* if padding
+    # is applied during an FFT propagation; by default there's no effect
+    # in the unpadded array.
+    for oversamp in (1,2,4):
+        osys = poppy_core.OpticalSystem("test", oversample=oversamp)
+        #pupil = optics.CircularAperture(radius=1)
+        wf = osys.inputWavefront()
+        expected_shape = (1024,1024) if (wf.ispadded == False) else (1024*oversamp, 1024*oversamp)
+        assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
+
+
+    # test setting the size based on the npix parameter, with null optical system
+    for size in [512, 1024, 2001]:
+        osys = poppy_core.OpticalSystem("test", oversample=1, npix=size)
+        #pupil = optics.CircularAperture(radius=1)
+        wf = osys.inputWavefront()
+        expected_shape = (size,size)
+        assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
+
+    # test setting the size based on the npix parameter, with a non-null optical system
+    for size in [512, 1024, 2001]:
+        osys = poppy_core.OpticalSystem("test", oversample=1, npix=size)
+        osys.add_pupil(optics.CircularAperture(radius=1))
+        wf = osys.inputWavefront()
+        expected_shape = (size,size)
+        assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
+
+
+    # test setting the size based on an input optical element
+    for npix in [512, 1024, 2001]:
+        osys = poppy_core.OpticalSystem("test", oversample=1)
+        pupil = optics.CircularAperture(radius=1)
+        pupil_fits = pupil.toFITS(npix=npix)
+        osys.add_pupil(transmission=pupil_fits)
+
+        wf = osys.inputWavefront()
+        expected_shape = (npix,npix)
+        assert pupil_fits[0].data.shape == expected_shape, 'FITS array from optic element is not the expected size: is {} expects {}'.format(pupil_fits[0].data.shape,  expected_shape)
+        assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
+
+
+
+
+
+
+
 def test_CircularAperture_Airy(display=False):
     """ Compare analytic 2d Airy function with the results of a POPPY
     numerical calculation of the PSF for a circular aperture.

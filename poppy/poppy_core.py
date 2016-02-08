@@ -12,6 +12,7 @@ import scipy.ndimage.interpolation
 import matplotlib
 
 import astropy.io.fits as fits
+import astropy.units as u
 
 from .matrixDFT import MatrixFourierTransform
 from . import utils
@@ -128,7 +129,8 @@ class Wavefront(object):
 
         self.wavelength = float(wavelength)                 # wavelen in meters, obviously
         """Wavelength in meters """
-        self.diam= float(diam)                              # pupil plane size in meters
+
+        self.diam= float(diam) if not isinstance(diam, u.Quantity) else diam.to(u.m).value        # pupil plane size in meters
         """Diameter in meters. Applies to a pupil plane only."""
         self.fov = None                                     # image plane size in arcsec
         """Field of view in arcsec. Applies to an image plane only."""
@@ -997,16 +999,20 @@ class OpticalSystem(object):
         pixel.  Default is 2.
     verbose : bool
         whether to be more verbose with log output while computing
-
-
+    pupil_diameter : astropy.Quantity of dimension length
+        Diameter of entrance pupil. Defaults to size of first optical element
+        if unspecified, or else 1 meter.
 
 
     """
-    def __init__(self, name="unnamed system", verbose=True, oversample=2):
+    def __init__(self, name="unnamed system", verbose=True, oversample=2,
+            npix=1024, pupil_diameter=None):
         self.name = name
         self.verbose=verbose
         self.planes = []                    # List of OpticalElements
         self.oversample = oversample
+        self.npix = npix
+        self.pupil_diameter = pupil_diameter
 
         self.source_offset_r = 0 # = np.zeros((2))     # off-axis tilt of the source, in ARCSEC
         self.source_offset_theta = 0 # in degrees CCW
@@ -1221,7 +1227,8 @@ class OpticalSystem(object):
         the size of the first optical plane, assumed to be a pupil.
 
         If the first optical element is an Analytic pupil (i.e. has no pixel scale) then
-        an array of 1024x1024 will be created (not including oversampling).
+        the default size is set by the `npix` parameter to __init__ of this class, 
+        which itself has a default value of 1024.
 
         Uses self.source_offset to assign an off-axis tilt, if requested.
 
@@ -1237,8 +1244,23 @@ class OpticalSystem(object):
 
         """
 
-        npix = self.planes[0].shape[0] if self.planes[0].shape is not None else 1024
-        diam = self.planes[0].pupil_diam if hasattr(self.planes[0], 'pupil_diam') else 8
+        # somewhat complicated logic here for historical reasons. 
+        # if we have a first optical plane, check and see if it specifies the entrance sampling. 
+
+        npix=None
+        diam=None
+        if len(self.planes) > 0:
+            if self.planes[0].shape is not None: npix=self.planes[0].shape[0]
+            if hasattr(self.planes[0], 'pupil_diam') and self.planes[0].pupil_diam is not None: diam = self.planes[0].pupil_diam
+        # if still undefined, fall back to what is set for this optical system itself
+        if npix is None: npix=self.npix if self.npix is not None else 1024
+        if diam is None: diam = self.pupil_diameter if self.pupil_diameter is not None else 1
+
+
+        # if the diameter was specified as an astropy.Quantity, cast it to just a scalar in meters
+        if isinstance(diam, u.Quantity):
+            diam = diam.to(u.m).value
+
 
         inwave = Wavefront(wavelength=wavelength,
                 npix = npix,
@@ -1647,6 +1669,9 @@ class SemiAnalyticCoronagraph(OpticalSystem):
         self.source_offset_r = ExistingOpticalSystem.source_offset_r
         self.source_offset_theta = ExistingOpticalSystem.source_offset_theta
         self.planes = ExistingOpticalSystem.planes
+        self.npix = ExistingOpticalSystem.npix
+        self.pupil_diameter = ExistingOpticalSystem.pupil_diameter
+
 
         # SemiAnalyticCoronagraphs have some fixed planes, so give them reasonable names.
         self.inputpupil = self.planes[0]
@@ -1833,6 +1858,9 @@ class MatrixFTCoronagraph(OpticalSystem):
         self.source_offset_r = ExistingOpticalSystem.source_offset_r
         self.source_offset_theta = ExistingOpticalSystem.source_offset_theta
         self.planes = ExistingOpticalSystem.planes
+        self.npix = ExistingOpticalSystem.npix
+        self.pupil_diameter = ExistingOpticalSystem.pupil_diameter
+
 
         self.oversample = oversample
 
@@ -1983,7 +2011,7 @@ class OpticalElement(object):
     #"float attribute. Pixelscale in arcsec or meters per pixel. Will be 'None' for null or analytic optics."
 
 
-    def __init__(self, name="unnamed optic", verbose=True, planetype=None, oversample=1, opdunits="meters",interp_order=3):
+    def __init__(self, name="unnamed optic", verbose=True, planetype=PlaneType.unspecified, oversample=1, opdunits="meters",interp_order=3):
 
         self.name = name
         """ string. Descriptive Name of this optic"""
