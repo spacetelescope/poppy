@@ -5,7 +5,7 @@ import matplotlib.pyplot as pl
 import numpy as np
 import astropy.io.fits as fits
 
-from .. import poppy_core 
+from .. import poppy_core
 from .. import optics
 from .. import zernike
 from .test_core import check_wavefront
@@ -108,7 +108,7 @@ def test_AnnularFieldStop():
 
 
 def test_BandLimitedOcculter(halfsize = 5) :
-    # For now, just tests the center pixel value. 
+    # For now, just tests the center pixel value.
     # See https://github.com/mperrin/poppy/issues/137
 
     mask = optics.BandLimitedCoron( kind = 'circular',  sigma = 1.)
@@ -152,7 +152,7 @@ def test_rotations():
 #
 #    # First let's do a rotation of the wavefront itself by 90^0 after an optic
 #
-#    # now try a 90^0 rotation for the field stop at that optic. Assuming perfect system w/ no aberrations when comparing rsults. ? 
+#    # now try a 90^0 rotation for the field stop at that optic. Assuming perfect system w/ no aberrations when comparing rsults. ?
 #    fs = poppy_core.RectangularFieldStop(width=1, height=10, ang;le=90)
 #    wave = poppy_core.Wavefront(npix=100, pixelscale=0.1, wavelength=1e-6) # 10x10 arcsec square
 #
@@ -177,7 +177,7 @@ def test_ParityTestAperture():
 
 def test_RectangleAperture():
     """ Test rectangular aperture
-    based on areas of 2 different rectangles, 
+    based on areas of 2 different rectangles,
     and also that the rotation works to swap the axes
     """
     optic= optics.RectangleAperture(width=5, height=3)
@@ -232,14 +232,14 @@ def test_NgonAperture(display=False):
     optic= optics.NgonAperture(nsides=4, radius=1, rotation=45)
     wave = poppy_core.Wavefront(npix=100, diam=10.0, wavelength=1e-6) # 10x10 meter square
     wave*= optic
-    if display: 
+    if display:
         pl.subplot(131)
         optic.display()
 
     optic= optics.NgonAperture(nsides=5, radius=1)
     wave = poppy_core.Wavefront(npix=100, diam=10.0, wavelength=1e-6) # 10x10 meter square
     wave*= optic
-    if display: 
+    if display:
         pl.subplot(132)
         optic.display()
 
@@ -248,7 +248,7 @@ def test_NgonAperture(display=False):
     optic= optics.NgonAperture(nsides=6, radius=1)
     wave = poppy_core.Wavefront(npix=100, diam=10.0, wavelength=1e-6) # 10x10 meter square
     wave*= optic
-    if display: 
+    if display:
         pl.subplot(133)
         optic.display()
 
@@ -257,11 +257,11 @@ def test_NgonAperture(display=False):
 def test_ObscuredCircularAperture_Airy(display=False):
     """ Compare analytic 2d Airy function with the results of a POPPY
     numerical calculation of the PSF for a circular aperture.
-    
+
     Note that we expect very close but not precisely perfect agreement due to
     the quantization of the POPPY PSF relative to a perfect geometric circle.
     """
-    
+
     from ..misc import airy_2d
 
     pri_diam = 1
@@ -273,7 +273,7 @@ def test_ObscuredCircularAperture_Airy(display=False):
 
     # Numeric PSF for 1 meter diameter aperture
     osys = poppy_core.OpticalSystem()
-    osys.addPupil( 
+    osys.addPupil(
             optics.CompoundAnalyticOptic( [optics.CircularAperture(radius=pri_diam/2) ,
                                            optics.SecondaryObscuration(secondary_radius=sec_diam/2, n_supports=0) ]) )
     osys.addDetector(pixelscale=0.010,fov_pixels=512, oversample=1)
@@ -282,7 +282,7 @@ def test_ObscuredCircularAperture_Airy(display=False):
     # Comparison
     difference = numeric[0].data-analytic
     #assert np.all(np.abs(difference) < 3e-5)
-    
+
 
     if display:
         from .. import utils
@@ -347,7 +347,7 @@ def test_CompoundAnalyticOptic(display=False):
 def test_AsymmetricObscuredAperture(display=False):
     """  Test that we can run the code with asymmetric spiders
     """
-    
+
     from ..misc import airy_2d
 
     pri_diam = 1
@@ -359,7 +359,7 @@ def test_AsymmetricObscuredAperture(display=False):
 
     # Numeric PSF for 1 meter diameter aperture
     osys = poppy_core.OpticalSystem()
-    osys.addPupil( 
+    osys.addPupil(
             optics.CompoundAnalyticOptic( [optics.CircularAperture(radius=pri_diam/2) ,
                                            optics.AsymmetricSecondaryObscuration(secondary_radius=sec_diam/2, support_angle=[0,150,210], support_width=0.1) ]) )
     osys.addDetector(pixelscale=0.030,fov_pixels=512, oversample=1)
@@ -369,7 +369,7 @@ def test_AsymmetricObscuredAperture(display=False):
     # Comparison
     difference = numeric[0].data-analytic
     #assert np.all(np.abs(difference) < 3e-5)
-    
+
 
     if display:
         from .. import utils
