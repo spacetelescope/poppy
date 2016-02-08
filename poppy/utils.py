@@ -814,6 +814,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
     This stub is just here to provide information on that transfer,
     and will be removed in a future version of poppy.
     """
+    import warnings
     warnings.warn("measure_strehl function has been deprecated and moved to webbpsf instead of poppy.", DeprecationWarning)
     raise NotImplementedError("The 'measure_strehl' function has been moved from the 'poppy' package to the 'webbpsf' package. See https://github.com/mperrin/poppy/issues/138")
 
