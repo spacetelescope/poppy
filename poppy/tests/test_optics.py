@@ -59,6 +59,20 @@ def test_scalar_transmission():
         assert( np.all(optic.getPhasor(wave) == transmission))
 
 
+
+def test_roundtrip_through_FITS():
+    """ Verify we can make an analytic element, turn it into a FITS file and back,
+    and get the same thing
+    """
+    optic = optics.ParityTestAperture()
+    array = optic.sample(npix=512)
+
+    fitsfile = optic.to_fits(npix=512)
+    optic2 = poppy_core.FITSOpticalElement(transmission=fitsfile)
+
+    assert np.all(optic2.amplitude == array), "Arrays before/after casting to FITS file didn't match"
+
+
 #------ Analytic Image Plane elements -----
 
 def test_RectangularFieldStop():

@@ -7,6 +7,7 @@ import matplotlib
 import astropy.io.fits as fits
 
 from . import utils
+from .version import version
 
 import logging
 import collections
@@ -232,10 +233,23 @@ class AnalyticOpticalElement(OpticalElement):
         output_array, pixelscale = self.sample(wavelength=wavelength, npix=npix, what=what,
                                                **kwargs)
         phdu = fits.PrimaryHDU(output_array)
-        phdu.header['OPTIC'] = self.name
+        phdu.header['OPTIC'] = (self.name, "Descriptive name of this optic")
+        phdu.header['NAME'] = self.name
         phdu.header['SOURCE'] = 'Computed with POPPY'
+        phdu.header['VERSION'] = (version, "software version of POPPY")
         phdu.header['CONTENTS'] = what
-        phdu.header['PIXSCALE'] = pixelscale
+        phdu.header['PLANETYP'] = (self.planetype.value, "1=pupil, 2=image, 3=detector, 4=rot")
+        if self.planetype==_IMAGE:
+            phdu.header['PIXSCALE'] = (pixelscale, 'Image plane pixel scale in arcsec/pix')
+        else:
+            phdu.header['PUPLSCAL'] = (pixelscale, 'Pupil plane pixel scale in meter/pix')
+
+
+
+        if hasattr(self, 'shift_x'):  phdu.header['SHIFTX'] = (self.shift_x, "X axis shift of input optic")
+        if hasattr(self, 'shift_y'):  phdu.header['SHIFTY'] = (self.shift_y, "Y axis shift of input optic")
+        if hasattr(self, 'rotation'): phdu.header['ROTATION'] = (self.rotation, "Rotation of input optic, in deg")
+
 
         hdul = fits.HDUList(hdus=[phdu])
 
