@@ -12,6 +12,7 @@ error in an OpticalSystem
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import collections
+from functools import wraps
 import numpy as np
 
 from .optics import AnalyticOpticalElement, CircularAperture
@@ -20,16 +21,77 @@ from . import zernike
 
 __all__ = ['WavefrontError', 'ParameterizedWFE', 'ZernikeWFE']
 
+def _accept_wavefront_or_meters(f):
+    """Ensures the first positional method argument
+    is a poppy.Wavefront or a floating point number of meters
+    for a wavelength
+
+    Parameters
+    ----------
+    argname : string
+        Name of argument to which this applies
+    """
+
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not isinstance(args[1], Wavefront):
+            wave = Wavefront(wavelength=args[1])
+            new_args = (args[0],) + (wave,) + (args[2:])
+            return f(*new_args, **kwargs)
+        else:
+            return f(*args, **kwargs)
+    return wrapper
+
 class WavefrontError(AnalyticOpticalElement):
+    """A base class for different sources of wavefront error
+
+    Analytic optical elements that represent wavefront error should
+    derive from this class and override methods appropriately.
+    Defined to be a pupil-plane optic.
+    """
     def __init__(self, **kwargs):
         super(WavefrontError, self).__init__(planetype=_PUPIL, **kwargs)
 
+    @_accept_wavefront_or_meters
+    def get_opd(self, wave, units='meters'):
+        """Construct the optical path difference array for a wavefront error source
+        as evaluated across the pupil for an input wavefront `wave`
+
+        Parameters
+        ----------
+        wave : Wavefront
+            Wavefront object with a `coordinates` method that returns (y, x)
+            coordinate arrays in meters in the pupil plane
+        units : 'meters' or 'waves'
+            The units of optical path difference (Default: meters)
+        """
+        if not isinstance(wave, Wavefront):
+            wave = Wavefront(wavelength=wave)
+
+    @_accept_wavefront_or_meters
+    def getPhasor(self, wave):
+        """Construct the phasor array for an input wavefront `wave`
+        that will apply the wavefront error model based on an OPD
+        map from the `get_opd` method.
+
+        Parameters
+        ----------
+        wave : Wavefront or float
+            Wavefront object with a `coordinates` method that returns (y, x)
+            coordinate arrays in meters in the pupil plane, or float with
+            a wavefront wavelength in meters
+        """
+        opd_map = self.get_opd(wave, units='meters')
+        opd_as_phase = 2 * np.pi * opd_map / wave.wavelength
+        wfe_phasor = np.exp(1.j * opd_as_phase)
+        return wfe_phasor
+
     def rms(self):
-        """ RMS wavefront error induced by this surface """
+        """RMS wavefront error induced by this surface"""
         raise NotImplementedError('Not implemented yet')
 
     def peaktovalley(self):
-        """ Peak-to-valley wavefront error induced by this surface """
+        """Peak-to-valley wavefront error induced by this surface"""
         raise NotImplementedError('Not implemented yet')
 
 def _wave_to_rho_theta(wave, pupil_radius):
@@ -105,7 +167,8 @@ class ParameterizedWFE(WavefrontError):
         self.basis_factory = basis_factory
         super(ParameterizedWFE, self).__init__(name=name, **kwargs)
 
-    def getPhasor(self, wave):
+    @_accept_wavefront_or_meters
+    def get_opd(self, wave, units='meters'):
         rho, theta = _wave_to_rho_theta(wave, self.radius)
         combined_distortion = np.zeros(rho.shape)
 
@@ -116,9 +179,12 @@ class ParameterizedWFE(WavefrontError):
             if coefficient == 0.0:
                 continue  # save the trouble of a multiply-and-add of zeros
             combined_distortion += coefficient * computed_terms[idx]
-
-        opd_as_phase = 2 * np.pi * combined_distortion / wave.wavelength
-        return np.exp(1.0j * opd_as_phase)
+        if units == 'meters':
+            return combined_distortion
+        elif units == 'waves':
+            return combined_distortion / wave.wavelength
+        else:
+            raise ValueError("'units' argument must be 'meters' or 'waves'")
 
 class ZernikeWFE(WavefrontError):
     """
@@ -148,11 +214,11 @@ class ZernikeWFE(WavefrontError):
         kwargs.update({'name': name})
         super(ZernikeWFE, self).__init__(**kwargs)
 
+    @_accept_wavefront_or_meters
     def get_opd(self, wave, units='meters'):
         """
         Parameters
         ----------
-
         wave : poppy.Wavefront (or float)
             Incoming Wavefront before this optic to set wavelength and
             scale, or a float giving the wavelength in meters
@@ -163,11 +229,6 @@ class ZernikeWFE(WavefrontError):
             waves based on the `Wavefront` wavelength or a supplied
             wavelength value.
         """
-        # getPhasor specified to accept wave as float wavelength or
-        # Wavefront instance:
-        if not isinstance(wave, Wavefront):
-            wave = Wavefront(wavelength=wave)
-
         rho, theta = _wave_to_rho_theta(wave, self.radius)
 
         # the Zernike optic, being normalized on a circle, is
@@ -190,8 +251,3 @@ class ZernikeWFE(WavefrontError):
             combined_zernikes /= wave.wavelength
         return combined_zernikes
 
-    def getPhasor(self, wave):
-        combined_zernikes = self.get_opd(wave, units='meters')
-        opd_as_phase = 2 * np.pi * combined_zernikes / wave.wavelength
-        zernike_wfe_phasor = np.exp(1.j * opd_as_phase)
-        return zernike_wfe_phasor
