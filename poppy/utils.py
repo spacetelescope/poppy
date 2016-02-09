@@ -27,8 +27,6 @@ except ImportError:
 
 _loaded_fftw_wisdom = False
 
-_Strehl_perfect_cache = {} # dict for caching perfect images used in Strehl calcs.
-
 
 __all__ = [ 'display_PSF', 'display_PSF_difference', 'display_EE', 'display_profiles', 'radial_profile',
     'measure_EE', 'measure_radial', 'measure_fwhm', 'measure_sharpness', 'measure_centroid', 'measure_strehl', 'measure_anisotropy',
