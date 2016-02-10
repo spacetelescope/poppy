@@ -23,9 +23,7 @@ Gram-Schmidt orthonormalization process as applied to this case is
 
 import os
 from math import factorial
-
 import numpy as np
-from numpy import sqrt
 import matplotlib.pyplot as plt
 
 from astropy.io import fits
@@ -40,9 +38,16 @@ from poppy.poppy_core import Wavefront
 
 import logging
 
+__all__ = [
+    'R', 'cached_zernike1', 'hex_aperture', 'hexike_basis', 'noll_indices',
+    'opd_expand', 'str_zernike', 'zern_name', 'zernike', 'zernike1', 'zernike_basis'
+]
+
 _log = logging.getLogger(__name__)
 _log.setLevel(logging.INFO)
 _log.addHandler(logging.NullHandler())
+
+
 
 def _is_odd(integer):
     """Helper for testing if an integer is odd by bitwise & with 1."""
@@ -70,10 +75,10 @@ def zern_name(i):
         return "Z%d" % i
 
 
-def str_zernike(n_, m_):
+def str_zernike(n, m):
     """Return analytic expression for a given Zernike in LaTeX syntax"""
-    m = int(np.abs(m_))
-    n = int(np.abs(n_))
+    m = int(np.abs(m))
+    n = int(np.abs(n))
 
     terms = []
     for k in range(int((n - m) / 2) + 1):
@@ -85,12 +90,12 @@ def str_zernike(n_, m_):
 
     outstr = " ".join(terms)
 
-    if m_ == 0:
+    if m == 0:
         if n == 0:
             return "1"
         else:
             return "sqrt(%d)* ( %s ) " % (n + 1, outstr)
-    elif m_ > 0:
+    elif m > 0:
         return "\sqrt{%d}* ( %s ) * \\cos(%d \\theta)" % (2 * (n + 1), outstr, m)
     else:
         return "\sqrt{%d}* ( %s ) * \\sin(%d \\theta)" % (2 * (n + 1), outstr, m)
@@ -145,20 +150,20 @@ def noll_indices(j):
     return n, m
 
 
-def R(n_, m_, rho):
-    """Compute R[n_, m_], the Zernike radial polynomial
+def R(n, m, rho):
+    """Compute R[n, m], the Zernike radial polynomial
 
     Parameters
     ----------
-    n_, m_ : int
+    n, m : int
         Zernike function degree
     rho : array
         Image plane radial coordinates. `rho` should be 1 at the desired pixel radius of the
         unit circle
     """
 
-    m = int(np.abs(m_))
-    n = int(np.abs(n_))
+    m = int(np.abs(m))
+    n = int(np.abs(n))
     output = np.zeros(rho.shape)
     if _is_odd(n - m):
         return 0
@@ -241,13 +246,13 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
         if n == 0:
             zernike_result = aperture
         else:
-            norm_coeff = sqrt(n + 1) if noll_normalize else 1
+            norm_coeff = np.sqrt(n + 1) if noll_normalize else 1
             zernike_result = norm_coeff * R(n, m, rho) * aperture
     elif m > 0:
-        norm_coeff = sqrt(2) * sqrt(n + 1) if noll_normalize else 1
+        norm_coeff = np.sqrt(2) * np.sqrt(n + 1) if noll_normalize else 1
         zernike_result = norm_coeff * R(n, m, rho) * np.cos(np.abs(m) * theta) * aperture
     else:
-        norm_coeff = sqrt(2) * sqrt(n + 1) if noll_normalize else 1
+        norm_coeff = np.sqrt(2) * np.sqrt(n + 1) if noll_normalize else 1
         zernike_result = norm_coeff * R(n, m, rho) * np.sin(np.abs(m) * theta) * aperture
 
     zernike_result[np.where(rho > 1)] = outside
@@ -281,6 +286,9 @@ def zernike1(j, **kwargs):
 
 @lru_cache()
 def cached_zernike1(j, shape, pixelscale, pupil_radius, outside=np.nan, noll_normalize=True):
+    """Compute Zernike based on Noll index *j*, using an LRU cache
+    for efficiency. Refer to the `zernike1` docstring for details.
+    """
     y, x = Wavefront.pupil_coordinates(shape, pixelscale)
     r = np.sqrt(x ** 2 + y ** 2)
 
@@ -424,7 +432,7 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
 
     # precompute zernikes
     Z = np.zeros((nterms + 1,) + shape)
-    Z[1:] = zernike_basis(nterms=nterms, npix=npix, rho=rho, theta=theta)
+    Z[1:] = zernike_basis(nterms=nterms, npix=npix, rho=rho, theta=theta, outside=0.0)
 
 
     G = [np.zeros(shape), np.ones(shape)]  # array of G_i etc. intermediate fn
@@ -441,7 +449,7 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
                 nextG += c[(j + 1, k)] * H[k]
             _log.debug("    c[%s] = %f", str((j + 1, k)), c[(j + 1, k)])
 
-        nextH = nextG / sqrt((nextG ** 2).sum() / A)
+        nextH = nextG / np.sqrt((nextG ** 2).sum() / A)
 
         G.append(nextG)
         H.append(nextH)
