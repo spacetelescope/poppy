@@ -416,8 +416,8 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
         Default is False.
     outside : float
         Value for pixels outside the hexagonal aperture.
-        Default is 0.0, but you may also find it useful for this to
-        be `np.nan` sometimes.
+        Default is `np.nan`, but you may also find it useful for this to
+        be 0.0 sometimes.
     """
 
     if rho is not None:
