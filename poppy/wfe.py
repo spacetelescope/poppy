@@ -22,14 +22,9 @@ from . import zernike
 __all__ = ['WavefrontError', 'ParameterizedWFE', 'ZernikeWFE']
 
 def _accept_wavefront_or_meters(f):
-    """Ensures the first positional method argument
+    """Decorator that ensures the first positional method argument
     is a poppy.Wavefront or a floating point number of meters
     for a wavelength
-
-    Parameters
-    ----------
-    argname : string
-        Name of argument to which this applies
     """
 
     @wraps(f)
