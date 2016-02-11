@@ -55,6 +55,7 @@ Contents
   relnotes.rst
   overview.rst
   examples.rst
+  coronagraphs.rst
   fresnel.rst
   options.rst
   classes.rst
