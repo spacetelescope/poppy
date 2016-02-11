@@ -9,7 +9,7 @@ Efficient Lyot coronagraph propagation
 
 By default, an optical system defined in Poppy uses the Fast Fourier Transform (FFT) to propagate the scalar field between pupil and image planes. While the FFT is a powerful tool for general Fraunhofer diffraction calculations, it is rarely the most computationally efficient approach for a coronagraph model. Consider the two coronagraph schematics below, from `Zimmerman et al (2016) <http://dx.doi.org/10.1117/1.JATIS.2.1.011012>`_:
 
-.. image:: ./Lyot_coronagraphs_diagram.png
+.. image:: ./example_Lyot_coronagraphs_diagram.png
    :height: 373px
    :width: 916px
    :scale: 10 %
@@ -86,6 +86,69 @@ This coronagraph uses an annular diaphragm in the intermediate focal plane, corr
         D = 2.
         wavelen = 1e-6
         ovsamp = 8
+        
+        # Annular diaphragm FPM, inner radius ~ 4 lam/D, outer rad ~ 16 lam/D
+        fftcoron_annFPM_osys = poppy.OpticalSystem(oversample=ovsamp)
+        fftcoron_annFPM_osys.addPupil( poppy.CircularAperture(radius=D/2) )
+        spot = poppy.CircularOcculter( radius=0.4  )
+        diaphragm = poppy.InverseTransmission( poppy.CircularOcculter( radius=1.6 ) )
+        annFPM = poppy.CompoundAnalyticOptic( opticslist = [diaphragm, spot] )
+        fftcoron_annFPM_osys.addImage( annFPM )
+        fftcoron_annFPM_osys.addPupil( poppy.CircularAperture(radius=0.9*D/2) )
+        fftcoron_annFPM_osys.addDetector( pixelscale=0.05, fov_arcsec=4. )
+        
+        # Re-cast as MFT coronagraph with annular diaphragm FPM
+        matrixFTcoron_annFPM_osys = poppy.MatrixFTCoronagraph( fftcoron_annFPM_osys, occulter_box=diaphragm.uninverted_optic.radius_inner )
+        t0_fft = time.time()
+        annFPM_fft_psf, annFPM_fft_interm = fftcoron_annFPM_osys.calcPSF(wavelen, display_intermediates=True,\
+                                                                 return_intermediates=True)
+        t1_fft = time.time()
+        
+        t0_mft = time.time()
+        annFPM_mft_psf, annFPM_mft_interm = matrixFTcoron_annFPM_osys.calcPSF(wavelen, display_intermediates=True,\
+                                                                     return_intermediates=True)
+        t1_mft = time.time()
+
+Plot the results::
+         plt.figure(figsize=(16,3.5))
+         plt.subplots_adjust(left=0.10, right=0.95, bottom=0.02, top=0.98, wspace=0.2, hspace=None)
+         plt.subplot(131)
+         ax_fft, cbar_fft = poppy.display_PSF(annFPM_fft_psf, vmin=1e-10, vmax=1e-7, title='Annular FPM Lyot coronagraph, FFT',
+                                     return_ax=True)
+         plt.subplot(132)
+         poppy.display_PSF(annFPM_mft_psf, vmin=1e-10, vmax=1e-7, title='Annular FPM Lyot coronagraph, Matrix FT')
+         plt.subplot(133)
+         diff_vmin = np.min(annFPM_mft_psf[0].data - annFPM_fft_psf[0].data)
+         diff_vmax = np.max(annFPM_mft_psf[0].data - annFPM_fft_psf[0].data)
+         poppy.display_PSF_difference(annFPM_mft_psf, annFPM_fft_psf, vmin=diff_vmin, vmax=diff_vmax, cmap='gist_heat')
+         plt.title('Difference (MatrixFT - FFT)')
+
+.. image:: ./example_matrixFT_FFT_comparison.png
+   :scale: 50%
+   :align: center
+   :alt: PSF comparison between matrixFT and FFT coronagraph propagation
+
+Print some of the propagation parameters:: 
+         lamoD_asec = wavelen/fftcoron_annFPM_osys.planes[0].pupil_diam * 180/np.pi * 3600
+         print "System diffraction resolution element scale (lambda/D) in arcsec: %.3f" % lamoD_asec
+         print "Array width in first focal plane, FFT: %d" % annFPM_fft_interm[1].amplitude.shape[0]
+         print "Array width in first focal plane, MatrixFT: %d" % annFPM_mft_interm[1].amplitude.shape[0]
+         print "Array width in Lyot plane, FFT: %d" % annFPM_fft_interm[2].amplitude.shape[0]
+         print "Array width in Lyot plane, MatrixFT: %d" % annFPM_mft_interm[2].amplitude.shape[0]
+
+         System diffraction resolution element scale (lambda/D) in arcsec: 0.103
+         Array width in first focal plane, FFT: 8192
+         Array width in first focal plane, MatrixFT: 248
+         Array width in Lyot plane, FFT: 8192
+         Array width in Lyot plane, MatrixFT: 1024
+
+Compare the elapsed time::
+
+         print "Elapsed time, FFT:  %.1f s" % (t1_fft-t0_fft)
+         print "Elapsed time, Matrix FT:  %.1f s" % (t1_mft-t0_mft)
+
+         Elapsed time, FFT:  142.0 s
+         Elapsed time, Matrix FT:  3.0 s
 
 
 
