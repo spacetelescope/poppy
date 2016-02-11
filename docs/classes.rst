@@ -26,7 +26,7 @@ Optical Systems
 
  *  `~poppy.OpticalSystem` is the fundamental optical system class, that propagates `~poppy.Wavefront` objects between optics using Fourier transforms.
  *  `~poppy.SemiAnalyticCoronagraph` implements the semi-analytic coronagraphic propagation algorithm of Soummer et al. 
-
+ *  `~poppy.MatrixFTCoronagraph` enables efficient propagation calculations for Lyot coronagraphs with diaphragm-type focal plane masks, relevant to the WFIRST coronagraph and described by Zimmerman et al. (2016).
 
 
  
