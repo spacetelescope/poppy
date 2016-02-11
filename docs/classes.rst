@@ -2,7 +2,7 @@
 
 .. default-role:: obj
 
-POPPY Class Documentation
+POPPY Class Listing
 ============================
 
 The key classes for POPPY are `~poppy.OpticalSystem` and the various `~poppy.OpticalElement` classes (of which there are many). There is also a `~poppy.Wavefront` class that is used internally, but users will rarely

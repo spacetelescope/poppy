@@ -1,17 +1,22 @@
+
+Efficient Lyot coronagraph propagation
+=============================================
+
+
 Poppy has extensive functionality to faciliate the modeling of coronagraph point spread functions. In addition to the general summary of those capabilities here, see the examples in the notebooks subdirectory:
 `POPPY Examples <https://github.com/mperrin/poppy/blob/master/notebooks/POPPY%20Examples.ipynb>`_
 and
 `MatrixFTCoronagraph_demo <https://github.com/mperrin/poppy/blob/master/notebooks/MatrixFTCoronagraph_demo.ipynb>`_.
 
-Intro: Efficient Lyot coronagraph propagation
----------------------------------------------
+Introduction
+--------------
 
 By default, an optical system defined in Poppy uses the Fast Fourier Transform (FFT) to propagate the scalar field between pupil and image planes. While the FFT is a powerful tool for general Fraunhofer diffraction calculations, it is rarely the most computationally efficient approach for a coronagraph model. Consider the two coronagraph schematics below, from `Zimmerman et al (2016) <http://dx.doi.org/10.1117/1.JATIS.2.1.011012>`_:
 
 .. image:: ./example_Lyot_coronagraphs_diagram.png
    :height: 373px
    :width: 916px
-   :scale: 10 %
+   :scale: 50 %
    :alt: Schematics of two Lyot coronagraph design variants
    :align: right
 
