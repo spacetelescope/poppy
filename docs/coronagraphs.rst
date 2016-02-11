@@ -9,10 +9,10 @@ and
 Efficient Lyot coronagraph propogation
 ======================================
 
-../image 
-.. image:: ./Lyot_coronagraphs_diagram.png
-   :scale: 50%
+   .. image:: ./Lyot_coronagraphs_diagram.png
+   :scale: 20%
    :align: center
-   :alt: Schematic of two forms of an optimized Lyot corongraph. 
+   :alt: Schematic of two forms of an optimized Lyot corongraph.
+   
 
 
