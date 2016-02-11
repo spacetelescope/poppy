@@ -3,9 +3,8 @@ Poppy has extensive functionality to faciliate the modeling of coronagraph point
 and
 `MatrixFTCoronagraph_demo <https://github.com/mperrin/poppy/blob/master/notebooks/MatrixFTCoronagraph_demo.ipynb>`_.
 
-=====================================================
-Efficient Lyot coronagraph propagation
-=====================================================
+Intro: Efficient Lyot coronagraph propagation
+---------------------------------------------
 
 By default, an optical system defined in Poppy uses the Fast Fourier Transform (FFT) to propagate the scalar field between pupil and image planes. While the FFT is a powerful tool for general Fraunhofer diffraction calculations, it is rarely the most computationally efficient approach for a coronagraph model. Consider the two coronagraph schematics below, from `Zimmerman et al (2016) <http://dx.doi.org/10.1117/1.JATIS.2.1.011012>`_:
 
@@ -22,7 +21,7 @@ The lower design in the above figure shows a slightly different Lyot coronagraph
 
 In Poppy, two subclasses of OpticalSystem exploit the computational methods described above: SemiAnalyticCoronagraph and MatrixFTCoronagraph. Let's see how to make use of these subclasses to speed up Lyot corongraph PSF calculations.
 
-Lyot coronagraph using the semi-analytical subclass
+Lyot coronagraph using the SemiAnalytic subclass
 ---------------------------------------------------
 
 In this example we consider a Lyot coronagraph with a conventional, opaque occulting spot. This configuration corresponds to the upper half of the schematic described above.
@@ -79,9 +78,13 @@ On a circa-2010 Mac Pro, the results are dramatic::
 
 
 Lyot coronagraph using the MatrixFTCoronagraph subclass
----------------------------------------------------------
+--------------------------------------------------------
 
-This coronagraph uses an annular diaphragm in the intermediate focal plane, corresponding to the lower half of the diagram above. Again we will compare the execution time with the FFT case.::
+This coronagraph uses an annular diaphragm in the intermediate focal plane, corresponding to the lower half of the diagram above.
+
+The procedure to enable the MatrixFTCoronagraph propagation is analogous to the SemiAnalytic case. We create an OpticalSystem as usual, and then cast it to a MatrixFTCoronagraph class.
+
+Again we will compare the execution time with the FFT case.::
 
         D = 2.
         wavelen = 1e-6
@@ -110,6 +113,7 @@ This coronagraph uses an annular diaphragm in the intermediate focal plane, corr
         t1_mft = time.time()
 
 Plot the results::
+
          plt.figure(figsize=(16,3.5))
          plt.subplots_adjust(left=0.10, right=0.95, bottom=0.02, top=0.98, wspace=0.2, hspace=None)
          plt.subplot(131)
@@ -124,11 +128,12 @@ Plot the results::
          plt.title('Difference (MatrixFT - FFT)')
 
 .. image:: ./example_matrixFT_FFT_comparison.png
-   :scale: 50%
+   :scale: 100%
    :align: center
    :alt: PSF comparison between matrixFT and FFT coronagraph propagation
 
 Print some of the propagation parameters:: 
+
          lamoD_asec = wavelen/fftcoron_annFPM_osys.planes[0].pupil_diam * 180/np.pi * 3600
          print "System diffraction resolution element scale (lambda/D) in arcsec: %.3f" % lamoD_asec
          print "Array width in first focal plane, FFT: %d" % annFPM_fft_interm[1].amplitude.shape[0]
@@ -152,7 +157,7 @@ Compare the elapsed time::
 
 
 
-Band Limited Coronagraph
+Band-limited coronagraph
 -------------------------
 
 Depending on the specific implementation, a Lyot coronagraph with a band-limited occulter can also benefit from the semi-analytical method in Poppy. For additional band-limited coronagraph examples, see the JWST NIRCam coronagraph modes included in `WebbPSF <http://github.com/mperrin/webbpsf>`_.
