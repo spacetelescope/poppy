@@ -1,5 +1,5 @@
-Appendix: Optimizing FFT Performance for PSF Computations with FFTW
-=====================================================================
+Appendix B: Optimizing FFT Performance with FFTW
+================================================
 
 Optimizing numerical performance of FFTs is a complicated subject. Just using the FFTW library is no guarantee of optimal performance; you need to know how to configure it.
 

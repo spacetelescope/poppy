@@ -1,4 +1,4 @@
-Reference/API
+API Reference
 =============
 
 .. automodapi:: poppy

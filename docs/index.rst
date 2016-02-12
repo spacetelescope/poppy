@@ -56,10 +56,11 @@ Contents
   overview.rst
   examples.rst
   wfe.rst
+  coronagraphs.rst
   fresnel.rst
   options.rst
-  classes.rst
   extending.rst
+  classes.rst
   api.rst
   about.rst
   performance.rst
