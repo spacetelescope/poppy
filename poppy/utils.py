@@ -7,6 +7,7 @@
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 import os.path
 import json
+import pickle
 import six
 import numpy as np
 import matplotlib.pyplot as plt
@@ -26,11 +27,9 @@ except ImportError:
 
 _loaded_fftw_wisdom = False
 
-_Strehl_perfect_cache = {} # dict for caching perfect images used in Strehl calcs.
-
 
 __all__ = [ 'display_PSF', 'display_PSF_difference', 'display_EE', 'display_profiles', 'radial_profile',
-    'measure_EE', 'measure_radial', 'measure_fwhm', 'measure_sharpness', 'measure_centroid', 'measure_anisotropy',
+    'measure_EE', 'measure_radial', 'measure_fwhm', 'measure_sharpness', 'measure_centroid', 'measure_strehl', 'measure_anisotropy',
     'specFromSpectralType']
 
 
@@ -1244,6 +1243,8 @@ def fftw_save_wisdom(filename=None):
     filename : string, optional
         Filename to use (instead of the default, poppy_fftw_wisdom.json)
     """
+
+    from .poppy_core import _FFTW_INIT
     if filename is None:
         filename = os.path.join(config.get_config_dir(), "poppy_fftw_wisdom.json")
 
@@ -1253,7 +1254,11 @@ def fftw_save_wisdom(filename=None):
         'double': double.decode('ascii'),
         'single': single.decode('ascii'),
         'longdouble': longdouble.decode('ascii'),
+        '_FFTW_INIT': pickle.dumps(_FFTW_INIT.keys())  # ugly to put a pickled string inside JSON
+                                    # but native JSON turns tuples into lists and we need to
+                                    # preserve tuple-ness for use in fftw_load_wisdom
     }
+
     with open(filename, 'w') as wisdom_file:
         json.dump(wisdom, wisdom_file)
     _log.debug("FFTW wisdom saved to "+filename)
@@ -1270,6 +1275,7 @@ def fftw_load_wisdom(filename=None):
     filename : string, optional
         Filename to use (instead of the default, poppy_fftw_wisdom.json)
     """
+    from .poppy_core import _FFTW_INIT
     global _loaded_fftw_wisdom
     if _loaded_fftw_wisdom:
         _log.debug("Already loaded wisdom prior to this calculation, not reloading.")
@@ -1295,4 +1301,15 @@ def fftw_load_wisdom(filename=None):
     _log.debug("Reloaded double precision wisdom: {}".format(success_double))
     _log.debug("Reloaded single precision wisdom: {}".format(success_single))
     _log.debug("Reloaded longdouble precision wisdom: {}".format(success_longdouble))
+
+    try:
+        keys_for_fftw_init = pickle.loads(wisdom['_FFTW_INIT'])
+        for key in keys_for_fftw_init:
+            _FFTW_INIT[key] = True
+        _log.debug("Reloaded _FFTW_INIT list of optimized array sizes ")
+    except (TypeError, KeyError):
+        _log.warning("Could not parse saved _FFTW_INIT info; this is OK but FFTW will need to repeat its optimization measurements (automatically). ")
+
+
+
     _loaded_fftw_wisdom = True
