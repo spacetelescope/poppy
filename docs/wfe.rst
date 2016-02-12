@@ -1,14 +1,14 @@
 Representing sources of wavefront error
 =======================================
 
-When used for Fraunhofer-domain propagation, POPPY supports expressing aberrations as if they were applied in a pupil plane. Currently, there is the `~poppy.ZernikeWFE` optical element to represent wavefront error as a combination of Zernike terms, and the `~poppy.ParameterizedWFE` optical element that offers the ability to specify basis sets other than Zernikes.
+POPPY allows you to introduce wavefront error at any plane in an optical system through use of a wavefront error optical element. For Fraunhofer-domain propagation, the optical element types discussed here will act as pupil-conjugate planes. Currently, there is the `~poppy.ZernikeWFE` optical element to represent wavefront error as a combination of Zernike terms, and the `~poppy.ParameterizedWFE` optical element that offers the ability to specify basis sets other than Zernikes.
 
 ZernikeWFE
 ----------
 
-For use in POPPY calculations, the `~poppy.ZernikeWFE` analytic optical element provides a way to introduce wavefront error as a combination of Zernike terms. The Zernike terms are both ordered in and normalized in the convention of Noll 1976. [#noll1976]_ This means that the polynomial terms carry a normalization factor to make :math:`\int_0^{2\pi} \int_0^1 Z_j^2\,\rho\,d\rho\,d\theta = \pi.` Additionally, the standard deviation of the optical path difference over the disk for any given term will be 1.0 meters. (See :ref:`zernike_normalization` for details on how this might impact your calculations.)
+The `~poppy.ZernikeWFE` analytic optical element provides a way to introduce wavefront error as a combination of Zernike terms. The Zernike terms are both ordered in and normalized in the convention of Noll 1976. [#noll1976]_ This means that the polynomial terms carry a normalization factor to make :math:`\int_0^{2\pi} \int_0^1 Z_j^2\,\rho\,d\rho\,d\theta = \pi.` Additionally, the standard deviation of the optical path difference over the disk for any given term will be 1.0 meters.
 
-Now, 1.0 meters is a lot of OPD, so coefficients supplied to ZernikeWFE for realistic situations will typically be on the order of the wavelength of light being passed through the system.
+Now, 1.0 meters is a lot of OPD, so coefficients supplied to ZernikeWFE for realistic situations will typically be on the order of the wavelength of light being passed through the system. For example, for 100 nanometers RMS wavefront error in a particular term, the coefficient would be 100e-9 *meters*. (For information on representing certain values of peak-to-valley wavefront error, see :ref:`zernike_normalization`.)
 
 To construct a ZernikeWFE optical element, the following keyword arguments are used:
 
@@ -49,7 +49,7 @@ Per the 1-D indexing convention in Noll 1976, oblique astigmatism is :math:`j = 
 
    psf_with_zernikewfe = osys.calcPSF(wavelength=WAVELENGTH, display_intermediates=True)
 
-The resulting PSF, plotted with `poppy.display_PSF`:
+The resulting PSF and OPD map:
 
 .. figure:: ./figures/wfe/zernikewfe_astigmatism.png
    :scale: 50%
@@ -62,11 +62,11 @@ Using ZernikeWFE to analyze a variety of possible PSFs given a WFE budget
 The API for `ZernikeWFE` also lends itself well to generating coefficients programmatically and passing it in. Say we have an error budget where we know the following about the RMS wavefront error in the Zernike components:
 
   * **Piston**, *j=1* — disregarded for a telescope
-  * **Tilt X**, *j=2* — ±100 nm
-  * **Tilt Y**, *j=3* — ±100 nm
-  * **Focus**, *j=4* — ±50 nm
-  * **Astigmatism 45**, *j=5* — ±36 nm
-  * **Astigmatism 0**, *j=6* — ±36 nm
+  * **Tilt X**, *j=2* — ±100 nm RMS
+  * **Tilt Y**, *j=3* — ±100 nm RMS
+  * **Focus**, *j=4* — ±50 nm RMS
+  * **Astigmatism 45**, *j=5* — ±36 nm RMS
+  * **Astigmatism 0**, *j=6* — ±36 nm RMS
 
 We can use `ZernikeWFE` to generate a library of sample PSFs satisfying this error budget. First, we write a short function that can generate coefficients from our specifications. ::
 
@@ -81,29 +81,31 @@ We can use `ZernikeWFE` to generate a library of sample PSFs satisfying this err
            )
        return coefficients
 
-Now we use this to generate a few sets of coefficients. ::
+Then we use this to generate a few sets of coefficients. ::
 
    possible_coefficients = [generate_coefficients(wfe_budget) for i in range(5)]
 
-Now we simply loop over the sets of coefficients, supplying them to ZernikeWFE and (optionally) plotting the results::
+Now we simply loop over the sets of coefficients, supplying them to ZernikeWFE::
 
    plt.figure(figsize=(18,2))
 
-   for idx, coefficient_set in enumerate(possible_coefficients, start=1):
-       plt.subplot(1, 5, idx)
+   results = []
 
+   for coefficient_set in possible_coefficients:
        osys = poppy.OpticalSystem()
-       hex_aperture = poppy.CircularAperture(radius=RADIUS)
-       osys.addPupil(hex_aperture)
-       thinlens = poppy.ZernikeWFE(
+       circular_aperture = poppy.CircularAperture(radius=RADIUS)
+       osys.addPupil(circular_aperture)
+       zwfe = poppy.ZernikeWFE(
            coefficients=coefficient_set,
            radius=RADIUS
        )
-       osys.addPupil(thinlens)
+       osys.addPupil(zwfe)
        osys.addDetector(pixelscale=PIXSCALE, fov_arcsec=FOV)
 
        psf = osys.calcPSF(wavelength=WAVELENGTH, display=False)
-       poppy.display_PSF(psf, title="PSF #{}".format(idx))
+       results.append(psf)
+
+Here's a figure showing the various PSFs with their corresponding OPD maps pulled out for illustration purposes.
 
 .. figure:: ./figures/wfe/zernikewfe_wfe_budget.png
 
@@ -111,8 +113,8 @@ Now we simply loop over the sets of coefficients, supplying them to ZernikeWFE a
 
 .. _zernike_normalization:
 
-Understanding the normalization employed in POPPY
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Normalizing to desired peak-to-valley WFE
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you are trying to achieve a certain number of waves peak-to-valley in the optical path difference for your ZernikeWFE element, this normalization may be important! One example is defocus: In older conventions, the Zernike polynomial for defocus is :math:`a(2 \rho^2 - 1)` and :math:`a` is a defocus coefficient given in wavelengths of light center-to-peak. When expressing this in POPPY, there are a number of differences.
 

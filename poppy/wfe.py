@@ -45,7 +45,9 @@ class WavefrontError(AnalyticOpticalElement):
     Defined to be a pupil-plane optic.
     """
     def __init__(self, **kwargs):
-        super(WavefrontError, self).__init__(planetype=_PUPIL, **kwargs)
+        if 'planetype' not in kwargs:
+            kwargs['planetype'] = _PUPIL
+        super(WavefrontError, self).__init__(**kwargs)
 
     @_accept_wavefront_or_meters
     def get_opd(self, wave, units='meters'):
