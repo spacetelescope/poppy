@@ -16,9 +16,6 @@ if you first enable Python's logging mechanism to display log messages to screen
         import logging
         logging.basicConfig(level=logging.DEBUG)
 
-
-
-
 A simple circular pupil
 --------------------------
 
@@ -96,9 +93,6 @@ Defocus can be added using a lens::
    :scale: 50%
    :align: center
    :alt: Sample calculation result
-
-
-
 
 Band Limited Coronagraph with Off-Axis Source
 -----------------------------------------------
@@ -291,5 +285,3 @@ options can be set directly in the initialization of such elements::
    :scale: 100%
    :align: center
    :alt: Sample calculation result
-
-

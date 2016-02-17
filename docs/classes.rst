@@ -66,4 +66,7 @@ Optical Elements
 
  * `~poppy.Detector` represents a detector with some fixed sampling and pixel scale.
 
+Wavefront Error Optical Elements
+--------------------------------
 
+ * `poppy.wfe.ZernikeWFE`

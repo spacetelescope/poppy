@@ -93,6 +93,7 @@ from . import utils
 from . import optics
 from . import misc
 from . import fresnel
+from . import wfe
 
 from .poppy_core import *
 from .utils import *
@@ -113,4 +114,4 @@ if conf.use_fftw and conf.autosave_fftw_wisdom:
     except ImportError:
         pyfftw = None
 
-__all__ = ['conf', 'Instrument'] + utils.__all__ + poppy_core.__all__ + optics.__all__ + fresnel.__all__
+__all__ = ['conf', 'Instrument'] + utils.__all__ + poppy_core.__all__ + optics.__all__ + fresnel.__all__ + wfe.__all__
