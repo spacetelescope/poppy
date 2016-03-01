@@ -12,6 +12,7 @@ import scipy.ndimage.interpolation
 import matplotlib
 
 import astropy.io.fits as fits
+import astropy.units as u
 
 from .matrixDFT import MatrixFourierTransform
 from . import utils
@@ -20,7 +21,7 @@ from . import conf
 import logging
 _log = logging.getLogger('poppy')
 
-__all__ = ['Wavefront',  'OpticalSystem', 'SemiAnalyticCoronagraph', 'OpticalElement', 'FITSOpticalElement', 'Rotation', 'Detector', 'PlaneType']
+__all__ = ['Wavefront',  'OpticalSystem', 'SemiAnalyticCoronagraph', 'MatrixFTCoronagraph', 'OpticalElement', 'FITSOpticalElement', 'Rotation', 'Detector' ]
 
 # Setup infrastructure for FFTW
 _FFTW_INIT = {}  # dict of array sizes for which we have already performed the required FFTW planning step
@@ -128,7 +129,8 @@ class Wavefront(object):
 
         self.wavelength = float(wavelength)                 # wavelen in meters, obviously
         """Wavelength in meters """
-        self.diam= float(diam)                              # pupil plane size in meters
+
+        self.diam= float(diam) if not isinstance(diam, u.Quantity) else diam.to(u.m).value        # pupil plane size in meters
         """Diameter in meters. Applies to a pupil plane only."""
         self.fov = None                                     # image plane size in arcsec
         """Field of view in arcsec. Applies to an image plane only."""
@@ -997,16 +999,20 @@ class OpticalSystem(object):
         pixel.  Default is 2.
     verbose : bool
         whether to be more verbose with log output while computing
-
-
+    pupil_diameter : astropy.Quantity of dimension length
+        Diameter of entrance pupil. Defaults to size of first optical element
+        if unspecified, or else 1 meter.
 
 
     """
-    def __init__(self, name="unnamed system", verbose=True, oversample=2):
+    def __init__(self, name="unnamed system", verbose=True, oversample=2,
+            npix=1024, pupil_diameter=None):
         self.name = name
         self.verbose=verbose
         self.planes = []                    # List of OpticalElements
         self.oversample = oversample
+        self.npix = npix
+        self.pupil_diameter = pupil_diameter
 
         self.source_offset_r = 0 # = np.zeros((2))     # off-axis tilt of the source, in ARCSEC
         self.source_offset_theta = 0 # in degrees CCW
@@ -1078,6 +1084,7 @@ class OpticalSystem(object):
         if self.verbose: _log.info("Added pupil plane: "+self.planes[-1].name)
 
         return optic
+
 
     def addImage(self, optic=None, function=None, **kwargs):
         """ Add an image plane optic to the optical system
@@ -1206,6 +1213,7 @@ class OpticalSystem(object):
 
         return detector
 
+
     def describe(self):
         """ Print out a string table describing all planes in an optical system"""
         print( str(self)+"\n\t"+ "\n\t".join([str(p) for p in self.planes]) )
@@ -1219,7 +1227,8 @@ class OpticalSystem(object):
         the size of the first optical plane, assumed to be a pupil.
 
         If the first optical element is an Analytic pupil (i.e. has no pixel scale) then
-        an array of 1024x1024 will be created (not including oversampling).
+        the default size is set by the `npix` parameter to __init__ of this class, 
+        which itself has a default value of 1024.
 
         Uses self.source_offset to assign an off-axis tilt, if requested.
 
@@ -1235,8 +1244,23 @@ class OpticalSystem(object):
 
         """
 
-        npix = self.planes[0].shape[0] if self.planes[0].shape is not None else 1024
-        diam = self.planes[0].pupil_diam if hasattr(self.planes[0], 'pupil_diam') else 8
+        # somewhat complicated logic here for historical reasons. 
+        # if we have a first optical plane, check and see if it specifies the entrance sampling. 
+
+        npix=None
+        diam=None
+        if len(self.planes) > 0:
+            if self.planes[0].shape is not None: npix=self.planes[0].shape[0]
+            if hasattr(self.planes[0], 'pupil_diam') and self.planes[0].pupil_diam is not None: diam = self.planes[0].pupil_diam
+        # if still undefined, fall back to what is set for this optical system itself
+        if npix is None: npix=self.npix if self.npix is not None else 1024
+        if diam is None: diam = self.pupil_diameter if self.pupil_diameter is not None else 1
+
+
+        # if the diameter was specified as an astropy.Quantity, cast it to just a scalar in meters
+        if isinstance(diam, u.Quantity):
+            diam = diam.to(u.m).value
+
 
         inwave = Wavefront(wavelength=wavelength,
                 npix = npix,
@@ -1569,7 +1593,6 @@ class OpticalSystem(object):
             _log.info("Displaying plane {0:s} in row {1:d} of {2:d}".format(plane.name, i+1, nplanes))
             plane.display(nrows=nplanes, row=i+1, **kwargs)
 
-
     def _propagation_info(self):
         """ Provide some summary information on the optical propagation calculations that
         would be done for a given optical system
@@ -1595,6 +1618,13 @@ class OpticalSystem(object):
 
         return {'steps': steps, 'output_shape': output_shape, 'output_size':output_size}
 
+    # PEP8 compliant aliases; the old versions will be deprecated in a future release.
+    add_pupil = addPupil
+    add_image = addImage
+    add_rotation = addRotation
+    add_detector = addDetector
+    input_wavefront = inputWavefront
+    calc_psf = calcPSF
 
 class SemiAnalyticCoronagraph(OpticalSystem):
     """ A subclass of OpticalSystem that implements a specialized propagation
@@ -1639,6 +1669,9 @@ class SemiAnalyticCoronagraph(OpticalSystem):
         self.source_offset_r = ExistingOpticalSystem.source_offset_r
         self.source_offset_theta = ExistingOpticalSystem.source_offset_theta
         self.planes = ExistingOpticalSystem.planes
+        self.npix = ExistingOpticalSystem.npix
+        self.pupil_diameter = ExistingOpticalSystem.pupil_diameter
+
 
         # SemiAnalyticCoronagraphs have some fixed planes, so give them reasonable names.
         self.inputpupil = self.planes[0]
@@ -1782,6 +1815,162 @@ class SemiAnalyticCoronagraph(OpticalSystem):
 
         return wavefront_combined.asFITS(), intermediate_wfs
 
+class MatrixFTCoronagraph(OpticalSystem):
+    """ A subclass of OpticalSystem that implements a specialized propagation
+    algorithm for coronagraphs which are most efficiently modeled by 
+    matrix Fourier transforms, and in which the semi-analytical/Babinet 
+    superposition approach does not apply.
+
+    The way to use this class is to build an OpticalSystem class the usual way, and then
+    cast it to a MatrixFTCoronagraph, and then you can just call calcPSF on that in the
+    usual fashion.
+
+    Parameters
+    -----------
+    ExistingOpticalSystem : OpticalSystem
+        An optical system which can be converted into a SemiAnalyticCoronagraph. This
+        means it must have exactly 4 planes, in order Pupil, Image, Pupil, Detector.
+    oversample : int
+        Oversampling factor in intermediate image plane. Default is 4
+    occulter_box : float
+        half size of field of view region entirely including the occulter, in arcseconds. Default 1.0
+        This can be a tuple or list to specify a rectangular region [deltaY,deltaX] if desired.
+
+
+    Notes
+    ------
+
+    This subclass is best suited for a coronagraph design in which the region
+    transmitted by the focal plane mask is bounded and small, thereby offering a
+    large speed gain over FFT propagation. In particular, the shaped pupil Lyot
+    coronagraphs in the baseline WFIRST CGI design, which use a diaphragm-type
+    focal plane mask, can benefit highly.
+
+    """
+
+    def __init__(self, ExistingOpticalSystem, oversample=4, occulter_box = 1.0):
+        from . import optics
+
+        if len(ExistingOpticalSystem.planes) < 4:
+            raise ValueError("Input optical system must have at least 4 planes to be convertible into a MatrixFTCoronagraph")
+        self.name = "MatrixFTCoronagraph for "+ExistingOpticalSystem.name
+        self.verbose = ExistingOpticalSystem.verbose
+        self.source_offset_r = ExistingOpticalSystem.source_offset_r
+        self.source_offset_theta = ExistingOpticalSystem.source_offset_theta
+        self.planes = ExistingOpticalSystem.planes
+        self.npix = ExistingOpticalSystem.npix
+        self.pupil_diameter = ExistingOpticalSystem.pupil_diameter
+
+
+        self.oversample = oversample
+
+        #if hasattr(occulter_box, '__getitem__'):
+        if not np.isscalar(occulter_box):
+            occulter_box = np.array(occulter_box) # cast to numpy array so the multiplication by 2 just below will work
+        self.occulter_box = occulter_box
+
+    def propagate_mono(self, wavelength=1e-6, normalize='first',
+                       retain_intermediates=False, display_intermediates=False):
+        """Propagate a monochromatic wavefront through the optical system using matrix FTs. Called from
+        within `calcPSF`. Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s
+        (empty if `retain_intermediates=False`).
+
+        We use the Detector subclass of OpticalElement as the destination in the first
+        pupil-to-image propagation, to force the propagation method to switch to the
+        matrix FT. Otherwise it would default to FFT.
+
+        Parameters
+        ----------
+        wavelength : float
+            Wavelength in meters
+        normalize : string, {'first', 'last'}
+            how to normalize the wavefront?
+            * 'first' = set total flux = 1 after the first optic, presumably a pupil
+            * 'last' = set total flux = 1 after the entire optical system.
+        display_intermediates : bool
+            Should intermediate steps in the calculation be displayed on screen? Default: False.
+        retain_intermediates : bool
+            Should intermediate steps in the calculation be retained? Default: False.
+            If True, the second return value of the method will be a list of `poppy.Wavefront` objects
+            representing intermediate optical planes from the calculation.
+
+        Returns
+        -------
+        final_wf : fits.HDUList
+            The final result of the monochromatic propagation as a FITS HDUList
+        intermediate_wfs : list
+            A list of `poppy.Wavefront` objects representing the wavefront at intermediate optical planes.
+            The 0th item is "before first optical plane", 1st is "after first plane and before second plane", and so on.
+            (n.b. This will be empty if `retain_intermediates` is False.)
+        """
+
+        if conf.enable_speed_tests:
+           t_start = time.time()
+        if self.verbose:
+           _log.info(" Propagating wavelength = {0:g} meters using "
+                     "Matrix FTs".format(wavelength))
+        wavefront = self.inputWavefront(wavelength)
+
+        intermediate_wfs = []
+
+        # note: 0 is 'before first optical plane; 1 = 'after first plane and before second plane' and so on
+        current_plane_index = 0
+        for optic in self.planes:
+            # The actual propagation:
+            if optic.planetype == _IMAGE:
+                if len(optic.amplitude.shape) == 2: # Match detector object to the loaded FPM transmission array
+                    metadet = Detector(optic.pixelscale, fov_pixels = optic.amplitude.shape[0], name='Oversampled Occulter Plane')
+                else:
+                    metadet_pixelscale = wavelength / self.planes[0].pupil_diam * _RADIANStoARCSEC / self.oversample / 2
+                    metadet = Detector(metadet_pixelscale, fov_arcsec = self.occulter_box*2, name='Oversampled Occulter Plane')
+                wavefront.propagateTo(metadet)
+            else:
+                wavefront.propagateTo(optic)
+            wavefront *= optic
+            current_plane_index += 1
+
+            # Normalize if appropriate:
+            if normalize.lower()=='first' and current_plane_index==1 :  # set entrance plane to 1.
+                wavefront.normalize()
+                _log.debug("normalizing at first plane (entrance pupil) to 1.0 total intensity")
+            elif normalize.lower()=='first=2' and current_plane_index==1 : # this undocumented option is present only for testing/validation purposes
+                wavefront.normalize()
+                wavefront *= np.sqrt(2)
+            elif normalize.lower()=='exit_pupil': # normalize the last pupil in the system to 1
+                last_pupil_plane_index = np.where(np.asarray([p.planetype is PlaneType.pupil for p in self.planes]))[0].max() +1
+                if current_plane_index == last_pupil_plane_index:
+                    wavefront.normalize()
+                    _log.debug("normalizing at exit pupil (plane {0}) to 1.0 total intensity".format(current_plane_index))
+            elif normalize.lower()=='last' and current_plane_index==len(self.planes):
+                wavefront.normalize()
+                _log.debug("normalizing at last plane to 1.0 total intensity")
+
+            # Optional outputs:
+            if conf.enable_flux_tests: _log.debug("  Flux === "+str(wavefront.totalIntensity))
+
+            if retain_intermediates: # save intermediate wavefront, summed for polychromatic if needed
+                intermediate_wfs.append(wavefront.copy())
+
+            if display_intermediates:
+                if conf.enable_speed_tests: t0 = time.time()
+                title = None if current_plane_index > 1 else "propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6)
+                wavefront.display(what='best',nrows=len(self.planes),row=current_plane_index, colorbar=False, title=title)
+                #plt.title("propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6))
+
+                if conf.enable_speed_tests:
+                    t1 = time.time()
+                    _log.debug("\tTIME %f s\t for displaying the wavefront." % (t1-t0))
+
+        # prepare output arrays
+        if normalize.lower()=='last':
+                wavefront.normalize()
+
+        if conf.enable_speed_tests:
+            t_stop = time.time()
+            _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop-t_start))
+
+        return wavefront.asFITS(), intermediate_wfs
+
 
 #------ core Optical Element Classes ------
 class OpticalElement(object):
@@ -1822,7 +2011,7 @@ class OpticalElement(object):
     #"float attribute. Pixelscale in arcsec or meters per pixel. Will be 'None' for null or analytic optics."
 
 
-    def __init__(self, name="unnamed optic", verbose=True, planetype=None, oversample=1, opdunits="meters",interp_order=3):
+    def __init__(self, name="unnamed optic", verbose=True, planetype=PlaneType.unspecified, oversample=1, opdunits="meters",interp_order=3):
 
         self.name = name
         """ string. Descriptive Name of this optic"""

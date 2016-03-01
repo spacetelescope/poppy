@@ -161,7 +161,7 @@ class ConicLens(poppy.optics.CircularAperture):
         planetype : poppy.PlaneType, optional
             Optional optical plane type specifier
         """
-        CircularAperture.__init__(self, name=name, radius=radius.value, planetype=planetype **kwargs)
+        CircularAperture.__init__(self, name=name, radius=radius.value, planetype=planetype, **kwargs)
         self.f_lens = f_lens
         self.K=K
 
@@ -979,7 +979,7 @@ class FresnelOpticalSystem(OpticalSystem):
 
     @u.quantity_input(pupil_diameter=u.m)
     def __init__(self, name="unnamed system", pupil_diameter=1 * u.m,
-                 npix=512, beam_ratio=0.5, verbose=True):
+                 npix=1024, beam_ratio=0.5, verbose=True):
         super(FresnelOpticalSystem, self).__init__(name=name, verbose=verbose)
         self.pupil_diameter = pupil_diameter
         self.beam_ratio = beam_ratio

@@ -312,6 +312,8 @@ def test_fresnel_optical_system_Hubble(display=False):
     airy = misc.airy_2d(diameter=diam.value, wavelength=0.5e-6,
                               shape=(128,128), pixelscale=psf[0].header['PIXELSCL'],
                              center=(64,64))
-    cutout = psf[0].data[1024-64:1024+64, 1024-64:1024+64] / psf[0].data[1024,1024]
+
+    centerpix = hst.npix / hst.beam_ratio / 2
+    cutout = psf[0].data[centerpix-64:centerpix+64, centerpix-64:centerpix+64] / psf[0].data[centerpix,centerpix]
     assert( np.abs(cutout-airy).max() < 1e-4 )
 

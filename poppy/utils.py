@@ -7,6 +7,7 @@
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 import os.path
 import json
+import pickle
 import six
 import numpy as np
 import matplotlib.pyplot as plt
@@ -25,8 +26,6 @@ except ImportError:
     pyfftw = None
 
 _loaded_fftw_wisdom = False
-
-_Strehl_perfect_cache = {} # dict for caching perfect images used in Strehl calcs.
 
 
 __all__ = [ 'display_PSF', 'display_PSF_difference', 'display_EE', 'display_profiles', 'radial_profile',
@@ -807,102 +806,16 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, verbo
 
 
 def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, display=True, verbose=True, cache_perfect=False):
-    """ Estimate the Strehl ratio for a PSF.
+    """ Measure Strehl for a PSF
 
-    This requires computing a simulated PSF with the same
-    properties as the one under analysis.
+    NOTE - deprecated / removed function.  Moved to webbpsf package instead.
 
-    Note that this calculation will not be very accurate unless both PSFs are well sampled,
-    preferably several times better than Nyquist. See
-    `Roberts et al. 2004 SPIE 5490 <http://adsabs.harvard.edu/abs/2004SPIE.5490..504R>`_
-    for a discussion of the various possible pitfalls when calculating Strehl ratios.
-
-    Parameters
-    ----------
-    HDUlist_or_filename : string
-        Either a fits.HDUList object or a filename of a FITS file on disk
-    ext : int
-        Extension in that FITS file
-    slice : int, optional
-        If that extension is a 3D datacube, which slice (plane) of that datacube to use
-    center : tuple
-        center to compute around.  Default is image center. If the center is on the
-        crosshairs between four pixels, then the mean of those four pixels is used.
-        Otherwise, if the center is in a single pixel, then that pixel is used.
-    print_, display : bool
-        control whether to print the results or display plots on screen.
-
-    cache_perfect : bool
-        use caching for perfect images? greatly speeds up multiple calcs w/ same config
-
-    Returns
-    ---------
-    strehl : float
-        Strehl ratio as a floating point number between 0.0 - 1.0
-
+    This stub is just here to provide information on that transfer,
+    and will be removed in a future version of poppy.
     """
-    if isinstance(HDUlist_or_filename, six.string_types):
-        HDUlist = fits.open(HDUlist_or_filename)
-    elif isinstance(HDUlist_or_filename, fits.HDUList):
-        HDUlist = HDUlist_or_filename
-    else: raise ValueError("input must be a filename or HDUlist")
-
-    image = HDUlist[ext].data
-    header = HDUlist[ext].header
-
-    if image.ndim >=3:  # handle datacubes gracefully
-        image = image[slice,:,:]
-
-
-    if center is None:
-        # get exact center of image
-        #center = (image.shape[1]/2, image.shape[0]/2)
-        center = tuple( (a-1)/2.0 for a in image.shape[::-1])
-
-
-
-    # Compute a comparison image
-    _log.info("Now computing image with zero OPD for comparison...")
-    inst = Instrument(header['INSTRUME'])
-    inst.filter = header['FILTER']
-    inst.pupilopd = None # perfect image
-    inst.pixelscale = header['PIXELSCL'] * header['OVERSAMP'] # same pixel scale pre-oversampling
-    cache_key = (header['INSTRUME'], header['FILTER'], header['PIXELSCL'], header['OVERSAMP'],  header['FOV'],header['NWAVES'])
-    try:
-        comparison_psf = _Strehl_perfect_cache[cache_key]
-    except KeyError:
-        comparison_psf = inst.calcPSF(fov_arcsec = header['FOV'], oversample=header['OVERSAMP'], nlambda=header['NWAVES'])
-        if cache_perfect: _Strehl_perfect_cache[cache_key ] = comparison_psf
-
-    comparison_image = comparison_psf[0].data
-
-    if (int(center[1]) == center[1]) and (int(center[0]) == center[0]):
-        # individual pixel
-        meas_peak =           image[center[1], center[0]]
-        ref_peak = comparison_image[center[1], center[0]]
-    else:
-        # average across a group of 4
-        bot = [np.floor(f) for f in center]
-        top = [np.ceil(f)+1 for f in center]
-        meas_peak =           image[bot[1]:top[1], bot[0]:top[0]].mean()
-        ref_peak = comparison_image[bot[1]:top[1], bot[0]:top[0]].mean()
-    strehl = (meas_peak/ref_peak)
-
-    if display:
-        plt.clf()
-        plt.subplot(121)
-        display_PSF(HDUlist, title="Observed PSF")
-        plt.subplot(122)
-        display_PSF(comparison_psf, title="Perfect PSF")
-        plt.gcf().suptitle("Strehl ratio = %.3f" % strehl)
-
-
-    if verbose:
-        print("Measured peak:  {0:.3g}".format(meas_peak))
-        print("Reference peak: {0:.3g}".format(ref_peak))
-        print("  Strehl ratio: {0:.3f}".format(strehl))
-
-    return strehl
+    import warnings
+    warnings.warn("measure_strehl function has been deprecated and moved to webbpsf instead of poppy.", DeprecationWarning)
+    raise NotImplementedError("The 'measure_strehl' function has been moved from the 'poppy' package to the 'webbpsf' package. See https://github.com/mperrin/poppy/issues/138")
 
 
 def measure_anisotropy(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50):
@@ -1311,7 +1224,7 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
     avail_ram -= 2* 1024.**3   # always leave at least 2 GB extra padding - let's be cautious to make sure we don't swap.
     recommendation = int(np.floor(float(avail_ram) / (mem_per_prop+mem_per_output)))
 
-    if recommendation > psutil.NUM_CPUS: recommendation = psutil.NUM_CPUS
+    if recommendation > psutil.cpu_count(): recommendation = psutil.cpu_count()
     if nwavelengths is not None:
         if recommendation > nwavelengths: recommendation = nwavelengths
 
@@ -1330,6 +1243,8 @@ def fftw_save_wisdom(filename=None):
     filename : string, optional
         Filename to use (instead of the default, poppy_fftw_wisdom.json)
     """
+
+    from .poppy_core import _FFTW_INIT
     if filename is None:
         filename = os.path.join(config.get_config_dir(), "poppy_fftw_wisdom.json")
 
@@ -1339,7 +1254,12 @@ def fftw_save_wisdom(filename=None):
         'double': double.decode('ascii'),
         'single': single.decode('ascii'),
         'longdouble': longdouble.decode('ascii'),
+        '_FFTW_INIT': pickle.dumps(_FFTW_INIT)  # ugly to put a pickled string inside JSON
+                                    # but native JSON turns tuples into lists and we need to
+                                    # preserve tuple-ness for use in fftw_load_wisdom
+                                    # edit: try saving entire dict instead of just keys for py3 compat
     }
+
     with open(filename, 'w') as wisdom_file:
         json.dump(wisdom, wisdom_file)
     _log.debug("FFTW wisdom saved to "+filename)
@@ -1356,6 +1276,7 @@ def fftw_load_wisdom(filename=None):
     filename : string, optional
         Filename to use (instead of the default, poppy_fftw_wisdom.json)
     """
+    from .poppy_core import _FFTW_INIT
     global _loaded_fftw_wisdom
     if _loaded_fftw_wisdom:
         _log.debug("Already loaded wisdom prior to this calculation, not reloading.")
@@ -1381,4 +1302,15 @@ def fftw_load_wisdom(filename=None):
     _log.debug("Reloaded double precision wisdom: {}".format(success_double))
     _log.debug("Reloaded single precision wisdom: {}".format(success_single))
     _log.debug("Reloaded longdouble precision wisdom: {}".format(success_longdouble))
+
+    try:
+        saved_fftw_init = pickle.loads(wisdom['_FFTW_INIT'])
+        for key in saved_fftw_init.keys():
+            _FFTW_INIT[key] = True
+        _log.debug("Reloaded _FFTW_INIT list of optimized array sizes ")
+    except (TypeError, KeyError):
+        _log.warning("Could not parse saved _FFTW_INIT info; this is OK but FFTW will need to repeat its optimization measurements (automatically). ")
+
+
+
     _loaded_fftw_wisdom = True

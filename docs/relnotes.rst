@@ -6,6 +6,34 @@ For a list of contributors, see :ref:`about`.
 
 .. _whatsnew:
 
+
+
+0.4.1
+-----
+
+2016 Feb XX?
+
+
+Mostly minor bug fixes: 
+
+ * Fix inconsistency between older deprecated ``angle`` parameter to some optic classes versus new ``rotation`` parameter for any AnalyticOpticalElement  (`#140 <https://github.com/mperrin/poppy/issues/140>`_; @kvangorkom, @josephoenix, @mperrin)
+ * Update to newer API for ``psutil``  (`#139 <https://github.com/mperrin/poppy/issues/139>`_; Anand Sivaramakrishnan, @mperrin)
+ * "measure_strehl" function moved to ``webbpsf`` instead of ``poppy``.  (`#138 <https://github.com/mperrin/poppy/issues/138>`_; Kathryn St.Laurent, @josephoenix, @mperrin)
+ * Add special case to handle zero radius pixel in circular BandLimitedOcculter.  (`#137 <https://github.com/mperrin/poppy/issues/137>`_; @kvangorkom, @mperrin)
+ * The output FITS header of an `AnalyticOpticalElement`'s `toFITS()` function is now compatible with the input expected by `FITSOpticalElement`. 
+ * Better saving and reloading of FFTW wisdom. 
+ * Misc minor code cleanup and PEP8 compliance. (`#149 <https://github.com/mperrin/poppy/issues/149>`_; @mperrin)
+
+And a few more significant enhancements:
+
+ * Added `MatrixFTCoronagraph` subclass for fast optimized propagation of coronagraphs with finite fields of view. This is a 
+   related variant of the approach used in the `SemiAnalyticCoronagraph` class, suited for
+   coronagraphs with a focal plane field mask limiting their field of view, for instance those
+   under development for NASA's WFIRST mission. ( `#128 <https://github.com/mperrin/poppy/pull/128>`_; `#147 <https://github.com/mperrin/poppy/pull/147>`_; @neilzim)
+ * The `OpticalSystem` class now has `npix` and `pupil_diameter` parameters, consistent with the `FresnelOpticalSystem`.  (`#141 <https://github.com/mperrin/poppy/issues/141>`_; @mperrin)
+
+
+
 0.4.0
 -----
 
