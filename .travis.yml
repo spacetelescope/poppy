@@ -6,7 +6,7 @@ sudo: false
 python:
     - 2.7
     # - 3.3
-    - 3.4
+    - 3.5
     # This is just for "egg_info".  All other builds are explicitly given in the matrix
 env:
     global:
@@ -35,9 +35,12 @@ matrix:
           env: SETUP_CMD='test'
         - python: 3.4
           env: SETUP_CMD='test --coverage'
+        - python: 3.5
+          env: SETUP_CMD='test --coverage'
+
 
         # Try Astropy development version
-        - python: 2.7
+        - python: 3.5
           env: ASTROPY_VERSION=development SETUP_CMD='test'
         # - python: 3.3
         #   env: ASTROPY_VERSION=development SETUP_CMD='test'
