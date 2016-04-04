@@ -70,6 +70,7 @@ before_install:
     - ./miniconda.sh -b
     - export PATH=/home/travis/miniconda2/bin:$PATH
     - conda update --yes conda
+    - conda update --all -y  # added to try debugging issue #159 with Travis
 
 install:
 
