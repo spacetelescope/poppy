@@ -688,7 +688,7 @@ class Instrument(object):
                 #try:
                     #source = pysynphot.Icat('ck04models',5700,0.0,2.0)
                 #except IOError:
-                poppy_core._log.error("No source spectrum supplied; falling back to 5700 K blackbody")
+                poppy_core._log.warning("No source spectrum supplied; falling back to 5700 K blackbody")
                 source = pysynphot.BlackBody(5700)
             poppy_core._log.debug("Computing spectral weights for source = "+str(source))
 
