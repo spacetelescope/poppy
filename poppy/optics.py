@@ -5,6 +5,7 @@ import scipy.special
 import scipy.ndimage.interpolation
 import matplotlib
 import astropy.io.fits as fits
+import warnings
 
 from . import utils
 from .version import version
@@ -78,11 +79,14 @@ class AnalyticOpticalElement(OpticalElement):
 
     # The following two functions should be replaced by derived subclasses 
     # but we provide a default of perfect transmission and zero OPD.
+    # Each must return something which is a numpy ndarray.
     def get_opd(self, wave):
-        return 0
+        return np.zeros(wave.shape)
 
     def get_transmission(self, wave):
-        return 1
+        """ Note that this is the **amplitude** transmission, not the
+        total intensity transmission. """
+        return np.ones(wave.shape)
 
     def get_phasor(self, wave):
         """ Compute a complex phasor from an OPD, given a wavelength.
@@ -105,7 +109,7 @@ class AnalyticOpticalElement(OpticalElement):
         return self.get_transmission(wave) * np.exp (1.j * self.get_opd(wave) * scale)
 
     def getPhasor(self,wave):
-        #TODO add deprecation warning here?
+        warnings.warn("getPhasor is deprecated; use get_phasor instead", DeprecationWarning)
         return self.get_phasor(wave)
 
     def sample(self, wavelength=2e-6, npix=512, grid_size=None, what='amplitude',
@@ -124,11 +128,11 @@ class AnalyticOpticalElement(OpticalElement):
             taken from the optic's properties, if defined. Otherwise defaults to
             6.5 meters or 2 arcseconds depending on plane.
         what : string
-            What to return: optic 'amplitude' transmission, 'intensity' transmission, or
-            'phase'.  Note that phase with phase_unit = 'meters' should give the optical path
-            difference, OPD.
+            What to return: optic 'amplitude' transmission, 'intensity' transmission,
+            'phase', or 'opd'.  Note that optical path difference, OPD, is given in meters.
         phase_unit : string
             Unit for returned phase array IF what=='phase'. One of 'radians', 'waves', 'meters'.
+            ('meters' option is deprecated; use what='opd' instead.)
         return_scale : float
             if True, will return a tuple containing the desired array and a float giving the
             pixel scale.
@@ -155,27 +159,30 @@ class AnalyticOpticalElement(OpticalElement):
             pixel_scale = fov / npix
             w = Wavefront(wavelength=wavelength, npix=npix, pixelscale=pixel_scale)
 
-        phasor = self.get_phasor(w)
         _log.info("Computing {0} for {1} sampled onto {2} pixel grid".format(what, self.name, npix))
         if what == 'amplitude':
-            output_array = np.abs(phasor)
+            output_array =  self.get_transmission(w) #np.abs(phasor)
         elif what == 'intensity':
-            output_array = np.abs(phasor) ** 2
+            output_array = self.get_transmission(w)**2 #np.abs(phasor) ** 2
         elif what == 'phase':
             if phase_unit == 'radians':
-                output_array = np.angle(phasor)
+                output_array = np.angle(phasor) * 2 * np.pi / wavelength
             elif phase_unit == 'waves':
-                output_array = np.angle(phasor) / (2 * np.pi)
+                output_array = self.get_opd(w) / wavelength #  np.angle(phasor) / (2 * np.pi)
             elif phase_unit == 'meters':
-                output_array = np.angle(phasor) / (2 * np.pi) * wavelength
+                warnings.warn("'phase_unit' parameter has been deprecated. Use what='opd' instead.", category=DeprecationWarning)
+                output_array = self.get_opd(w)  #np.angle(phasor) / (2 * np.pi) * wavelength
             else:
+                warnings.warn("'phase_unit' parameter has been deprecated. Use what='opd' instead.", category=DeprecationWarning)
                 raise ValueError('Invalid/unknown phase_unit: {}. Must be one of '
                                  '[radians, waves, meters]'.format(phase_unit))
+        elif what == 'opd':
+            output_array = self.get_opd(w)  #np.angle(phasor) / (2 * np.pi) * wavelength
         elif what == 'complex':
-            output_array = phasor
+            output_array = self.get_phasor(w)
         else:
             raise ValueError('Invalid/unknown what to sample: {}. Must be one of '
-                             '[amplitude, intensity, phase, complex]'.format(what))
+                             '[amplitude, intensity, phase, opd, complex]'.format(what))
 
         if return_scale:
             return output_array, pixel_scale
@@ -196,7 +203,8 @@ class AnalyticOpticalElement(OpticalElement):
             Diameter of the grid on which to sample this optic in
             meters (for pupil planes) or arcseconds (for image planes)
         what : str
-            What to display: 'intensity', 'phase', or 'both'
+            What to display: 'intensity', 'phase', 'opd', or 'both' which
+            shows intensity and phase.
         ax : matplotlib.Axes instance
             Axes to display into
         nrows, row : integers
@@ -215,13 +223,18 @@ class AnalyticOpticalElement(OpticalElement):
         """
 
         _log.debug("Displaying " + self.name)
-        phasor, pixelscale = self.sample(wavelength=wavelength, npix=npix, what='complex',
+        #phasor, pixelscale = self.sample(wavelength=wavelength, npix=npix, what='complex',
+                                         #grid_size=grid_size, return_scale=True)
+        amplitude, pixelscale = self.sample(wavelength=wavelength, npix=npix, what='amplitude',
+                                         grid_size=grid_size, return_scale=True)
+        opd, pixelscale = self.sample(wavelength=wavelength, npix=npix, what='opd',
                                          grid_size=grid_size, return_scale=True)
 
+
         # temporarily set attributes appropriately as if this were a regular OpticalElement
-        self.amplitude = np.abs(phasor)
-        phase = np.angle(phasor) / (2 * np.pi)
-        self.opd = phase * wavelength
+        self.amplitude = amplitude #np.abs(phasor)
+        #phase = np.angle(phasor) / (2 * np.pi)
+        self.opd = opd # phase * wavelength
         self.pixelscale = pixelscale
 
         #then call parent class display
@@ -358,6 +371,8 @@ class InverseTransmission(OpticalElement):
     def get_transmission(self, wave):
         return 1 - self.uninverted_optic.get_transmission(wave)
 
+    def get_opd(self, wave):
+        return self.uninverted_optic.get_opd(wave)
 
 #------ Analytic Image Plane elements (coordinates in arcsec) -----
 
@@ -1505,14 +1520,14 @@ class ThinLens(CircularAperture):
         r = np.sqrt(x ** 2 + y ** 2)
         r_norm = r / self.radius
 
-        # the thin lens, being circular, is implicitly also a circular aperture:
+        # the thin lens is explicitly also a circular aperture:
         aperture_intensity = CircularAperture.get_transmission(self, wave)
         # we use the aperture instensity here to mask the OPD we return
 
         # don't forget the factor of 0.5 to make the scaling factor apply as peak-to-valley
         # rather than center-to-peak
         defocus_zernike = ((2 * r_norm ** 2 - 1) *
-                           (0.5 * self.nwaves * self.reference_wavelength / wave.wavelength))
+                           (0.5 * self.nwaves * self.reference_wavelength)) # / wave.wavelength))
 
         opd = defocus_zernike * aperture_intensity
         return opd
@@ -1565,7 +1580,7 @@ class GaussianAperture(AnalyticOpticalElement):
     def fwhm(self):
         return self.w*(2*np.sqrt(np.log(2)))
 
-    def getPhasor(self, wave):
+    def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the aperture.
         """
         if not isinstance(wave, Wavefront):  # pragma: no cover
