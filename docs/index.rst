@@ -21,11 +21,11 @@ Summary
 
 * Allows users to define an optical system consisting of multiple planes, such as pupils and images.
 * Provides flexible and extensible optical element classes, including a wide variety of stops, masks, lenses and more.
+* Propagates wavefronts between planes using either the :ref:`Fraunhofer <fraunhofer>` or :ref:`Fresnel <fresnel>` approximations of scalar electromagnetic theory.
 * Computes monochromatic and polychromatic point spread functions through those optics.
 * Provides an extensible framework for defining models of optical instruments, including
   selection of broad- and narrow-band filters, selectable optical components such as pupil stops, models of 
   optical aberrations defined by Zernike polynomials, etc.
-* Propagates wavefronts between planes using either the :ref:`Fraunhofer <fraunhofer>` or :ref:`Fresnel <fresnel>` approximations of scalar electromagnetic theory.
 
 
 **What this software does not do:**

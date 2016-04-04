@@ -70,3 +70,4 @@ Wavefront Error Optical Elements
 --------------------------------
 
  * `poppy.wfe.ZernikeWFE`
+ * `poppy.wfe.SineWaveWFE`
