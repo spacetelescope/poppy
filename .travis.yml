@@ -32,11 +32,11 @@ matrix:
 
         # Try all python versions with the latest numpy
         - python: 2.7
-          env: SETUP_CMD='test'
+          env: SETUP_CMD='test --coverage'
         - python: 3.4
-          env: SETUP_CMD='test --coverage'
+          env: SETUP_CMD='test'
         - python: 3.5
-          env: SETUP_CMD='test --coverage'
+          env: SETUP_CMD='test'
 
 
         # Try Astropy development version
