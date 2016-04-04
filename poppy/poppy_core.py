@@ -3,6 +3,7 @@ import multiprocessing
 import copy
 import time
 import enum
+import warnings
 
 import six
 
@@ -1991,8 +1992,9 @@ class OpticalElement(object):
     particularly the AnalyticOpticalElements extend this paradigm with optics
     that have wavelength-dependent properties.
 
-    The getPhasor() function is used to obtain the complex phasor for any desired
-    wavelength based on the amplitude and opd arrays.
+    The get_phasor() function is used to obtain the complex phasor for any desired
+    wavelength based on the amplitude and opd arrays. Those can individually be
+    obtained from the get_transmission() and get_opd() functions.
 
     Parameters
     ----------
@@ -2028,7 +2030,7 @@ class OpticalElement(object):
         self.interp_order=interp_order
 
     def get_transmission(self, wave):
-        """ Return the amplitude transmission, given a wavelength.
+        """ Return the electric field amplitude transmission, given a wavelength.
 
         Parameters
         ----------
@@ -2037,7 +2039,7 @@ class OpticalElement(object):
 
         Returns
         --------
-        ndarray giving amplitude transmission between 0 - 1.0
+        ndarray giving electric field amplitude transmission between 0 - 1.0
 
         """
         return self.amplitude
@@ -2057,7 +2059,7 @@ class OpticalElement(object):
         """
         return self.opd
 
-    def getPhasor(self,wave):
+    def get_phasor(self,wave):
         """ Compute a complex phasor from an OPD, given a wavelength.
 
         The returned value should be the complex phasor array as appropriate for
@@ -2118,7 +2120,7 @@ class OpticalElement(object):
 
         else:
             # compute the phasor directly, without any need to rescale.
-            self.phasor = self.amplitude * np.exp (1.j * self.opd * scale)
+            self.phasor = self.get_transmission(wave) * np.exp (1.j * self.get_opd(wave)* scale)
 
 
 
@@ -2134,6 +2136,9 @@ class OpticalElement(object):
         else:
             return self.phasor
 
+    def getPhasor(self,wave):
+        warnings.warn("getPhasor is deprecated; use get_phasor instead", DeprecationWarning)
+        return self.get_phasor(wave)
 
 
     def display(self, nrows=1, row=1, what='intensity', crosshairs=True, ax=None, colorbar=True,
@@ -2143,8 +2148,8 @@ class OpticalElement(object):
         Parameters
         ----------
         what : str
-            What to display: 'intensity', 'amplitude', 'phase',
-            or 'both' (meaning intensity and phase in two subplots)
+            What to display: 'intensity', 'amplitude', 'phase', 'opd',
+            or 'both' (meaning intensity and OPD in two subplots)
         ax : matplotlib.Axes instance
             Axes to display into
         nrows, row : integers
@@ -2198,7 +2203,7 @@ class OpticalElement(object):
                          colorbar_orientation=colorbar_orientation, title=None, opd_vmax=opd_vmax,
                          nrows=nrows)
             ax2 = plt.subplot(nrows, 2, row * 2)
-            self.display(what='phase', ax=ax2, crosshairs=crosshairs, colorbar=colorbar,
+            self.display(what='opd', ax=ax2, crosshairs=crosshairs, colorbar=colorbar,
                          colorbar_orientation=colorbar_orientation, title=None, opd_vmax=opd_vmax,
                          nrows=nrows)
             return ax, ax2
@@ -2217,12 +2222,22 @@ class OpticalElement(object):
             cmap = cmap_amp
             norm = norm_amp
         elif what == 'phase':
+            warnings.warn("displaying 'phase' has been deprecated. Use what='opd' instead.", category=DeprecationWarning)
+            plot_array = opd
+            title = "OPD"
+            cb_label = 'waves'
+            cb_values = np.array([-1, -0.5, 0, 0.5, 1]) * opd_vmax
+            cmap = cmap_opd
+            norm = norm_opd
+        elif what == 'opd':
             plot_array = opd
             title = "OPD"
             cb_label = 'meters'
             cb_values = np.array([-1, -0.5, 0, 0.5, 1]) * opd_vmax
             cmap = cmap_opd
             norm = norm_opd
+        else:
+            raise ValueError("Invalid value for 'what' parameter")
 
         # now we plot whichever was chosen...
         if ax is None:
@@ -2595,9 +2610,10 @@ class Rotation(OpticalElement):
     def __str__(self):
         return "Rotation by %f degrees counter clockwise" % self.angle
 
-    def getPhasor(self,wave):
+    def get_phasor(self,wave):
         return 1.0  #no change in wavefront (apart from the rotation)
         # returning this is necessary to allow the multiplication in propagate_mono to be OK
+
 
     def display(self, nrows=1, row=1, ax=None, **kwargs):
         if ax is None:
