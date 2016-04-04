@@ -51,6 +51,8 @@ matrix:
         # https://github.com/astropy/astropy-helpers/issues/73#issuecomment-72558556
         - python: 2.7
           env: NUMPY_VERSION=1.8 ASTROPY_VERSION=development SETUP_CMD='test'
+    allow_failures:
+        - python: 3.5
 
 addons:
     apt:
