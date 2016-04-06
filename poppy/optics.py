@@ -238,7 +238,7 @@ class AnalyticOpticalElement(OpticalElement):
         phdu.header['SOURCE'] = 'Computed with POPPY'
         phdu.header['VERSION'] = (version, "software version of POPPY")
         phdu.header['CONTENTS'] = what
-        phdu.header['PLANETYP'] = (self.planetype.value, "1=pupil, 2=image, 3=detector, 4=rot")
+        phdu.header['PLANETYP'] = (self.planetype.value, "0=unspecified, 1=pupil, 2=image, 3=detector, 4=rot")
         if self.planetype==_IMAGE:
             phdu.header['PIXSCALE'] = (pixelscale, 'Image plane pixel scale in arcsec/pix')
         else:

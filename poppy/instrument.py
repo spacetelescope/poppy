@@ -685,11 +685,11 @@ class Instrument(object):
             """
             poppy_core._log.debug("Calculating spectral weights using pysynphot, nlambda=%d, source=%s" % (nlambda, str(source)))
             if source is None:
-                try:
-                    source = pysynphot.Icat('ck04models',5700,0.0,2.0)
-                except IOError:
-                    poppy_core._log.error("Could not load Castelli & Kurucz stellar model from disk; falling back to 5700 K blackbody")
-                    source = pysynphot.BlackBody(5700)
+                #try:
+                    #source = pysynphot.Icat('ck04models',5700,0.0,2.0)
+                #except IOError:
+                poppy_core._log.warning("No source spectrum supplied; falling back to 5700 K blackbody")
+                source = pysynphot.BlackBody(5700)
             poppy_core._log.debug("Computing spectral weights for source = "+str(source))
 
             try:

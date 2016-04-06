@@ -161,7 +161,7 @@ class ConicLens(poppy.optics.CircularAperture):
         planetype : poppy.PlaneType, optional
             Optional optical plane type specifier
         """
-        CircularAperture.__init__(self, name=name, radius=radius.value, planetype=planetype **kwargs)
+        CircularAperture.__init__(self, name=name, radius=radius.value, planetype=planetype, **kwargs)
         self.f_lens = f_lens
         self.K=K
 

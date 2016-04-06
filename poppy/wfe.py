@@ -4,6 +4,8 @@ error in an OpticalSystem
 
  * ZernikeWFE
  * ParameterizedWFE (for use with hexike or zernike basis functions)
+ * SineWaveWFE
+ * TODO: MultiSineWaveWFE ?
  * TODO: PowerSpectrumWFE
  * TODO: KolmogorovWFE
 
@@ -19,7 +21,7 @@ from .optics import AnalyticOpticalElement, CircularAperture
 from .poppy_core import Wavefront, _PUPIL
 from . import zernike
 
-__all__ = ['WavefrontError', 'ParameterizedWFE', 'ZernikeWFE']
+__all__ = ['WavefrontError', 'ParameterizedWFE', 'ZernikeWFE', 'SineWaveWFE']
 
 def _accept_wavefront_or_meters(f):
     """Decorator that ensures the first positional method argument
@@ -45,7 +47,9 @@ class WavefrontError(AnalyticOpticalElement):
     Defined to be a pupil-plane optic.
     """
     def __init__(self, **kwargs):
-        super(WavefrontError, self).__init__(planetype=_PUPIL, **kwargs)
+        if 'planetype' not in kwargs:
+            kwargs['planetype'] = _PUPIL
+        super(WavefrontError, self).__init__(**kwargs)
 
     @_accept_wavefront_or_meters
     def get_opd(self, wave, units='meters'):
@@ -246,3 +250,49 @@ class ZernikeWFE(WavefrontError):
             combined_zernikes /= wave.wavelength
         return combined_zernikes
 
+class SineWaveWFE(WavefrontError):
+    """ A single sine wave ripple across the optic
+
+    Specified as a a spatial frequency in cycles per meter, an optional phase offset in cycles,
+    and an amplitude.
+
+    By default the wave is oriented in the X direction.
+    Like any AnalyticOpticalElement class, you can also specify a rotation parameter to
+    rotate the direction of the sine wave.
+
+
+    (N.b. we intentionally avoid letting users specify this in terms of a spatial wavelength
+    because that would risk potential ambiguity with the wavelength of light.)
+    """
+    def  __init__(self,  spatialfreq=1.0, amplitude=1e-6, phaseoffset=0, **kwargs):
+        super(WavefrontError, self).__init__(**kwargs)
+
+        self.sine_spatial_freq = float(spatialfreq)
+        self.sine_phase_offset = float(phaseoffset)
+        # note, can't call this next one 'amplitude' since that's already a property
+        self.sine_amplitude = float(amplitude)
+
+    @_accept_wavefront_or_meters
+    def get_opd(self, wave, units='meters'):
+        """
+        Parameters
+        ----------
+        wave : poppy.Wavefront (or float)
+            Incoming Wavefront before this optic to set wavelength and
+            scale, or a float giving the wavelength in meters
+            for a temporary Wavefront used to compute the OPD.
+        units : 'meters' or 'waves'
+            Coefficients are supplied as meters of OPD, but the
+            resulting OPD can be converted to
+            waves based on the `Wavefront` wavelength or a supplied
+            wavelength value.
+        """
+
+        y, x = self.get_coordinates(wave)
+
+        opd = self.sine_amplitude * np.sin( 2*np.pi *
+                (x / self.sine_spatial_freq + self.sine_phase_offset))
+
+        if units == 'waves':
+            opd /= wave.wavelength
+        return opd

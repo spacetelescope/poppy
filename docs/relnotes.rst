@@ -11,8 +11,7 @@ For a list of contributors, see :ref:`about`.
 0.4.1
 -----
 
-2016 Feb XX?
-
+2016 Apr 4:
 
 Mostly minor bug fixes: 
 
@@ -31,6 +30,7 @@ And a few more significant enhancements:
    coronagraphs with a focal plane field mask limiting their field of view, for instance those
    under development for NASA's WFIRST mission. ( `#128 <https://github.com/mperrin/poppy/pull/128>`_; `#147 <https://github.com/mperrin/poppy/pull/147>`_; @neilzim)
  * The `OpticalSystem` class now has `npix` and `pupil_diameter` parameters, consistent with the `FresnelOpticalSystem`.  (`#141 <https://github.com/mperrin/poppy/issues/141>`_; @mperrin)
+ * Added `SineWaveWFE` class to represent a periodic phase ripple.
 
 
 
