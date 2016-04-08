@@ -1308,7 +1308,7 @@ def fftw_load_wisdom(filename=None):
         for key in saved_fftw_init.keys():
             _FFTW_INIT[key] = True
         _log.debug("Reloaded _FFTW_INIT list of optimized array sizes ")
-    except (TypeError, KeyError):
+    except (TypeError, KeyError, AttributeError):
         _log.warning("Could not parse saved _FFTW_INIT info; this is OK but FFTW will need to repeat its optimization measurements (automatically). ")
 
 
