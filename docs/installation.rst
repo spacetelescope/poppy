@@ -34,7 +34,7 @@ The following are *optional*.  The first, :py:mod:`pysynphot`, is recommended
 for most users. The other optional installs are only worth adding for speed
 improvements if you are spending substantial time running calculations.
 
-* `pysynphot <https://pypi.python.org/pypi/pysynphot>`_ enables the simulation
+* `pysynphot <http://ssb.stsci.edu/pysynphot/docs/>`_ enables the simulation
   of PSFs with proper spectral response to realistic source spectra.  Without
   this, PSF fidelity is reduced. See below for :ref:`installation instructions
   for pysynphot <pysynphot_install>`. 
@@ -57,32 +57,29 @@ improvements if you are spending substantial time running calculations.
 Installing or updating pysynphot
 ----------------------------------
 
-Pysynphot is an optional dependency, but is highly recommended.
+`Pysynphot <http://ssb.stsci.edu/pysynphot/docs/>`_ is an optional dependency, but is highly recommended.
+See the `pysynphot installation instructions here <http://ssb.stsci.edu/pysynphot/docs/#installation-and-setup>`_.
 
-To install or update to the latest version of :py:mod:`pysynphot`, simply invoke ``pip install -U pysynphot``.
+Briefly, to install or update ``pysynphot`` from the latest release zip file, 
+invoke::
 
-If you already have the CDBS data package installed, or are using a machine at
-STScI, then you can simply set the ``PYSYN_CDBS`` environment variable to point
-to the CDBS files.
+        pip install https://github.com/spacetelescope/pysynphot/archive/0.9.8.2.zip
 
-If this is your initial installation of :py:mod:`pysynphot`, you will need to
-install the CDBS files. These are available from STScI in DMG form for Mac
-users, as well as in gzipped tar format.
-
-**Installing CDBS on Mac:** To obtain the DMG, consult the "Installing CDBS
-locally on a Mac" section of http://ssb.stsci.edu/ssb_software.shtml. Download
-the DMG and open it to find ``cdbs.pkg``. Running this graphical installer will
-place the CDBS files in ``/usr/stsci/stdata``. Set the environment variable
-``PYSYN_CDBS`` to point to that directory, e.g. ``setenv PYSYN_CDBS
-/usr/stsci/stdata`` for tcsh/csh or ``export PYSYN_CDBS="/usr/stsci/stdata"``
-for bash.
-
-**Installing CDBS from tar archives**: To obtain the tar files, consult
-http://www.stsci.edu/hst/observatory/crds/cdbs_throughput.html. Download the
+``Pysynphot`` requires some data files to work on. If you do not already have them installed, you will need to
+install these CDBS files, which are available at
+http://ssb.stsci.edu/pysynphot/docs/. 
+Download one or more of the
 archives numbered ``synphot[1-6].tar.gz`` and extract them to a directory such
-as ``$HOME/data/CDBS``.  Set the environment variable ``PYSYN_CDBS`` to point
+as ``$HOME/data/CDBS``. 
+Set the environment variable ``PYSYN_CDBS`` to point
 to that directory. e.g. ``setenv PYSYN_CDBS $HOME/data/CDBS`` for tcsh/csh or
-``export PYSYN_CDBS="$HOME/data/CDBS"``.
+``export PYSYN_CDBS="$HOME/data/CDBS"`` for bash.
+
+*The minimum needed to have stellar spectral models available for use when
+creating PSFs is just the Castelli & Kurucz stellar atlas, file*
+`synphot3.tar.gz <ftp://ftp.stsci.edu/cdbs/tarfiles/synphot3.tar.gz>`_ (18
+MB). Feel free to ignore the rest of the synphot files unless you know you want a larger set of
+input spectra.
 
 
 Testing your installation of poppy
