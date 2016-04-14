@@ -673,7 +673,7 @@ class Instrument(object):
             nlambda = self._getDefaultNLambda(self.filter)
 
         if monochromatic is not None:
-            poppy_core._log.info(" monochromatic calculation requested.")
+            poppy_core._log.info("Monochromatic calculation requested.")
             return (np.asarray([monochromatic]),  np.asarray([1]) )
 
         elif _HAS_PYSYNPHOT and (isinstance(source, pysynphot.spectrum.SourceSpectrum)  or source is None):
@@ -685,11 +685,8 @@ class Instrument(object):
             """
             poppy_core._log.debug("Calculating spectral weights using pysynphot, nlambda=%d, source=%s" % (nlambda, str(source)))
             if source is None:
-                #try:
-                    #source = pysynphot.Icat('ck04models',5700,0.0,2.0)
-                #except IOError:
-                poppy_core._log.warning("No source spectrum supplied; falling back to 5700 K blackbody")
                 source = pysynphot.BlackBody(5700)
+                poppy_core._log.info("No source spectrum supplied, therefore defaulting to 5700 K blackbody")
             poppy_core._log.debug("Computing spectral weights for source = "+str(source))
 
             try:
