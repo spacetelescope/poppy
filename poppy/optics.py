@@ -580,23 +580,13 @@ class RectangularFieldStop(AnalyticImagePlaneElement):
         Descriptive name
     width, height: float
         Size of the field stop, in arcseconds. Default 0.5 width, height 5.
-    angle : float
-        Position angle of the field stop sides relative to
-        the detector +Y direction, in degrees counterclockwise.
-        (Deprecated; redundant with the 'rotation' parameter to
-        any AnalyticOpticalElement; kept for back compatibility.)
-
     """
 
-    def __init__(self, name="unnamed field stop", width=0.5, height=5.0, angle=None, **kwargs):
+    def __init__(self, name="unnamed field stop", width=0.5, height=5.0, **kwargs):
         AnalyticImagePlaneElement.__init__(self, **kwargs)
         self.name = name
         self.width = float(width)  # width of square stop in arcseconds.
         self.height = float(height)  # height of square stop in arcseconds.
-        if angle is not None:
-            import warnings
-            warnings.warn("'angle' parameter is deprecated. Use 'rotation' instead.", DeprecationWarning)
-            self.rotation= float(angle)
         self._default_display_size = max(height, width) * 1.2
 
     def getPhasor(self, wave):
@@ -634,17 +624,11 @@ class SquareFieldStop(RectangularFieldStop):
         Descriptive name
     size : float
         Size of the field stop, in arcseconds. Default 20.
-    angle : float
-        Position angle of the field stop sides relative to the detector +Y direction, in degrees.
-        (Deprecated; redundant with the 'rotation' parameter to
-        any AnalyticOpticalElement; kept for back compatibility.)
-
     """
 
-    def __init__(self, name="unnamed field stop", size=20., angle=None, **kwargs):
-        RectangularFieldStop.__init__(self, width=size, height=size, angle=angle, **kwargs)
+    def __init__(self, name="unnamed field stop", size=20., **kwargs):
+        RectangularFieldStop.__init__(self, width=size, height=size, **kwargs)
         self.name = name
-        #self.size = size            # size of square stop in arcseconds.
         self.height = self.width
         self._default_display_size = size * 1.2
 
@@ -715,22 +699,13 @@ class BarOcculter(AnalyticImagePlaneElement):
         Descriptive name
     width : float
         width of the bar stop, in arcseconds. Default is 1.0
-    angle : float
-        position angle of the bar, rotated relative to the normal +y direction.
-        (Deprecated; redundant with the 'rotation' parameter to
-        any AnalyticOpticalElement; kept for back compatibility.)
 
     """
 
-    def __init__(self, name="bar occulter", width=1.0, angle=None, **kwargs):
+    def __init__(self, name="bar occulter", width=1.0, **kwargs):
         AnalyticImagePlaneElement.__init__(self, **kwargs)
         self.name = name
         self.width = width
-        if angle is not None:
-            import warnings
-            warnings.warn("'angle' parameter is deprecated. Use 'rotation' instead.", DeprecationWarning)
-            self.rotation = angle
-        #self.pixelscale=0
         self._default_display_size = 10
 
     def getPhasor(self, wave):
