@@ -34,7 +34,7 @@ The following are *optional*.  The first, :py:mod:`pysynphot`, is recommended
 for most users. The other optional installs are only worth adding for speed
 improvements if you are spending substantial time running calculations.
 
-* `pysynphot <http://ssb.stsci.edu/pysynphot/docs/>`_ enables the simulation
+* `pysynphot <http://pysynphot.readthedocs.org/en/latest/>`_ enables the simulation
   of PSFs with proper spectral response to realistic source spectra.  Without
   this, PSF fidelity is reduced. See below for :ref:`installation instructions
   for pysynphot <pysynphot_install>`. 
@@ -57,29 +57,15 @@ improvements if you are spending substantial time running calculations.
 Installing or updating pysynphot
 ----------------------------------
 
-`Pysynphot <http://ssb.stsci.edu/pysynphot/docs/>`_ is an optional dependency, but is highly recommended.
-See the `pysynphot installation instructions here <http://ssb.stsci.edu/pysynphot/docs/#installation-and-setup>`_.
-
-Briefly, to install or update ``pysynphot`` from the latest release zip file, 
-invoke::
-
-        pip install https://github.com/spacetelescope/pysynphot/archive/0.9.8.2.zip
-
-``Pysynphot`` requires some data files to work on. If you do not already have them installed, you will need to
-install these CDBS files, which are available at
-http://ssb.stsci.edu/pysynphot/docs/. 
-Download one or more of the
-archives numbered ``synphot[1-6].tar.gz`` and extract them to a directory such
-as ``$HOME/data/CDBS``. 
-Set the environment variable ``PYSYN_CDBS`` to point
-to that directory. e.g. ``setenv PYSYN_CDBS $HOME/data/CDBS`` for tcsh/csh or
-``export PYSYN_CDBS="$HOME/data/CDBS"`` for bash.
+`Pysynphot <http://pysynphot.readthedocs.org/en/latest/>`_ is an optional dependency, but is highly recommended.
+See the `pysynphot installation docs here <http://pysynphot.readthedocs.org/en/latest/#installation-and-setup>`_ 
+to install ``pysynphot`` and (at least some of) its CDBS data files.
 
 *The minimum needed to have stellar spectral models available for use when
-creating PSFs is just the Castelli & Kurucz stellar atlas, file*
+creating PSFs is pysynphot itself plus just one of the CDBS data files: the Castelli & Kurucz stellar atlas, file*
 `synphot3.tar.gz <ftp://ftp.stsci.edu/cdbs/tarfiles/synphot3.tar.gz>`_ (18
-MB). Feel free to ignore the rest of the synphot files unless you know you want a larger set of
-input spectra.
+MB). Feel free to ignore the rest of the synphot CDBS files unless you know you want a larger set of
+input spectra or need the reference files for other purposes.
 
 
 Testing your installation of poppy
