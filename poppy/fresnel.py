@@ -196,7 +196,7 @@ class FresnelWavefront(Wavefront):
             Padding factor to apply to the wavefront array, multiplying on top of the beam radius.
 
 
-        References:
+        References
         -------------------
         - Lawrence, G. N. (1992), Optical Modeling, in Applied Optics and Optical Engineering., vol. XI,
             edited by R. R. Shannon and J. C. Wyant., Academic Press, New York.
@@ -205,11 +205,11 @@ class FresnelWavefront(Wavefront):
 
         - IDEX Optics and Photonics(n.d.), Gaussian Beam Optics,
             [online] Available from:
-             https://marketplace.idexop.com/store/SupportDocuments/All_About_Gaussian_Beam_OpticsWEB.pdf
+            https://marketplace.idexop.com/store/SupportDocuments/All_About_Gaussian_Beam_OpticsWEB.pdf
 
         - Krist, J. E. (2007), PROPER: an optical propagation library for IDL,
-           vol. 6675, p. 66750P-66750P-9.
-        [online] Available from: http://dx.doi.org/10.1117/12.731179
+            vol. 6675, p. 66750P-66750P-9.
+            [online] Available from: http://dx.doi.org/10.1117/12.731179
 
         - Andersen, T., and A. Enmark (2011), Integrated Modeling of Telescopes, Springer Science & Business Media.
 
