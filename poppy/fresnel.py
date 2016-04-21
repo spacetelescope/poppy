@@ -54,7 +54,7 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
             self.z_m = z * u.m
 
 
-    def getPhasor(self, wave):
+    def get_phasor(self, wave):
         """ return complex phasor for the quadratic phase
 
         Parameters
@@ -88,7 +88,7 @@ class _QuadPhaseShifted(QuadPhase):
     def __init__(self, z, **kwargs):
         QuadPhase.__init__(self, z, **kwargs)
 
-    def getPhasor(self, wave):
+    def get_phasor(self, wave):
         """ Return complex phasor, for FFT shifted array
 
         Parameters
@@ -96,7 +96,7 @@ class _QuadPhaseShifted(QuadPhase):
         wave : object
             FresnelWavefront instance
         """
-        return np.fft.fftshift(super(_QuadPhaseShifted, self).getPhasor(wave))
+        return np.fft.fftshift(super(_QuadPhaseShifted, self).get_phasor(wave))
 
 
 class QuadraticLens(QuadPhase):
@@ -844,7 +844,6 @@ class FresnelWavefront(Wavefront):
         """
 
         _log.debug("------ Applying Lens: " + str(optic.name) + " ------")
-        # _log.debug("   wavefront oversample: {0}  optic oversample: {1}".format(self.oversample, optic.oversample))
         _log.debug("  Pre-Lens Beam Parameters: " + self.param_str)
 
         # calculate beam radius at current surface
