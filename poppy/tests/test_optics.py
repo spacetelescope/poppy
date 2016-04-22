@@ -600,7 +600,7 @@ def test_GaussianAperture(display=False):
 def test_ThinLens(display=False):
     pupil_radius = 1
 
-    pupil = optics.CircularAperture(radius=pupil_radius)
+    #pupil = optics.CircularAperture(radius=pupil_radius)
     # let's add < 1 wave here so we don't have to worry about wrapping
     lens = optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6, radius=pupil_radius)
     # n.b. npix is 99 so that there are an integer number of pixels per meter (hence multiple of 3)
@@ -608,11 +608,26 @@ def test_ThinLens(display=False):
     # Otherwise the strict test against half a wave min max doesn't work
     # because we're missing some (tiny but nonzero) part of the aperture
     wave = poppy_core.Wavefront(npix=99, diam=3.0, wavelength=1e-6)
-    wave *= pupil
+    #wave *= pupil
     wave *= lens
 
-    assert np.allclose(wave.phase.max(),  np.pi/2)
-    assert np.allclose(wave.phase.min(), -np.pi/2)
+    # Now test the values at some precisely chosen pixels
+    y, x = wave.coordinates()
+    at_radius = np.where((x==1) & (y==0))
+    assert np.allclose(wave.phase[at_radius], np.pi/2), "Didn't get 1/2 wave OPD at edge of optic"
+    assert len(at_radius[0]) > 0, "Array indices messed up - need to have a pixel at exactly (1,0)"
+
+    at_radius = np.where((x==0) & (y==1))
+    assert np.allclose(wave.phase[at_radius], np.pi/2), "Didn't get 1/2 wave OPD at edge of optic"
+    assert len(at_radius[0]) > 0, "Array indices messed up - need to have a pixel at exactly (0,1)"
+
+
+    at_center = np.where((x==0) & (y==0))
+    assert np.allclose(wave.phase[at_center], -np.pi/2), "Didn't get -1/2 wave OPD at center of optic"
+    assert len(at_radius[0]) > 0, "Array indices messed up - need to have a pixel at exactly (0,0)"
+
+    # TODO test intermediate pixel values between center and edge?
+
 
     # regression test to ensure null optical elements don't change ThinLens behavior
     # see https://github.com/mperrin/poppy/issues/14

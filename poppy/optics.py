@@ -1640,9 +1640,6 @@ class ThinLens(CircularAperture):
         r = np.sqrt(x ** 2 + y ** 2)
         r_norm = r / self.radius.to(u.meter).value
 
-        # the thin lens is explicitly also a circular aperture:
-        aperture_intensity = CircularAperture.get_transmission(self, wave)
-        # we use the aperture instensity here to mask the OPD we return
 
         # don't forget the factor of 0.5 to make the scaling factor apply as peak-to-valley
         # rather than center-to-peak
@@ -1650,6 +1647,12 @@ class ThinLens(CircularAperture):
                            (0.5 * self.nwaves * self.reference_wavelength.to(u.meter).value))
         # add negative sign here to get desired sign convention
         opd = -defocus_zernike * aperture_intensity
+
+        # the thin lens is explicitly also a circular aperture:
+        # we use the aperture instensity here to mask the OPD we return
+        aperture_intensity = CircularAperture.get_transmission(self, wave)
+        opd[aperture_intensity==0] = 0
+
         return opd
 
 
