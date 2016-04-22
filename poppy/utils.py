@@ -970,6 +970,151 @@ def krebin(a, shape):
     sh = shape[0],a.shape[0]//shape[0],shape[1],a.shape[1]//shape[1]
     return a.reshape(sh).sum(-1).sum(1)
 
+
+###########################################################################
+#
+#    Unit Handling
+#
+
+
+
+class BackCompatibleQuantityInput(object):
+	# Modified from code in astropy.units.decorators.py
+	# See http://docs.astropy.org/en/stable/_modules/astropy/units/decorators.html
+
+    @classmethod
+    def as_decorator(cls, func=None, **kwargs):
+        """
+        A decorator for validating the units of arguments to functions.
+        This is a *variant* of the quantity_input decorator provided by astropy;
+        the difference is the handling of bare input numbers without units.
+
+		When given such an input, this function will silently & without complaint apply
+		the specified unit as a default. The astropy version will raise a ValueError
+		that it was expecting a Quantity.  The benefit is this approach allows back
+		compatibility with functions originally written to accept floating point values
+		implicitly in meters.
+
+        Unit specifications can be provided as keyword arguments to the decorator,
+        or by using Python 3's function annotation syntax. Arguments to the decorator
+        take precedence over any function annotations present.
+
+        A `~astropy.units.UnitsError` will be raised if the unit attribute of
+        the argument is not equivalent to the unit specified to the decorator
+        or in the annotation.
+
+        Where an equivalency is specified in the decorator, the function will be
+        executed with that equivalency in force.
+
+        Notes
+        -----
+
+        The checking of arguments inside variable arguments to a function is not
+        supported (i.e. \*arg or \**kwargs).
+
+        Examples
+        --------
+
+        Python 2 and 3::
+
+            import poppy.utils
+            @poppy.utils.back_compatible_quantity_input(mylength=u.meter)
+            def myfunction(mylength):
+                return mylength**2
+
+        Python 3 only:
+
+        .. code-block:: python3
+
+            import poppy.utils
+            @poppy.utils.back_compatible_quantity_input
+            def myfunction(mylength: u.meter):
+                return mylength**2
+
+
+        """
+        self = cls(**kwargs)
+        if func is not None and not kwargs:
+            return self(func)
+        else:
+            return self
+
+    def __init__(self, func=None, **kwargs):
+        self.equivalencies = kwargs.pop('equivalencies', [])
+        self.decorator_kwargs = kwargs
+
+    def __call__(self, wrapped_function):
+        from astropy.utils.decorators import wraps
+        from astropy.utils.compat import funcsigs
+        from astropy.units import UnitsError, add_enabled_equivalencies
+
+        # Extract the function signature for the function we are wrapping.
+        wrapped_signature = funcsigs.signature(wrapped_function)
+
+        # Define a new function to return in place of the wrapped one
+        @wraps(wrapped_function)
+        def wrapper(*func_args, **func_kwargs):
+            # Bind the arguments to our new function to the signature of the original.
+            bound_args = wrapped_signature.bind(*func_args, **func_kwargs)
+
+            # Iterate through the parameters of the original signature
+            for param in wrapped_signature.parameters.values():
+                # We do not support variable arguments (*args, **kwargs)
+                if param.kind in (funcsigs.Parameter.VAR_KEYWORD,
+                                  funcsigs.Parameter.VAR_POSITIONAL):
+                    continue
+                # Catch the (never triggered) case where bind relied on a default value.
+                if param.name not in bound_args.arguments and param.default is not param.empty:
+                    bound_args.arguments[param.name] = param.default
+
+                # Get the value of this parameter (argument to new function)
+                arg = bound_args.arguments[param.name]
+                # don't try to apply a unit to an argument which is not present
+                if arg is None: continue
+
+                # Get target unit, either from decorator kwargs or annotations
+                if param.name in self.decorator_kwargs:
+                    target_unit = self.decorator_kwargs[param.name]
+                else:
+                    target_unit = param.annotation
+
+                # If the target unit is empty, then no unit was specified so we
+                # move past it
+                if target_unit is not funcsigs.Parameter.empty:
+                    try:
+                        equivalent = arg.unit.is_equivalent(target_unit,
+                                                  equivalencies=self.equivalencies)
+
+                        if not equivalent:
+                            raise UnitsError("Argument '{0}' to function '{1}'"
+                                             " must be in units convertable to"
+                                             " '{2}'.".format(param.name,
+                                                     wrapped_function.__name__,
+                                                     target_unit.to_string()))
+
+                    # Either there is no .unit or no .is_equivalent
+                    except AttributeError:
+                        if hasattr(arg, "unit"):
+                            error_msg = "a 'unit' attribute without an 'is_equivalent' method"
+                            raise TypeError("Argument '{0}' to function '{1}' has {2}. "
+                              "You may want to pass in an astropy Quantity instead."
+                                 .format(param.name, wrapped_function.__name__, error_msg))
+                        else:
+                            # apply the default unit here, without complaint
+                            #print("Updating: "+param.name)
+                            bound_args.arguments[param.name] = arg*target_unit
+
+            # Call the original function with any equivalencies in force.
+            with add_enabled_equivalencies(self.equivalencies):
+                #print("Args:   {}".format(bound_args.args))
+                #print("KWArgs: {}".format(bound_args.kwargs))
+                return wrapped_function(*bound_args.args, **bound_args.kwargs)
+
+        return wrapper
+
+quantity_input = BackCompatibleQuantityInput.as_decorator
+
+
 ###########################################################################
 #
 #    Other utility functions

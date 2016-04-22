@@ -39,19 +39,21 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
 
     """
 
+    @utils.quantity_input(z=u.m)
     def __init__(self,
-                 z,  # FIXME consider renaming fl? z seems ambiguous with distance.
+                 z=1*u.m,  # FIXME consider renaming fl? z seems ambiguous with distance.
                  planetype=PlaneType.intermediate,
                  name='Quadratic Wavefront Curvature Operator',
                  **kwargs):
         poppy.AnalyticOpticalElement.__init__(self, name=name, planetype=planetype, **kwargs)
         self.z = z
 
-        if isinstance(z, u.quantity.Quantity):
-            self.z_m = z.to(u.m)  # convert to meters.
-        else:
-            _log.debug("Assuming meters, phase {:.3g} has no units for Optic: " .format(z) + self.name)
-            self.z_m = z * u.m
+        #if isinstance(z, u.quantity.Quantity):
+            #self.z_m = z.to(u.m)  # convert to meters.
+        #else:
+            #_log.debug("Assuming meters, phase {:.3g} has no units for Optic: " .format(z) + self.name)
+            #self.z_m = z * u.m
+        self.z_m = z.to(u.m)  # convert to meters.
 
 
     def getPhasor(self, wave):
@@ -63,9 +65,6 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
             a Fresnel Wavefront object
         """
 
-        # if not isinstance(wave,Wavefront):
-        # raise TypeError("Must supply a Fresnel Wavefront")
-        # y, x = wave.coordinates()
         y, x = wave.coordinates()
         rsqd = (x ** 2 + y ** 2) * u.m ** 2
         _log.debug("Applying spherical phase curvature ={0:0.2e}".format(self.z_m))
@@ -116,8 +115,9 @@ class QuadraticLens(QuadPhase):
 
     """
 
+    @utils.quantity_input(f_lens=u.m)
     def __init__(self,
-                 f_lens,
+                 f_lens=1.0*u.m,
                  planetype=PlaneType.unspecified,
                  name='Quadratic Lens',
                  **kwargs):
@@ -126,11 +126,12 @@ class QuadraticLens(QuadPhase):
                            planetype=planetype,
                            name=name,
                            **kwargs)
-        if isinstance(f_lens, u.quantity.Quantity):
-            self.fl = f_lens.to(u.m)  # convert to meters.
-        else:
-            _log.warn("Assuming meters, focal length ({:.3g}) has no units for Optic: ".format(f_lens) + self.name)
-            self.fl = f_lens * u.m
+        #if isinstance(f_lens, u.quantity.Quantity):
+            #self.fl = f_lens.to(u.m)  # convert to meters.
+        #else:
+            #_log.warn("Assuming meters, focal length ({:.3g}) has no units for Optic: ".format(f_lens) + self.name)
+            #self.fl = f_lens * u.m
+        self.fl = f_lens.to(u.m)
         _log.debug("Initialized: " + self.name + ", fl ={0:0.2e}".format(self.fl))
 
     def __str__(self):

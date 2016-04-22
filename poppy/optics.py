@@ -5,6 +5,7 @@ import scipy.special
 import scipy.ndimage.interpolation
 import matplotlib
 import astropy.io.fits as fits
+import astropy.units as u
 
 from . import utils
 from .version import version
@@ -16,6 +17,7 @@ _log = logging.getLogger('poppy')
 
 from poppy import zernike
 from .poppy_core import OpticalElement, Wavefront, PlaneType, _PUPIL, _IMAGE, _RADIANStoARCSEC
+from .utils import quantity_input
 
 __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'InverseTransmission',
            'BandLimitedCoron', 'IdealFQPM', 'RectangularFieldStop', 'SquareFieldStop',
@@ -81,14 +83,15 @@ class AnalyticOpticalElement(OpticalElement):
     def getPhasor(self, wave):
         raise NotImplementedError("getPhasor must be supplied by a derived subclass")
 
-    def sample(self, wavelength=2e-6, npix=512, grid_size=None, what='amplitude',
+    @quantity_input(wavelength=u.meter)
+    def sample(self, wavelength=2e-6*u.meter, npix=512, grid_size=None, what='amplitude',
                return_scale=False, phase_unit='waves'):
         """ Sample the Analytic Optic onto a grid and return the array
 
         Parameters
         ----------
-        wavelength : float
-            Wavelength in meters.
+        wavelength : astropy.units.Quantity or float
+            Wavelength (in meters if unit not given explicitly)
         npix : integer
             Number of pixels for sampling the array
         grid_size : float
@@ -113,7 +116,7 @@ class AnalyticOpticalElement(OpticalElement):
                 diam = self.pupil_diam
             else:
                 diam = 6.5  # meters
-            w = Wavefront(wavelength=wavelength, npix=npix, diam=diam)
+            w = Wavefront(wavelength=wavelength.to(u.meter).value, npix=npix, diam=diam)
             pixel_scale = diam / npix
 
         else:
