@@ -95,7 +95,7 @@ def test_SquareFieldStop():
 
 
 def test_BarOcculter():
-    optic= optics.BarOcculter(width=1, angle=0)
+    optic= optics.BarOcculter(width=1, rotation=0)
     wave = poppy_core.Wavefront(npix=100, pixelscale=0.1, wavelength=1e-6) # 10x10 arcsec square
 
     wave*= optic
