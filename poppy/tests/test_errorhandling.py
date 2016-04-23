@@ -33,13 +33,13 @@ if _HAVE_PYTEST:
 
         with pytest.raises(ValueError) as excinfo:
             psf = osys.calcPSF('cat')
-        assert _exception_message_starts_with(excinfo, 'You have specified an invalid wavelength to calcPSF:')
+        assert _exception_message_starts_with(excinfo, "Argument 'wavelength' to function 'calcPSF' must be a number")
 
 
-        source={'wavelengths': [1.0e-6, 1.1e-6, 1.2e-6, 1.3e-6], 'weights':[0.25, 0.25, 0.25, 0.25]}
+        source={'wavelengths': [1.0e-6, 'not a number', 1.2e-6, 1.3e-6], 'weights':[0.25, 0.25, 0.25, 0.25]}
         with pytest.raises(ValueError) as excinfo:
             psf = osys.calcPSF(source)
-        assert _exception_message_starts_with(excinfo, 'You have specified an invalid wavelength to calcPSF:')
+        assert _exception_message_starts_with(excinfo, "Argument 'wavelength' to function 'calcPSF' must be a number")
 
     def test_matrixDFT_catch_invalid_parameters():
         import numpy as np

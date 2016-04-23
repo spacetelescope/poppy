@@ -159,7 +159,8 @@ class AnalyticOpticalElement(OpticalElement):
             return output_array
 
 
-    def display(self, nrows=1, row=1, wavelength=2e-6, npix=512, grid_size=None, **kwargs):
+    @quantity_input(wavelength=u.meter)
+    def display(self, nrows=1, row=1, wavelength=2e-6*u.meter, npix=512, grid_size=None, **kwargs):
         """Display an Analytic optic by first computing it onto a grid...
 
         Parameters
@@ -210,7 +211,8 @@ class AnalyticOpticalElement(OpticalElement):
         self.amplitude = None
         return returnvalue
 
-    def toFITS(self, outname=None, what='amplitude', wavelength=2e-6, npix=512, **kwargs):
+    @quantity_input(wavelength=u.meter)
+    def toFITS(self, outname=None, what='amplitude', wavelength=2e-6*u.meter, npix=512, **kwargs):
         """ Save an analytic optic computed onto a grid to a FITS file
 
         The FITS file is returned to the calling function, and may optionally be
@@ -371,6 +373,7 @@ class BandLimitedCoron(AnalyticImagePlaneElement):
     allowable_kinds = ['circular', 'linear']
     """ Allowable types of BLC supported by this class"""
 
+    @quantity_input(wavelength=u.meter)
     def __init__(self, name="unnamed BLC", kind='circular', sigma=1, wavelength=None, **kwargs):
         AnalyticImagePlaneElement.__init__(self, name=name, **kwargs)
 
@@ -541,7 +544,8 @@ class IdealFQPM(AnalyticImagePlaneElement):
 
     """
 
-    def __init__(self, name="unnamed FQPM ", wavelength=10.65e-6, **kwargs):
+    @quantity_input(wavelength=u.meter)
+    def __init__(self, name="unnamed FQPM ", wavelength=10.65e-6*u.meter, **kwargs):
         AnalyticImagePlaneElement.__init__(self, **kwargs)
         self.name = name
 
@@ -1476,7 +1480,8 @@ class ThinLens(CircularAperture):
         such that rho = 1 at r = `radius`.
     """
 
-    def __init__(self, name='Thin lens', nwaves=4.0, reference_wavelength=2e-6,
+    @quantity_input(reference_wavelength=u.meter)
+    def __init__(self, name='Thin lens', nwaves=4.0, reference_wavelength=2e-6*u.meter,
                  radius=None, **kwargs):
         self.reference_wavelength = reference_wavelength
         self.nwaves = nwaves

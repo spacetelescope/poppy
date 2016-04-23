@@ -414,3 +414,30 @@ def test_optic_resizing():
     test_optic_crop[0].header["PUPLSCAL"]=.001
     test_optic_crop_element=poppy_core.FITSOpticalElement(transmission=test_optic_crop)
     assert(test_optic_crop_element.getPhasor(inputwf).shape ==inputwf.shape )
+
+
+def test_unit_conversions():
+    """ Test the astropy.Quantity unit conversions
+    This is a modified version of test_CircularAperture
+    """
+    from ..misc import airy_2d
+    import astropy.units as u
+    # Analytic PSF for 1 meter diameter aperture
+    analytic = airy_2d(diameter=1)
+    analytic /= analytic.sum() # for comparison with poppy outputs normalized to total=1
+
+
+    # Numeric PSF for 1 meter diameter aperture
+    osys = poppy_core.OpticalSystem()
+    pupil = optics.CircularAperture(radius=0.5)
+    osys.addPupil(pupil)
+    osys.addDetector(pixelscale=0.010,fov_pixels=512, oversample=1)
+
+    # test versions with 3 different ways of saying the wavelength:
+    for wavelen in [1e-6, 1e-6*u.m, 1*u.micron]:
+        numeric_psf = osys.calcPSF(wavelength=wavelen, display=False)
+
+        # Comparison
+        difference = numeric_psf[0].data-analytic
+        assert np.all(np.abs(difference) < 3e-5)
+

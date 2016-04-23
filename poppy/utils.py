@@ -1046,7 +1046,7 @@ class BackCompatibleQuantityInput(object):
     def __call__(self, wrapped_function):
         from astropy.utils.decorators import wraps
         from astropy.utils.compat import funcsigs
-        from astropy.units import UnitsError, add_enabled_equivalencies
+        from astropy.units import UnitsError, add_enabled_equivalencies, Quantity
 
         # Extract the function signature for the function we are wrapping.
         wrapped_signature = funcsigs.signature(wrapped_function)
@@ -1081,6 +1081,18 @@ class BackCompatibleQuantityInput(object):
                 # If the target unit is empty, then no unit was specified so we
                 # move past it
                 if target_unit is not funcsigs.Parameter.empty:
+                    if not isinstance(arg, Quantity):
+                        # if we're going to make something a quantity it had better
+                        # be compatible with float ndarray
+                        try:
+                            tmp = np.asarray(arg, dtype=float)
+                        except:
+                            raise ValueError("Argument '{0}' to function '{1}'"
+                                             " must be a number (not '{3}'), and convertable to"
+                                             " units='{2}'.".format(param.name,
+                                                     wrapped_function.__name__,
+                                                     target_unit.to_string(), arg))
+
                     try:
                         equivalent = arg.unit.is_equivalent(target_unit,
                                                   equivalencies=self.equivalencies)
