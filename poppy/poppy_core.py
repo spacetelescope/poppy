@@ -17,7 +17,6 @@ import astropy.units as u
 from .matrixDFT import MatrixFourierTransform
 from . import utils
 from . import conf
-from .utils import quantity_input
 
 import logging
 _log = logging.getLogger('poppy')
@@ -120,11 +119,8 @@ class Wavefront(object):
 
     """
 
-    @quantity_input(wavelength=u.meter, diam=u.meter, pixelscale=u.arcsec/u.pixel)
+    @utils.quantity_input(wavelength=u.meter, diam=u.meter, pixelscale=u.arcsec/u.pixel)
     def __init__(self,wavelength=2e-6*u.meter, npix=1024, dtype=np.complex128, diam=8.0*u.meter, oversample=2, pixelscale=None):
-
-        #if wavelength > 1e-3*u.m:
-            #raise ValueError("The specified wavelength {} is implausibly large. Remember to specify the desired wavelength in *meters*.".format( wavelength))
 
         self._last_transform_type=None # later used to track MFT vs FFT pixel coord centering in coordinates()
         self.oversample = oversample
@@ -1231,7 +1227,7 @@ class OpticalSystem(object):
         return self.planes[num]
 
     # methods for dealing with wavefronts:
-    @quantity_input(wavelength=u.meter)
+    @utils.quantity_input(wavelength=u.meter)
     def inputWavefront(self, wavelength=2e-6*u.meter):
         """Create a Wavefront object suitable for sending through a given optical system, based on
         the size of the first optical plane, assumed to be a pupil.
@@ -1285,7 +1281,7 @@ class OpticalSystem(object):
             _log.debug("Tilted input wavefront by theta_X=%f, theta_Y=%f arcsec" % (offset_x, offset_y))
         return inwave
 
-    @quantity_input(wavelength=u.meter)
+    @utils.quantity_input(wavelength=u.meter)
     def propagate_mono(self, wavelength=2e-6*u.meter, normalize='first',
                        retain_intermediates=False, display_intermediates=False):
         """Propagate a monochromatic wavefront through the optical system. Called from within `calcPSF`.
@@ -1373,7 +1369,7 @@ class OpticalSystem(object):
 
         return wavefront.asFITS(), intermediate_wfs
 
-    @quantity_input(wavelength=u.meter)
+    @utils.quantity_input(wavelength=u.meter)
     def calcPSF(self, wavelength=1e-6*u.meter, weight=None, save_intermediates=False, save_intermediates_what='all',
                 display=False, return_intermediates=False, source=None, normalize='first', display_intermediates=False):
         """Calculate a PSF, either multi-wavelength or monochromatic.
@@ -1426,10 +1422,6 @@ class OpticalSystem(object):
         # (the check for a quantity of type length is applied in the decorator)
         if np.isscalar(wavelength.value):
             wavelength = np.asarray([wavelength.value], dtype=float)*wavelength.unit
-        #try:
-            #else: wavelength = np.asarray(wavelength, dtype=float)
-        #except (ValueError,TypeError):
-            #raise ValueError("You have specified an invalid wavelength to calcPSF: "+str(wavelength))
 
         if weight is None:
             weight = [1.0] * len(wavelength)
@@ -1710,7 +1702,7 @@ class SemiAnalyticCoronagraph(OpticalSystem):
 
         self.occulter_det = Detector(self.detector.pixelscale/self.oversample, fov_arcsec = self.occulter_box*2, name='Oversampled Occulter Plane')
 
-    @quantity_input(wavelength=u.meter)
+    @utils.quantity_input(wavelength=u.meter)
     def propagate_mono(self, wavelength=2e-6*u.meter, normalize='first',
                        retain_intermediates=False, display_intermediates=False):
         """Propagate a monochromatic wavefront through the optical system. Called from within `calcPSF`.
@@ -1885,7 +1877,7 @@ class MatrixFTCoronagraph(OpticalSystem):
             occulter_box = np.array(occulter_box) # cast to numpy array so the multiplication by 2 just below will work
         self.occulter_box = occulter_box
 
-    @quantity_input(wavelength=u.meter)
+    @utils.quantity_input(wavelength=u.meter)
     def propagate_mono(self, wavelength=1e-6, normalize='first',
                        retain_intermediates=False, display_intermediates=False):
         """Propagate a monochromatic wavefront through the optical system using matrix FTs. Called from
@@ -2538,7 +2530,7 @@ class FITSOpticalElement(OpticalElement):
                 except ValueError:
                     raise ValueError("pixelscale=%s is neither a FITS keyword string "
                                      "nor a floating point value." % str(pixelscale))
-            # now turn the pixel scale into a quantityt
+            # now turn the pixel scale into a Quantity
             if self.planetype == _IMAGE:
                 self.pixelscale *= u.arcsec/u.pixel
             else: # pupil or any other types of plane
@@ -2634,7 +2626,7 @@ class Detector(OpticalElement):
         around an off-axis source. (Has not been tested!)
 
     """
-    @quantity_input(pixelscale=u.arcsec/u.pixel, fov_pixels=u.pixel, fov_arcsec=u.arcsec)
+    @utils.quantity_input(pixelscale=u.arcsec/u.pixel, fov_pixels=u.pixel, fov_arcsec=u.arcsec)
     def __init__(self, pixelscale=1*(u.arcsec/u.pixel), fov_pixels=None, fov_arcsec=None, oversample=1, name="Detector", offset=None, **kwargs):
         OpticalElement.__init__(self,name=name, planetype=_DETECTOR, **kwargs)
         self.pixelscale = pixelscale

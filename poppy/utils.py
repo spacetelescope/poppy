@@ -989,11 +989,11 @@ class BackCompatibleQuantityInput(object):
         This is a *variant* of the quantity_input decorator provided by astropy;
         the difference is the handling of bare input numbers without units.
 
-		When given such an input, this function will silently & without complaint apply
-		the specified unit as a default. The astropy version will raise a ValueError
-		that it was expecting a Quantity.  The benefit is this approach allows back
-		compatibility with functions originally written to accept floating point values
-		implicitly in meters.
+        When given such an input, this function will silently & without complaint apply
+        the specified unit as a default. The astropy version will raise a ValueError
+        that it was expecting a Quantity.  The benefit is this approach allows back
+        compatibility with functions originally written to accept floating point values
+        implicitly in meters.
 
         Unit specifications can be provided as keyword arguments to the decorator,
         or by using Python 3's function annotation syntax. Arguments to the decorator
