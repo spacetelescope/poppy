@@ -95,7 +95,7 @@ def test_SquareFieldStop():
 
 
 def test_BarOcculter():
-    optic= optics.BarOcculter(width=1, angle=0)
+    optic= optics.BarOcculter(width=1, rotation=0)
     wave = poppy_core.Wavefront(npix=100, pixelscale=0.1, wavelength=1e-6) # 10x10 arcsec square
 
     wave*= optic
@@ -414,7 +414,7 @@ def test_GaussianAperture(display=False):
             #super(poppy.Wavefront, self).__init__(*args, **kwargs) # super does not work for some reason?
             poppy_core.Wavefront.__init__(self, *args, **kwargs)
 
-            self.wavefront = np.ones(5)
+            self.wavefront = np.ones(5, dtype=np.complex128)
             self.planetype=poppy_core.PlaneType.pupil
             self.pixelscale = 0.5
         def coordinates(self):
@@ -441,14 +441,14 @@ def test_ThinLens(display=False):
     wave *= pupil
     wave *= lens
 
-    assert np.abs(wave.phase.max() - np.pi/2) < 1e-19
-    assert np.abs(wave.phase.min() + np.pi/2) < 1e-19
+    assert np.allclose(wave.phase.max(),  np.pi/2)
+    assert np.allclose(wave.phase.min(), -np.pi/2)
 
     # regression test to ensure null optical elements don't change ThinLens behavior
     # see https://github.com/mperrin/poppy/issues/14
     osys = poppy_core.OpticalSystem()
     osys.addPupil(optics.CircularAperture(radius=1))
-    for i in range(10):
+    for i in range(3):
         osys.addImage()
         osys.addPupil()
 

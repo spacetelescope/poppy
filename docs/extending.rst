@@ -3,16 +3,29 @@
 Extending POPPY by defining your own optics and instruments
 ==============================================================
 
-POPPY is designed to make it straightforward to implement your own custom optics classes, which will interoperate with all the built-in classes.  Conceptually all that is needed is defining the getPhasor function for each new class. 
+POPPY is designed to make it straightforward to implement your own custom optics classes, which will interoperate with all the built-in classes.  Conceptually all that is needed is defining the ``get_transmission`` and/or ``get_opd`` functions for each new class. 
 
 Many examples of this can be found in ``poppy/optics.py``
 
 Defining a custom optic from an analytic function
 -------------------------------------------------
 
-AnalyticOpticalElement subclasses must implement a `getPhasor()` functoin that
-takes a `Wavefront` as its sole argument besides self, plus whatever `__init__`
-arguments are appropriate for defining your optic. 
+The complex phasor of each optic is calculated automatically from that optic's transmission (i.e. the
+throughput for the amplitude of the electromagnetic field) and optical path difference (i.e. the propagation 
+delay in the phase of the electromagnetic field). Both of these quantities may vary as a function of
+position across the optic, and as a function of wavelength. 
+
+
+``AnalyticOpticalElement`` subclasses must implement either or both of the functions `get_transmission()`
+and `get_opd()`. Each takes a `Wavefront` as its sole argument besides `self`.
+All other necessary parameters should be set up as part of the `__init__` function defining your optic. 
+
+.. note::
+    This is new in version 0.5 of poppy; prior versions used a single function getPhasor to 
+    handle computing the entire complex phasor in one step including both the transmission 
+    and OPD components. Version 0.5 now provides better flexibility and extensibility by allowing
+    the transmission and OPD components to be defined in separate functions, and automatically 
+    takes care of combining them to produce the complex phasor behind the scenes. 
 
 
 
@@ -21,22 +34,27 @@ Example skeleton code::
     class myCustomOptic(poppy.AnalyticOpticalElement):
         def __init__(self, *args, **kwargs):
             """ If your optic has adjustible parameters, then save them as attributes here """
+            poppy.AnalyticOpticalElement.__init__(**kwargs)
 
-        def getPhasor(self, wave):
+        def get_opd(self,wave):
             y, x = self.get_coordinates(wave) 
+            opd = some_function(x,y, wave.wavelength, self)
+            return opd
 
-            opd = some_function(x,y)
-            transmission = other_function(x,y)
+        def get_transmission(self, wave):
+            y, x = self.get_coordinates(wave) 
+            transmission = other_function(x,y, wave.wavelength, self)
+            return transmission
 
-            phasor = transmission = np.exp(1.j * 2 * np.pi / wave.wavelength * opd)
-            return phasor
+        # behind the scenes poppy  will calculate:
+        #    phasor = transmission = np.exp(1.j * 2 * np.pi / wave.wavelength * opd)
 
 
 Note the use of the `self.get_coordinates()` helper function, which returns `y` and
 `x` arrays giving the coordinates as appopriate for the sampling of the supplied
-`wave` object (in units of meters for pupil plane optics,
-in arcseconds ofr image plane optics).  You can use these coordinates to
-calculate the transmission and phase retardance appropriate for your optic.  If
+`wave` object (by default in units of meters for most optics such as pupil planes,
+in arcseconds for image plane optics).  You can use these coordinates to
+calculate the transmission and path delay appropriate for your optic.  If
 your optic has wavelength dependent properties, access the `wave.wavelength`
 property to determine the the appropriate wavelength; this will be in units of
 meters. 
@@ -44,7 +62,8 @@ meters.
 The `get_coordinates()` function automatically includes support for offset shifts
 and rotations for any analytic optic: just add a `shift_x`, `shift_y` or 
 `rotation` attribute for your optic object, and the coordinates will be shifted 
-accordingly.
+accordingly. These parameters should be passed to ``poppy.AnalyticOpticalElement.__init__`` via the 
+``**kwargs`` mechanism.
 
 
 Defining a custom optic from a FITS file
