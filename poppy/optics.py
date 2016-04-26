@@ -26,6 +26,7 @@ __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'InverseTransmission'
            'SquareAperture', 'SecondaryObscuration', 'AsymmetricSecondaryObscuration',
            'ThinLens', 'GaussianAperture', 'CompoundAnalyticOptic']
 
+
 # ------ Generic Analytic elements -----
 
 class AnalyticOpticalElement(OpticalElement):
@@ -325,6 +326,7 @@ class AnalyticOpticalElement(OpticalElement):
     #PEP8 compliant aliases; the old names will later be deprecated
     to_fits = toFITS
 
+
 class ScalarTransmission(AnalyticOpticalElement):
     """ Uniform transmission between 0 and 1.0 in intensity.
 
@@ -370,6 +372,7 @@ class InverseTransmission(OpticalElement):
     def get_opd(self, wave):
         return self.uninverted_optic.get_opd(wave)
 
+
 #------ Analytic Image Plane elements (coordinates in arcsec) -----
 
 class AnalyticImagePlaneElement(AnalyticOpticalElement):
@@ -379,7 +382,6 @@ class AnalyticImagePlaneElement(AnalyticOpticalElement):
     """
     def __init__(self, name='Generic image plane optic', *args, **kwargs):
         AnalyticOpticalElement.__init__(self, name=name, planetype=_IMAGE, *args, **kwargs)
-
 
 
 class BandLimitedCoron(AnalyticImagePlaneElement):
@@ -599,9 +601,7 @@ class IdealFQPM(AnalyticImagePlaneElement):
         phase[n0:, :n0] = 0
         phase[:n0, n0:] = 0
 
-        retardance = phase * self.central_wavelength
-        return retardance
-
+        return phase * self.central_wavelength
 
 
 class RectangularFieldStop(AnalyticImagePlaneElement):
