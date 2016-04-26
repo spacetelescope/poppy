@@ -148,7 +148,6 @@ class AnalyticOpticalElement(OpticalElement):
             pixel_scale = diam / npix
 
         else:
-            #unit="arcsec"
 
             if grid_size is not None:
                 fov = grid_size
@@ -161,23 +160,23 @@ class AnalyticOpticalElement(OpticalElement):
 
         _log.info("Computing {0} for {1} sampled onto {2} pixel grid".format(what, self.name, npix))
         if what == 'amplitude':
-            output_array =  self.get_transmission(w) #np.abs(phasor)
+            output_array =  self.get_transmission(w)
         elif what == 'intensity':
-            output_array = self.get_transmission(w)**2 #np.abs(phasor) ** 2
+            output_array = self.get_transmission(w)**2
         elif what == 'phase':
             if phase_unit == 'radians':
                 output_array = np.angle(phasor) * 2 * np.pi / wavelength
             elif phase_unit == 'waves':
-                output_array = self.get_opd(w) / wavelength #  np.angle(phasor) / (2 * np.pi)
+                output_array = self.get_opd(w) / wavelength
             elif phase_unit == 'meters':
                 warnings.warn("'phase_unit' parameter has been deprecated. Use what='opd' instead.", category=DeprecationWarning)
-                output_array = self.get_opd(w)  #np.angle(phasor) / (2 * np.pi) * wavelength
+                output_array = self.get_opd(w)
             else:
                 warnings.warn("'phase_unit' parameter has been deprecated. Use what='opd' instead.", category=DeprecationWarning)
                 raise ValueError('Invalid/unknown phase_unit: {}. Must be one of '
                                  '[radians, waves, meters]'.format(phase_unit))
         elif what == 'opd':
-            output_array = self.get_opd(w)  #np.angle(phasor) / (2 * np.pi) * wavelength
+            output_array = self.get_opd(w)
         elif what == 'complex':
             output_array = self.get_phasor(w)
         else:
@@ -223,8 +222,6 @@ class AnalyticOpticalElement(OpticalElement):
         """
 
         _log.debug("Displaying " + self.name)
-        #phasor, pixelscale = self.sample(wavelength=wavelength, npix=npix, what='complex',
-                                         #grid_size=grid_size, return_scale=True)
         amplitude, pixelscale = self.sample(wavelength=wavelength, npix=npix, what='amplitude',
                                          grid_size=grid_size, return_scale=True)
         opd, pixelscale = self.sample(wavelength=wavelength, npix=npix, what='opd',
@@ -232,9 +229,8 @@ class AnalyticOpticalElement(OpticalElement):
 
 
         # temporarily set attributes appropriately as if this were a regular OpticalElement
-        self.amplitude = amplitude #np.abs(phasor)
-        #phase = np.angle(phasor) / (2 * np.pi)
-        self.opd = opd # phase * wavelength
+        self.amplitude = amplitude
+        self.opd = opd
         self.pixelscale = pixelscale
 
         #then call parent class display
@@ -789,7 +785,6 @@ class FQPM_FFT_aligner(AnalyticOpticalElement):
                              "forward or backward." % direction)
         self.direction = direction
         self._suppress_display = True
-        #self.displayable = False
 
     def get_opd(self, wave):
         """ Compute the required tilt needed to get the PSF centered on the corner between
@@ -849,7 +844,7 @@ class ParityTestAperture(AnalyticOpticalElement):
         assert (wave.planetype != _IMAGE)
 
         y, x = self.get_coordinates(wave)
-        r = np.sqrt(x ** 2 + y ** 2)  #* wave.pixelscale
+        r = np.sqrt(x ** 2 + y ** 2)
 
         w_outside = np.where(r > self.radius)
         self.transmission = np.ones(wave.shape)
@@ -1045,7 +1040,6 @@ class MultiHexagonAperture(AnalyticOpticalElement):
         self.flattoflat = self.side * np.sqrt(3)
         self.rings = rings
         self.gap = gap
-        #self._label_values = True # undocumented feature to draw hex indexes into the array
         AnalyticOpticalElement.__init__(self, name=name, planetype=_PUPIL, **kwargs)
 
         self.pupil_diam = (self.flattoflat + self.gap) * (2 * self.rings + 1)
@@ -1092,8 +1086,6 @@ class MultiHexagonAperture(AnalyticOpticalElement):
 
         # now count around from the starting point:
         index_in_ring = hex_index - self._nHexesInsideRing(ring) + 1  # 1-based
-        #print("hex %d is %dth in its ring" % (hex_index, index_in_ring))
-
         angle_per_hex = 2 * np.pi / self._nHexesInRing(ring)  # angle in radians
 
         # Now figure out what the radius is:
@@ -1174,9 +1166,6 @@ class MultiHexagonAperture(AnalyticOpticalElement):
             raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         assert (wave.planetype != _IMAGE)
 
-        #y, x = self.get_coordinates(wave)
-        #absy = np.abs(y)
-
         self.transmission = np.zeros(wave.shape)
 
         for i in self.segmentlist:
@@ -1210,7 +1199,6 @@ class MultiHexagonAperture(AnalyticOpticalElement):
             (absy <= (1 * self.side - x) * np.sqrt(3))
         )
 
-        #val = np.sqrt(float(index)) if self._label_values else 1
         val = 1
         self.transmission[w_rect] = val
         self.transmission[w_left_tri] = val
@@ -1256,8 +1244,7 @@ class NgonAperture(AnalyticOpticalElement):
         self.transmission = np.zeros(wave.shape)
         for row in range(wave.shape[0]):
             pts = np.asarray(list(zip(x[row], y[row])))
-            #ok = matplotlib.nxutils.points_inside_poly(pts, vertices)
-            ok = matplotlib.path.Path(vertices).contains_points(pts)  #, vertices)
+            ok = matplotlib.path.Path(vertices).contains_points(pts)
             self.transmission[row][ok] = 1.0
 
         return self.transmission
@@ -1295,16 +1282,6 @@ class RectangleAperture(AnalyticOpticalElement):
             raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         assert (wave.planetype != _IMAGE)
 
-#        y, x = wave.coordinates()
-#
-#        if self.rotation != 0:
-#            angle = np.deg2rad(self.rotation)
-#            xp = np.cos(angle) * x + np.sin(angle) * y
-#            yp = -np.sin(angle) * x + np.cos(angle) * y
-#
-#            x = xp
-#            y = yp
-#
         y, x = self.get_coordinates(wave)
 
         w_outside = np.where(
@@ -1531,9 +1508,6 @@ class ThinLens(CircularAperture):
 
         opd = defocus_zernike * aperture_intensity
         return opd
-        #lens_phasor = np.exp(1.j * 2 * np.pi * defocus_zernike * aperture_intensity)
-
-        #return lens_phasor
 
 
 class GaussianAperture(AnalyticOpticalElement):
