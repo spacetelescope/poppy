@@ -427,7 +427,7 @@ class FresnelWavefront(Wavefront):
 
         y, x = np.indices(shape, dtype=float)
         pixelscale_mpix = pixelscale.to(u.meter/u.pixel).value
-        if not np.isscalar(pixelscale.value):
+        if not np.isscalar(pixelscale_mpix):
             pixel_scale_x, pixel_scale_y = pixelscale_mpix
         else:
             pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
@@ -492,7 +492,7 @@ class FresnelWavefront(Wavefront):
     def fov(self):
         """ FOV in arcseconds, if applicable"""
         if self.angular_coordinates:
-            return np.asarray(self.wavefront.shape) * self.pixelscale
+            return np.asarray(self.wavefront.shape) *u.pixel * self.pixelscale
         else:
             return None
 

@@ -297,5 +297,5 @@ class SineWaveWFE(WavefrontError):
                 (x / self.sine_spatial_freq + self.sine_phase_offset))
 
         if units == 'waves':
-            opd /= (wave.wavelength.to(u.meter).value)
+            opd /= wave.wavelength.to(u.meter).value
         return opd

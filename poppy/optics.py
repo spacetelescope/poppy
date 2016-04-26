@@ -115,7 +115,7 @@ class AnalyticOpticalElement(OpticalElement):
                 diam = self.pupil_diam
             else:
                 diam = 6.5  # meters
-            w = Wavefront(wavelength=wavelength.to(u.meter).value, npix=npix, diam=diam)
+            w = Wavefront(wavelength=wavelength, npix=npix, diam=diam)
             pixel_scale = diam / npix
 
         else:

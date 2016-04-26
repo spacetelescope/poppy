@@ -125,8 +125,8 @@ class Wavefront(object):
         self._last_transform_type=None # later used to track MFT vs FFT pixel coord centering in coordinates()
         self.oversample = oversample
 
-        self.wavelength = wavelength.to(u.meter)                 # wavelen in meters, obviously
-        """Wavelength in meters """
+        self.wavelength = wavelength
+        """Wavelength in meters (or other unit if specified)"""
 
         self.diam= diam   #float(diam) if not isinstance(diam, u.Quantity) else diam.to(u.m).value        # pupil plane size in meters
         """Diameter in meters. Applies to a pupil plane only."""
@@ -296,11 +296,12 @@ class Wavefront(object):
         outFITS[0].header['DET_SAMP'] = (self.oversample, 'Oversampling factor for MFT to detector plane')
         if self.planetype ==_IMAGE:
             outFITS[0].header['PIXELSCL'] =  (self.pixelscale.to(u.arcsec/u.pixel).value, 'Scale in arcsec/pix (after oversampling)')
-            if np.isscalar(self.fov.value):
-                outFITS[0].header['FOV'] =  (self.fov.value, 'Field of view in arcsec (full array)')
+            fov_arcsec = self.fov.to(u.arcsec).value
+            if np.isscalar(fov_arcsec):
+                outFITS[0].header['FOV'] =  (fov_arcsec, 'Field of view in arcsec (full array)')
             else:
-                outFITS[0].header['FOV_X'] =  (self.fov.value[1], 'Field of view in arcsec (full array), X direction')
-                outFITS[0].header['FOV_Y'] =  (self.fov.value[0], 'Field of view in arcsec (full array), Y direction')
+                outFITS[0].header['FOV_X'] =  (fov_arcsec[1], 'Field of view in arcsec (full array), X direction')
+                outFITS[0].header['FOV_Y'] =  (fov_arcsec[0], 'Field of view in arcsec (full array), Y direction')
         else:
             outFITS[0].header['PIXELSCL'] =  (self.pixelscale.to(u.meter/u.pixel).value, 'Pixel scale in meters/pixel')
             outFITS[0].header['DIAM'] =  (self.diam.to(u.meter).value, 'Pupil diameter in meters (not incl padding)')
@@ -641,8 +642,8 @@ class Wavefront(object):
 
             #(pre-)update state:
             self.planetype=_IMAGE
-            self.pixelscale = ((self.wavelength/ self.diam)*u.radian / self.oversample).to(u.arcsec) / u.pixel
-            self.fov = self.wavefront.shape[0] * self.pixelscale
+            self.pixelscale = (self.wavelength / self.diam * u.radian / self.oversample).to(u.arcsec) / u.pixel
+            self.fov = self.wavefront.shape[0] * u.pixel * self.pixelscale
             self.history.append('   FFT {},  to _IMAGE  scale={}'.format(self.wavefront.shape, self.pixelscale))
 
         elif self.planetype == _IMAGE and optic.planetype ==_PUPIL:
@@ -751,7 +752,7 @@ class Wavefront(object):
 
         self.planetype=_IMAGE
         self.fov = det.fov_arcsec
-        self.pixelscale = det.fov_arcsec / (det_calc_size_pixels*u.pixel)
+        self.pixelscale = det.fov_arcsec / det_calc_size_pixels / u.pixel
 
         if not np.isscalar(self.pixelscale.value):
             # check for rectangular arrays
@@ -778,7 +779,7 @@ class Wavefront(object):
         # - number of pixels on a side in focal plane array.
 
         # extract everything from Quantities to regular scalars here
-        lamD = ((self.wavelength / self.diam)*u.radian).to(u.arcsec).value
+        lamD = (self.wavelength / self.diam * u.radian).to(u.arcsec).value
 
         det_fov_lamD = self.fov.to(u.arcsec).value / lamD
         #det_calc_size_pixels = det.fov_pixels * det.oversample
@@ -809,7 +810,7 @@ class Wavefront(object):
         self._last_transform_type = 'InvMFT'
 
         self.planetype=_PUPIL
-        self.pixelscale = self.diam / (self.wavefront.shape[0]*u.pixel)
+        self.pixelscale = self.diam / self.wavefront.shape[0] / u.pixel
 
     def tilt(self, Xangle=0.0, Yangle=0.0):
         """ Tilt a wavefront in X and Y.
@@ -893,12 +894,11 @@ class Wavefront(object):
             X and Y
         """
         y, x = np.indices(shape, dtype=float)
-        pxscale = pixelscale.value if isinstance(pixelscale, u.Quantity) else pixelscale
-
-        if not np.isscalar(pxscale):
-            pixel_scale_x, pixel_scale_y = pxscale
+        pixelscale_mpix = pixelscale.to(u.meter/u.pixel).value if isinstance(pixelscale,u.Quantity) else pixelscale
+        if not np.isscalar(pixelscale_mpix):
+            pixel_scale_x, pixel_scale_y = pixelscale_mpix
         else:
-            pixel_scale_x, pixel_scale_y = pxscale, pxscale
+            pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
 
         y -= (shape[0] - 1) / 2.0
         x -= (shape[1] - 1) / 2.0
