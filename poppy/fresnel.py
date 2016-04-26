@@ -48,7 +48,7 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
         poppy.AnalyticOpticalElement.__init__(self, name=name, planetype=planetype, **kwargs)
         self.z = z.to(u.m)
 
-    def getPhasor(self, wave):
+    def get_phasor(self, wave):
         """ return complex phasor for the quadratic phase
 
         Parameters
@@ -79,7 +79,7 @@ class _QuadPhaseShifted(QuadPhase):
     def __init__(self, z, **kwargs):
         QuadPhase.__init__(self, z, **kwargs)
 
-    def getPhasor(self, wave):
+    def get_phasor(self, wave):
         """ Return complex phasor, for FFT shifted array
 
         Parameters
@@ -87,7 +87,7 @@ class _QuadPhaseShifted(QuadPhase):
         wave : object
             FresnelWavefront instance
         """
-        return np.fft.fftshift(super(_QuadPhaseShifted, self).getPhasor(wave))
+        return np.fft.fftshift(super(_QuadPhaseShifted, self).get_phasor(wave))
 
 
 class QuadraticLens(QuadPhase):
@@ -184,7 +184,7 @@ class FresnelWavefront(Wavefront):
             Padding factor to apply to the wavefront array, multiplying on top of the beam radius.
 
 
-        References:
+        References
         -------------------
         - Lawrence, G. N. (1992), Optical Modeling, in Applied Optics and Optical Engineering., vol. XI,
             edited by R. R. Shannon and J. C. Wyant., Academic Press, New York.
@@ -193,11 +193,11 @@ class FresnelWavefront(Wavefront):
 
         - IDEX Optics and Photonics(n.d.), Gaussian Beam Optics,
             [online] Available from:
-             https://marketplace.idexop.com/store/SupportDocuments/All_About_Gaussian_Beam_OpticsWEB.pdf
+            https://marketplace.idexop.com/store/SupportDocuments/All_About_Gaussian_Beam_OpticsWEB.pdf
 
         - Krist, J. E. (2007), PROPER: an optical propagation library for IDL,
-           vol. 6675, p. 66750P-66750P-9.
-        [online] Available from: http://dx.doi.org/10.1117/12.731179
+            vol. 6675, p. 66750P-66750P-9.
+            [online] Available from: http://dx.doi.org/10.1117/12.731179
 
         - Andersen, T., and A. Enmark (2011), Integrated Modeling of Telescopes, Springer Science & Business Media.
 
@@ -832,7 +832,6 @@ class FresnelWavefront(Wavefront):
         """
 
         _log.debug("------ Applying Lens: " + str(optic.name) + " ------")
-        # _log.debug("   wavefront oversample: {0}  optic oversample: {1}".format(self.oversample, optic.oversample))
         _log.debug("  Pre-Lens Beam Parameters: " + self.param_str)
 
         # calculate beam radius at current surface
