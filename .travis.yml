@@ -26,9 +26,10 @@ matrix:
         #- python: 2.7
         #  env: SETUP_CMD='test --coverage'
         # Check for sphinx doc build warnings - we do this first because it
-        # may run for a long time
+        # may run for a long time. 
+        # Update: ignore warnings, just check for errors
         - python: 2.7
-          env: SETUP_CMD='build_sphinx -w'
+          env: SETUP_CMD='build_sphinx'
 
         # Try all python versions with the latest numpy
         - python: 2.7
