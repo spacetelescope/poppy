@@ -106,7 +106,7 @@ class AnalyticOpticalElement(OpticalElement):
             wavelength=wave.wavelength
         else:
             wavelength=wave
-        scale = 2. * np.pi / wavelength
+        scale = 2. * np.pi / wavelength.to(u.meter).value
 
         return self.get_transmission(wave) * np.exp (1.j * self.get_opd(wave) * scale)
 
@@ -607,7 +607,7 @@ class IdealFQPM(AnalyticImagePlaneElement):
         phase[n0:, :n0] = 0
         phase[:n0, n0:] = 0
 
-        return phase * self.central_wavelength
+        return phase * self.central_wavelength.to(u.meter).value
 
 
 class RectangularFieldStop(AnalyticImagePlaneElement):
@@ -1511,7 +1511,7 @@ class ThinLens(CircularAperture):
         # don't forget the factor of 0.5 to make the scaling factor apply as peak-to-valley
         # rather than center-to-peak
         defocus_zernike = ((2 * r_norm ** 2 - 1) *
-                           (0.5 * self.nwaves * self.reference_wavelength)) # / wave.wavelength))
+                           (0.5 * self.nwaves * self.reference_wavelength.to(u.meter).value))
 
         opd = defocus_zernike * aperture_intensity
         return opd
