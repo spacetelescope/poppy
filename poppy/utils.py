@@ -1053,7 +1053,7 @@ class BackCompatibleQuantityInput(object):
 
         # Define a new function to return in place of the wrapped one
         @wraps(wrapped_function)
-        def wrapper(*func_args, **func_kwargs):
+        def unit_check_wrapper(*func_args, **func_kwargs):
             # Bind the arguments to our new function to the signature of the original.
             bound_args = wrapped_signature.bind(*func_args, **func_kwargs)
 
@@ -1122,7 +1122,7 @@ class BackCompatibleQuantityInput(object):
                 #print("KWArgs: {}".format(bound_args.kwargs))
                 return wrapped_function(*bound_args.args, **bound_args.kwargs)
 
-        return wrapper
+        return unit_check_wrapper
 
 quantity_input = BackCompatibleQuantityInput.as_decorator
 

@@ -1931,7 +1931,7 @@ class MatrixFTCoronagraph(OpticalSystem):
                 if len(optic.amplitude.shape) == 2: # Match detector object to the loaded FPM transmission array
                     metadet = Detector(optic.pixelscale, fov_pixels = optic.amplitude.shape[0], name='Oversampled Occulter Plane')
                 else:
-                    metadet_pixelscale = wavelength.to(u.meter).value / self.planes[0].pupil_diam * _RADIANStoARCSEC / self.oversample / 2
+                    metadet_pixelscale = ((wavelength / self.planes[0].pupil_diam).decompose()*u.radian).to(u.arcsec) / self.oversample / 2 / u.pixel
                     metadet = Detector(metadet_pixelscale, fov_arcsec = self.occulter_box*2, name='Oversampled Occulter Plane')
                 wavefront.propagateTo(metadet)
             else:
@@ -2189,14 +2189,18 @@ class OpticalElement(object):
         norm_amp = matplotlib.colors.Normalize(vmin=0, vmax=1)
         norm_opd = matplotlib.colors.Normalize(vmin=-opd_vmax, vmax=opd_vmax)
 
-        units = "[meters]" if self.planetype == _PUPIL else "[arcsec]"
+        # TODO infer correct units from pixelscale's units? 
+        units = "[arcsec]" if self.planetype == _IMAGE else "[meters]"
         if nrows > 1:
             units = self.name + "\n" + units
 
         if self.pixelscale is not None:
-            halfsize = self.pixelscale * self.amplitude.shape[0] / 2
-            _log.debug("Display pixel scale = %.3f " % self.pixelscale)
+            # TODO handle units better here for pupil vs. image planes? meters/pix vs arcsec/pix
+            halfsize = self.pixelscale.value * self.amplitude.shape[0] / 2
+            _log.debug("Display pixel scale = {} ".format(self.pixelscale))
         else:
+            # TODO not sure this code path ever gets used - since pixelscale is set temporarily
+            # in AnalyticOptic.display
             _log.debug("No defined pixel scale - this must be an analytic optic")
             halfsize = 1.0
         extent = [-halfsize, halfsize, -halfsize, halfsize]

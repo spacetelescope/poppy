@@ -4,6 +4,7 @@ from __future__ import (absolute_import, division, print_function, unicode_liter
 import matplotlib.pyplot as pl
 import numpy as np
 import astropy.io.fits as fits
+import astropy.units as u
 
 from .. import poppy_core
 from .. import optics
@@ -418,7 +419,8 @@ def test_GaussianAperture(display=False):
             self.planetype=poppy_core.PlaneType.pupil
             self.pixelscale = 0.5
         def coordinates(self):
-            return (np.asarray([0,0.5, 0.0, ga.w, 0.0]), np.asarray([0, 0, 0.5, 0, -ga.w ]))
+            w = ga.w.to(u.meter).value
+            return (np.asarray([0,0.5, 0.0, w, 0.0]), np.asarray([0, 0, 0.5, 0, -w ]))
 
     trickwave = mock_wavefront()
     trickwave *= ga

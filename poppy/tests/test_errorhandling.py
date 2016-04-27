@@ -92,7 +92,7 @@ if _HAVE_PYTEST:
 
 
     def test_CircularAperture_invalid_parameters():
-        with pytest.raises(TypeError) as excinfo:
+        with pytest.raises(ValueError) as excinfo:
             optics.CircularAperture(radius='a')
-        assert _exception_message_starts_with(excinfo, "Argument 'radius' must be the radius of the pupil in meters")
+        assert _exception_message_starts_with(excinfo, "Argument 'radius' to function '__init__' must be a number")
 

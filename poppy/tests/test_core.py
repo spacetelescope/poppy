@@ -36,54 +36,6 @@ def check_wavefront(filename_or_hdulist, slice=0, ext=0, test='nearzero', commen
 
 wavelength=2e-6
 
-class ParityTestAperture(optics.AnalyticOpticalElement):
-    """ Defines a circular pupil aperture with boxes cut out.
-    This is mostly a test aperture
-
-    Parameters
-    ----------
-    name : string
-        Descriptive name
-    radius : float
-        Radius of the pupil, in meters. Default is 1.0
-
-    pad_factor : float, optional
-        Amount to oversize the wavefront array relative to this pupil.
-        This is in practice not very useful, but it provides a straightforward way
-        of verifying during code testing that the amount of padding (or size of the circle)
-        does not make any numerical difference in the final result.
-
-    """
-
-    def __init__(self, name=None,  radius=1.0, pad_factor = 1.5, **kwargs):
-        if name is None: name = "Circle, radius=%.2f m" % radius
-        super(ParityTestAperture,self).__init__(name=name, **kwargs)
-        self.radius = radius
-        self.pupil_diam = pad_factor * 2* self.radius # for creating input wavefronts - let's pad a bit
-
-
-    def getPhasor(self,wave):
-        """ Compute the transmission inside/outside of the occulter.
-        """
-        if not isinstance(wave, poppy_core.Wavefront):
-            raise ValueError("CircularAperture getPhasor must be called with a Wavefront to define the spacing")
-        #assert (wave.planetype == poppy._PUPIL)
-
-        y, x = wave.coordinates()
-        r = np.sqrt(x**2+y**2) #* wave.pixelscale
-
-        w_outside = np.where( r > self.radius)
-        self.transmission = np.ones(wave.shape)
-        self.transmission[w_outside] = 0
-
-        w_box1 = np.where( (r> self.radius*0.5) & (np.abs(x) < self.radius*0.1 ) & ( y < 0 ))
-        w_box2 = np.where( (r> self.radius*0.65) & (np.abs(y) < self.radius*0.4) & ( x < 0 ))
-        self.transmission[w_box1] = 0
-        self.transmission[w_box2] = 0
-
-        return self.transmission
-
-
 
 ######### Core tests functions #########
 
