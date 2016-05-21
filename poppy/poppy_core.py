@@ -414,7 +414,7 @@ class Wavefront(object):
         # This is needed to get the coordinates right when displaying very small arrays
 
 
-        halfpix = self.pixelscale*0.5
+        halfpix = self.pixelscale.value*0.5
         extent = [x.min()-halfpix, x.max()+halfpix, y.min()-halfpix, y.max()+halfpix]
 
         if use_angular_coordinates is None:
@@ -535,8 +535,8 @@ class Wavefront(object):
                     imagecrop = conf.default_image_display_fov
 
             if imagecrop is not None:
-                cropsize_x = min( (imagecrop/2, intens.shape[1]/2.*self.pixelscale))
-                cropsize_y = min( (imagecrop/2, intens.shape[0]/2.*self.pixelscale))
+                cropsize_x = min( (imagecrop/2, intens.shape[1]/2.*self.pixelscale.value))
+                cropsize_y = min( (imagecrop/2, intens.shape[0]/2.*self.pixelscale.value))
                 ax.set_xbound(-cropsize_x, cropsize_x)
                 ax.set_ybound(-cropsize_y, cropsize_y)
 
@@ -1356,7 +1356,7 @@ class OpticalSystem(object):
 
             if display_intermediates:
                 if conf.enable_speed_tests: t0 = time.time()
-                title = None if current_plane_index > 1 else "propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6)
+                title = None if current_plane_index > 1 else "propagating $\lambda=$ {0:.3f}".format(wavelength.to(u.micron))
                 wavefront.display(what='best',nrows=len(self.planes),row=current_plane_index, colorbar=False, title=title)
                 #plt.title("propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6))
 

@@ -427,7 +427,7 @@ class BandLimitedCoron(AnalyticImagePlaneElement):
         if wavelength is not None:
             self.wavelength = float(wavelength)  # wavelength, for selecting the
                                                  # linear wedge option only
-        self._default_display_size = 20.  # default size for onscreen display, sized for NIRCam
+        self._default_display_size = 20.*u.arcsec  # default size for onscreen display, sized for NIRCam
 
     def get_transmission(self, wave):
         """ Compute the amplitude transmission appropriate for a BLC for some given pixel spacing
@@ -626,7 +626,7 @@ class RectangularFieldStop(AnalyticImagePlaneElement):
         self.name = name
         self.width = float(width)  # width of square stop in arcseconds.
         self.height = float(height)  # height of square stop in arcseconds.
-        self._default_display_size = max(height, width) * 1.2
+        self._default_display_size = max(height, width) * 1.2*u.arcsec
 
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the field stop.
@@ -669,7 +669,7 @@ class SquareFieldStop(RectangularFieldStop):
         RectangularFieldStop.__init__(self, width=size, height=size, **kwargs)
         self.name = name
         self.height = self.width
-        self._default_display_size = size * 1.2
+        self._default_display_size = size * 1.2*u.arcsec
 
 
 class AnnularFieldStop(AnalyticImagePlaneElement):
@@ -689,7 +689,7 @@ class AnnularFieldStop(AnalyticImagePlaneElement):
         self.name = name
         self.radius_inner = radius_inner  # radius of circular occulter in arcseconds.
         self.radius_outer = radius_outer  # radius of circular field stop in arcseconds.
-        self._default_display_size = 10 #radius_outer
+        self._default_display_size = 10*u.arcsec #radius_outer
 
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the field stop.
@@ -726,7 +726,7 @@ class CircularOcculter(AnnularFieldStop):
     """
     def __init__(self, name="unnamed occulter", radius=1.0, **kwargs):
         super(CircularOcculter,self).__init__(name=name,radius_inner=radius, radius_outer=0.0, **kwargs)
-        self._default_display_size = 10
+        self._default_display_size = 10*u.arcsec
 
 
 class BarOcculter(AnalyticImagePlaneElement):
@@ -745,7 +745,7 @@ class BarOcculter(AnalyticImagePlaneElement):
         AnalyticImagePlaneElement.__init__(self, **kwargs)
         self.name = name
         self.width = width
-        self._default_display_size = 10
+        self._default_display_size = 10*u.arcsec
 
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the occulter.
@@ -1631,7 +1631,7 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
 
         #self.operation = operation
         self.opticslist = []
-        self._default_display_size = 3
+        self._default_display_size = 3*u.arcsec
         self.planetype = None
 
         for optic in opticslist:
