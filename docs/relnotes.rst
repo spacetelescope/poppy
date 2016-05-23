@@ -7,6 +7,29 @@ For a list of contributors, see :ref:`about`.
 .. _whatsnew:
 
 
+0.5
+---
+
+*2016 June ish:*
+
+A couple moderately large enhancements. While we have tested this code extensively, it is possible that there may be
+some lingering bugs. As always, please let us know of any issues encountered via `the github issues page 
+<https://github.com/mperrin/poppy/issues/>`_.
+
+ * Increased use of ``astropy.units`` to put physical units on quantities, in
+   particular wavelengths, pixel scales, etc. Instead of wavelengths always being
+   implicitly in meters, you can now explicitly say e.g. ``wavelength=1*u.micron``, 
+   ``wavelength=500*u.nm``, etc. You can also generally use Quantities for 
+   arguments to OpticalElement classes, e.g. ``radius=2*u.cm``. This is *optional*; the
+   API still accepts bare floating-point numbers which are treated as implicitly in meters.
+ * The ``getPhasor`` function for all OpticalElements has been refactored to split it into 3
+   functions: ``get_transmission`` (for electric field amplitude transmission), ``get_opd``
+   (for the optical path difference affectig the phase), and ``get_phasor`` (which combines transmission and OPD into
+   the complex phasor). This division simplifies and makes more flexible the subclassing of optics, since
+   in many cases (such as aperture stops) one only cares about setting either the transmission or the OPD.
+   Again, there are back compatibility hooks to allow existing code calling the deprecated ``getPhasor``
+   function to continue working.
+
 
 0.4.1
 -----

@@ -1,4 +1,4 @@
-#  
+# 
 #  Test functions for matrix DFT code
 #
 #
@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import astropy.io.fits as fits
 
 import os
-from .. import poppy_core 
+from .. import poppy_core
 from .. import optics
 from .. import matrixDFT
 from .test_errorhandling import _exception_message_starts_with
@@ -58,7 +58,7 @@ def makedisk(s=None, c=None, r=None, inside=1.0, outside=0.0, grey=None, t=None)
     given center and size
     """
 
-    
+
     # fft style or sft asymmetric style - center = nx/2, ny/2
     # see ellipseDriver.py for details on symm...
 
@@ -73,7 +73,7 @@ def test_MFT_flux_conservation(centering='FFTSTYLE', outdir=None, outname='test_
     Test that MFTing a circular aperture is properly normalized to be flux conserving.
 
     This test is limited primarily by how finely the arrays are sampled. The function implements tests to
-    better than 1% or 0.1%, selectable using the 'precision' argument. 
+    better than 1% or 0.1%, selectable using the 'precision' argument.
 
     Parameters
     -----------
@@ -81,11 +81,11 @@ def test_MFT_flux_conservation(centering='FFTSTYLE', outdir=None, outname='test_
     outdir : path
         Directory path to output diagnostic FITS files. If not specified, files will not be written.
     precision : float, either 0.01 or 0.001
-        How precisely to expect flux conservation; it will not be strictly 1.0 given any finite array size. 
+        How precisely to expect flux conservation; it will not be strictly 1.0 given any finite array size.
         This function usesd predetermined MFT array sizes based on the desired precision level of the test.
     """
 
-    # Set up constants for either a more precise test or a less precise but much 
+    # Set up constants for either a more precise test or a less precise but much
     # faster test:
     print("Testing MFT flux conservation for centering = {}".format(centering))
     if precision ==0.001:
@@ -93,7 +93,7 @@ def test_MFT_flux_conservation(centering='FFTSTYLE', outdir=None, outname='test_
         npix = 4096
         u = 400    # of lam/D. Must be <= the Nyquist frequency of the pupil sampling or there
                    #           will be aliased copies of the PSF.
-    elif precision==0.01: 
+    elif precision==0.01:
         npupil = 400
         npix = 2048
         u = 200    # of lam/D. Must be <= the Nyquist frequency of the pupil sampling or there
@@ -115,7 +115,7 @@ def test_MFT_flux_conservation(centering='FFTSTYLE', outdir=None, outname='test_
     a = mft.perform(pupil, u, npix)
 
     pre = (abs(pupil)**2).sum()    # normalized area of input pupil, should be 1 by construction
-    post = (abs(a)**2).sum()       # 
+    post = (abs(a)**2).sum()       #
     ratio = post / pre
     print("Pre-FFT  total: "+str( pre))
     print("Post-FFT total: "+str( post ))
@@ -150,11 +150,11 @@ def test_DFT_rect(centering='FFTSTYLE', outdir=None, outname='DFT1R_', npix=None
     forward and inverse directions.
 
     This is an exact equivalent (in Python) of Marshall Perrin's
-    test_matrix_DFT in matrix_dft.pro (in IDL) 
+    test_matrix_DFT in matrix_dft.pro (in IDL)
     They should give identical results. However, this function doesn't actually
     check that since that would require having IDL...
     Instead it just checks that the sizes of the output arrays
-    are as requested. 
+    are as requested.
 
     """
 
@@ -169,9 +169,9 @@ def test_DFT_rect(centering='FFTSTYLE', outdir=None, outname='DFT1R_', npix=None
     # make things rectangular:
     if nlamd is None and npix is None:
         nlamd = (10,20)
-        npix = [val*sampling for val in nlamd] #(100, 200) 
+        npix = [val*sampling for val in nlamd] #(100, 200)
     elif npix is None:
-        npix = [val*sampling for val in nlamd] #(100, 200) 
+        npix = [val*sampling for val in nlamd] #(100, 200)
     elif nlamd is None:
         nlamd = [val/sampling for val in npix]
     u = nlamd
@@ -219,8 +219,8 @@ def test_DFT_rect(centering='FFTSTYLE', outdir=None, outname='DFT1R_', npix=None
 
 
 
-    pre = (abs(pupil)**2).sum() 
-    post = (abs(a)**2).sum() 
+    pre = (abs(pupil)**2).sum()
+    post = (abs(a)**2).sum()
     ratio = post / pre
     calcr = 1./(1.0*u[0]*u[1] *npix[0]*npix[1])     # multiply post by this to make them equal
     _log.info( "Pre-FFT  total: "+str( pre))
@@ -298,8 +298,8 @@ def test_DFT_center( npix=100, outdir=None, outname='DFT1'):
 
     a = mft1.perform(pupil, u, npix)
 
-    pre = (abs(pupil)**2).sum() 
-    post = (abs(a)**2).sum() 
+    pre = (abs(pupil)**2).sum()
+    post = (abs(a)**2).sum()
     ratio = post / pre
     calcr = 1./(u**2 *npix**2)     # multiply post by this to make them equal
     print("Pre-FFT  total: "+str( pre))
@@ -310,7 +310,7 @@ def test_DFT_center( npix=100, outdir=None, outname='DFT1'):
 
 
     complexinfo(a, str="mft1 asf")
-    #print 
+    #print
     asf = a.real.copy()
     cpsf = a * a.conjugate()
     psf = cpsf.real.copy()
@@ -321,7 +321,7 @@ def test_DFT_center( npix=100, outdir=None, outname='DFT1'):
 
 def test_DFT_rect_fov_sampling(fov_npix = (500,1000), pixelscale=0.03, display=False):
     """ Test that we can create a rectangular FOV which nonetheless
-    is properly sampled in both the X and Y directions as desired. 
+    is properly sampled in both the X and Y directions as desired.
     In this case specifically we test that we can get the a symmetric
     PSF (same pixel scale in both X and Y) even when the overall FOV
     is rectangular. This tests some of the low level normalizations and
@@ -457,11 +457,11 @@ def run_all_MFS_tests_DFT(outdir=None, outname='DFT1'):
     a5 = DFT_symmetric(pupil, u, npix)
 
     if outdir is not None:
-        fits.writeto(outdir+os.sep+outname+"_a1_fft.fits",(a1*a1.conjugate()).real, clobber=True) 
-        fits.writeto(outdir+os.sep+outname+"_a2_sym.fits",(a2*a2.conjugate()).real, clobber=True) 
-        fits.writeto(outdir+os.sep+outname+"_a3_adj.fits",(a3*a3.conjugate()).real, clobber=True) 
-        fits.writeto(outdir+os.sep+outname+"_a4_fftr.fits",(a4*a4.conjugate()).real, clobber=True) 
-        fits.writeto(outdir+os.sep+outname+"_a5_symr.fits",(a5*a5.conjugate()).real, clobber=True) 
+        fits.writeto(outdir+os.sep+outname+"_a1_fft.fits",(a1*a1.conjugate()).real, clobber=True)
+        fits.writeto(outdir+os.sep+outname+"_a2_sym.fits",(a2*a2.conjugate()).real, clobber=True)
+        fits.writeto(outdir+os.sep+outname+"_a3_adj.fits",(a3*a3.conjugate()).real, clobber=True)
+        fits.writeto(outdir+os.sep+outname+"_a4_fftr.fits",(a4*a4.conjugate()).real, clobber=True)
+        fits.writeto(outdir+os.sep+outname+"_a5_symr.fits",(a5*a5.conjugate()).real, clobber=True)
 
     npix=513
     b1 = DFT_combined(pupil, u, npix, centering='FFTSTYLE')
@@ -472,11 +472,11 @@ def run_all_MFS_tests_DFT(outdir=None, outname='DFT1'):
 
 
     if outdir is not None:
-        fits.writeto(outdir+os.sep+outname+"_b1_fft.fits",(b1*b1.conjugate()).real, clobber=True) 
-        fits.writeto(outdir+os.sep+outname+"_b2_sym.fits",(b2*b2.conjugate()).real, clobber=True) 
-        fits.writeto(outdir+os.sep+outname+"_b3_adj.fits",(b3*b3.conjugate()).real, clobber=True) 
-        fits.writeto(outdir+os.sep+outname+"_b4_fftr.fits",(b4*b4.conjugate()).real, clobber=True) 
-        fits.writeto(outdir+os.sep+outname+"_b5_symr.fits",(b5*b5.conjugate()).real, clobber=True) 
+        fits.writeto(outdir+os.sep+outname+"_b1_fft.fits",(b1*b1.conjugate()).real, clobber=True)
+        fits.writeto(outdir+os.sep+outname+"_b2_sym.fits",(b2*b2.conjugate()).real, clobber=True)
+        fits.writeto(outdir+os.sep+outname+"_b3_adj.fits",(b3*b3.conjugate()).real, clobber=True)
+        fits.writeto(outdir+os.sep+outname+"_b4_fftr.fits",(b4*b4.conjugate()).real, clobber=True)
+        fits.writeto(outdir+os.sep+outname+"_b5_symr.fits",(b5*b5.conjugate()).real, clobber=True)
 
 
     u2 = (u, u/4)
@@ -488,18 +488,18 @@ def run_all_MFS_tests_DFT(outdir=None, outname='DFT1'):
     c5 = DFT_adjustable_rect(pupil, u2, npix2)
 
     if outdir is not None:
-        fits.writeto(outdir+os.sep+outname+"_c1_fft.fits",(c1*c1.conjugate()).real, clobber=True) 
-        fits.writeto(outdir+os.sep+outname+"_c2_sym.fits",(c2*c2.conjugate()).real, clobber=True) 
-        fits.writeto(outdir+os.sep+outname+"_c3_adj.fits",(c3*c3.conjugate()).real, clobber=True) 
-        fits.writeto(outdir+os.sep+outname+"_c4_fftr.fits",(c4*c4.conjugate()).real, clobber=True) 
-        fits.writeto(outdir+os.sep+outname+"_c5_adjr.fits",(c5*c5.conjugate()).real, clobber=True) 
+        fits.writeto(outdir+os.sep+outname+"_c1_fft.fits",(c1*c1.conjugate()).real, clobber=True)
+        fits.writeto(outdir+os.sep+outname+"_c2_sym.fits",(c2*c2.conjugate()).real, clobber=True)
+        fits.writeto(outdir+os.sep+outname+"_c3_adj.fits",(c3*c3.conjugate()).real, clobber=True)
+        fits.writeto(outdir+os.sep+outname+"_c4_fftr.fits",(c4*c4.conjugate()).real, clobber=True)
+        fits.writeto(outdir+os.sep+outname+"_c5_adjr.fits",(c5*c5.conjugate()).real, clobber=True)
 
 
     for c, label in zip([c1, c2, c3, c4,c5], ['comb-fft', 'comb-sym', 'comb-adj', 'fft_rect', 'adj_rect']) :
         print(label, c.shape)
 
 def test_check_invalid_centering():
-    """ intentionally invalid CENTERING option to test the error message part of the code. 
+    """ intentionally invalid CENTERING option to test the error message part of the code.
     """
     try:
         import pytest
@@ -526,17 +526,16 @@ def test_parity_MFT_forward_inverse(display = False):
 
 
     """
-    from .test_core import ParityTestAperture
 
     # set up optical system with 2 pupil planes and 2 image planes
 
     # use the same exact image plane sampling as in the FFT case
     # This is a bit slower but ensures quantitative agreement.
 
-    pixscale = 0.03437746770784939 
+    pixscale = 0.03437746770784939
     npix=2048
     sys = poppy_core.OpticalSystem()
-    sys.addPupil(ParityTestAperture())
+    sys.addPupil(optics.ParityTestAperture())
     sys.addDetector(pixelscale=pixscale, fov_pixels=npix)
     sys.addPupil()
     sys.addDetector(pixelscale=pixscale, fov_pixels=npix)
@@ -546,16 +545,20 @@ def test_parity_MFT_forward_inverse(display = False):
     # the wavefronts are padded by 0s. With the current API the most convenient
     # way to ensure we get unpadded versions is via the asFITS function.
     p0 = planes[0].asFITS(what='intensity', includepadding=False)
+    p1 = planes[1].asFITS(what='intensity', includepadding=False)
     p2 = planes[2].asFITS(what='intensity', includepadding=False)
 
     # for checking the overall parity it's sufficient to check the intensity.
-    # we can have arbitrarily large differences in phase for regions with 
-    # intensity =0, so don't check the complex field or phase here. 
+    # we can have arbitrarily large differences in phase for regions with
+    # intensity =0, so don't check the complex field or phase here.
 
 
     absdiff = (np.abs(p0[0].data - p2[0].data))
     maxabsdiff = np.max(absdiff)
-    assert (maxabsdiff < 1e-10)
+    # TODO this test could be more stringent if we used a better aperture
+    # which is band-limited in the FFT so you don't get all the 
+    # Gibbs effect ringing after these two FFTs.
+    assert (maxabsdiff < 1e-6)
 
     if display:
         nplanes = len(planes)
@@ -577,8 +580,7 @@ def test_MFT_FFT_equivalence(display=False, displaycrop=None):
 
     centering='FFTSTYLE' # needed if you want near-exact agreement!
 
-    from poppy.tests.test_core import ParityTestAperture
-    imgin = ParityTestAperture().sample(wavelength=1e-6, npix=256)
+    imgin = optics.ParityTestAperture().sample(wavelength=1e-6, npix=256)
 
     npix = imgin.shape
     nlamD = np.asarray(imgin.shape)
@@ -646,16 +648,15 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(display=False):
     # Thus in order to get an exact equivalence, we have to set up our
     # OpticalSystem so that it, very unusually, uses an odd size for
     # its input wavefront. The easiest way to do this is to discretize
-    # an AnalyticOpticalElement onto a specific grid. 
+    # an AnalyticOpticalElement onto a specific grid.
 
-    from poppy.tests.test_core import ParityTestAperture
-    fits511 = ParityTestAperture().toFITS('test.fits', wavelength=1e-6, npix=511)
+    fits511 = optics.ParityTestAperture().toFITS('test.fits', wavelength=1e-6, npix=511)
     pup511 = poppy_core.FITSOpticalElement(transmission=fits511)
 
 
     # set up simple optical system that will just FFT
     fftsys = poppy_core.OpticalSystem(oversample=1)
-    fftsys.addPupil(pup511) #ParityTestAperture())
+    fftsys.addPupil(pup511)
     fftsys.addImage()
 
     fftpsf, fftplanes = fftsys.calcPSF(display=False, return_intermediates=True)
@@ -663,7 +664,7 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(display=False):
     # set up equivalent using an MFT, tuned to get the exact same scale
     # for the image plane
     mftsys = poppy_core.OpticalSystem(oversample=1)
-    mftsys.addPupil(pup511) #ParityTestAperture())
+    mftsys.addPupil(pup511)
     mftsys.addDetector(pixelscale=fftplanes[1].pixelscale , fov_pixels=fftplanes[1].shape, oversample=1) #, offset=(pixscale/2, pixscale/2))
 
     mftpsf, mftplanes = mftsys.calcPSF(display=False, return_intermediates=True)

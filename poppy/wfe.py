@@ -16,6 +16,7 @@ from __future__ import (absolute_import, division, print_function,
 import collections
 from functools import wraps
 import numpy as np
+import astropy.units as u
 
 from .optics import AnalyticOpticalElement, CircularAperture
 from .poppy_core import Wavefront, _PUPIL
@@ -81,7 +82,7 @@ class WavefrontError(AnalyticOpticalElement):
             a wavefront wavelength in meters
         """
         opd_map = self.get_opd(wave, units='meters')
-        opd_as_phase = 2 * np.pi * opd_map / wave.wavelength
+        opd_as_phase = 2 * np.pi * opd_map / (wave.wavelength.to(u.meter).value)
         wfe_phasor = np.exp(1.j * opd_as_phase)
         return wfe_phasor
 
@@ -234,12 +235,14 @@ class ZernikeWFE(WavefrontError):
         # implicitly also a circular aperture:
         aperture_intensity = self.circular_aperture.get_transmission(wave)
 
+        pixelscale_m = wave.pixelscale.to(u.meter/u.pixel).value
+
         combined_zernikes = np.zeros(wave.shape, dtype=np.float64)
         for j, k in enumerate(self.coefficients, start=1):
             combined_zernikes += k * zernike.cached_zernike1(
                 j,
                 wave.shape,
-                wave.pixelscale,
+                pixelscale_m,
                 self.radius,
                 outside=0.0,
                 noll_normalize=True
@@ -294,5 +297,5 @@ class SineWaveWFE(WavefrontError):
                 (x / self.sine_spatial_freq + self.sine_phase_offset))
 
         if units == 'waves':
-            opd /= wave.wavelength
+            opd /= wave.wavelength.to(u.meter).value
         return opd

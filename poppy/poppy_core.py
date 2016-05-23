@@ -120,18 +120,16 @@ class Wavefront(object):
 
     """
 
-    def __init__(self,wavelength=2e-6, npix=1024, dtype=np.complex128, diam=8.0, oversample=2, pixelscale=None):
-
-        if wavelength > 1e-4:
-            raise ValueError("The specified wavelength %f is implausibly large. Remember to specify the desired wavelength in *meters*." % wavelength)
+    @utils.quantity_input(wavelength=u.meter, diam=u.meter, pixelscale=u.arcsec/u.pixel)
+    def __init__(self,wavelength=2e-6*u.meter, npix=1024, dtype=np.complex128, diam=8.0*u.meter, oversample=2, pixelscale=None):
 
         self._last_transform_type=None # later used to track MFT vs FFT pixel coord centering in coordinates()
         self.oversample = oversample
 
-        self.wavelength = float(wavelength)                 # wavelen in meters, obviously
-        """Wavelength in meters """
+        self.wavelength = wavelength
+        """Wavelength in meters (or other unit if specified)"""
 
-        self.diam= float(diam) if not isinstance(diam, u.Quantity) else diam.to(u.m).value        # pupil plane size in meters
+        self.diam= diam   #float(diam) if not isinstance(diam, u.Quantity) else diam.to(u.m).value        # pupil plane size in meters
         """Diameter in meters. Applies to a pupil plane only."""
         self.fov = None                                     # image plane size in arcsec
         """Field of view in arcsec. Applies to an image plane only."""
@@ -139,10 +137,10 @@ class Wavefront(object):
         "Pixel scale, in arcsec/pixel or meters/pixel depending on plane type"
 
         if pixelscale is None:
-            self.pixelscale = self.diam / npix                  # scale in meters/pix or arcsec/pix, as appropriate
-            self.planetype = _PUPIL                              # are we at image or pupil?
+            self.pixelscale = self.diam / (npix*u.pixel)        # scale in meters/pix or arcsec/pix, as appropriate
+            self.planetype = _PUPIL                             # are we at image or pupil?
         else:
-            self.pixelscale = pixelscale
+            self.pixelscale = pixelscale                        # scale in meters/pix or arcsec/pix, as appropriate
             self.planetype = _IMAGE
         self._image_centered='array_center'                     # one of 'array_center', 'pixel', 'corner'
                                                                 # This records where the coordinate origin is
@@ -153,7 +151,7 @@ class Wavefront(object):
         self.ispadded = False                               # is the wavefront padded for oversampling?
         self.history=[]
         "List of strings giving a descriptive history of actions performed on the wavefront. Saved to FITS headers."
-        self.history.append("Created wavefront: wavelen=%g m, diam=%f m" %(self.wavelength, self.diam))
+        self.history.append("Created wavefront: wavelength={0}, diam={1}".format(self.wavelength, self.diam))
         self.history.append(" using array size %s" % (self.wavefront.shape,) )
         self.location='Entrance'
         "A descriptive string for where a wavefront is instantaneously located (e.g. 'before occulter'). Used mostly for titling displayed plots."
@@ -161,9 +159,9 @@ class Wavefront(object):
     def __str__(self):
         # TODO add switches for image/pupil planes
         return """Wavefront:
-        wavelength = %f microns
-        shape = (%d,%d)
-        sampling = %f meters/pixel""" % (self.wavelength/1e-6, self.wavefront.shape[0], self.wavefront.shape[1], self.pixelscale )
+        wavelength = {}
+        shape = {}
+        sampling = {}""".format(self.wavelength.to(u.micron), self.wavefront.shape, self.pixelscale )
 
     def copy(self):
         "Return a copy of the wavefront as a different object."
@@ -293,20 +291,21 @@ class Wavefront(object):
             raise ValueError("Unknown string for what to return: "+what)
 
 
-        outFITS[0].header['WAVELEN'] =  (self.wavelength, 'Wavelength in meters')
-        outFITS[0].header['DIFFLMT'] =  (self.wavelength/self.diam*206265., 'Diffraction limit lambda/D in arcsec')
+        outFITS[0].header['WAVELEN'] =  (self.wavelength.to(u.meter).value, 'Wavelength in meters')
+        outFITS[0].header['DIFFLMT'] =  ((self.wavelength/self.diam*u.radian).to(u.arcsec).value, 'Diffraction limit lambda/D in arcsec')
         outFITS[0].header['OVERSAMP'] = (self.oversample, 'Oversampling factor for FFTs in computation')
         outFITS[0].header['DET_SAMP'] = (self.oversample, 'Oversampling factor for MFT to detector plane')
         if self.planetype ==_IMAGE:
-            outFITS[0].header['PIXELSCL'] =  (self.pixelscale, 'Scale in arcsec/pix (after oversampling)')
-            if np.isscalar(self.fov):
-                outFITS[0].header['FOV'] =  (self.fov, 'Field of view in arcsec (full array)')
+            outFITS[0].header['PIXELSCL'] =  (self.pixelscale.to(u.arcsec/u.pixel).value, 'Scale in arcsec/pix (after oversampling)')
+            fov_arcsec = self.fov.to(u.arcsec).value
+            if np.isscalar(fov_arcsec):
+                outFITS[0].header['FOV'] =  (fov_arcsec, 'Field of view in arcsec (full array)')
             else:
-                outFITS[0].header['FOV_X'] =  (self.fov[1], 'Field of view in arcsec (full array), X direction')
-                outFITS[0].header['FOV_Y'] =  (self.fov[0], 'Field of view in arcsec (full array), Y direction')
+                outFITS[0].header['FOV_X'] =  (fov_arcsec[1], 'Field of view in arcsec (full array), X direction')
+                outFITS[0].header['FOV_Y'] =  (fov_arcsec[0], 'Field of view in arcsec (full array), Y direction')
         else:
-            outFITS[0].header['PIXELSCL'] =  (self.pixelscale, 'Pixel scale in meters/pixel')
-            outFITS[0].header['DIAM'] =  (self.diam, 'Pupil diameter in meters (not incl padding)')
+            outFITS[0].header['PIXELSCL'] =  (self.pixelscale.to(u.meter/u.pixel).value, 'Pixel scale in meters/pixel')
+            outFITS[0].header['DIAM'] =  (self.diam.to(u.meter).value, 'Pupil diameter in meters (not incl padding)')
 
         for h in self.history: outFITS[0].header.add_history(h)
 
@@ -415,7 +414,7 @@ class Wavefront(object):
         # This is needed to get the coordinates right when displaying very small arrays
 
 
-        halfpix = self.pixelscale*0.5
+        halfpix = self.pixelscale.value*0.5
         extent = [x.min()-halfpix, x.max()+halfpix, y.min()-halfpix, y.max()+halfpix]
 
         if use_angular_coordinates is None:
@@ -536,8 +535,8 @@ class Wavefront(object):
                     imagecrop = conf.default_image_display_fov
 
             if imagecrop is not None:
-                cropsize_x = min( (imagecrop/2, intens.shape[1]/2.*self.pixelscale))
-                cropsize_y = min( (imagecrop/2, intens.shape[0]/2.*self.pixelscale))
+                cropsize_x = min( (imagecrop/2, intens.shape[1]/2.*self.pixelscale.value))
+                cropsize_y = min( (imagecrop/2, intens.shape[0]/2.*self.pixelscale.value))
                 ax.set_xbound(-cropsize_x, cropsize_x)
                 ax.set_ybound(-cropsize_y, cropsize_y)
 
@@ -644,9 +643,9 @@ class Wavefront(object):
 
             #(pre-)update state:
             self.planetype=_IMAGE
-            self.pixelscale = self.wavelength/ self.diam / self.oversample * _RADIANStoARCSEC
-            self.fov = self.wavefront.shape[0] * self.pixelscale
-            self.history.append('   FFT %s,  to _IMAGE  scale=%f' %(self.wavefront.shape, self.pixelscale))
+            self.pixelscale = (self.wavelength / self.diam * u.radian / self.oversample).to(u.arcsec) / u.pixel
+            self.fov = self.wavefront.shape[0] * u.pixel * self.pixelscale
+            self.history.append('   FFT {},  to _IMAGE  scale={}'.format(self.wavefront.shape, self.pixelscale))
 
         elif self.planetype == _IMAGE and optic.planetype ==_PUPIL:
             FFT_direction = 'backward'
@@ -655,8 +654,8 @@ class Wavefront(object):
 
             #(pre-)update state:
             self.planetype=_PUPIL
-            self.pixelscale = self.diam *self.oversample / self.wavefront.shape[0]
-            self.history.append('   FFT %s,  to PUPIL scale=%f' %(self.wavefront.shape, self.pixelscale))
+            self.pixelscale = self.diam *self.oversample / (self.wavefront.shape[0]*u.pixel)
+            self.history.append('   FFT {},  to PUPIL scale={}'.format(self.wavefront.shape, self.pixelscale))
 
 
         # do FFT
@@ -722,16 +721,20 @@ class Wavefront(object):
         # - focal plane size in lambda/D units
         # - number of pixels on a side in focal plane array.
 
-        lamD = self.wavelength / self.diam * _RADIANStoARCSEC
+        # extract everything from Quantities to regular scalars here
+        lamD = ((self.wavelength / self.diam)*u.radian).to(u.arcsec).value
 
-        det_fov_lamD = det.fov_arcsec / lamD
-        det_calc_size_pixels = det.fov_pixels * det.oversample
+        det_fov_lamD = det.fov_arcsec.to(u.arcsec).value / lamD
+        det_calc_size_pixels = det.fov_pixels.to(u.pixel).value * det.oversample
 
         mft = MatrixFourierTransform(centering='ADJUSTABLE', verbose=False)
         if not np.isscalar(det_fov_lamD): #hasattr(det_fov_lamD,'__len__'):
-            msg= '    Propagating w/ MFT: %.4f"/pix     fov=[%.3f,%.3f] lam/D    npix=%d x %d' %  (det.pixelscale/det.oversample, det_fov_lamD[0], det_fov_lamD[1], det_calc_size_pixels[0], det_calc_size_pixels[1])
+            msg= '    Propagating w/ MFT: {:.4f}     fov=[{:.3f},{:.3f}] lam/D    npix={} x {}'.format(
+                    det.pixelscale/det.oversample, det_fov_lamD[0], det_fov_lamD[1],
+                    det_calc_size_pixels[0], det_calc_size_pixels[1])
         else:
-            msg= '    Propagating w/ MFT: %.4f"/pix     fov=%.3f lam/D    npix=%d' %  (det.pixelscale/det.oversample, det_fov_lamD, det_calc_size_pixels)
+            msg= '    Propagating w/ MFT: {:.4f}     fov={:.3f} lam/D    npix={:d}'.format(
+                    det.pixelscale/det.oversample, det_fov_lamD, int(det_calc_size_pixels))
         _log.debug(msg)
         self.history.append(msg)
         det_offset = det.det_offset if hasattr(det, 'det_offset') else (0,0)
@@ -750,9 +753,9 @@ class Wavefront(object):
 
         self.planetype=_IMAGE
         self.fov = det.fov_arcsec
-        self.pixelscale = det.fov_arcsec / det_calc_size_pixels
+        self.pixelscale = det.fov_arcsec / det_calc_size_pixels / u.pixel
 
-        if not np.isscalar(self.pixelscale):
+        if not np.isscalar(self.pixelscale.value):
             # check for rectangular arrays
             if self.pixelscale[0] == self.pixelscale[1]:
                 self.pixelscale = self.pixelscale[0]  # we're in a rectangular array with same pixel scale in both directions, so treat pixelscale as a scalar
@@ -776,10 +779,10 @@ class Wavefront(object):
         # - focal plane size in lambda/D units
         # - number of pixels on a side in focal plane array.
 
-        lamD = self.wavelength / self.diam * _RADIANStoARCSEC
-        #print("lam/D = %f arcsec" % lamD)
+        # extract everything from Quantities to regular scalars here
+        lamD = (self.wavelength / self.diam * u.radian).to(u.arcsec).value
 
-        det_fov_lamD = self.fov / lamD
+        det_fov_lamD = self.fov.to(u.arcsec).value / lamD
         #det_calc_size_pixels = det.fov_pixels * det.oversample
 
         # try to transform to whatever the intrinsic scale of the next pupil is.
@@ -794,7 +797,7 @@ class Wavefront(object):
         mft = MatrixFourierTransform(centering='ADJUSTABLE', verbose=False)
 
         # these can be either scalar or 2-element lists/tuples/ndarrays
-        msg_pixscale = '{0:.4f}"/pix'.format(self.pixelscale) if np.isscalar(self.pixelscale) else '{0:.4f} x {1:.4f} "/pix'.format(self.pixelscale[0], self.pixelscale[1])
+        msg_pixscale = '{0:.4f}'.format(self.pixelscale) if np.isscalar(self.pixelscale.value) else '{0:.4f} x {1:.4f} arcsec/pix'.format(self.pixelscale.value[0], self.pixelscale.value[1])
         msg_det_fov  = '{0:.4f} lam/D'.format(det_fov_lamD) if np.isscalar(det_fov_lamD) else '{0:.4f} x {1:.4f}  lam/D'.format(det_fov_lamD[0], det_fov_lamD[1])
 
         msg= '    Propagating w/ InvMFT:  scale={0}    fov={1}    npix={2:d} x {2:d}'.format(msg_pixscale, msg_det_fov, pupil_npix)
@@ -808,7 +811,7 @@ class Wavefront(object):
         self._last_transform_type = 'InvMFT'
 
         self.planetype=_PUPIL
-        self.pixelscale = self.diam / self.wavefront.shape[0]
+        self.pixelscale = self.diam / self.wavefront.shape[0] / u.pixel
 
     def tilt(self, Xangle=0.0, Yangle=0.0):
         """ Tilt a wavefront in X and Y.
@@ -847,7 +850,7 @@ class Wavefront(object):
             U -= (npix - 1) / 2.0
             U *= self.pixelscale
 
-            tiltphasor = np.exp(2.0j * np.pi * (U * xangle_rad + V * yangle_rad) / self.wavelength)
+            tiltphasor = np.exp(2.0j * np.pi * (U * xangle_rad + V * yangle_rad) / self.wavelength.to(u.meter).value)
             self.wavefront *= tiltphasor
             self.history.append("Tilted wavefront by "
                                 "X={:2.2}, Y={:2.2} arcsec".format(Xangle, Yangle))
@@ -892,10 +895,11 @@ class Wavefront(object):
             X and Y
         """
         y, x = np.indices(shape, dtype=float)
-        if not np.isscalar(pixelscale):
-            pixel_scale_x, pixel_scale_y = pixelscale
+        pixelscale_mpix = pixelscale.to(u.meter/u.pixel).value if isinstance(pixelscale,u.Quantity) else pixelscale
+        if not np.isscalar(pixelscale_mpix):
+            pixel_scale_x, pixel_scale_y = pixelscale_mpix
         else:
-            pixel_scale_x, pixel_scale_y = pixelscale, pixelscale
+            pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
 
         y -= (shape[0] - 1) / 2.0
         x -= (shape[1] - 1) / 2.0
@@ -923,10 +927,11 @@ class Wavefront(object):
             a pixel, crosshairs ('array_center'), or corner?
         """
         y, x = np.indices(shape, dtype=float)
-        if not np.isscalar(pixelscale):
-            pixel_scale_x, pixel_scale_y = pixelscale
+        pixelscale_arcsecperpix = pixelscale.to(u.arcsec/u.pixel).value
+        if not np.isscalar(pixelscale_arcsecperpix):
+            pixel_scale_x, pixel_scale_y = pixelscale_arcsecperpix
         else:
-            pixel_scale_x, pixel_scale_y = pixelscale, pixelscale
+            pixel_scale_x, pixel_scale_y = pixelscale_arcsecperpix, pixelscale_arcsecperpix
 
         # in most cases, the x and y values are centered around the exact center of the array.
         # This is not true in general for FFT-produced image planes where the center is in the
@@ -1206,7 +1211,7 @@ class OpticalSystem(object):
         detector = Detector(pixelscale, oversample=oversample, **kwargs)
         self.planes.append(detector)
         if self.verbose:
-            _log.info("Added detector: %s, with pixelscale=%f arcsec/pixel and oversampling=%d" % (
+            _log.info("Added detector: {}s, with pixelscale={} and oversampling={}".format(
                 self.planes[-1].name,
                 pixelscale,
                 oversample
@@ -1223,7 +1228,8 @@ class OpticalSystem(object):
         return self.planes[num]
 
     # methods for dealing with wavefronts:
-    def inputWavefront(self, wavelength=2e-6):
+    @utils.quantity_input(wavelength=u.meter)
+    def inputWavefront(self, wavelength=2e-6*u.meter):
         """Create a Wavefront object suitable for sending through a given optical system, based on
         the size of the first optical plane, assumed to be a pupil.
 
@@ -1267,7 +1273,7 @@ class OpticalSystem(object):
                 npix = npix,
                 diam = diam,
                 oversample=self.oversample)
-        _log.debug("Creating input wavefront with wavelength=%f, npix=%d, pixel scale=%f meters/pixel" % (wavelength, npix, diam/npix))
+        _log.debug("Creating input wavefront with wavelength={}, npix={:d}, pixel scale={:.3g} meters/pixel".format(wavelength, npix, diam/npix))
 
         if np.abs(self.source_offset_r) > 0:
             offset_x = self.source_offset_r *-np.sin(self.source_offset_theta*np.pi/180)  # convert to offset X,Y in arcsec
@@ -1276,7 +1282,8 @@ class OpticalSystem(object):
             _log.debug("Tilted input wavefront by theta_X=%f, theta_Y=%f arcsec" % (offset_x, offset_y))
         return inwave
 
-    def propagate_mono(self, wavelength=2e-6, normalize='first',
+    @utils.quantity_input(wavelength=u.meter)
+    def propagate_mono(self, wavelength=2e-6*u.meter, normalize='first',
                        retain_intermediates=False, display_intermediates=False):
         """Propagate a monochromatic wavefront through the optical system. Called from within `calcPSF`.
         Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s (empty if
@@ -1311,7 +1318,7 @@ class OpticalSystem(object):
         if conf.enable_speed_tests:
             t_start = time.time()
         if self.verbose:
-           _log.info(" Propagating wavelength = {0:g} meters".format(wavelength))
+           _log.info(" Propagating wavelength = {0:g}".format(wavelength))
         wavefront = self.inputWavefront(wavelength)
 
         intermediate_wfs = []
@@ -1349,7 +1356,7 @@ class OpticalSystem(object):
 
             if display_intermediates:
                 if conf.enable_speed_tests: t0 = time.time()
-                title = None if current_plane_index > 1 else "propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6)
+                title = None if current_plane_index > 1 else "propagating $\lambda=$ {0:.3f}".format(wavelength.to(u.micron))
                 wavefront.display(what='best',nrows=len(self.planes),row=current_plane_index, colorbar=False, title=title)
                 #plt.title("propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6))
 
@@ -1363,7 +1370,8 @@ class OpticalSystem(object):
 
         return wavefront.asFITS(), intermediate_wfs
 
-    def calcPSF(self, wavelength=1e-6, weight=None, save_intermediates=False, save_intermediates_what='all',
+    @utils.quantity_input(wavelength=u.meter)
+    def calcPSF(self, wavelength=1e-6*u.meter, weight=None, save_intermediates=False, save_intermediates_what='all',
                 display=False, return_intermediates=False, source=None, normalize='first', display_intermediates=False):
         """Calculate a PSF, either multi-wavelength or monochromatic.
 
@@ -1373,9 +1381,9 @@ class OpticalSystem(object):
 
         Parameters
         ----------
-        wavelength : float, optional
-            wavelength in meters. Either scalar for monochromatic calculation or
-            list or ndarray for multiwavelength calculation.
+        wavelength : float or Astropy.Quantity, optional
+            wavelength in meters, or some other length unit if specified as an astropy.Quantity. Either 
+            scalar for monochromatic calculation or list or ndarray for multiwavelength calculation.
         weight : float, optional
             weight by which to multiply each wavelength. Must have same length as
             wavelength parameter. Defaults to 1s if not specified.
@@ -1409,13 +1417,12 @@ class OpticalSystem(object):
         if source is not None:
             wavelength = source['wavelengths']
             weight=source['weights']
+            if not isinstance(wavelength, u.Quantity): wavelength *= u.meter
 
-        try:
-            if np.isscalar(wavelength):
-                wavelength = np.asarray([wavelength], dtype=float)
-            else: wavelength = np.asarray(wavelength, dtype=float)
-        except (ValueError,TypeError):
-            raise ValueError("You have specified an invalid wavelength to calcPSF: "+str(wavelength))
+        # ensure wavelength is a quantity which is iterable:
+        # (the check for a quantity of type length is applied in the decorator)
+        if np.isscalar(wavelength.value):
+            wavelength = np.asarray([wavelength.value], dtype=float)*wavelength.unit
 
         if weight is None:
             weight = [1.0] * len(wavelength)
@@ -1696,7 +1703,8 @@ class SemiAnalyticCoronagraph(OpticalSystem):
 
         self.occulter_det = Detector(self.detector.pixelscale/self.oversample, fov_arcsec = self.occulter_box*2, name='Oversampled Occulter Plane')
 
-    def propagate_mono(self, wavelength=2e-6, normalize='first',
+    @utils.quantity_input(wavelength=u.meter)
+    def propagate_mono(self, wavelength=2e-6*u.meter, normalize='first',
                        retain_intermediates=False, display_intermediates=False):
         """Propagate a monochromatic wavefront through the optical system. Called from within `calcPSF`.
         Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s (empty if
@@ -1870,6 +1878,7 @@ class MatrixFTCoronagraph(OpticalSystem):
             occulter_box = np.array(occulter_box) # cast to numpy array so the multiplication by 2 just below will work
         self.occulter_box = occulter_box
 
+    @utils.quantity_input(wavelength=u.meter)
     def propagate_mono(self, wavelength=1e-6, normalize='first',
                        retain_intermediates=False, display_intermediates=False):
         """Propagate a monochromatic wavefront through the optical system using matrix FTs. Called from
@@ -1922,7 +1931,7 @@ class MatrixFTCoronagraph(OpticalSystem):
                 if len(optic.amplitude.shape) == 2: # Match detector object to the loaded FPM transmission array
                     metadet = Detector(optic.pixelscale, fov_pixels = optic.amplitude.shape[0], name='Oversampled Occulter Plane')
                 else:
-                    metadet_pixelscale = wavelength / self.planes[0].pupil_diam * _RADIANStoARCSEC / self.oversample / 2
+                    metadet_pixelscale = ((wavelength / self.planes[0].pupil_diam).decompose()*u.radian).to(u.arcsec) / self.oversample / 2 / u.pixel
                     metadet = Detector(metadet_pixelscale, fov_arcsec = self.occulter_box*2, name='Oversampled Occulter Plane')
                 wavefront.propagateTo(metadet)
             else:
@@ -2077,21 +2086,22 @@ class OpticalElement(object):
             wavelength=wave.wavelength
         else:
             wavelength=wave
-        scale = 2. * np.pi / wavelength
+        scale = 2. * np.pi / wavelength.to(u.meter).value
 
         # set the self.phasor attribute:
         # first check whether we need to interpolate to do this.
         float_tolerance = 0.001  #how big of a relative scale mismatch before resampling?
         if self.pixelscale is not None and hasattr(wave,'pixelscale') and abs(wave.pixelscale -self.pixelscale)/self.pixelscale >= float_tolerance:
-            _log.debug("Pixelscales: wave %f, optic %f" % (wave.pixelscale, self.pixelscale))
+            _log.debug("Pixelscales: wave {}, optic {}" .format(wave.pixelscale, self.pixelscale))
             #raise ValueError("Non-matching pixel scale for wavefront and optic! Need to add interpolation / ing ")
             if hasattr(self,'_resampled_scale') and abs(self._resampled_scale-wave.pixelscale)/self._resampled_scale >= float_tolerance:
                 # we already did this same resampling, so just re-use it!
                 self.phasor = self._resampled_amplitude * np.exp (1.j * self._resampled_opd * scale)
             else:
                 #raise NotImplementedError("Need to implement resampling.")
-                zoom=self.pixelscale/wave.pixelscale
-                resampled_opd = scipy.ndimage.interpolation.zoom(self.opd,zoom,output=self.opd.dtype,order=self.interp_order)
+                zoom=(self.pixelscale/wave.pixelscale).decompose().value 
+                resampled_opd = scipy.ndimage.interpolation.zoom(self.opd, zoom,
+                        output=self.opd.dtype, order=self.interp_order)
                 resampled_amplitude = scipy.ndimage.interpolation.zoom(self.amplitude,zoom,output=self.amplitude.dtype,order=self.interp_order)
                 _log.debug("resampled optic to match wavefront via spline interpolation by a zoom factor of %.3g"%(zoom))
                 _log.debug("resampled optic shape: {}   wavefront shape: {}".format(resampled_amplitude.shape, wave.shape))
@@ -2179,14 +2189,18 @@ class OpticalElement(object):
         norm_amp = matplotlib.colors.Normalize(vmin=0, vmax=1)
         norm_opd = matplotlib.colors.Normalize(vmin=-opd_vmax, vmax=opd_vmax)
 
-        units = "[meters]" if self.planetype == _PUPIL else "[arcsec]"
+        # TODO infer correct units from pixelscale's units? 
+        units = "[arcsec]" if self.planetype == _IMAGE else "[meters]"
         if nrows > 1:
             units = self.name + "\n" + units
 
         if self.pixelscale is not None:
-            halfsize = self.pixelscale * self.amplitude.shape[0] / 2
-            _log.debug("Display pixel scale = %.3f " % self.pixelscale)
+            # TODO handle units better here for pupil vs. image planes? meters/pix vs arcsec/pix
+            halfsize = self.pixelscale.value * self.amplitude.shape[0] / 2
+            _log.debug("Display pixel scale = {} ".format(self.pixelscale))
         else:
+            # TODO not sure this code path ever gets used - since pixelscale is set temporarily
+            # in AnalyticOptic.display
             _log.debug("No defined pixel scale - this must be an analytic optic")
             halfsize = 1.0
         extent = [-halfsize, halfsize, -halfsize, halfsize]
@@ -2567,10 +2581,15 @@ class FITSOpticalElement(OpticalElement):
                 except ValueError:
                     raise ValueError("pixelscale=%s is neither a FITS keyword string "
                                      "nor a floating point value." % str(pixelscale))
+            # now turn the pixel scale into a Quantity
+            if self.planetype == _IMAGE:
+                self.pixelscale *= u.arcsec/u.pixel
+            else: # pupil or any other types of plane
+                self.pixelscale *= u.meter/u.pixel
 
     @property
     def pupil_diam(self):
-        return self.pixelscale * self.amplitude.shape[0]
+        return self.pixelscale * (self.amplitude.shape[0]*u.pixel)
     "Diameter of the pupil (if this is a pupil plane optic)"
 
 
@@ -2642,9 +2661,9 @@ class Detector(OpticalElement):
     ----------
     name : string
         Descriptive name
-    pixelscale : float
-        Pixel scale in arcsec/pixel
-    fov_pixels, fov_arcsec : float
+    pixelscale : float or astropy.units.Quantity
+        Pixel scale in arcsec/pixel, or other angular unit if specified as a Quantity.
+    fov_pixels, fov_arcsec : float or astropy.units.Quantity
         The field of view may be specified either in arcseconds or by a number
         of pixels. Either is acceptable and the pixel scale is used to convert
         as needed. You may specify a non-square FOV by providing two elements in
@@ -2659,9 +2678,10 @@ class Detector(OpticalElement):
         around an off-axis source. (Has not been tested!)
 
     """
-    def __init__(self, pixelscale, fov_pixels=None, fov_arcsec=None, oversample=1, name="Detector", offset=None, **kwargs):
+    @utils.quantity_input(pixelscale=u.arcsec/u.pixel, fov_pixels=u.pixel, fov_arcsec=u.arcsec)
+    def __init__(self, pixelscale=1*(u.arcsec/u.pixel), fov_pixels=None, fov_arcsec=None, oversample=1, name="Detector", offset=None, **kwargs):
         OpticalElement.__init__(self,name=name, planetype=_DETECTOR, **kwargs)
-        self.pixelscale = float(pixelscale)
+        self.pixelscale = pixelscale
         self.oversample = oversample
 
         if fov_pixels is None and fov_arcsec is None:
@@ -2672,10 +2692,10 @@ class Detector(OpticalElement):
         else:
             # set field of view to closest value possible to requested,
             # consistent with having an integer number of pixels
-            self.fov_pixels = np.round(np.asarray(fov_arcsec) / self.pixelscale)
+            self.fov_pixels = np.round( (fov_arcsec.to(u.arcsec) / self.pixelscale).to(u.pixel) )
             self.fov_arcsec = self.fov_pixels * self.pixelscale
-        if np.any(self.fov_pixels <= 0): raise ValueError("FOV in pixels must be a positive quantity. Invalid: "+str(self.fov_pixels))
-
+        if np.any(self.fov_pixels <= 0):
+            raise ValueError("FOV in pixels must be a positive quantity. Invalid: "+str(self.fov_pixels))
 
         if offset is not None:
             try:
@@ -2688,9 +2708,11 @@ class Detector(OpticalElement):
 
     @property
     def shape(self):
-        return (self.fov_pixels, self.fov_pixels) if np.isscalar(self.fov_pixels) else self.fov_pixels[0:2]
+        fpix = self.fov_pixels.to(u.pixel).value
+        # have to cast back to int since Quantities are all float internally
+        return (int(fpix), int(fpix)) if np.isscalar(fpix) else fpix.astype(int)[0:2]
 
     def __str__(self):
-        return "Detector plane: %s (%dx%d, %f arcsec/pixel)" % (self.name, self.shape[1], self.shape[0], self.pixelscale)
+        return "Detector plane: {} ({}x{} pixels, {})".format(self.name, self.shape[1], self.shape[0], self.pixelscale)
 
 

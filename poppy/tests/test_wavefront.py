@@ -1,12 +1,13 @@
 
-from .. import poppy_core 
+from .. import poppy_core
 import numpy as np
 import astropy.io.fits as fits
 from .test_core import check_wavefront
+import astropy.units as u
 
 
 
-wavelength=1e-6
+wavelength=1e-6*u.m
 
 
 def test_wavefront_in_pixels():
@@ -40,9 +41,9 @@ def test_wavefront_str():
     wave = poppy_core.Wavefront(npix=100, wavelength=1e-6)
     string_representation = str(wave)
     assert string_representation =="""Wavefront:
-        wavelength = 1.000000 microns
-        shape = (100,100)
-        sampling = 0.080000 meters/pixel"""
+        wavelength = 1.0 micron
+        shape = (100, 100)
+        sampling = 0.08 m / pix"""
 
 def test_wavefront_copy():
     # test copy
