@@ -2333,6 +2333,12 @@ class OpticalElement(object):
         if crosshairs:
             ax.axhline(0, ls=":", color='k')
             ax.axvline(0, ls=":", color='k')
+
+        if hasattr(self,'display_annotate'):
+            self.display_annotate(self)  # atypical calling convention needed empirically
+                                         # since Python doesn't seem to automatically pass
+                                         # self as first argument for functions added at 
+                                         # run time as attributes? 
         return ax
 
     def __str__(self):
