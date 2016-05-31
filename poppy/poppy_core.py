@@ -38,11 +38,12 @@ except ImportError:
 # internal constants for types of plane
 class PlaneType(enum.Enum):
     unspecified = 0
-    pupil = 1
-    image = 2
+    pupil = 1               # pupil plane
+    image = 2               # image plane
     detector = 3
-    rotation = 4
-    intermediate = 5
+    rotation = 4            # coordinate system rotation
+    intermediate = 5        # arbitrary plane between pupil and image
+    inversion = 6           # coordinate system inversion (flip axes, e.g. like going through focus)
 
 _PUPIL = PlaneType.pupil
 _IMAGE = PlaneType.image
@@ -174,9 +175,9 @@ class Wavefront(object):
 
     def __imul__(self, optic):
         "Multiply a Wavefront by an OpticalElement or scalar"
-        if isinstance(optic,Rotation):
-            return self # a rotation doesn't actually affect the wavefront via multiplication,
-                        # but instead via forcing a call to rotate() elsewhere...
+        if isinstance(optic,CoordinateTransform):
+            return self # a coord transform doesn't actually affect the wavefront via multiplication,
+                        # but instead via forcing a call to rotate() or invert() in propagateTo...
         elif (isinstance(optic,float)) or isinstance(optic,int):
             self.wavefront *= optic # it's just a scalar
             self.history.append("Multiplied WF by scalar value "+str(optic))
@@ -599,6 +600,9 @@ class Wavefront(object):
         if optic.planetype == _ROTATION:     # rotate
             self.rotate(optic.angle)
             self.location='after '+optic.name
+        if optic.planetype == PlaneType.inversion:     # invert coordinates
+            self.invert(axis=optic.axis)
+            self.location='after '+optic.name
         elif optic.planetype == _DETECTOR and self.planetype ==_PUPIL:    # MFT pupil to detector
             self._propagateMFT(optic)
             self.location='before '+optic.name
@@ -877,6 +881,28 @@ class Wavefront(object):
 
         self.history.append('Rotated by %f degrees, CCW' %(angle))
 
+    def invert(self, axis='both'):
+        """Invert coordinates, i.e. flip the direction of the X and Y axes
+
+        This models the inversion of axes signs that happens for instance when a beam
+        passes through a focus.
+
+        Parameters
+        ------------
+        axis : string
+            either 'both', 'x', or 'y', for which axes to invert
+
+        """
+        if axis.lower()=='both':
+            self.wavefront = self.wavefront[::-1, ::-1]
+        elif axis.lower()=='x':
+            self.wavefront = self.wavefront[:, ::-1]
+        elif axis.lower()=='y':
+            self.wavefront = self.wavefront[::-1]
+        else:
+            raise ValueError("Invalid/unknown value for the 'axis' parameter. Must be 'x', 'y', or 'both'.")
+        self.history.append('Inverted axis direction for {} axes'.format(axis.upper()))
+
     # note: the following are implemented as static methods to
     # allow for reuse outside of this class in the Zernike polynomial
     # caching mechanisms. See zernike.py.
@@ -1029,7 +1055,16 @@ class OpticalSystem(object):
 
     # Methods for adding or manipulating optical planes:
 
-    def addPupil(self, optic=None, function=None, **kwargs):
+    def _add_plane(self, optic, index=None, logstring=""):
+        """ utility helper function for adding a generic plane """
+        if index is None:
+            self.planes.append(optic)
+        else:
+            self.planes.insert(index, optic)
+        if self.verbose: _log.info("Added {}: {}".format(logstring,optic.name))
+        return optic
+
+    def add_pupil(self, optic=None, function=None, index=None, **kwargs):
         """ Add a pupil plane optic from file(s) giving transmission or OPD
 
           1) from file(s) giving transmission and/or OPD
@@ -1047,6 +1082,9 @@ class OpticalSystem(object):
             Allowable function names are Circle, Square, Hexagon, Rectangle, and FQPM_FFT_Aligner
         opd, transmission : string, optional
             Filenames of FITS files describing the desired optic.
+        index : int
+            Index into the optical system's planes for where to add the new optic. Defaults to
+            appending the optic to the end of the plane list.
 
         Returns
         -------
@@ -1086,13 +1124,10 @@ class OpticalSystem(object):
         else:
             raise TypeError("Not sure how to handle an Optic input of the provided type, {0}".format(str(optic.__class__)))
 
-        self.planes.append(optic)
-        if self.verbose: _log.info("Added pupil plane: "+self.planes[-1].name)
-
-        return optic
+        return self._add_plane(optic, index=index, logstring="pupil plane")
 
 
-    def addImage(self, optic=None, function=None, **kwargs):
+    def add_image(self, optic=None, function=None, **kwargs):
         """ Add an image plane optic to the optical system
 
         That image plane optic can be specified either
@@ -1115,6 +1150,10 @@ class OpticalSystem(object):
             Allowable function names are CircularOcculter, fieldstop, BandLimitedCoron, FQPM
         opd, transmission : string
             Filenames of FITS files describing the desired optic.
+        index : int
+            Index into the optical system's planes for where to add the new optic. Defaults to
+            appending the optic to the end of the plane list.
+
 
         Returns
         -------
@@ -1161,29 +1200,49 @@ class OpticalSystem(object):
             optic.planetype = _IMAGE
             optic.oversample = self.oversample # these need to match...
 
-        self.planes.append(optic)
-        if self.verbose:
-            _log.info("Added image plane: " + self.planes[-1].name)
-        return optic
+        return self._add_plane(optic, index=index, logstring="image plane")
 
-    def addRotation(self, *args, **kwargs):
+
+    def add_rotation(self, index=None, *args, **kwargs):
         """
         Add a clockwise or counterclockwise rotation around the optical axis
 
+        Parameters
+        -----------
+        index : int
+            Index into the optical system's planes for where to add the new optic. Defaults to
+            appending the optic to the end of the plane list.
 
         Returns
         -------
         poppy.Rotation
             The rotation added to the optical system
         """
-        rotation = Rotation(*args, **kwargs)
-        self.planes.append(rotation)
-        if self.verbose:
-            _log.info("Added rotation plane: " + self.planes[-1].name)
-        return rotation
+        optic = Rotation(*args, **kwargs)
+        return self._add_plane(optic, index=index, logstring="rotation plane")
+
+    def add_inversion(self, index=None, *args, **kwargs):
+        """
+        Add a coordinate inversion of the wavefront, for instance
+        a flip in the sign of the X and Y axes due to passage through a focus.
+
+        Parameters
+        -----------
+        index : int
+            Index into the optical system's planes for where to add the new optic. Defaults to
+            appending the optic to the end of the plane list.
 
 
-    def addDetector(self, pixelscale, oversample=None, **kwargs):
+
+        Returns
+        -------
+        poppy.CoordinateInversion
+            The inversion added to the optical system
+        """
+        optic = CoordinateInversion(*args, **kwargs)
+        return self._add_plane(optic, index=index, logstring="coordinate inversion plane")
+
+    def add_detector(self, pixelscale, oversample=None, index=None, **kwargs):
         """ Add a Detector object to an optical system.
         By default, use the same oversampling as the rest of the optical system,
         but the user can override to a different value if desired by setting `oversample`.
@@ -1198,6 +1257,10 @@ class OpticalSystem(object):
         oversample : int, optional
             Oversampling factor for *this detector*, relative to hardware pixel size.
             Optionally distinct from the default oversampling parameter of the OpticalSystem.
+        index : int
+            Index into the optical system's planes for where to add the new optic. Defaults to
+            appending the optic to the end of the plane list.
+
 
         Returns
         -------
@@ -1209,15 +1272,12 @@ class OpticalSystem(object):
         if oversample is None:
             oversample = self.oversample
         detector = Detector(pixelscale, oversample=oversample, **kwargs)
-        self.planes.append(detector)
-        if self.verbose:
-            _log.info("Added detector: {}s, with pixelscale={} and oversampling={}".format(
-                self.planes[-1].name,
+
+        return self._add_plane(optic, index=index,
+                logstring="detector with pixelscale={} and oversampling={}".format(
                 pixelscale,
                 oversample
             ))
-
-        return detector
 
 
     def describe(self):
@@ -1626,11 +1686,12 @@ class OpticalSystem(object):
 
         return {'steps': steps, 'output_shape': output_shape, 'output_size':output_size}
 
-    # PEP8 compliant aliases; the old versions will be deprecated in a future release.
-    add_pupil = addPupil
-    add_image = addImage
-    add_rotation = addRotation
-    add_detector = addDetector
+    # back compatible aliases for PEP8 compliant names; 
+    # these old versions will be deprecated in a future release.
+    addPupil = add_pupil
+    addImage = add_image
+    addRotation = add_rotation
+    addDetector = add_detector
     input_wavefront = inputWavefront
     calc_psf = calcPSF
 
@@ -2593,7 +2654,31 @@ class FITSOpticalElement(OpticalElement):
     "Diameter of the pupil (if this is a pupil plane optic)"
 
 
-class Rotation(OpticalElement):
+class CoordinateTransform(OpticalElement):
+    """ Performs a coordinate transformation (rotation or axes inversion
+    in the optical train.
+
+    This is not an actual optic itself but a placeholder to indicate
+    when a coordinate transform should take place.
+
+    You should generally not need to use this class or its subclasses directly.
+    """
+    def __init__(self, name='Coordinate transform', hide=False, **kwargs):
+        OpticalElement.__init__(self, name=name, **kwargs)
+        self._suppress_display=hide
+
+    def get_phasor(self,wave):
+        return 1.0  #no change in wavefront 
+        # returning this is necessary to allow the multiplication in propagate_mono to be OK
+
+    def display(self, nrows=1, row=1, ax=None, **kwargs):
+        if ax is None:
+            ax = plt.subplot(nrows, 2, row*2-1)
+        plt.text(0.3,0.3,self.name)
+        return ax
+
+
+class Rotation(CoordinateTransform):
     """ Performs a rotation of the axes in the optical train.
 
     This is not an actual optic itself, of course, but can be used to model
@@ -2623,23 +2708,30 @@ class Rotation(OpticalElement):
             raise ValueError("Unknown value for units='%s'. Must be degrees or radians." % units)
         self.angle = angle
 
-        OpticalElement.__init__(self, name= "Rotation by %.2f degrees" % angle, planetype=_ROTATION, **kwargs)
-
+        CoordinateTransform.__init__(self, name= "Rotation by %.2f degrees" % angle, 
+                planetype=PlaneType.rotation, hide=hide, **kwargs)
 
     def __str__(self):
         return "Rotation by %f degrees counter clockwise" % self.angle
 
-    def get_phasor(self,wave):
-        return 1.0  #no change in wavefront (apart from the rotation)
-        # returning this is necessary to allow the multiplication in propagate_mono to be OK
+class CoordinateInversion(CoordinateTransform):
+    """ Coordinate axis inversion placeholder.
 
+    The actual inversion happens in Wavefront.propagateTo
 
-    def display(self, nrows=1, row=1, ax=None, **kwargs):
-        if ax is None:
-            ax = plt.subplot(nrows, 2, row*2-1)
-        plt.text(0.3,0.3,self.name)
-        return ax
+    Parameters
+    ------------
+    axes : string
+        either 'both', 'x', or 'y', for which axes to invert
 
+    """
+    def __init__(self, name='Coordinate inversion', axis='both', hide=False, **kwargs):
+        self.axis=axis
+        CoordinateTransform.__init__(self, name=name,
+                planetype=PlaneType.inversion, hide=hide, **kwargs)
+
+    def __str__(self):
+        return "Coordinate Inversion in {} axis".format(self.axis)
 
 
 #------ Detector ------
