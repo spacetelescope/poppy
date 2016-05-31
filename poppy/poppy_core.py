@@ -2667,7 +2667,17 @@ class CoordinateTransform(OpticalElement):
     This is not an actual optic itself but a placeholder to indicate
     when a coordinate transform should take place.
 
-    You should generally not need to use this class or its subclasses directly.
+    You should generally not need to use this class or its subclasses directly;
+    rather use the OpticalSystem add_rotation or add_inversion functions to
+    insert these as needed into optical systems.
+
+    Parameters
+    ----------
+    hide : bool
+        Should this optic be displayed or hidden when showing the
+        planes of an OpticalSystem?
+
+
     """
     def __init__(self, name='Coordinate transform', hide=False, **kwargs):
         OpticalElement.__init__(self, name=name, **kwargs)
@@ -2703,9 +2713,12 @@ class Rotation(CoordinateTransform):
         Rotation angle, counterclockwise. By default in degrees.
     units : 'degrees' or 'radians'
         Units for the rotation angle.
+    hide : bool
+        Should this optic be displayed or hidden when showing the
+        planes of an OpticalSystem?
 
     """
-    def __init__(self, angle=0.0, units='degrees', **kwargs):
+    def __init__(self, angle=0.0, units='degrees', hide=False, **kwargs):
         if units == 'radians':
             angle*= np.pi/180
         elif units =='degrees':
@@ -2729,6 +2742,9 @@ class CoordinateInversion(CoordinateTransform):
     ------------
     axes : string
         either 'both', 'x', or 'y', for which axes to invert
+    hide : bool
+        Should this optic be displayed or hidden when showing the
+        planes of an OpticalSystem?
 
     """
     def __init__(self, name='Coordinate inversion', axis='both', hide=False, **kwargs):
