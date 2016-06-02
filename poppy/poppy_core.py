@@ -429,8 +429,10 @@ class Wavefront(object):
                 what = 'intensity'  # always show intensity for image planes
             elif phase[np.where(np.isfinite(phase))].sum() == 0:
                 what = 'intensity'  # for perfect pupils
-            elif int(row) > 2:
-                what = 'intensity'  # show intensity for coronagraphic downstream propagation.
+            # FIXME re-implement this in some better way that doesn't depend on
+            # optic positioning in the plot grid!
+            #elif int(row) > 2:
+                #what = 'intensity'  # show intensity for coronagraphic downstream propagation.
             else:
                 what = 'phase'  # for aberrated pupils
 
