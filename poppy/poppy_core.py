@@ -600,7 +600,7 @@ class Wavefront(object):
         if optic.planetype == _ROTATION:     # rotate
             self.rotate(optic.angle)
             self.location='after '+optic.name
-        if optic.planetype == PlaneType.inversion:     # invert coordinates
+        elif optic.planetype == PlaneType.inversion:     # invert coordinates
             self.invert(axis=optic.axis)
             self.location='after '+optic.name
         elif optic.planetype == _DETECTOR and self.planetype ==_PUPIL:    # MFT pupil to detector
@@ -1127,7 +1127,7 @@ class OpticalSystem(object):
         return self._add_plane(optic, index=index, logstring="pupil plane")
 
 
-    def add_image(self, optic=None, function=None, **kwargs):
+    def add_image(self, optic=None, function=None, index=None, **kwargs):
         """ Add an image plane optic to the optical system
 
         That image plane optic can be specified either
@@ -1203,12 +1203,14 @@ class OpticalSystem(object):
         return self._add_plane(optic, index=index, logstring="image plane")
 
 
-    def add_rotation(self, index=None, *args, **kwargs):
+    def add_rotation(self, angle=0.0, index=None, *args, **kwargs):
         """
         Add a clockwise or counterclockwise rotation around the optical axis
 
         Parameters
         -----------
+        angle : float
+            Rotation angle, counterclockwise. By default in degrees.
         index : int
             Index into the optical system's planes for where to add the new optic. Defaults to
             appending the optic to the end of the plane list.
@@ -1218,7 +1220,7 @@ class OpticalSystem(object):
         poppy.Rotation
             The rotation added to the optical system
         """
-        optic = Rotation(*args, **kwargs)
+        optic = Rotation(angle=angle, *args, **kwargs)
         return self._add_plane(optic, index=index, logstring="rotation plane")
 
     def add_inversion(self, index=None, *args, **kwargs):
@@ -1231,8 +1233,6 @@ class OpticalSystem(object):
         index : int
             Index into the optical system's planes for where to add the new optic. Defaults to
             appending the optic to the end of the plane list.
-
-
 
         Returns
         -------
@@ -1271,7 +1271,7 @@ class OpticalSystem(object):
 
         if oversample is None:
             oversample = self.oversample
-        detector = Detector(pixelscale, oversample=oversample, **kwargs)
+        optic = Detector(pixelscale, oversample=oversample, **kwargs)
 
         return self._add_plane(optic, index=index,
                 logstring="detector with pixelscale={} and oversampling={}".format(
@@ -1319,15 +1319,14 @@ class OpticalSystem(object):
         if len(self.planes) > 0:
             if self.planes[0].shape is not None: npix=self.planes[0].shape[0]
             if hasattr(self.planes[0], 'pupil_diam') and self.planes[0].pupil_diam is not None: diam = self.planes[0].pupil_diam
-        # if still undefined, fall back to what is set for this optical system itself
+
+        # if sampling is still undefined, fall back to what is set for this optical system itself
         if npix is None: npix=self.npix if self.npix is not None else 1024
         if diam is None: diam = self.pupil_diameter if self.pupil_diameter is not None else 1
-
 
         # if the diameter was specified as an astropy.Quantity, cast it to just a scalar in meters
         if isinstance(diam, u.Quantity):
             diam = diam.to(u.m).value
-
 
         inwave = Wavefront(wavelength=wavelength,
                 npix = npix,
@@ -2733,6 +2732,7 @@ class Rotation(CoordinateTransform):
     def __str__(self):
         return "Rotation by %f degrees counter clockwise" % self.angle
 
+
 class CoordinateInversion(CoordinateTransform):
     """ Coordinate axis inversion placeholder.
 
@@ -2748,7 +2748,7 @@ class CoordinateInversion(CoordinateTransform):
 
     """
     def __init__(self, name='Coordinate inversion', axis='both', hide=False, **kwargs):
-        self.axis=axis
+        self.axis=axis.lower()
         CoordinateTransform.__init__(self, name=name,
                 planetype=PlaneType.inversion, hide=hide, **kwargs)
 
