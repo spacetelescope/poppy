@@ -10,11 +10,11 @@ For a list of contributors, see :ref:`about`.
 0.5
 ---
 
-*2016 June ish:*
+*2016 June 10:*
 
-Several moderately large enhancements. While we have tested this code extensively, it is possible that there may be
+Several moderately large enhancements, involving lots of under-the-hood updates to the code. (*While we have tested this code extensively, it is possible that there may be
 some lingering bugs. As always, please let us know of any issues encountered via `the github issues page 
-<https://github.com/mperrin/poppy/issues/>`_.
+<https://github.com/mperrin/poppy/issues/>`_.*)
 
  * Increased use of ``astropy.units`` to put physical units on quantities, in
    particular wavelengths, pixel scales, etc. Instead of wavelengths always being
@@ -26,11 +26,11 @@ some lingering bugs. As always, please let us know of any issues encountered via
         @mperrin, douglase)
  * The ``getPhasor`` function for all OpticalElements has been refactored to split it into 3
    functions: ``get_transmission`` (for electric field amplitude transmission), ``get_opd``
-   (for the optical path difference affectig the phase), and ``get_phasor`` (which combines transmission and OPD into
-   the complex phasor). This division simplifies and makes more flexible the subclassing of optics, since
-   in many cases (such as aperture stops) one only cares about setting either the transmission or the OPD.
-   Again, there are back compatibility hooks to allow existing code calling the deprecated ``getPhasor``
-   function to continue working.
+   (for the optical path difference affectig the phase), and ``get_phasor`` (which combines transmission 
+   and OPD into the complex phasor). This division simplifies and makes more flexible the subclassing 
+   of optics, since in many cases (such as aperture stops) one only cares about setting either the 
+   transmission or the OPD.  Again, there are back compatibility hooks to allow existing code calling 
+   the deprecated ``getPhasor`` function to continue working.
    (`#162 <https://github.com/mperrin/poppy/pull/162>`_; @mperrin, josephoenix)
  * Update many function names for `PEP8 style guide compliance <https://www.python.org/dev/peps/pep-0008/>`_.
    For instance `calc_psf` replaces `calcPSF`.  This was done with back compatible aliases to ensure 
@@ -40,11 +40,17 @@ some lingering bugs. As always, please let us know of any issues encountered via
 And some smaller enhancements and fixes:
 
  * New functions for synthesis of OPDs from Zernike coefficients, iterative Zernike expansion on obscured 
-   apertures for which Zernikes aren't orthonormal, and 2x faster optimized computation of Zernike basis sets. (@mperrin)
- * New function for orthonormal Zernike-like basis on arbitrary aperture (`#166 <https://github.com/mperrin/poppy/issues/166>`_; Arthur Vigan)
- * remove deprecated parameters in some function calls (`#148 <https://github.com/mperrin/poppy/issues/148>`_; @mperrin)
+   apertures for which Zernikes aren't orthonormal, and 2x faster optimized computation of Zernike basis sets. 
+   (@mperrin)
+ * New function for orthonormal Zernike-like basis on arbitrary aperture 
+   (`#166 <https://github.com/mperrin/poppy/issues/166>`_; Arthur Vigan)
+ * remove deprecated parameters in some function calls 
+   (`#148 <https://github.com/mperrin/poppy/issues/148>`_; @mperrin)
  * Added new `CoordinateInversion` class to represent a change in orientation of axes, for instance the
    flipping "upside down" of a pupil image after passage through an intermediate image plane. 
+ * New `wavefront_display_hint` optional attribute on OpticalElements in an OpticalSystem allows customization of
+   whether phase or intensity is displayed for wavefronts at that plane. Applies to `calc_psf` calls 
+   with `display_intermediates=True`. (@mperrin)
 
 
 
