@@ -23,7 +23,7 @@ def _exception_message_starts_with(excinfo, message_body):
         return excinfo.value.args[0].startswith(message_body)
 
 if _HAVE_PYTEST:
-    def test_calcPSF_catch_invalid_wavelength():
+    def test_calc_psf_catch_invalid_wavelength():
         """ Test that it rejects incompatible wavelengths"""
 
         osys = poppy_core.OpticalSystem("test")
@@ -32,14 +32,14 @@ if _HAVE_PYTEST:
         osys.addDetector(pixelscale=0.1, fov_arcsec=5.0) # use a large FOV so we grab essentially all the light and conserve flu
 
         with pytest.raises(ValueError) as excinfo:
-            psf = osys.calcPSF('cat')
-        assert _exception_message_starts_with(excinfo, "Argument 'wavelength' to function 'calcPSF' must be a number")
+            psf = osys.calc_psf('cat')
+        assert _exception_message_starts_with(excinfo, "Argument 'wavelength' to function 'calc_psf' must be a number")
 
 
         source={'wavelengths': [1.0e-6, 'not a number', 1.2e-6, 1.3e-6], 'weights':[0.25, 0.25, 0.25, 0.25]}
         with pytest.raises(ValueError) as excinfo:
-            psf = osys.calcPSF(source)
-        assert _exception_message_starts_with(excinfo, "Argument 'wavelength' to function 'calcPSF' must be a number")
+            psf = osys.calc_psf(source)
+        assert _exception_message_starts_with(excinfo, "Argument 'wavelength' to function 'calc_psf' must be a number")
 
     def test_matrixDFT_catch_invalid_parameters():
         import numpy as np

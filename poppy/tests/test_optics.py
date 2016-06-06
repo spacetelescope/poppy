@@ -1,4 +1,4 @@
-#Tests for individual Optic classes
+# Tests for individual Optic classes
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import matplotlib.pyplot as pl
@@ -10,8 +10,6 @@ from .. import poppy_core
 from .. import optics
 from .. import zernike
 from .test_core import check_wavefront
-
-
 
 wavelength=1e-6
 
@@ -36,14 +34,14 @@ def test_InverseTransmission():
 
         optic = optics.ScalarTransmission(transmission=transmission)
         inverted = optics.InverseTransmission(optic)
-        assert( np.all(  np.abs(optic.getPhasor(wave) - (1-inverted.getPhasor(wave))) < 1e-10 ))
+        assert( np.all(  np.abs(optic.get_phasor(wave) - (1-inverted.get_phasor(wave))) < 1e-10 ))
 
     # vary 2d shape
     for radius in np.arange(10, dtype=float)/10:
 
         optic = optics.CircularAperture(radius=radius)
         inverted = optics.InverseTransmission(optic)
-        assert( np.all(  np.abs(optic.getPhasor(wave) - (1-inverted.getPhasor(wave))) < 1e-10 ))
+        assert( np.all(  np.abs(optic.get_phasor(wave) - (1-inverted.get_phasor(wave))) < 1e-10 ))
 
         assert optic.shape==inverted.shape
 
@@ -57,7 +55,7 @@ def test_scalar_transmission():
     for transmission in [1.0, 1.0e-3, 0.0]:
 
         optic = optics.ScalarTransmission(transmission=transmission)
-        assert( np.all(optic.getPhasor(wave) == transmission))
+        assert( np.all(optic.get_phasor(wave) == transmission))
 
 
 
@@ -184,7 +182,7 @@ def test_ParityTestAperture():
     """ Verify that this aperture is not symmetric in either direction"""
     wave = poppy_core.Wavefront(npix=100, wavelength=wavelength)
 
-    array = optics.ParityTestAperture().getPhasor(wave)
+    array = optics.ParityTestAperture().get_phasor(wave)
 
     assert np.any(array[::-1,:] != array)
     assert np.any(array[:,::-1] != array)

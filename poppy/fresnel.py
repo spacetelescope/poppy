@@ -236,7 +236,7 @@ class FresnelWavefront(Wavefront):
         """Focal length of the current beam, or infinity if not a focused beam"""
 
         if self.oversample > 1 and not self.ispadded:  # add padding for oversampling, if necessary
-            self.wavefront = utils.padToOversample(self.wavefront, self.oversample)
+            self.wavefront = utils.pad_to_oversample(self.wavefront, self.oversample)
             self.ispadded = True
             logmsg = "Padded WF array for oversampling by {0:d}, to {1}.".format(
                 self.oversample,

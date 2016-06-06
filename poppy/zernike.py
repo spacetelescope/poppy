@@ -258,6 +258,7 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
     zernike_result[np.where(rho > 1)] = outside
     return zernike_result
 
+
 def zernike1(j, **kwargs):
     """ Return the Zernike polynomial Z_j for pupil points {r,theta}.
 
@@ -284,6 +285,7 @@ def zernike1(j, **kwargs):
     n, m = noll_indices(j)
     return zernike(n, m, **kwargs)
 
+
 @lru_cache()
 def cached_zernike1(j, shape, pixelscale, pupil_radius, outside=np.nan, noll_normalize=True):
     """Compute Zernike based on Noll index *j*, using an LRU cache
@@ -299,6 +301,7 @@ def cached_zernike1(j, shape, pixelscale, pupil_radius, outside=np.nan, noll_nor
     result = zernike(n, m, rho=rho, theta=theta, outside=outside, noll_normalize=noll_normalize)
     result.flags.writeable = False  # don't let caller modify cached copy in-place
     return result
+
 
 def zernike_basis(nterms=15, npix=512, rho=None, theta=None, **kwargs):
     """
@@ -340,6 +343,7 @@ def zernike_basis(nterms=15, npix=512, rho=None, theta=None, **kwargs):
         for j in range(nterms):
             zern_output[j] = zernike1(j + 1, npix=npix, **kwargs)
     return zern_output
+
 
 def zernike_basis_faster(nterms=15, npix=512, outside=np.nan, **kwargs):
     """
@@ -429,7 +433,6 @@ def zernike_basis_faster(nterms=15, npix=512, outside=np.nan, **kwargs):
 
 
     return zern_output
-
 
 
 def hex_aperture(npix=1024, rho=None, theta=None, vertical=False):
@@ -550,6 +553,7 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
     # drop the 0th null element, return the rest
     return H[1:]
 
+
 def opd_expand(opd, aperture=None, nterms=15, basis=zernike_basis,
               **kwargs):
     """Given a wavefront OPD map, return the list of coefficients in a
@@ -614,6 +618,7 @@ def opd_expand(opd, aperture=None, nterms=15, basis=zernike_basis,
               for b in basis_set]
 
     return coeffs
+
 
 def opd_expand_nonorthonormal(opd, aperture=None, nterms=15, basis=zernike_basis_faster,
                   iterations=5, **kwargs):
