@@ -82,7 +82,7 @@ Once instantiated, any analytic function can be displayed on screen, sampled ont
     >>> ap.display(what='both')                    # display both intensity and phase components
 
     >>> values = ap.sample(npix=512)               # evaluate on 512 x 512 grid
-    >>> ap.toFITS('test_circle.fits', npix=1024)   # write to disk as a FITS file with higher sampling
+    >>> ap.to_fits('test_circle.fits', npix=1024)  # write to disk as a FITS file with higher sampling
 
 
 When sampling an `~poppy.AnalyticOpticalElement`, you may choose to obtain various representations of its action on a complex wavefront, including the amplitude transmission; intensity transmission; or phase delay in waves, radians, or meters. 

@@ -12,7 +12,7 @@ For a list of contributors, see :ref:`about`.
 
 *2016 June ish:*
 
-A couple moderately large enhancements. While we have tested this code extensively, it is possible that there may be
+Several moderately large enhancements. While we have tested this code extensively, it is possible that there may be
 some lingering bugs. As always, please let us know of any issues encountered via `the github issues page 
 <https://github.com/mperrin/poppy/issues/>`_.
 
@@ -22,6 +22,8 @@ some lingering bugs. As always, please let us know of any issues encountered via
    ``wavelength=500*u.nm``, etc. You can also generally use Quantities for 
    arguments to OpticalElement classes, e.g. ``radius=2*u.cm``. This is *optional*; the
    API still accepts bare floating-point numbers which are treated as implicitly in meters.
+   (`#145 <https://github.com/mperrin/poppy/issues/145>`_, `#165 <https://github.com/mperrin/poppy/pull/165>`_;
+        @mperrin, douglase)
  * The ``getPhasor`` function for all OpticalElements has been refactored to split it into 3
    functions: ``get_transmission`` (for electric field amplitude transmission), ``get_opd``
    (for the optical path difference affectig the phase), and ``get_phasor`` (which combines transmission and OPD into
@@ -29,6 +31,21 @@ some lingering bugs. As always, please let us know of any issues encountered via
    in many cases (such as aperture stops) one only cares about setting either the transmission or the OPD.
    Again, there are back compatibility hooks to allow existing code calling the deprecated ``getPhasor``
    function to continue working.
+   (`#162 <https://github.com/mperrin/poppy/pull/162>`_; @mperrin, josephoenix)
+ * Update many function names for `PEP8 style guide compliance <https://www.python.org/dev/peps/pep-0008/>`_.
+   For instance `calc_psf` replaces `calcPSF`.  This was done with back compatible aliases to ensure 
+   that existing code continues to run with no changes required at this time, but *at some 
+   future point* the older names will go away, so users are encouranged to migrate to the new names. 
+
+And some smaller enhancements and fixes:
+
+ * New functions for synthesis of OPDs from Zernike coefficients, iterative Zernike expansion on obscured 
+   apertures for which Zernikes aren't orthonormal, and 2x faster optimized computation of Zernike basis sets. (@mperrin)
+ * New function for orthonormal Zernike-like basis on arbitrary aperture (`#166 <https://github.com/mperrin/poppy/issues/166>`_; Arthur Vigan)
+ * remove deprecated parameters in some function calls (`#148 <https://github.com/mperrin/poppy/issues/148>`_; @mperrin)
+ * Added new `CoordinateInversion` class to represent a change in orientation of axes, for instance the
+   flipping "upside down" of a pupil image after passage through an intermediate image plane. 
+
 
 
 0.4.1
