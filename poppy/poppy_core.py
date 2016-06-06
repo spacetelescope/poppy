@@ -1444,7 +1444,12 @@ class OpticalSystem(object):
                 if conf.enable_speed_tests: t0 = time.time()
                 title = None if current_plane_index > 1 else "propagating $\lambda=$ {0:.3f}".format(
                     wavelength.to(u.micron))
-                ax = wavefront.display(what='best',nrows=len(self.planes),row=current_plane_index,
+                if hasattr(optic, '_wavefront_display_hint'):
+                    display_what = optic._wavefront_display_hint
+                else:
+                    display_what='best'
+
+                ax = wavefront.display(what=display_what,nrows=len(self.planes),row=current_plane_index,
                                        colorbar=False, title=title)
                 if hasattr(optic,'display_annotate'):
                     optic.display_annotate(optic, ax)  # atypical calling convention needed empirically

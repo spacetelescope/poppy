@@ -32,10 +32,11 @@ except ImportError:
 
 _loaded_fftw_wisdom = False
 
-__all__ = ['display_PSF', 'display_PSF_difference', 'display_EE', 'display_profiles', 'radial_profile',
-           'measure_EE', 'measure_radial', 'measure_fwhm', 'measure_sharpness', 'measure_centroid', 'measure_strehl',
+__all__ = ['display_PSF', 'display_PSF_difference', 'display_EE', 'measure_EE',
+           'display_psf', 'display_psf_difference', 'display_ee', 'measure_ee', # back compatibility aliases - remove in 0.6
+           'display_profiles', 'radial_profile',
+           'measure_radial', 'measure_fwhm', 'measure_sharpness', 'measure_centroid', 'measure_strehl',
            'measure_anisotropy', 'specFromSpectralType']
-
 
 ###########################################################################
 #

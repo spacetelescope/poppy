@@ -340,6 +340,7 @@ class ScalarTransmission(AnalyticOpticalElement):
                     "Scalar Transmission of {0}".format(transmission))
         AnalyticOpticalElement.__init__(self, name=name, **kwargs)
         self.transmission = float(transmission)
+        self._wavefront_display_hint='intensity'
 
     def get_transmission(self, wave):
         res = np.empty(wave.shape)
@@ -383,6 +384,7 @@ class AnalyticImagePlaneElement(AnalyticOpticalElement):
     """
     def __init__(self, name='Generic image plane optic', *args, **kwargs):
         AnalyticOpticalElement.__init__(self, name=name, planetype=_IMAGE, *args, **kwargs)
+        self._wavefront_display_hint = 'intensity' # preferred display for wavefronts at this plane
 
 
 class BandLimitedCoron(AnalyticImagePlaneElement):
@@ -786,6 +788,7 @@ class FQPM_FFT_aligner(AnalyticOpticalElement):
                              "forward or backward." % direction)
         self.direction = direction
         self._suppress_display = True
+        self._wavefront_display_hint = 'phase' # preferred display for wavefronts at this plane
 
     def get_opd(self, wave):
         """ Compute the required tilt needed to get the PSF centered on the corner between
@@ -836,6 +839,7 @@ class ParityTestAperture(AnalyticOpticalElement):
         self.radius = radius
         # for creating input wavefronts - let's pad a bit:
         self.pupil_diam = pad_factor * 2 * self.radius
+        self._wavefront_display_hint = 'intensity' # preferred display for wavefronts at this plane
 
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the occulter.
@@ -897,7 +901,7 @@ class CircularAperture(AnalyticOpticalElement):
         self.pupil_diam = pad_factor * 2 * self.radius
 
     def get_transmission(self, wave):
-        """ Compute the transmission inside/outside of the occulter.
+        """ Compute the transmission inside/outside of the aperture.
         """
         if not isinstance(wave, Wavefront):  # pragma: no cover
             raise ValueError("CircularAperture get_transmission must be called with a Wavefront "
@@ -1502,6 +1506,7 @@ class ThinLens(CircularAperture):
         self.nwaves = nwaves
         self.max_phase_delay = reference_wavelength * nwaves
         CircularAperture.__init__(self, name=name, radius=radius, **kwargs)
+        self._wavefront_display_hint = 'phase' # preferred display for wavefronts at this plane
 
     def get_opd(self, wave):
         y, x = self.get_coordinates(wave)
