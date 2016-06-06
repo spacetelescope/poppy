@@ -258,6 +258,7 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
     zernike_result[np.where(rho > 1)] = outside
     return zernike_result
 
+
 def zernike1(j, **kwargs):
     """ Return the Zernike polynomial Z_j for pupil points {r,theta}.
 
@@ -284,6 +285,7 @@ def zernike1(j, **kwargs):
     n, m = noll_indices(j)
     return zernike(n, m, **kwargs)
 
+
 @lru_cache()
 def cached_zernike1(j, shape, pixelscale, pupil_radius, outside=np.nan, noll_normalize=True):
     """Compute Zernike based on Noll index *j*, using an LRU cache
@@ -299,6 +301,7 @@ def cached_zernike1(j, shape, pixelscale, pupil_radius, outside=np.nan, noll_nor
     result = zernike(n, m, rho=rho, theta=theta, outside=outside, noll_normalize=noll_normalize)
     result.flags.writeable = False  # don't let caller modify cached copy in-place
     return result
+
 
 def zernike_basis(nterms=15, npix=512, rho=None, theta=None, **kwargs):
     """
@@ -339,6 +342,96 @@ def zernike_basis(nterms=15, npix=512, rho=None, theta=None, **kwargs):
     else:
         for j in range(nterms):
             zern_output[j] = zernike1(j + 1, npix=npix, **kwargs)
+    return zern_output
+
+
+def zernike_basis_faster(nterms=15, npix=512, outside=np.nan, **kwargs):
+    """
+    Return a cube of Zernike terms from 1 to N each as a 2D array
+    showing the value at each point. (Regions outside the unit circle on which
+    the Zernike is defined are initialized to np.nan.)
+
+    Same as the original zernike_basis, but optimized to run about 2x faster,
+    at a cost of somewhat less flexibility.
+
+    Does not support providing polar coordinates directly - use regular
+    zernike_basis for that.
+
+    Parameters
+    -----------
+    nterms : int, optional
+        Number of Zernike terms to return, starting from piston.
+        (e.g. ``nterms=1`` would return only the Zernike piston term.)
+        Default is 15.
+    npix: int
+        Desired pixel diameter for circular pupil. Only used if `rho`
+        and `theta` are not provided.
+
+    Other parameters are passed through to `poppy.zernike.zernike`
+    and are documented there.
+    """
+    shape = (npix, npix)
+    use_polar = False
+
+    zern_output = np.zeros((nterms,) + shape)
+
+    x = (np.arange(npix, dtype=np.float64) - (npix - 1) / 2.) / ((npix - 1) / 2.)
+    y = x
+    xx, yy = np.meshgrid(x, y)
+
+    rho = np.sqrt(xx ** 2 + yy ** 2)
+    theta = np.arctan2(yy, xx)
+
+    aperture = np.ones_like(rho)
+    aperture[rho > 1] = 0.0  # this is the aperture mask
+    noll_normalize=True
+
+    @lru_cache()
+    def cached_R(n, m):
+        """Compute R[n, m], the Zernike radial polynomial
+
+        Parameters
+        ----------
+        n, m : int
+            Zernike function degree
+        rho : array
+            Image plane radial coordinates. `rho` should be 1 at the desired pixel radius of the
+            unit circle  (this is found implicitly in the scope of the calling fn)
+        """
+
+        m = int(np.abs(m))
+        n = int(np.abs(n))
+        output = np.zeros(rho.shape)
+        if _is_odd(n - m):
+            return 0
+        else:
+            for k in range(int((n - m) / 2) + 1):
+                coef = ((-1) ** k * factorial(n - k) /
+                        (factorial(k) * factorial((n + m) / 2. - k) * factorial((n - m) / 2. - k)))
+                output += coef * rho ** (n - 2 * k)
+            return output
+
+    for j in range(nterms):
+        n, m = noll_indices(j+1)
+
+
+        if m == 0:
+            if n == 0:
+                zernike_result = aperture
+            else:
+                norm_coeff = np.sqrt(n + 1) if noll_normalize else 1
+                zernike_result = norm_coeff * cached_R(n, m) * aperture
+        elif m > 0:
+            norm_coeff = np.sqrt(2) * np.sqrt(n + 1) if noll_normalize else 1
+            zernike_result = norm_coeff * cached_R(n, np.abs(m)) * np.cos(np.abs(m) * theta) * aperture
+        else:
+            norm_coeff = np.sqrt(2) * np.sqrt(n + 1) if noll_normalize else 1
+            zernike_result = norm_coeff * cached_R(n, np.abs(m)) * np.sin(np.abs(m) * theta) * aperture
+
+        zernike_result[rho > 1] = outside
+        zern_output[j] = zernike_result
+
+
     return zern_output
 
 
@@ -460,10 +553,78 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
     # drop the 0th null element, return the rest
     return H[1:]
 
+
+def arbitrary_basis(aperture, nterms=15, rho=None, theta=None):
+    """ Orthonormal basis on arbitrary aperture, via Gram-Schmidt
+
+    Return a cube of Zernike-like terms from 1 to N, calculated on an
+    arbitrary aperture, each as a 2D array showing the value at each
+    point. (Regions outside the unit circle on which the Zernike is
+    defined are initialized to zero.)
+
+    This implements Gram-Schmidt orthonormalization numerically,
+    starting from the regular Zernikes, to generate an orthonormal basis
+    on some other aperture
+
+    Parameters
+    -----------
+    aperture : array_like
+        2D binary array representing the arbitrary aperture
+    nterms : int, optional
+        Number of Zernike terms to return, starting from piston.
+        (e.g. ``nterms=1`` would return only the Zernike piston term.)
+        Default is 15.
+    rho, theta : array_like, optional
+        Image plane coordinates. `rho` should be 0 at the origin
+        and 1.0 at the edge of the pupil. `theta` should be
+        the angle in radians.
+    """
+    # code submitted by Arthur Vigan - see https://github.com/mperrin/poppy/issues/166
+
+    shape = aperture.shape
+    npix  = shape[0]
+
+    A = aperture.sum()
+
+    # precompute zernikes
+    Z = np.zeros((nterms + 1,) + shape)
+    Z[1:] = zernike_basis(nterms=nterms, npix=npix, rho=rho, theta=theta, outside=0.0)
+
+
+    G = [np.zeros(shape), np.ones(shape)]  # array of G_i etc. intermediate fn
+    H = [np.zeros(shape), np.ones(shape) * aperture]  # array of hexikes
+    c = {}  # coefficients hash
+
+    for j in np.arange(nterms - 1) + 1:  # can do one less since we already have the piston term
+        _log.debug("  j = " + str(j))
+        # Compute the j'th G, then H
+        nextG = Z[j + 1] * aperture
+        for k in np.arange(j) + 1:
+            c[(j + 1, k)] = -1 / A * (Z[j + 1] * H[k] * aperture).sum()
+            if c[(j + 1, k)] != 0:
+                nextG += c[(j + 1, k)] * H[k]
+            _log.debug("    c[%s] = %f", str((j + 1, k)), c[(j + 1, k)])
+
+        nextH = nextG / np.sqrt((nextG ** 2).sum() / A)
+
+        G.append(nextG)
+        H.append(nextH)
+
+        #TODO - contemplate whether the above algorithm is numerically stable
+        # cf. modified gram-schmidt algorithm discussion on wikipedia.
+
+    # drop the 0th null element, return the rest
+    return H[1:]
+
+
 def opd_expand(opd, aperture=None, nterms=15, basis=zernike_basis,
               **kwargs):
     """Given a wavefront OPD map, return the list of coefficients in a
     given basis set (by default, Zernikes) that best fit the OPD map.
+
+    Note that this implementation of the function treats the Zernikes as
+    an orthonormal basis, which is only true on the unobscured unit circle.
+    See also `opd_expand_nonorthonormal` for an alternative approach.
 
     Parameters
     ----------
@@ -497,6 +658,8 @@ def opd_expand(opd, aperture=None, nterms=15, basis=zernike_basis,
         input OPD map can be constructed in the given basis.
         (No additional unit conversions are performed. If the input
         wavefront is in waves, coeffs will be in waves.)
+        Note that the first coefficient (element 0 in Python indexing)
+        corresponds to the Z=1 Zernike piston term, and so on.
     """
 
     if aperture is None:
@@ -518,3 +681,99 @@ def opd_expand(opd, aperture=None, nterms=15, basis=zernike_basis,
               for b in basis_set]
 
     return coeffs
+
+
+def opd_expand_nonorthonormal(opd, aperture=None, nterms=15, basis=zernike_basis_faster,
+                  iterations=5, **kwargs):
+    """ Modified version of opd_expand, for cases where the basis function is
+    *not* orthonormal, for instance using the regular Zernike functions on
+    obscured apertures.
+
+    This version subtracts off each term as it is fit, to avoid over-fitting the
+    same WFE multiple times. It also iterates the fitting multiple times by re-fitting
+    the residuals, in order to allow for capturing any WFE which is missed by the
+    first pass at fitting.
+
+    Based on various empirical experimentation for what is necessary to get
+    reasonable behavior in this non-ideal case. Factors to consider:
+    1) Masking to use just pixels good in both the zernike unit circle and the
+       asymmetric numerical aperture
+    2) Subtracting off the fit terms as you go, so as to not fit the same WFE
+       multiple times
+    3) Iterating multiples by re-fitting the residual, to include as much WFE
+       as possible.
+
+    Parameters
+    -----------
+    opd : the OPD you want to fit
+    aperture : an aperture mask of which pixels are valid. ANything non-NaN is
+               considered valid
+    nterms : number of terms to fit
+    basis: which basis set to use. Defaults to Zernike
+    iterations : int
+        Number of iterations for convergence. Default is 5
+
+    """
+
+    if aperture is None:
+        _log.warn("No aperture supplied - "
+                  "using the finite (non-NaN) part of the OPD map as a guess.")
+        aperture = np.isfinite(opd).astype(np.float)
+
+    basis_set = basis(
+        nterms=nterms,
+        npix=opd.shape[0],
+        outside=np.nan,
+        **kwargs
+    )
+
+    wgood = np.where((aperture != 0.0) & np.isfinite(aperture) & np.isfinite(basis_set[1]))
+    ngood = (wgood[0]).size
+
+    coeffs = np.zeros(nterms)
+    opd_copy = np.copy(opd)
+
+    for count in range(iterations):
+        for i,b in enumerate(basis_set):
+            this_coeff = (opd_copy * b)[wgood].sum() / ngood
+            opd_copy  -= this_coeff * b
+            coeffs[i] += this_coeff
+
+    return coeffs
+
+
+def opd_from_zernikes(coeffs, basis=zernike_basis_faster, aperture=None, outside=np.nan,
+        **kwargs):
+    """ Synthesize an OPD from a set of coefficients
+
+    Parameters
+    -----------
+    coeffs : list or ndarray
+        Coefficients for the Zernike terms
+    basis : callable
+        Which basis set. Defaults to Zernike
+    aperture : ndarray, optional
+        Aperture mask, if provided. Defaults to the unit circle filling the array
+
+    Other parameters are supported via **kwargs, in particular setting the
+    size of the OPD via npix.
+
+    Example
+    --------
+    opd = opd_from_zernikes([0,0,-5,1,0,4,0,8], npix=512)
+
+    """
+    basis_set = basis(
+        nterms=len(coeffs),
+        outside=outside,
+        **kwargs
+    )
+
+    output = np.zeros_like(basis_set[0])
+
+    for i, b in enumerate(basis_set):
+        output += coeffs[i]*b
+    if aperture is not None:
+        output[~np.isfinite(aperture)] = np.nan
+        output[aperture==0] = 0
+    return output

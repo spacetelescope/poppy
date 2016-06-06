@@ -40,10 +40,10 @@ The following code performs the same calculation both with semi-analytical and F
         pixelscale = 0.060
 
         osys = poppy.OpticalSystem("test", oversample=8)
-        osys.addPupil( poppy.CircularAperture(radius=radius), name='Entrance Pupil')
-        osys.addImage( poppy.CircularOcculter(radius = 0.1) )
-        osys.addPupil( poppy.CircularAperture(radius=lyot_radius), name='Lyot Pupil')
-        osys.addDetector(pixelscale=pixelscale, fov_arcsec=5.0)
+        osys.add_pupil( poppy.CircularAperture(radius=radius), name='Entrance Pupil')
+        osys.add_image( poppy.CircularOcculter(radius = 0.1) )
+        osys.add_pupil( poppy.CircularAperture(radius=lyot_radius), name='Lyot Pupil')
+        osys.add_detector(pixelscale=pixelscale, fov_arcsec=5.0)
 
 
         plt.figure(1)
@@ -51,12 +51,12 @@ The following code performs the same calculation both with semi-analytical and F
    
         import time
         t0s = time.time()
-        psf_sam = sam_osys.calcPSF(display_intermediates=True)
+        psf_sam = sam_osys.calc_psf(display_intermediates=True)
         t1s = time.time()
 
         plt.figure(2)
         t0f = time.time()
-        psf_fft = osys.calcPSF(display_intermediates=True)
+        psf_fft = osys.calc_psf(display_intermediates=True)
         t1f = time.time()
 
         plt.figure(3)
@@ -97,23 +97,23 @@ Again we will compare the execution time with the FFT case.::
         
         # Annular diaphragm FPM, inner radius ~ 4 lam/D, outer rad ~ 16 lam/D
         fftcoron_annFPM_osys = poppy.OpticalSystem(oversample=ovsamp)
-        fftcoron_annFPM_osys.addPupil( poppy.CircularAperture(radius=D/2) )
+        fftcoron_annFPM_osys.add_pupil( poppy.CircularAperture(radius=D/2) )
         spot = poppy.CircularOcculter( radius=0.4  )
         diaphragm = poppy.InverseTransmission( poppy.CircularOcculter( radius=1.6 ) )
         annFPM = poppy.CompoundAnalyticOptic( opticslist = [diaphragm, spot] )
-        fftcoron_annFPM_osys.addImage( annFPM )
-        fftcoron_annFPM_osys.addPupil( poppy.CircularAperture(radius=0.9*D/2) )
-        fftcoron_annFPM_osys.addDetector( pixelscale=0.05, fov_arcsec=4. )
+        fftcoron_annFPM_osys.add_image( annFPM )
+        fftcoron_annFPM_osys.add_pupil( poppy.CircularAperture(radius=0.9*D/2) )
+        fftcoron_annFPM_osys.add_detector( pixelscale=0.05, fov_arcsec=4. )
         
         # Re-cast as MFT coronagraph with annular diaphragm FPM
         matrixFTcoron_annFPM_osys = poppy.MatrixFTCoronagraph( fftcoron_annFPM_osys, occulter_box=diaphragm.uninverted_optic.radius_inner )
         t0_fft = time.time()
-        annFPM_fft_psf, annFPM_fft_interm = fftcoron_annFPM_osys.calcPSF(wavelen, display_intermediates=True,\
+        annFPM_fft_psf, annFPM_fft_interm = fftcoron_annFPM_osys.calc_psf(wavelen, display_intermediates=True,\
                                                                  return_intermediates=True)
         t1_fft = time.time()
         
         t0_mft = time.time()
-        annFPM_mft_psf, annFPM_mft_interm = matrixFTcoron_annFPM_osys.calcPSF(wavelen, display_intermediates=True,\
+        annFPM_mft_psf, annFPM_mft_interm = matrixFTcoron_annFPM_osys.calc_psf(wavelen, display_intermediates=True,\
                                                                      return_intermediates=True)
         t1_mft = time.time()
 
@@ -174,16 +174,16 @@ As an example of a more complicated coronagraph PSF calculation than the ones ab
     wavelength = 4.6e-6
 
     osys = poppy.OpticalSystem("test", oversample=oversample)
-    osys.addPupil(poppy.CircularAperture(radius=6.5/2))
-    osys.addImage()
-    osys.addImage(poppy.BandLimitedCoron(kind='circular',  sigma=5.0)) 
-    osys.addPupil()
-    osys.addPupil(poppy.CircularAperture(radius=6.5/2))
-    osys.addDetector(pixelscale=pixelscale, fov_arcsec=3.0)
+    osys.add_pupil(poppy.CircularAperture(radius=6.5/2))
+    osys.add_image()
+    osys.add_image(poppy.BandLimitedCoron(kind='circular',  sigma=5.0)) 
+    osys.add_pupil()
+    osys.add_pupil(poppy.CircularAperture(radius=6.5/2))
+    osys.add_detector(pixelscale=pixelscale, fov_arcsec=3.0)
 
     osys.source_offset_theta = 45.
     osys.source_offset_r =  0.1  # arcsec
-    psf = osys.calcPSF(wavelength=wavelength, display_intermediates=True)
+    psf = osys.calc_psf(wavelength=wavelength, display_intermediates=True)
     
    
 .. image:: ./example_BLC_offset.png
@@ -197,16 +197,16 @@ FQPM coronagraph
 Due to the wide (ideally infinite) spatial extension of its focal plane phase-shifting optic, the four-quadrant phase mask (FQPM) coronagraphs relies on FFT propagation. Another unique complication of the FQPM coronagraph class is its array alignment requirement between the FFT result in the intermediate focal plane with the center of the phase mask. This is done using a virtual optic called an 'FQPM FFT aligner' as follows::
 
     optsys = poppy.OpticalSystem()
-    optsys.addPupil( poppy.CircularAperture( radius=3, pad_factor=1.5)) #pad display area by 50%
-    optsys.addPupil( poppy.FQPM_FFT_aligner())   # ensure the PSF is centered on the FQPM cross hairs
-    optsys.addImage()  # empty image plane for "before the mask"
-    optsys.addImage( poppy.IdealFQPM(wavelength=2e-6))
-    optsys.addPupil( poppy.FQPM_FFT_aligner(direction='backward'))  # undo the alignment tilt after going back to the pupil plane
-    optsys.addPupil( poppy.CircularAperture( radius=3)) # Lyot mask - change radius if desired
-    optsys.addDetector(pixelscale=0.01, fov_arcsec=10.0)
+    optsys.add_pupil( poppy.CircularAperture( radius=3, pad_factor=1.5)) #pad display area by 50%
+    optsys.add_pupil( poppy.FQPM_FFT_aligner())   # ensure the PSF is centered on the FQPM cross hairs
+    optsys.add_image()  # empty image plane for "before the mask"
+    optsys.add_image( poppy.IdealFQPM(wavelength=2e-6))
+    optsys.add_pupil( poppy.FQPM_FFT_aligner(direction='backward'))  # undo the alignment tilt after going back to the pupil plane
+    optsys.add_pupil( poppy.CircularAperture( radius=3)) # Lyot mask - change radius if desired
+    optsys.add_detector(pixelscale=0.01, fov_arcsec=10.0)
 
 
-    psf = optsys.calcPSF(wavelength=2e-6, display_intermediates=True)
+    psf = optsys.calc_psf(wavelength=2e-6, display_intermediates=True)
 
 .. image:: ./example_FQPM.png
    :scale: 60%
@@ -227,16 +227,16 @@ opaque circular obscuration. The latter we can make using the InverseTransmissio
     aperture = poppy.CompoundAnalyticOptic( opticslist = [primary, secondary] )
 
     optsys = poppy.OpticalSystem()
-    optsys.addPupil( aperture)
-    optsys.addPupil( poppy.FQPM_FFT_aligner())   # ensure the PSF is centered on the FQPM cross hairs
-    optsys.addImage( poppy.IdealFQPM(wavelength=2e-6))
-    optsys.addPupil( poppy.FQPM_FFT_aligner(direction='backward'))  # undo the alignment tilt after going back to the pupil plane
-    optsys.addPupil( poppy.CircularAperture( radius=3)) # Lyot mask - change radius if desired
-    optsys.addDetector(pixelscale=0.01, fov_arcsec=10.0)
+    optsys.add_pupil( aperture)
+    optsys.add_pupil( poppy.FQPM_FFT_aligner())   # ensure the PSF is centered on the FQPM cross hairs
+    optsys.add_image( poppy.IdealFQPM(wavelength=2e-6))
+    optsys.add_pupil( poppy.FQPM_FFT_aligner(direction='backward'))  # undo the alignment tilt after going back to the pupil plane
+    optsys.add_pupil( poppy.CircularAperture( radius=3)) # Lyot mask - change radius if desired
+    optsys.add_detector(pixelscale=0.01, fov_arcsec=10.0)
 
     optsys.display()
 
-    psf = optsys.calcPSF(wavelength=2e-6, display_intermediates=True)
+    psf = optsys.calc_psf(wavelength=2e-6, display_intermediates=True)
 
 
 .. image:: ./example_FQPM_obscured.png
