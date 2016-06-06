@@ -27,6 +27,10 @@ except ImportError:
 
 _loaded_fftw_wisdom = False
 
+import warnings
+
+class FFTWWisdomWarning(RuntimeWarning):
+    pass
 
 __all__ = [ 'display_PSF', 'display_PSF_difference', 'display_EE', 'display_profiles', 'radial_profile',
     'measure_EE', 'measure_radial', 'measure_fwhm', 'measure_sharpness', 'measure_centroid', 'measure_strehl', 'measure_anisotropy',
@@ -1289,7 +1293,11 @@ def fftw_load_wisdom(filename=None):
 
     _log.debug("Trying to reload wisdom from file "+filename)
     with open(filename) as wisdom_file:
-        wisdom = json.load(wisdom_file)
+        try:
+            wisdom = json.load(wisdom_file)
+        except ValueError:  # catches json.JSONDecodeError on Python 3.x too
+            warnings.warn("Unable to parse FFTW wisdom in {}. The file may be corrupt.".format(filename), FFTWWisdomWarning)
+            return
 
     # Python 3.x+ doesn't let us use ascii implicitly, but PyFFTW only accepts bytestrings
     # in this version...
@@ -1310,7 +1318,5 @@ def fftw_load_wisdom(filename=None):
         _log.debug("Reloaded _FFTW_INIT list of optimized array sizes ")
     except (TypeError, KeyError, AttributeError):
         _log.warning("Could not parse saved _FFTW_INIT info; this is OK but FFTW will need to repeat its optimization measurements (automatically). ")
-
-
 
     _loaded_fftw_wisdom = True
