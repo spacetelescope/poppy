@@ -554,6 +554,69 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
     return H[1:]
 
 
+def arbitrary_basis(aperture, nterms=15, rho=None, theta=None):
+    """ Orthonormal basis on arbitrary aperture, via Gram-Schmidt
+
+    Return a cube of Zernike-like terms from 1 to N, calculated on an
+    arbitrary aperture, each as a 2D array showing the value at each
+    point. (Regions outside the unit circle on which the Zernike is
+    defined are initialized to zero.)
+
+    This implements Gram-Schmidt orthonormalization numerically,
+    starting from the regular Zernikes, to generate an orthonormal basis
+    on some other aperture
+
+    Parameters
+    -----------
+    aperture : array_like
+        2D binary array representing the arbitrary aperture
+    nterms : int, optional
+        Number of Zernike terms to return, starting from piston.
+        (e.g. ``nterms=1`` would return only the Zernike piston term.)
+        Default is 15.
+    rho, theta : array_like, optional
+        Image plane coordinates. `rho` should be 0 at the origin
+        and 1.0 at the edge of the pupil. `theta` should be
+        the angle in radians.
+    """
+    # code submitted by Arthur Vigan - see https://github.com/mperrin/poppy/issues/166
+
+    shape = aperture.shape
+    npix  = shape[0]
+
+    A = aperture.sum()
+
+    # precompute zernikes
+    Z = np.zeros((nterms + 1,) + shape)
+    Z[1:] = zernike_basis(nterms=nterms, npix=npix, rho=rho, theta=theta, outside=0.0)
+
+
+    G = [np.zeros(shape), np.ones(shape)]  # array of G_i etc. intermediate fn
+    H = [np.zeros(shape), np.ones(shape) * aperture]  # array of hexikes
+    c = {}  # coefficients hash
+
+    for j in np.arange(nterms - 1) + 1:  # can do one less since we already have the piston term
+        _log.debug("  j = " + str(j))
+        # Compute the j'th G, then H
+        nextG = Z[j + 1] * aperture
+        for k in np.arange(j) + 1:
+            c[(j + 1, k)] = -1 / A * (Z[j + 1] * H[k] * aperture).sum()
+            if c[(j + 1, k)] != 0:
+                nextG += c[(j + 1, k)] * H[k]
+            _log.debug("    c[%s] = %f", str((j + 1, k)), c[(j + 1, k)])
+
+        nextH = nextG / np.sqrt((nextG ** 2).sum() / A)
+
+        G.append(nextG)
+        H.append(nextH)
+
+        #TODO - contemplate whether the above algorithm is numerically stable
+        # cf. modified gram-schmidt algorithm discussion on wikipedia.
+
+    # drop the 0th null element, return the rest
+    return H[1:]
+
+
 def opd_expand(opd, aperture=None, nterms=15, basis=zernike_basis,
               **kwargs):
     """Given a wavefront OPD map, return the list of coefficients in a
