@@ -1485,6 +1485,9 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
 class ThinLens(CircularAperture):
     """ An idealized thin lens, implemented as a Zernike defocus term.
 
+    The sign convention is such that a positive number of waves indicates a
+    *converging* lens, i.e. positive OPD at the center.
+
     Parameters
     -------------
     nwaves : float
@@ -1521,8 +1524,8 @@ class ThinLens(CircularAperture):
         # rather than center-to-peak
         defocus_zernike = ((2 * r_norm ** 2 - 1) *
                            (0.5 * self.nwaves * self.reference_wavelength.to(u.meter).value))
-
-        opd = defocus_zernike * aperture_intensity
+        # add negative sign here to get desired sign convention
+        opd = -defocus_zernike * aperture_intensity
         return opd
 
 

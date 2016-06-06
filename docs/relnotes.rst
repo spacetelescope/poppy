@@ -51,6 +51,9 @@ And some smaller enhancements and fixes:
  * New `wavefront_display_hint` optional attribute on OpticalElements in an OpticalSystem allows customization of
    whether phase or intensity is displayed for wavefronts at that plane. Applies to `calc_psf` calls 
    with `display_intermediates=True`. (@mperrin)
+ * Flip the sign of defocus applied via the `ThinLens` class, such that 
+   positive defocus means a converging lens and negative defocus means 
+   diverging. (`#164 <https://github.com/mperrin/poppy/issues/164>`_; @mperrin)
 
 
 
