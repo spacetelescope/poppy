@@ -55,7 +55,6 @@ _INTERMED = PlaneType.intermediate  # for Fresnel propagation
 
 _RADIANStoARCSEC = 180.*60*60 / np.pi
 
-# ------ Utility functions for parallelization ------
 
 
 def _wrap_propagate_for_multiprocessing(args):
@@ -82,8 +81,6 @@ def _wrap_propagate_for_multiprocessing(args):
 
     return optical_system.propagate_mono(wavelength, retain_intermediates=retain_intermediates, normalize=normalize)
 
-
-# ------ Wavefront class -----
 
 class Wavefront(object):
     """ A class representing a monochromatic wavefront that can be transformed between
@@ -1444,8 +1441,8 @@ class OpticalSystem(object):
                 if conf.enable_speed_tests: t0 = time.time()
                 title = None if current_plane_index > 1 else "propagating $\lambda=$ {0:.3f}".format(
                     wavelength.to(u.micron))
-                if hasattr(optic, '_wavefront_display_hint'):
-                    display_what = optic._wavefront_display_hint
+                if hasattr(optic, 'wavefront_display_hint'):
+                    display_what = optic.wavefront_display_hint
                 else:
                     display_what='best'
 

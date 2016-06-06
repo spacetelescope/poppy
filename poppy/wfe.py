@@ -51,6 +51,8 @@ class WavefrontError(AnalyticOpticalElement):
         if 'planetype' not in kwargs:
             kwargs['planetype'] = _PUPIL
         super(WavefrontError, self).__init__(**kwargs)
+        # in general we will want to see phase rather than intensity at this plane
+        self.wavefront_display_hint='phase'
 
     @_accept_wavefront_or_meters
     def get_opd(self, wave, units='meters'):
