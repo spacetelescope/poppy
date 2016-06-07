@@ -1838,6 +1838,10 @@ class SemiAnalyticCoronagraph(OpticalSystem):
 
         intermediate_wfs = []
 
+        wavefront.history.append("Propagating using Fast Semi-Analytic Method")
+        wavefront.history.append(" for Coronagraphy (See Soummer et al. 2007).")
+
+
         #------- differences from regular propagation begin here --------------
         wavefront *= self.inputpupil
         current_plane_index += 1
@@ -1850,7 +1854,7 @@ class SemiAnalyticCoronagraph(OpticalSystem):
         if display_intermediates:
             nrows = 6
             wavefront.display(what='best',nrows=nrows,row=1, colorbar=False,
-                              title="propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6))
+                    title="propagating $\lambda=$ {:.3f}".format(wavelength.to(u.micron)))
 
 
         # determine FOV region bounding the image plane occulting stop.
