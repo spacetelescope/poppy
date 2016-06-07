@@ -1485,8 +1485,12 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
 class ThinLens(CircularAperture):
     """ An idealized thin lens, implemented as a Zernike defocus term.
 
-    The sign convention is such that a positive number of waves indicates a
-    *converging* lens, i.e. positive OPD at the center.
+    The sign convention adopted is the usual for lenses: a "positive" lens
+    is converging (i.e. convex), a "negative" lens is diverging (i.e. concave).
+
+    In other words, a positive number of waves of defocus indicates a
+    lens with positive OPD at the center, and negative at its rim.
+    (Note, this is opposite the sign convention for Zernike defocus)
 
     Parameters
     -------------

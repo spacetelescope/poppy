@@ -23,8 +23,10 @@ def test_ZernikeAberration():
     tl_wave *= lens
 
     zern_wave = poppy_core.Wavefront(npix=NPIX, diam=DIAM, wavelength=WAVELENGTH)
+    # need a negative sign in the following b/c of different sign conventions for
+    # zernikes vs "positive" and "negative" lenses.
     zernike_lens = wfe.ZernikeWFE(
-        coefficients=[0, 0, 0, NWAVES * WAVELENGTH / (2 * np.sqrt(3))],
+        coefficients=[0, 0, 0, -NWAVES * WAVELENGTH / (2 * np.sqrt(3))],
         radius=RADIUS
     )
     zern_wave *= pupil
