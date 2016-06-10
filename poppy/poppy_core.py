@@ -1302,10 +1302,16 @@ class OpticalSystem(object):
         the size of the first optical plane, assumed to be a pupil.
 
         If the first optical element is an Analytic pupil (i.e. has no pixel scale) then
-        the default size is set by the `npix` parameter to __init__ of this class, 
+        the default size is set by the `npix` parameter to __init__ of this class,
         which itself has a default value of 1024.
 
         Uses self.source_offset to assign an off-axis tilt, if requested.
+
+        The convention here is that the desired source position is specified with
+        respect to the **final focal plane** of the optical system. If there are any
+        intervening coordinate transformation planes, this function attempts to take
+        them into account when setting the tilt of the input wavefront. This is
+        subtle trickery and may not work properly in all instances.
 
         Parameters
         ----------
@@ -1352,6 +1358,7 @@ class OpticalSystem(object):
             # with the correct handedness to get the desired motion in the final plane.
             sign_x = 1
             sign_y = 1
+            rotation_angle = 0
             if len(self.planes) > 0:
                 for plane in self.planes:
                     if isinstance(plane, CoordinateInversion):
@@ -1359,12 +1366,16 @@ class OpticalSystem(object):
                             sign_x *= -1
                         if plane.axis == 'y' or plane.axis=='both':
                             sign_y *= -1
+                    elif isinstance(plane, Rotation):
+                        rotation_angle += plane.angle*sign_x*sign_y
+
+            # now we must also work out the rotation 
 
             # convert to offset X,Y in arcsec using the usual astronomical angle convention
-            offset_x = sign_x * self.source_offset_r *-np.sin(self.source_offset_theta*np.pi/180)
-            offset_y = sign_y * self.source_offset_r * np.cos(self.source_offset_theta*np.pi/180)
+            offset_x = sign_x * self.source_offset_r *-np.sin((self.source_offset_theta-rotation_angle)*np.pi/180)
+            offset_y = sign_y * self.source_offset_r * np.cos((self.source_offset_theta-rotation_angle)*np.pi/180)
             inwave.tilt(Xangle=offset_x, Yangle=offset_y)
-            _log.debug("Tilted input wavefront by theta_X=%f, theta_Y=%f arcsec. (signs=%d, %d) " % (offset_x, offset_y, sign_x, sign_y))
+            _log.debug("Tilted input wavefront by theta_X=%f, theta_Y=%f arcsec. (signs=%d, %d; theta offset=%f) " % (offset_x, offset_y, sign_x, sign_y, rotation_angle))
         return inwave
 
     @utils.quantity_input(wavelength=u.meter)

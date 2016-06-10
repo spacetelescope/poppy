@@ -32,10 +32,21 @@ some lingering bugs. As always, please let us know of any issues encountered via
    transmission or the OPD.  Again, there are back compatibility hooks to allow existing code calling 
    the deprecated ``getPhasor`` function to continue working.
    (`#162 <https://github.com/mperrin/poppy/pull/162>`_; @mperrin, josephoenix)
+ * Improved capabilities for handling complex coordinate systems:
+
+     * Added new `CoordinateInversion` class to represent a change in orientation of axes, for instance the
+       flipping "upside down" of a pupil image after passage through an intermediate image plane. 
+     * ``OpticalSystem.input_wavefront()`` became smart enough to check for ``CoordinateInversion`` and ``Rotation`` planes,
+       and, if the user has requested a source offset,  adjust the input tilts such that the source will move as requested in
+       the final focal plane regardless of intervening coordinate transformations.
+     * ``FITSOpticalElement`` gets new options ``flip_x`` and ``flip_y`` to flip orientations of the
+       file data.
+
  * Update many function names for `PEP8 style guide compliance <https://www.python.org/dev/peps/pep-0008/>`_.
    For instance `calc_psf` replaces `calcPSF`.  This was done with back compatible aliases to ensure 
    that existing code continues to run with no changes required at this time, but *at some 
-   future point* the older names will go away, so users are encouranged to migrate to the new names. 
+   future point* (but not soon!) the older names will go away, so users are encouranged to migrate to the new names. 
+   (@mperrin, josephoenix)
 
 And some smaller enhancements and fixes:
 
@@ -46,23 +57,19 @@ And some smaller enhancements and fixes:
    (@mperrin)
  * New function for orthonormal Zernike-like basis on arbitrary aperture 
    (`#166 <https://github.com/mperrin/poppy/issues/166>`_; Arthur Vigan)
- * remove deprecated parameters in some function calls 
-   (`#148 <https://github.com/mperrin/poppy/issues/148>`_; @mperrin)
- * Added new `CoordinateInversion` class to represent a change in orientation of axes, for instance the
-   flipping "upside down" of a pupil image after passage through an intermediate image plane. 
- * New `wavefront_display_hint` optional attribute on OpticalElements in an OpticalSystem allows customization of
-   whether phase or intensity is displayed for wavefronts at that plane. Applies to `calc_psf` calls 
-   with `display_intermediates=True`. (@mperrin)
- * Flip the sign of defocus applied via the `ThinLens` class, such that 
+ * Flip the sign of defocus applied via the ``ThinLens`` class, such that 
    positive defocus means a converging lens and negative defocus means 
    diverging. (`#164 <https://github.com/mperrin/poppy/issues/164>`_; @mperrin)
- * ``FITSOpticalElement`` gets new options ``flip_x`` and ``flip_y`` to flip orientations of the
-   file data.
+ * New ``wavefront_display_hint`` optional attribute on OpticalElements in an OpticalSystem allows customization of
+   whether phase or intensity is displayed for wavefronts at that plane. Applies to ``calc_psf`` calls 
+   with ``display_intermediates=True``. (@mperrin)
  * When displaying wavefront phases, mask out and don't show the phase for any region with intensity less than
    1/100th of the mean intensity of the wavefront. This is to make the display less visually cluttered with near-meaningless
    noise, especially in cases where a Rotation has sprayed numerical interpolation noise outside
    of the true beam. The underlying Wavefront values aren't affected at all, this just pre-filters a copy of
-   the phase before sending it to matplotlib.imshow.
+   the phase before sending it to matplotlib.imshow. (@mperrin)
+ * remove deprecated parameters in some function calls 
+   (`#148 <https://github.com/mperrin/poppy/issues/148>`_; @mperrin)
 
 
 
