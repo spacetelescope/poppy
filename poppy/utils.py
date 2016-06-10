@@ -84,7 +84,7 @@ def imshow_with_mouseover(image, ax=None, *args, **kwargs):
     return ax
 
 
-def display_psf(HDUlist_or_filename, ext=0, vmin=1e-8, vmax=1e-1,
+def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
                 scale='log', cmap=None, title=None, imagecrop=None,
                 adjust_for_oversampling=False, normalize='None',
                 crosshairs=False, markcentroid=False, colorbar=True,
