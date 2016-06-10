@@ -379,8 +379,12 @@ class Wavefront(object):
             scale = 'log' if self.planetype == _IMAGE else 'linear'
 
         intens = self.intensity.copy()
+
+        # make a version of the phase where we try to mask out
+        # areas with particularly low intensity
         phase = self.phase.copy()
-        phase[np.where(intens == 0)] = np.nan
+        mean_intens = np.mean(intens[intens !=0])
+        phase[np.where(intens < mean_intens/100)] = np.nan
         amp = self.amplitude
 
         y, x = self.coordinates()
@@ -861,7 +865,7 @@ class Wavefront(object):
             _log.warn("Wavefront.tilt() called, but requested tilt was zero. No change.")
 
     def rotate(self, angle=0.0):
-        """Rotate a wavefront by some amount
+        """Rotate a wavefront by some amount, using spline interpolation
 
         Parameters
         ----------
@@ -2437,9 +2441,14 @@ class FITSOpticalElement(OpticalElement):
         either _IMAGE or _PUPIL
     oversample : int
         how much to oversample beyond Nyquist.
+    flip_x, flip_y : bool
+        Should the FITS file be inverted in either of these axes after being loaded? Useful for
+        matching coordinate system orientations.  If a flip is specified, it takes place prior to any
+        shift or rotation operations.
     shift : tuple of floats, optional
         2-tuple containing X and Y fractional shifts for the pupil. These shifts are implemented by rounding them
         to the nearest integer pixel, and doing integer pixel shifts on the data array, without interpolation.
+        If a shift is specified, it takes place prior to any rotation operations.
     rotation : float
         Rotation for that optic, in degrees counterclockwise. This is implemented using spline interpolation via
         the scipy.ndimage.interpolation.rotate function.
@@ -2451,7 +2460,6 @@ class FITSOpticalElement(OpticalElement):
     transmission_index, opd_index : ints, optional
         If the input transmission or OPD files are datacubes, provide a scalar index here for which cube
         slice should be used.
-
 
 
     *NOTE:* All mask files must be *squares*.
@@ -2469,6 +2477,7 @@ class FITSOpticalElement(OpticalElement):
     def __init__(self, name="unnamed optic", transmission=None, opd=None, opdunits=None,
             shift=None, rotation=None, pixelscale=None, planetype=None,
             transmission_index=None, opd_index=None,
+            flip_x=False,flip_y=False,
             **kwargs):
 
         OpticalElement.__init__(self,name=name, **kwargs)
@@ -2598,7 +2607,19 @@ class FITSOpticalElement(OpticalElement):
             assert self.amplitude.shape == self.opd.shape
             assert self.amplitude.shape[0] == self.amplitude.shape[1]
 
+            # ---- transformation: inversion ----
+            # if an inversion is specified and we're not a null (scalar) opticm then do the inversion:
+            if flip_y and len(self.amplitude.shape) ==2:
+                self.amplitude = self.amplitude[::-1]
+                self.opd = self.opd[::-1]
+                _log.debug("Inverted optic in the Y axis")
+            if flip_x and len(self.amplitude.shape) ==2:
+                self.amplitude = self.amplitude[:,::-1]
+                self.opd = self.opd[:,::-1]
+                _log.debug("Inverted optic in the X axis")
 
+
+            # ---- transformation: shift ----
             # if a shift is specified and we're NOT a null (scalar) optic, then do the shift:
             if shift is not None and len(self.amplitude.shape) ==2:
                 if abs(shift[0]) > 0.5 or abs(shift[1])> 0.5:
@@ -2612,9 +2633,8 @@ class FITSOpticalElement(OpticalElement):
 
                 self.amplitude = scipy.ndimage.shift(self.amplitude, (rolly, rollx))
                 self.opd       = scipy.ndimage.shift(self.opd,       (rolly, rollx))
-                #self.amplitude = scipy.ndimage.shift(self.amplitude, rollx, axis=1)
-                #self.opd       = scipy.ndimage.shift(self.opd,       rollx, axis=1)
 
+            # ---- transformation: rotation ----
             # Likewise, if a rotation is specified and we're NOT a null (scalar) optic, then do the rotation:
             if rotation is not None and len(self.amplitude.shape) ==2:
 
@@ -2630,6 +2650,8 @@ class FITSOpticalElement(OpticalElement):
                 #fits.PrimaryHDU(self.opd).writeto("test_rotated_opt.fits", clobber=True)
                 self._rotation = rotation
 
+
+            # Determine the pixel scale for this image.
             _MISSING_PIXELSCALE_MSG = ("No FITS header keyword for pixel scale found "
                                        "(tried: {}). Supply pixelscale as a float in "
                                        "meters/px or arcsec/px, or as a string specifying which "

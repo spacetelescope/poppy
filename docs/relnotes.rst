@@ -56,6 +56,13 @@ And some smaller enhancements and fixes:
  * Flip the sign of defocus applied via the `ThinLens` class, such that 
    positive defocus means a converging lens and negative defocus means 
    diverging. (`#164 <https://github.com/mperrin/poppy/issues/164>`_; @mperrin)
+ * ``FITSOpticalElement`` gets new options ``flip_x`` and ``flip_y`` to flip orientations of the
+   file data.
+ * When displaying wavefront phases, mask out and don't show the phase for any region with intensity less than
+   1/100th of the mean intensity of the wavefront. This is to make the display less visually cluttered with near-meaningless
+   noise, especially in cases where a Rotation has sprayed numerical interpolation noise outside
+   of the true beam. The underlying Wavefront values aren't affected at all, this just pre-filters a copy of
+   the phase before sending it to matplotlib.imshow.
 
 
 
