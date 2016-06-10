@@ -77,6 +77,7 @@ def zern_name(i):
 
 def str_zernike(n, m):
     """Return analytic expression for a given Zernike in LaTeX syntax"""
+    signed_m = int(m)
     m = int(np.abs(m))
     n = int(np.abs(n))
 
@@ -95,7 +96,7 @@ def str_zernike(n, m):
             return "1"
         else:
             return "sqrt(%d)* ( %s ) " % (n + 1, outstr)
-    elif m > 0:
+    elif signed_m > 0:
         return "\sqrt{%d}* ( %s ) * \\cos(%d \\theta)" % (2 * (n + 1), outstr, m)
     else:
         return "\sqrt{%d}* ( %s ) * \\sin(%d \\theta)" % (2 * (n + 1), outstr, m)
@@ -488,7 +489,11 @@ def hex_aperture(npix=1024, rho=None, theta=None, vertical=False):
 def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
                  vertical=False, outside=np.nan):
     """Return a list of hexike polynomials 1-N following the
-    method of Mahajan and Dai 2006
+    method of Mahajan and Dai 2006 for numerical orthonormalization
+
+    This function orders the hexikes in a similar way as the Zernikes.
+
+    See also hexike_basis_wss for an alternative implementation.
 
     Parameters
     ----------
@@ -552,6 +557,102 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
 
     # drop the 0th null element, return the rest
     return H[1:]
+
+def hexike_basis_wss(nterms=9, npix=512, rho=None, theta=None,
+                x=None,y=None,
+                 vertical=False, outside=np.nan):
+    """Return a list of hexike polynomials 1-N based on analytic
+    expressions. Note, this is strictly consistent with the
+    JWST WSS hexikes.
+
+    ***The ordering of hexike terms is DIFFERENT FROM that returned by
+    the zernike_basis or regular hexike_basis functions. Use this one
+    in particular if you need something consistent with JWST WSS internals.
+    ***
+
+    Parameters
+    ----------
+    nterms : int
+        Number of hexike terms to compute, starting from piston.
+        (e.g. ``nterms=1`` would return only the hexike analog to the
+        Zernike piston term.) Default is 15.
+    npix : int
+        Size, in pixels, of the aperture array. The hexagon will span
+        the whole array from edge to edge in the direction aligned
+        with its flat sides.
+    rho, theta : 2D numpy arrays, optional
+        For some square aperture, rho and theta contain each pixel's
+        coordinates in polar form. The hexagon will be defined such
+        that it can be circumscribed in a rho = 1 circle.
+    x,y : 1D numpy arrays, optional
+        Alternative way of specifying the coordinates.
+    vertical : bool
+        Make flat sides parallel to the Y axis instead of the default X.
+        Default is False.
+    outside : float
+        Value for pixels outside the hexagonal aperture.
+        Default is `np.nan`, but you may also find it useful for this to
+        be 0.0 sometimes.
+    """
+
+    if rho is not None and theta is not None:
+        _log.debug("User supplied radial coords")
+        shape = rho.shape
+        assert len(shape) == 2 and shape[0] == shape[1], \
+            "only square rho and theta arrays supported"
+        x = rho*np.cos(theta)
+        y = rho*np.sin(theta)
+        r2 = rho**2
+    elif x is not None and y is not None:
+        _log.debug("User supplied cartesian coords")
+        r2 = x**2+y**2
+        rho = np.sqrt(r2)
+        theta = np.arctan2(y,x)
+    else:
+        _log.debug("User supplied only the number of pixels")
+        #create 2D arrays of coordinates between 0 and 1
+        shape = (npix, npix)
+        y,x = np.indices(shape, dtype=float)
+        y -= npix/2.
+        x -= npix/2.
+        y /= (npix/2)
+        x /= (npix/2)
+
+        r2 = x**2+y**2
+        rho = np.sqrt(r2)
+        theta = np.arctan2(y,x)
+
+
+    aperture = hex_aperture(npix=npix, rho=rho, theta=theta, vertical=vertical)
+    #print(rho[aperture==1].max())
+
+    A = aperture.sum()
+
+    # first 9 hexikes (those used in WAS for JWST)
+    # create array of hexikes, plus pad for 0th term
+    H = [np.zeros_like(x),       # placeholder for 0th term to allow 1-indexing
+         np.ones_like(x),    # Piston
+         y,                 # tilt around x
+         x,                 # tilt around y
+         2*x*y,              # astig-45
+         r2-0.5,             # focus -- yes this is really exactly what the WAS uses
+         x**2-y**2,          # astig-00
+         ((25./11.)*r2-14./11.) * x,  # Coma x
+         ((25./11.)*r2-14./11.) * y,  # Coma y
+         ((860./231.)*r2**2 - (5140./1617.)*r2 + (67./147.)),  # Spherical
+         (10./7.)*(rho*r2) * np.sin(3.*theta),     # Trefoil-0
+         (10./7.)*(rho*r2) * np.cos(3.*theta),           # Trefoil-30
+         ]
+
+    if nterms > len(H)-1:
+        raise NotImplementedError("hexicke_basis_analytic doesn't support that many terms yet")
+    else:
+        # apply aperture mask
+        for i in range(1,nterms+1):
+            H[i] *= aperture
+        return H[1:nterms+1]
+
+
 
 
 def arbitrary_basis(aperture, nterms=15, rho=None, theta=None):

@@ -39,8 +39,10 @@ some lingering bugs. As always, please let us know of any issues encountered via
 
 And some smaller enhancements and fixes:
 
- * New functions for synthesis of OPDs from Zernike coefficients, iterative Zernike expansion on obscured 
-   apertures for which Zernikes aren't orthonormal, and 2x faster optimized computation of Zernike basis sets. 
+ * New functions for synthesis of OPDs from Zernike coefficients, iterative Zernike expansion on obscured
+   apertures for which Zernikes aren't orthonormal, 2x faster optimized computation of Zernike basis sets,
+   and computation of hexike basis sets using the alternate ordering of hexikes used by the JWST Wavefront Analysis System
+   software.
    (@mperrin)
  * New function for orthonormal Zernike-like basis on arbitrary aperture 
    (`#166 <https://github.com/mperrin/poppy/issues/166>`_; Arthur Vigan)
