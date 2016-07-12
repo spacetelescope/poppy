@@ -1030,8 +1030,10 @@ class FresnelOpticalSystem(OpticalSystem):
         inwave = FresnelWavefront(self.pupil_diameter / 2, wavelength=wavelength,
                                   npix=self.npix, oversample=oversample)
         _log.debug(
-            "Creating input wavefront with wavelength={0:e} microns, npix={1}, pixel scale={2:f} meters/pixel".format(
-                wavelength * 1e6, self.npix, self.pupil_diameter / self.npix))
+            "Creating input wavefront with wavelength={0} microns,"
+            "npix={1}, pixel scale={2}".format(
+                wavelength.to(u.micron).value, self.npix, self.pupil_diameter / (self.npix * u.pixel)
+        ))
         return inwave
 
     @utils.quantity_input(wavelength=u.meter)
