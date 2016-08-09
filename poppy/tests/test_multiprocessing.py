@@ -1,4 +1,4 @@
-#Test functions for poppy multiprocessing
+# Test functions for poppy multiprocessing
 
 from .. import poppy_core
 from .. import optics

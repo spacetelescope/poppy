@@ -82,7 +82,7 @@ Once instantiated, any analytic function can be displayed on screen, sampled ont
     >>> ap.display(what='both')                    # display both intensity and phase components
 
     >>> values = ap.sample(npix=512)               # evaluate on 512 x 512 grid
-    >>> ap.toFITS('test_circle.fits', npix=1024)   # write to disk as a FITS file with higher sampling
+    >>> ap.to_fits('test_circle.fits', npix=1024)  # write to disk as a FITS file with higher sampling
 
 
 When sampling an `~poppy.AnalyticOpticalElement`, you may choose to obtain various representations of its action on a complex wavefront, including the amplitude transmission; intensity transmission; or phase delay in waves, radians, or meters. 
@@ -133,18 +133,28 @@ such as Zemax or Code V for design of full optical systems.
 Defining your own custom optics
 ----------------------------------
 
-All `~poppy.OpticalElement` classes must have a method `~poppy.OpticalElement.getPhasor` which returns the complex phasor representing that optic, sampled appropriately for a given input `~poppy.Wavefront` and at the appropriate wavelength. To define your own custom OpticalElements, you can:
+All `~poppy.OpticalElement` classes must have methods
+`~poppy.OpticalElement.get_transmission` and `~poppy.OpticalElement.get_opd`
+which returns the amplitude transmission and optical path delay representing
+that optic, sampled appropriately for a given input `~poppy.Wavefront` and at
+the appropriate wavelength. These are combined together to calculate the
+complex phasor which is applied to the wavefront's electric field.  To define
+your own custom OpticalElements, you can:
 
-1. Subclass `~poppy.AnalyticOpticalElement` and write a suitable `getPhasor` function to describe the properties of your optic, 
-2. Combine two or more existing `~poppy.AnalyticOpticalElement` instances as part of a `~poppy.CompoundAnalyticOptic`, or
-3. Generate suitable transmission and phase (optical path difference) arrays using some other tool, save them as FITS files with appropriate keywords, and instantiate them as an `~poppy.FITSOpticalElement`
+1. Subclass `~poppy.AnalyticOpticalElement` and write suitable function(s) to
+   describe the properties of your optic, 
+2. Combine two or more existing `~poppy.AnalyticOpticalElement` instances as
+   part of a `~poppy.CompoundAnalyticOptic`, or
+3. Generate suitable transmission and optical path difference arrays
+   using some other tool, save them as FITS files with appropriate keywords,
+   and instantiate them as an `~poppy.FITSOpticalElement`
 
 
 FITSOpticalElements have separate attributes for amplitude and phase components, which may be read separately from 2 FITS files:
 
   * `amplitude`, the electric field amplitude transmission of the optic
-  * `opd`, the Optical Path Difference (phase delay) of the optic
+  * `opd`, the optical path difference of the optic
 
-AnalyticOpticalElements only need to implement the `getPhasor()` function, which allows more flexibility for amplitude transmission or phase delay to vary with wavelength or other properties. 
+Defining functions on a AnalyticOpticalElement subclass allows more flexibility for amplitude transmission or OPDs to vary with wavelength or other properties. 
 
 See :ref:`extending` for more details and examples.

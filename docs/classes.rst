@@ -2,7 +2,7 @@
 
 .. default-role:: obj
 
-POPPY Class Documentation
+POPPY Class Listing
 ============================
 
 The key classes for POPPY are `~poppy.OpticalSystem` and the various `~poppy.OpticalElement` classes (of which there are many). There is also a `~poppy.Wavefront` class that is used internally, but users will rarely
@@ -26,7 +26,7 @@ Optical Systems
 
  *  `~poppy.OpticalSystem` is the fundamental optical system class, that propagates `~poppy.Wavefront` objects between optics using Fourier transforms.
  *  `~poppy.SemiAnalyticCoronagraph` implements the semi-analytic coronagraphic propagation algorithm of Soummer et al. 
-
+ *  `~poppy.MatrixFTCoronagraph` enables efficient propagation calculations for Lyot coronagraphs with diaphragm-type focal plane masks, relevant to the WFIRST coronagraph and described by Zimmerman et al. (2016).
 
 
  
@@ -63,7 +63,12 @@ Optical Elements
  * `~poppy.InverseTransmission` allows any optic, whether analytic or discrete, to be flipped in sign, a la the Babinet principle.
  * `~poppy.Rotation` represents a rotation of the axes of the wavefront, for instance to change coordinate systems between two optics that are 
    rotated with respect to one another. The axis of rotation must be the axis of optical propagation.
+ * `_poppy.CoordinateInversion` represents a flip in orientation of the X or Y axis, or both at once.
 
  * `~poppy.Detector` represents a detector with some fixed sampling and pixel scale.
 
+Wavefront Error Optical Elements
+--------------------------------
 
+ * `poppy.wfe.ZernikeWFE`
+ * `poppy.wfe.SineWaveWFE`

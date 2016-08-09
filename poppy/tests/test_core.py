@@ -36,54 +36,6 @@ def check_wavefront(filename_or_hdulist, slice=0, ext=0, test='nearzero', commen
 
 wavelength=2e-6
 
-class ParityTestAperture(optics.AnalyticOpticalElement):
-    """ Defines a circular pupil aperture with boxes cut out.
-    This is mostly a test aperture
-
-    Parameters
-    ----------
-    name : string
-        Descriptive name
-    radius : float
-        Radius of the pupil, in meters. Default is 1.0
-
-    pad_factor : float, optional
-        Amount to oversize the wavefront array relative to this pupil.
-        This is in practice not very useful, but it provides a straightforward way
-        of verifying during code testing that the amount of padding (or size of the circle)
-        does not make any numerical difference in the final result.
-
-    """
-
-    def __init__(self, name=None,  radius=1.0, pad_factor = 1.5, **kwargs):
-        if name is None: name = "Circle, radius=%.2f m" % radius
-        super(ParityTestAperture,self).__init__(name=name, **kwargs)
-        self.radius = radius
-        self.pupil_diam = pad_factor * 2* self.radius # for creating input wavefronts - let's pad a bit
-
-
-    def getPhasor(self,wave):
-        """ Compute the transmission inside/outside of the occulter.
-        """
-        if not isinstance(wave, poppy_core.Wavefront):
-            raise ValueError("CircularAperture getPhasor must be called with a Wavefront to define the spacing")
-        #assert (wave.planetype == poppy._PUPIL)
-
-        y, x = wave.coordinates()
-        r = np.sqrt(x**2+y**2) #* wave.pixelscale
-
-        w_outside = np.where( r > self.radius)
-        self.transmission = np.ones(wave.shape)
-        self.transmission[w_outside] = 0
-
-        w_box1 = np.where( (r> self.radius*0.5) & (np.abs(x) < self.radius*0.1 ) & ( y < 0 ))
-        w_box2 = np.where( (r> self.radius*0.65) & (np.abs(y) < self.radius*0.4) & ( x < 0 ))
-        self.transmission[w_box1] = 0
-        self.transmission[w_box2] = 0
-
-        return self.transmission
-
-
 
 ######### Core tests functions #########
 
@@ -101,6 +53,56 @@ def test_basic_functionality():
     psf = osys.calcPSF(wavelength=1.0e-6)
     # we need to be a little careful here due to floating point math comparision equality issues... Can't just do a strict equality
     assert abs(psf[0].data.max() - 0.201) < 0.001
+
+
+
+def test_input_wavefront_size():
+
+    # if absolutely nothing is set then the default is 1024. 
+    # the oversample parameter multiplies that *only* if padding
+    # is applied during an FFT propagation; by default there's no effect
+    # in the unpadded array.
+    for oversamp in (1,2,4):
+        osys = poppy_core.OpticalSystem("test", oversample=oversamp)
+        #pupil = optics.CircularAperture(radius=1)
+        wf = osys.inputWavefront()
+        expected_shape = (1024,1024) if (wf.ispadded == False) else (1024*oversamp, 1024*oversamp)
+        assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
+
+
+    # test setting the size based on the npix parameter, with null optical system
+    for size in [512, 1024, 2001]:
+        osys = poppy_core.OpticalSystem("test", oversample=1, npix=size)
+        #pupil = optics.CircularAperture(radius=1)
+        wf = osys.inputWavefront()
+        expected_shape = (size,size)
+        assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
+
+    # test setting the size based on the npix parameter, with a non-null optical system
+    for size in [512, 1024, 2001]:
+        osys = poppy_core.OpticalSystem("test", oversample=1, npix=size)
+        osys.add_pupil(optics.CircularAperture(radius=1))
+        wf = osys.inputWavefront()
+        expected_shape = (size,size)
+        assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
+
+
+    # test setting the size based on an input optical element
+    for npix in [512, 1024, 2001]:
+        osys = poppy_core.OpticalSystem("test", oversample=1)
+        pupil = optics.CircularAperture(radius=1)
+        pupil_fits = pupil.toFITS(npix=npix)
+        osys.add_pupil(transmission=pupil_fits)
+
+        wf = osys.inputWavefront()
+        expected_shape = (npix,npix)
+        assert pupil_fits[0].data.shape == expected_shape, 'FITS array from optic element is not the expected size: is {} expects {}'.format(pupil_fits[0].data.shape,  expected_shape)
+        assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
+
+
+
+
+
 
 
 def test_CircularAperture_Airy(display=False):
@@ -364,3 +366,30 @@ def test_optic_resizing():
     test_optic_crop[0].header["PUPLSCAL"]=.001
     test_optic_crop_element=poppy_core.FITSOpticalElement(transmission=test_optic_crop)
     assert(test_optic_crop_element.getPhasor(inputwf).shape ==inputwf.shape )
+
+
+def test_unit_conversions():
+    """ Test the astropy.Quantity unit conversions
+    This is a modified version of test_CircularAperture
+    """
+    from ..misc import airy_2d
+    import astropy.units as u
+    # Analytic PSF for 1 meter diameter aperture
+    analytic = airy_2d(diameter=1)
+    analytic /= analytic.sum() # for comparison with poppy outputs normalized to total=1
+
+
+    # Numeric PSF for 1 meter diameter aperture
+    osys = poppy_core.OpticalSystem()
+    pupil = optics.CircularAperture(radius=0.5)
+    osys.addPupil(pupil)
+    osys.addDetector(pixelscale=0.010,fov_pixels=512, oversample=1)
+
+    # test versions with 3 different ways of saying the wavelength:
+    for wavelen in [1e-6, 1e-6*u.m, 1*u.micron]:
+        numeric_psf = osys.calcPSF(wavelength=wavelen, display=False)
+
+        # Comparison
+        difference = numeric_psf[0].data-analytic
+        assert np.all(np.abs(difference) < 3e-5)
+

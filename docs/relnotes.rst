@@ -6,10 +6,144 @@ For a list of contributors, see :ref:`about`.
 
 .. _whatsnew:
 
-0.3.6
+
+0.5
+---
+
+*2016 June 10:*
+
+Several moderately large enhancements, involving lots of under-the-hood updates to the code. (*While we have tested this code extensively, it is possible that there may be
+some lingering bugs. As always, please let us know of any issues encountered via `the github issues page 
+<https://github.com/mperrin/poppy/issues/>`_.*)
+
+ * Increased use of ``astropy.units`` to put physical units on quantities, in
+   particular wavelengths, pixel scales, etc. Instead of wavelengths always being
+   implicitly in meters, you can now explicitly say e.g. ``wavelength=1*u.micron``, 
+   ``wavelength=500*u.nm``, etc. You can also generally use Quantities for 
+   arguments to OpticalElement classes, e.g. ``radius=2*u.cm``. This is *optional*; the
+   API still accepts bare floating-point numbers which are treated as implicitly in meters.
+   (`#145 <https://github.com/mperrin/poppy/issues/145>`_, `#165 <https://github.com/mperrin/poppy/pull/165>`_;
+        @mperrin, douglase)
+ * The ``getPhasor`` function for all OpticalElements has been refactored to split it into 3
+   functions: ``get_transmission`` (for electric field amplitude transmission), ``get_opd``
+   (for the optical path difference affectig the phase), and ``get_phasor`` (which combines transmission 
+   and OPD into the complex phasor). This division simplifies and makes more flexible the subclassing 
+   of optics, since in many cases (such as aperture stops) one only cares about setting either the 
+   transmission or the OPD.  Again, there are back compatibility hooks to allow existing code calling 
+   the deprecated ``getPhasor`` function to continue working.
+   (`#162 <https://github.com/mperrin/poppy/pull/162>`_; @mperrin, josephoenix)
+ * Improved capabilities for handling complex coordinate systems:
+
+     * Added new `CoordinateInversion` class to represent a change in orientation of axes, for instance the
+       flipping "upside down" of a pupil image after passage through an intermediate image plane. 
+     * ``OpticalSystem.input_wavefront()`` became smart enough to check for ``CoordinateInversion`` and ``Rotation`` planes,
+       and, if the user has requested a source offset,  adjust the input tilts such that the source will move as requested in
+       the final focal plane regardless of intervening coordinate transformations.
+     * ``FITSOpticalElement`` gets new options ``flip_x`` and ``flip_y`` to flip orientations of the
+       file data.
+
+ * Update many function names for `PEP8 style guide compliance <https://www.python.org/dev/peps/pep-0008/>`_.
+   For instance `calc_psf` replaces `calcPSF`.  This was done with back compatible aliases to ensure 
+   that existing code continues to run with no changes required at this time, but *at some 
+   future point* (but not soon!) the older names will go away, so users are encouranged to migrate to the new names. 
+   (@mperrin, josephoenix)
+
+And some smaller enhancements and fixes:
+
+ * New functions for synthesis of OPDs from Zernike coefficients, iterative Zernike expansion on obscured
+   apertures for which Zernikes aren't orthonormal, 2x faster optimized computation of Zernike basis sets,
+   and computation of hexike basis sets using the alternate ordering of hexikes used by the JWST Wavefront Analysis System
+   software.
+   (@mperrin)
+ * New function for orthonormal Zernike-like basis on arbitrary aperture 
+   (`#166 <https://github.com/mperrin/poppy/issues/166>`_; Arthur Vigan)
+ * Flip the sign of defocus applied via the ``ThinLens`` class, such that 
+   positive defocus means a converging lens and negative defocus means 
+   diverging. (`#164 <https://github.com/mperrin/poppy/issues/164>`_; @mperrin)
+ * New ``wavefront_display_hint`` optional attribute on OpticalElements in an OpticalSystem allows customization of
+   whether phase or intensity is displayed for wavefronts at that plane. Applies to ``calc_psf`` calls 
+   with ``display_intermediates=True``. (@mperrin)
+ * When displaying wavefront phases, mask out and don't show the phase for any region with intensity less than
+   1/100th of the mean intensity of the wavefront. This is to make the display less visually cluttered with near-meaningless
+   noise, especially in cases where a Rotation has sprayed numerical interpolation noise outside
+   of the true beam. The underlying Wavefront values aren't affected at all, this just pre-filters a copy of
+   the phase before sending it to matplotlib.imshow. (@mperrin)
+ * remove deprecated parameters in some function calls 
+   (`#148 <https://github.com/mperrin/poppy/issues/148>`_; @mperrin)
+
+
+
+0.4.1
 -----
 
-*in development*
+2016 Apr 4:
+
+Mostly minor bug fixes: 
+
+ * Fix inconsistency between older deprecated ``angle`` parameter to some optic classes versus new ``rotation`` parameter for any AnalyticOpticalElement  (`#140 <https://github.com/mperrin/poppy/issues/140>`_; @kvangorkom, @josephoenix, @mperrin)
+ * Update to newer API for ``psutil``  (`#139 <https://github.com/mperrin/poppy/issues/139>`_; Anand Sivaramakrishnan, @mperrin)
+ * "measure_strehl" function moved to ``webbpsf`` instead of ``poppy``.  (`#138 <https://github.com/mperrin/poppy/issues/138>`_; Kathryn St.Laurent, @josephoenix, @mperrin)
+ * Add special case to handle zero radius pixel in circular BandLimitedOcculter.  (`#137 <https://github.com/mperrin/poppy/issues/137>`_; @kvangorkom, @mperrin)
+ * The output FITS header of an `AnalyticOpticalElement`'s `toFITS()` function is now compatible with the input expected by `FITSOpticalElement`. 
+ * Better saving and reloading of FFTW wisdom. 
+ * Misc minor code cleanup and PEP8 compliance. (`#149 <https://github.com/mperrin/poppy/issues/149>`_; @mperrin)
+
+And a few more significant enhancements:
+
+ * Added `MatrixFTCoronagraph` subclass for fast optimized propagation of coronagraphs with finite fields of view. This is a 
+   related variant of the approach used in the `SemiAnalyticCoronagraph` class, suited for
+   coronagraphs with a focal plane field mask limiting their field of view, for instance those
+   under development for NASA's WFIRST mission. ( `#128 <https://github.com/mperrin/poppy/pull/128>`_; `#147 <https://github.com/mperrin/poppy/pull/147>`_; @neilzim)
+ * The `OpticalSystem` class now has `npix` and `pupil_diameter` parameters, consistent with the `FresnelOpticalSystem`.  (`#141 <https://github.com/mperrin/poppy/issues/141>`_; @mperrin)
+ * Added `SineWaveWFE` class to represent a periodic phase ripple.
+
+
+
+0.4.0
+-----
+
+2015 November 20
+
+ * **Major enhancement: the addition of Fresnel propagation** (
+   `#95 <https://github.com/mperrin/poppy/issue/95>`_, 
+   `#100 <https://github.com/mperrin/poppy/pull/100>`_, 
+   `#103 <https://github.com/mperrin/poppy/issue/103>`_, 
+   `#106 <https://github.com/mperrin/poppy/issue/106>`_, 
+   `#107 <https://github.com/mperrin/poppy/pull/107>`_, 
+   `#108 <https://github.com/mperrin/poppy/pull/108>`_, 
+   `#113 <https://github.com/mperrin/poppy/pull/113>`_, 
+   `#114 <https://github.com/mperrin/poppy/issue/114>`_, 
+   `#115 <https://github.com/mperrin/poppy/pull/115>`_, 
+   `#100 <https://github.com/mperrin/poppy/pull/100>`_, 
+   `#100 <https://github.com/mperrin/poppy/pull/100>`_; @douglase, @mperrin, @josephoenix) *Many thanks to @douglase for the initiative and code contributions that made this happen.* 
+ * Improvements to Zernike aberration models (
+   `#99 <https://github.com/mperrin/poppy/pull/99>`_, 
+   `#110 <https://github.com/mperrin/poppy/pull/110>`_, 
+   `#121 <https://github.com/mperrin/poppy/pull/121>`_, 
+   `#125 <https://github.com/mperrin/poppy/pull/125>`_; @josephoenix)
+ * Consistent framework for applying arbitrary shifts and rotations to any AnalyticOpticalElement 
+   (`#7 <https://github.com/mperrin/poppy/pull/7>`_, @mperrin)
+ * When reading FITS files, OPD units are now selected based on BUNIT 
+   header keyword instead of always being "microns" by default, 
+   allowing the units of files to be set properly based on the FITS header.
+ * Added infrastructure for including field-dependent aberrations at an optical 
+   plane after the entrance pupil (
+   `#105 <https://github.com/mperrin/poppy/pull/105>`_, @josephoenix)
+ * Improved loading and saving of FFTW wisdom (
+   `#116 <https://github.com/mperrin/poppy/issue/116>`_,
+   `#120 <https://github.com/mperrin/poppy/issue/120>`_,
+   `#122 <https://github.com/mperrin/poppy/issue/122>`_,
+   @josephoenix)
+ * Allow configurable colormaps and make image origin position consistent
+   (`#117 <https://github.com/mperrin/poppy/pull/117>`_, @josephoenix)
+ * Wavefront.tilt calls are now recorded in FITS header HISTORY lines 
+   (`#123 <https://github.com/mperrin/poppy/pull/123>`_; @josephoenix)
+ * Various improvements to unit tests and test infrastructure
+   (`#111 <https://github.com/mperrin/poppy/pull/111>`_, 
+   `#124 <https://github.com/mperrin/poppy/pull/124>`_, 
+   `#126 <https://github.com/mperrin/poppy/pull/126>`_, 
+   `#127 <https://github.com/mperrin/poppy/pull/127>`_; @josephoenix, @mperrin)
+
 
 0.3.5
 -----

@@ -6,14 +6,15 @@ Examples
 Let's dive right in to some example code. 
 
 
+(A runnable notebook version of this examples page is included in the `notebooks` subdirectory of the
+``poppy`` source, or is available from `here <https://github.com/mperrin/poppy/blob/master/notebooks/POPPY%20Examples.ipynb>`_.)
+
+
 For all of the following examples, you will have more informative text output when running the code
 if you first enable Python's logging mechanism to display log messages to screen::
 
         import logging
         logging.basicConfig(level=logging.DEBUG)
-
-
-
 
 A simple circular pupil
 --------------------------
@@ -21,14 +22,14 @@ A simple circular pupil
 This is very simple, as it should be::
 
         osys = poppy.OpticalSystem()
-        osys.addPupil( poppy.CircularAperture(radius=3))    # pupil radius in meters
-        osys.addDetector(pixelscale=0.010, fov_arcsec=5.0)  # image plane coordinates in arcseconds
+        osys.add_pupil( poppy.CircularAperture(radius=3))    # pupil radius in meters
+        osys.add_detector(pixelscale=0.010, fov_arcsec=5.0)  # image plane coordinates in arcseconds
 
-        psf = osys.calcPSF(2e-6)                            # wavelength in microns
+        psf = osys.calc_psf(2e-6)                            # wavelength in microns
         poppy.display_PSF(psf, title='The Airy Function')
 
 .. image:: ./example_airy.png
-   :scale: 50%
+   :scale: 100%
    :align: center
    :alt: Sample calculation result
 
@@ -51,14 +52,14 @@ By combining multiple analytic optics together it is possible to create quite co
 And here's the PSF::
 
         osys = poppy.OpticalSystem()
-        osys.addPupil(atlast)
-        osys.addDetector(pixelscale=0.010, fov_arcsec=2.0)
-        psf = osys.calcPSF(1e-6)
+        osys.add_pupil(atlast)
+        osys.add_detector(pixelscale=0.010, fov_arcsec=2.0)
+        psf = osys.calc_psf(1e-6)
 
         poppy.display_PSF(psf, title="Mock ATLAST PSF")
 
 .. image:: ./example_atlast_psf.png
-   :scale: 50%
+   :scale: 100%
    :align: center
    :alt: Sample calculation result
 
@@ -76,14 +77,14 @@ Defocus can be added using a lens::
         for nwaves in range(nsteps):
 
             osys = poppy.OpticalSystem("test", oversample=2)
-            osys.addPupil( poppy.CircularAperture(radius=3))    # pupil radius in meters
-            osys.addPupil( poppy.ThinLens(nwaves=nwaves, reference_wavelength=wavelen, radius=3))
-            osys.addDetector(pixelscale=0.01, fov_arcsec=4.0)
+            osys.add_pupil( poppy.CircularAperture(radius=3))    # pupil radius in meters
+            osys.add_pupil( poppy.ThinLens(nwaves=nwaves, reference_wavelength=wavelen, radius=3))
+            osys.add_detector(pixelscale=0.01, fov_arcsec=4.0)
 
-            psf = osys.calcPSF(wavelength=wavelen)
+            psf = osys.calc_psf(wavelength=wavelen)
             psfs.append(psf)
 
-            pl.subplot(1,nsteps, nwaves+1)
+            plt.subplot(1,nsteps, nwaves+1)
             poppy.display_PSF(psf, title='Defocused by {0} waves'.format(nwaves),
                 colorbar_orientation='horizontal')
 
@@ -92,9 +93,6 @@ Defocus can be added using a lens::
    :scale: 50%
    :align: center
    :alt: Sample calculation result
-
-
-
 
 Band Limited Coronagraph with Off-Axis Source
 -----------------------------------------------
@@ -106,19 +104,19 @@ As an example of a more complicated calculation, here's a NIRCam-style band limi
     wavelength = 4.6e-6
 
     osys = poppy.OpticalSystem("test", oversample=oversample)
-    osys.addPupil(poppy.CircularAperture(radius=6.5/2))
-    osys.addImage()
-    osys.addImage(poppy.BandLimitedCoron(kind='circular',  sigma=5.0)) 
-    osys.addPupil()
-    osys.addPupil(poppy.CircularAperture(radius=6.5/2))
-    osys.addDetector(pixelscale=pixelscale, fov_arcsec=3.0)
+    osys.add_pupil(poppy.CircularAperture(radius=6.5/2))
+    osys.add_image()
+    osys.add_image(poppy.BandLimitedCoron(kind='circular',  sigma=5.0)) 
+    osys.add_pupil()
+    osys.add_pupil(poppy.CircularAperture(radius=6.5/2))
+    osys.add_detector(pixelscale=pixelscale, fov_arcsec=3.0)
 
     osys.source_offset_theta = 45.
     osys.source_offset_r =  0.1  # arcsec
-    psf = osys.calcPSF(wavelength=wavelength, display_intermediates=True)
+    psf = osys.calc_psf(wavelength=wavelength, display_intermediates=True)
 
 .. image:: ./example_BLC_offset.png
-   :scale: 50%
+   :scale: 60%
    :align: center
    :alt: Sample calculation result
 
@@ -131,19 +129,19 @@ Four quadrant phase mask coronagraphs are a bit more complicated because one nee
 FFT result with the center of the phase mask. This is done using a virtual optic called an 'FQPM FFT aligner' as follows::
 
     optsys = poppy.OpticalSystem()
-    optsys.addPupil( poppy.CircularAperture( radius=3))
-    optsys.addPupil( poppy.FQPM_FFT_aligner())   # ensure the PSF is centered on the FQPM cross hairs
-    optsys.addImage()  # empty image plane for "before the mask"
-    optsys.addImage( poppy.IdealFQPM(wavelength=2e-6))
-    optsys.addPupil( poppy.FQPM_FFT_aligner(direction='backward'))  # undo the alignment tilt after going back to the pupil plane
-    optsys.addPupil( poppy.CircularAperture( radius=3)) # Lyot mask - change radius if desired
-    optsys.addDetector(pixelscale=0.01, fov_arcsec=10.0)
+    optsys.add_pupil( poppy.CircularAperture( radius=3, pad_factor=1.5)) #pad display area by 50%
+    optsys.add_pupil( poppy.FQPM_FFT_aligner())   # ensure the PSF is centered on the FQPM cross hairs
+    optsys.add_image()  # empty image plane for "before the mask"
+    optsys.add_image( poppy.IdealFQPM(wavelength=2e-6))
+    optsys.add_pupil( poppy.FQPM_FFT_aligner(direction='backward'))  # undo the alignment tilt after going back to the pupil plane
+    optsys.add_pupil( poppy.CircularAperture( radius=3)) # Lyot mask - change radius if desired
+    optsys.add_detector(pixelscale=0.01, fov_arcsec=10.0)
 
 
-    psf = optsys.calcPSF(wavelength=2e-6, display_intermediates=True)
+    psf = optsys.calc_psf(wavelength=2e-6, display_intermediates=True)
 
 .. image:: ./example_FQPM.png
-   :scale: 50%
+   :scale: 60%
    :align: center
    :alt: Sample calculation result
 
@@ -161,20 +159,20 @@ opaque circular obscuration. The latter we can make using the InverseTransmissio
     aperture = poppy.CompoundAnalyticOptic( opticslist = [primary, secondary] )
 
     optsys = poppy.OpticalSystem()
-    optsys.addPupil( aperture)
-    optsys.addPupil( poppy.FQPM_FFT_aligner())   # ensure the PSF is centered on the FQPM cross hairs
-    optsys.addImage( poppy.IdealFQPM(wavelength=2e-6))
-    optsys.addPupil( poppy.FQPM_FFT_aligner(direction='backward'))  # undo the alignment tilt after going back to the pupil plane
-    optsys.addPupil( poppy.CircularAperture( radius=3)) # Lyot mask - change radius if desired
-    optsys.addDetector(pixelscale=0.01, fov_arcsec=10.0)
+    optsys.add_pupil( aperture)
+    optsys.add_pupil( poppy.FQPM_FFT_aligner())   # ensure the PSF is centered on the FQPM cross hairs
+    optsys.add_image( poppy.IdealFQPM(wavelength=2e-6))
+    optsys.add_pupil( poppy.FQPM_FFT_aligner(direction='backward'))  # undo the alignment tilt after going back to the pupil plane
+    optsys.add_pupil( poppy.CircularAperture( radius=3)) # Lyot mask - change radius if desired
+    optsys.add_detector(pixelscale=0.01, fov_arcsec=10.0)
 
     optsys.display()
 
-    psf = optsys.calcPSF(wavelength=2e-6, display_intermediates=True)
+    psf = optsys.calc_psf(wavelength=2e-6, display_intermediates=True)
 
 
 .. image:: ./example_FQPM_obscured.png
-   :scale: 50%
+   :scale: 60%
    :align: center
    :alt: Sample calculation result
 
@@ -197,10 +195,10 @@ The following code performs the same calculation both ways and compares their sp
         pixelscale = 0.060
 
         osys = poppy.OpticalSystem("test", oversample=8)
-        osys.addPupil( poppy.CircularAperture(radius=radius), name='Entrance Pupil')
-        osys.addImage( poppy.CircularOcculter(radius = 0.1) )
-        osys.addPupil( poppy.CircularAperture(radius=lyot_radius), name='Lyot Pupil')
-        osys.addDetector(pixelscale=pixelscale, fov_arcsec=5.0)
+        osys.add_pupil( poppy.CircularAperture(radius=radius), name='Entrance Pupil')
+        osys.add_image( poppy.CircularOcculter(radius = 0.1) )
+        osys.add_pupil( poppy.CircularAperture(radius=lyot_radius), name='Lyot Pupil')
+        osys.add_detector(pixelscale=pixelscale, fov_arcsec=5.0)
 
 
         plt.figure(1)
@@ -208,12 +206,12 @@ The following code performs the same calculation both ways and compares their sp
 
         import time
         t0s = time.time()
-        psf_sam = sam_osys.calcPSF(display_intermediates=True)
+        psf_sam = sam_osys.calc_psf(display_intermediates=True)
         t1s = time.time()
 
         plt.figure(2)
         t0f = time.time()
-        psf_fft = osys.calcPSF(display_intermediates=True)
+        psf_fft = osys.calc_psf(display_intermediates=True)
         t1f = time.time()
 
         plt.figure(3)
@@ -225,6 +223,12 @@ The following code performs the same calculation both ways and compares their sp
 
         print "Elapsed time, FFT:  %.3s" % (t1f-t0f)
         print "Elapsed time, SAM:  %.3s" % (t1s-t0s)
+
+
+.. image:: ./example_SAM_comparison.png
+   :scale: 50%
+   :align: center
+   :alt: Sample calculation result
 
 
 On my circa-2010 Mac Pro, the results are dramatic::
@@ -244,8 +248,8 @@ for image plane optics.
 
 For instance we can demonstrate the shift invariance of PSFs::
 
-    ap_regular = poppy.CircularAperture(radius=2)
-    ap_shifted = poppy.CircularAperture(radius=2)
+    ap_regular = poppy.CircularAperture(radius=2, pad_factor=1.5)  # pad_factor is important here - without it you will
+    ap_shifted = poppy.CircularAperture(radius=2, pad_factor=1.5)  # crop off part of the circle outside the array.
     ap_shifted.shift_x =-0.75
     ap_shifted.shift_y = 0.25
 
@@ -254,9 +258,9 @@ For instance we can demonstrate the shift invariance of PSFs::
     for optic, title, i in [(ap_regular, 'Unshifted', 1), (ap_shifted, 'Shifted', 3)]:
 
         sys = poppy.OpticalSystem()
-        sys.addPupil(optic)
-        sys.addDetector(0.010, fov_pixels=100)
-        psf = sys.calcPSF()
+        sys.add_pupil(optic)
+        sys.add_detector(0.010, fov_pixels=100)
+        psf = sys.calc_psf()
 
         ax1 = plt.subplot(2,2,i)
         optic.display(nrows=2, colorbar=False, ax=ax1)
@@ -281,5 +285,3 @@ options can be set directly in the initialization of such elements::
    :scale: 100%
    :align: center
    :alt: Sample calculation result
-
-

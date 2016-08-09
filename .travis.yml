@@ -6,7 +6,7 @@ sudo: false
 python:
     - 2.7
     # - 3.3
-    - 3.4
+    - 3.5
     # This is just for "egg_info".  All other builds are explicitly given in the matrix
 env:
     global:
@@ -26,18 +26,22 @@ matrix:
         #- python: 2.7
         #  env: SETUP_CMD='test --coverage'
         # Check for sphinx doc build warnings - we do this first because it
-        # may run for a long time
+        # may run for a long time. 
+        # Update: ignore warnings, just check for errors
         - python: 2.7
-          env: SETUP_CMD='build_sphinx -w'
+          env: SETUP_CMD='build_sphinx'
 
         # Try all python versions with the latest numpy
         - python: 2.7
           env: SETUP_CMD='test'
         - python: 3.4
-          env: SETUP_CMD='test --coverage'
+          env: SETUP_CMD='test'
+        - python: 3.5
+          env: SETUP_CMD='test'
+
 
         # Try Astropy development version
-        - python: 2.7
+        - python: 3.5
           env: ASTROPY_VERSION=development SETUP_CMD='test'
         # - python: 3.3
         #   env: ASTROPY_VERSION=development SETUP_CMD='test'
@@ -48,6 +52,8 @@ matrix:
         # https://github.com/astropy/astropy-helpers/issues/73#issuecomment-72558556
         - python: 2.7
           env: NUMPY_VERSION=1.8 ASTROPY_VERSION=development SETUP_CMD='test'
+    allow_failures:
+        - python: 3.5
 
 addons:
     apt:
@@ -67,6 +73,7 @@ before_install:
     - ./miniconda.sh -b
     - export PATH=/home/travis/miniconda2/bin:$PATH
     - conda update --yes conda
+    - conda update --all -y  # added to try debugging issue #159 with Travis
 
 install:
 

@@ -1,12 +1,14 @@
 
-from .. import poppy_core 
+from .. import poppy_core
+from .. import optics
 import numpy as np
 import astropy.io.fits as fits
 from .test_core import check_wavefront
+import astropy.units as u
 
 
 
-wavelength=1e-6
+wavelength=1e-6*u.m
 
 
 def test_wavefront_in_pixels():
@@ -40,9 +42,9 @@ def test_wavefront_str():
     wave = poppy_core.Wavefront(npix=100, wavelength=1e-6)
     string_representation = str(wave)
     assert string_representation =="""Wavefront:
-        wavelength = 1.000000 microns
-        shape = (100,100)
-        sampling = 0.080000 meters/pixel"""
+        wavelength = 1.0 micron
+        shape = (100, 100)
+        sampling = 0.08 m / pix"""
 
 def test_wavefront_copy():
     # test copy
@@ -58,8 +60,25 @@ def test_wavefront_rotation():
     rot = poppy_core.Rotation(10)
     wave0 = wave
     wave *= rot
-    assert wave is wave0
+    assert np.allclose(wave0.wavefront, wave.wavefront)
 
+def test_wavefront_inversion():
+    npix=100
+    wave = poppy_core.Wavefront(npix=npix, wavelength=1e-6)
+    wave *= optics.ParityTestAperture()
+
+
+    # test the coord transform doesn't do anything in imul (but instead does stuff in propagate)
+    inv = poppy_core.CoordinateInversion('both')
+    wave0 = wave
+    wave *= inv
+    assert np.allclose(wave0.wavefront, wave.wavefront)
+
+    # test the inversion
+    wave_inv = wave.copy()
+    wave_inv.invert()
+    assert np.allclose(wave0.wavefront[npix/2], wave_inv.wavefront[npix/2, ::-1])
+    assert np.allclose(wave0.wavefront[:, npix/2], wave_inv.wavefront[::-1, npix/2])
 
 
 def test_wavefront_asFITS():

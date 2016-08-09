@@ -15,6 +15,8 @@ if you could include the following acknowledgment:
   package originally developed for the James Webb Space Telescope project
   (`Perrin, 2012 <http://adsabs.harvard.edu/abs/2012SPIE.8442E..3DP>`_).
 
+You may also cite the `software code record at the Astrophysics Source Code Library <http://ascl.net/1602.018>`_.
+
 .. _about_team:
 
 The Team
@@ -22,7 +24,9 @@ The Team
 
 POPPY is developed primarily by a team of astronomers at the `Space Telescope
 Science Insitute <http://www.stsci.edu/>`_, but is open to contributions from
-scientists and software developers around the world.
+scientists and software developers around the world. Development takes place
+on Github at http://github.com/mperrin/poppy . See that page for the most up-to-date
+list of contributors. 
 
 Direct contributors to POPPY code
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -30,6 +34,7 @@ Direct contributors to POPPY code
  * Marshall Perrin
  * Joseph Long
  * Ewan Douglas
+ * Neil Zimmerman
  * Anand Sivaramakrishnan
  * Christine Slocum
 
@@ -38,6 +43,8 @@ Indirect Contributors (algorithms, advice, ideas, inspirations)
  * Erin Elliot
  * Remi Soummer
  * Laurent Pueyo
+ * Charles Lajoie
+ * Kyle Van Gorkom
  * Mark Sienkiewicz
  * Perry Greenfield
 
@@ -68,7 +75,7 @@ in Astronomy.
 License
 -----------------
 
-Copyright (C) 2010-2015 Association of Universities for Research in Astronomy (AURA)
+Copyright (C) 2010-2016 Association of Universities for Research in Astronomy (AURA)
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
