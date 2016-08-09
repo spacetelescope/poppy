@@ -1,30 +1,28 @@
 """
-
- Classes for wavefront errors in POPPY
-
- (this is a separate file purely for convienience
+Analytic optical element classes to introduce a specified wavefront
+error in an OpticalSystem
 
  * ZernikeWFE
- * PowerSpectrumWFE
- * KolmogorovWFE
-
-
-.. warning::
-
-  DEVELOPMENT CODE, NOT YET SUPPORTED
-
-
+ * ParameterizedWFE (for use with hexike or zernike basis functions)
+ * TODO: PowerSpectrumWFE
+ * TODO: KolmogorovWFE
 
 """
 
-from __future__ import (absolute_import, division, print_function, unicode_literals)
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+import collections
+import numpy as np
 
-from .optics import AnalyticOpticalElement
+from .optics import AnalyticOpticalElement, CircularAperture
+from .poppy_core import Wavefront, _PUPIL
+from . import zernike
 
+__all__ = ['WavefrontError', 'ParameterizedWFE', 'ZernikeWFE']
 
 class WavefrontError(AnalyticOpticalElement):
-    def __init__(self, name=None,  **kwargs):
-        raise NotImplementedError('Not implemented yet')
+    def __init__(self, **kwargs):
+        super(WavefrontError, self).__init__(planetype=_PUPIL, **kwargs)
 
     def rms(self):
         """ RMS wavefront error induced by this surface """
@@ -34,128 +32,166 @@ class WavefrontError(AnalyticOpticalElement):
         """ Peak-to-valley wavefront error induced by this surface """
         raise NotImplementedError('Not implemented yet')
 
-   
-
-class ZernikeWFE(WavefrontError):
-    """ Defines wavefront error over a pupil in terms of Zernike coefficients. 
+def _wave_to_rho_theta(wave, pupil_radius):
+    """
+    Return wave coordinates in (rho, theta) for a Wavefront object
+    normalized such that rho == 1.0 at the pupil radius
 
     Parameters
     ----------
-    name : string
-        Descriptive name
-    size: float
-        radius of the circle for which the Zernikes are defined. 
-        If not specified, this is attempted to be guessed from the previous pupil plane optic.
-    coeffs : iterable of floats
-        The Zernike amplitude coefficients for the desired WFE. Defined in the order given in 
-        zernike.py. Coefficients must be in units of meters of RMS phase error per term.
-    type : str
-        'zernike' or 'hexike' to indicate desired polynomial type.
-
+    wave : Wavefront
+        Wavefront object with a `coordinates` method that returns (y, x)
+        coordinate arrays in meters in the pupil plane
+    pupil_radius : float
+        Radius (in meters) of a circle circumscribing the pupil.
     """
+    y, x = wave.coordinates()
+    r = np.sqrt(x ** 2 + y ** 2)
 
-    def __init__(self, name=None,  size=1.0, coeffs=[1], type='zernike', **kwargs):
-        if name is None: name = "Zernikes over a circle of radius= %.1f m" % size
-        AnalyticOpticalElement.__init__(self,name=name,**kwargs)
-        self.size = size
-        self.pupil_diam = 2* self.size # for creating default input wavefronts
-        self.coeffs = coeffs
+    rho = r / pupil_radius
+    theta = np.arctan2(y / pupil_radius, x / pupil_radius)
 
-    def getPhasor(self,wave):
-        """ Compute the transmission inside/outside of the occulter.
+    return rho, theta
+
+class ParameterizedWFE(WavefrontError):
+    """
+    Define an optical element in terms of its distortion as decomposed
+    into a set of orthonormal basis functions (e.g. Zernikes,
+    Hexikes, etc.). Included basis functions are normalized such that
+    user-provided coefficients correspond to meters RMS wavefront
+    aberration for that basis function.
+
+    Parameters
+    ----------
+    coefficients : iterable of numbers
+        The contribution of each term to the final distortion, in meters
+        RMS wavefront error. The coefficients are interpreted as indices
+        in the order of Noll et al. 1976: the first term corresponds to
+        j=1, second to j=2, and so on.
+    radius : float
+        Pupil radius, in meters. Defines the region of the input
+        wavefront array over which the distortion terms will be
+        evaluated. For non-circular pupils, this should be the circle
+        circumscribing the actual pupil shape.
+    basis_factory : callable
+        basis_factory will be called with the arguments `nterms`, `rho`,
+        `theta`, and `outside`.
+
+        `nterms` specifies how many terms to compute, starting with the
+        j=1 term in the Noll indexing convention for `nterms` = 1 and
+        counting up.
+
+        `rho` and `theta` are square arrays holding the rho and theta
+        coordinates at each pixel in the pupil plane. `rho` is
+        normalized such that `rho` == 1.0 for pixels at `radius` meters
+        from the center.
+
+        `outside` contains the value to assign pixels outside the
+        radius `rho` == 1.0. (Always 0.0, but provided for
+        compatibility with `zernike.zernike_basis` and
+        `zernike.hexike_basis`.)
+    """
+    def __init__(self, name="Parameterized Distortion", coefficients=None, radius=None,
+                 basis_factory=None, **kwargs):
+        if not isinstance(basis_factory, collections.Callable):
+            raise ValueError("'basis_factory' must be a callable that can "
+                             "calculate basis functions")
+        try:
+            self.radius = float(radius)
+        except TypeError:
+            raise ValueError("'radius' must be the radius of a circular aperture in meters"
+                             "(optionally circumscribing a pupil of another shape)")
+        self.coefficients = coefficients
+        self.basis_factory = basis_factory
+        super(ParameterizedWFE, self).__init__(name=name, **kwargs)
+
+    def getPhasor(self, wave):
+        rho, theta = _wave_to_rho_theta(wave, self.radius)
+        combined_distortion = np.zeros(rho.shape)
+
+        nterms = len(self.coefficients)
+        computed_terms = self.basis_factory(nterms=nterms, rho=rho, theta=theta, outside=0.0)
+
+        for idx, coefficient in enumerate(self.coefficients):
+            if coefficient == 0.0:
+                continue  # save the trouble of a multiply-and-add of zeros
+            combined_distortion += coefficient * computed_terms[idx]
+
+        opd_as_phase = 2 * np.pi * combined_distortion / wave.wavelength
+        return np.exp(1.0j * opd_as_phase)
+
+class ZernikeWFE(WavefrontError):
+    """
+    Define an optical element in terms of its Zernike components by
+    providing coefficients for each Zernike term contributing to the
+    analytic optical element.
+
+    Parameters
+    ----------
+    coefficients : iterable of floats
+        Specifies the coefficients for the Zernike terms, ordered
+        according to the convention of Noll et al. JOSA 1976. The
+        coefficient is in meters of optical path difference (not waves).
+    radius : float
+        Pupil radius, in meters, over which the Zernike terms should be
+        computed such that rho = 1 at r = `radius`.
+    """
+    def __init__(self, name="Zernike WFE", coefficients=None, radius=None, **kwargs):
+        try:
+            self.radius = float(radius)
+        except TypeError:
+            raise ValueError("'radius' must be the radius of a circular aperture in meters"
+                             "(optionally circumscribing a pupil of another shape)")
+
+        self.coefficients = coefficients
+        self.circular_aperture = CircularAperture(radius=self.radius, **kwargs)
+        kwargs.update({'name': name})
+        super(ZernikeWFE, self).__init__(**kwargs)
+
+    def get_opd(self, wave, units='meters'):
         """
-        import zernike
-
-        if not isinstance(wave, Wavefront):
-            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == PUPIL)
-
-        y, x = wave.coordinates()
-
-        # compute normalized rho and theta for zernike computation
-        rho = np.sqrt( (x/self.size)**2 + (y/self.size)**2)
-        theta = np.arctan2( y/self.size, x/self.size)
-        del y
-        del x
-
-        _log.info("Generating wavefront from Zernike coefficients")
-        self.phase = np.empty(wave.shape)
-        for i, coeff in enumerate(self.coeffs):
-            j = i+1 # zernikes indexing must start with 1
-            self.phase += zernike.zernike1( j, theta=theta, rho=r) * coeff
-
-
-        return self.transmission
-
-
-        retardance = phase*self.reference_wavelength/wave.wavelength
-
-
-class StatisticalOpticalElement(WavefrontError):
-    """
-    A statistical realization of some wavefront error, computed on a fixed grid. 
-
-    This is in a sense like an AnalyticOpticalElement, in that it is in theory computable on any grid,
-    but once computed it has some fixed sampling that cannot easily be changed. 
-
-    """
-    def __init__(self, name=None,  seed=None, r0=15, L_inner=0.001, L_outer=10,  **kwargs):
-        if name is None: name = "Zernikes over a circle of radius= %.1f m" % size
-        OpticalElement.__init__(self,name=name,**kwargs)
-        raise NotImplementedError('Not implemented yet')
- 
-
-class KolmogorovWFE(StatisticalOpticalElement):
-    """
-    See
-
-    http://www.opticsinfobase.org/view_article.cfm?gotourl=http%3A%2F%2Fwww%2Eopticsinfobase%2Eorg%2FDirectPDFAccess%2F8E2A4176%2DED0A%2D7994%2DFB0AC49CECB235DF%5F142887%2Epdf%3Fda%3D1%26id%3D142887%26seq%3D0%26mobile%3Dno&org=
-
-    http://optics.nuigalway.ie/people/chris/chrispapers/Paper066.pdf
-
-    """
-    def __init__(self, name=None,  seed=None, r0=15, L_inner=0.001, L_outer=10,  **kwargs):
-        if name is None: name = "Zernikes over a circle of radius= %.1f m" % size
-        StatisticalOpticalElement.__init__(self,name=name,**kwargs)
-        raise NotImplementedError('Not implemented yet')
- 
-class PowerSpectralDensityWFE(StatisticalOpticalElement):
-    """ Compute WFE from a power spectral density. 
-
-    Inspired by (and loosely derived from) prop_psd_errormap in John Krist's PROPER library.
-
-
-    For some background on structure functions & why they are useful, see : http://www.optics.arizona.edu/optomech/Spr11/523L/Specifications%20final%20color.pdf
-
-    """
-    def __init__(self, name=None,  seed=None, low_freq_amp=1, correlation_length=1.0, powerlaw=1.0,  **kwargs):
-        """ 
-
         Parameters
-        -----------
-        low_freq_amp : float
-            RMS error per spatial frequency at low spatial frequencies. 
-        correlation_length : float
-            Correlation length parameter in cycles/meter. This indicates where the PSD transitions from
-            the low frequency behavior (~ constant amplitude per spatial frequency) to the high
-            frequency behavior (~decreasing amplitude per spatial frequency)
-        powerlaw : float
-            The power law exponent for the falloff in amplitude at high spatial frequencies.
+        ----------
+
+        wave : poppy.Wavefront (or float)
+            Incoming Wavefront before this optic to set wavelength and
+            scale, or a float giving the wavelength in meters
+            for a temporary Wavefront used to compute the OPD.
+        units : 'meters' or 'waves'
+            Coefficients are supplied in `ZernikeWFE.coefficients` as
+            meters of OPD, but the resulting OPD can be converted to
+            waves based on the `Wavefront` wavelength or a supplied
+            wavelength value.
         """
-        if name is None: name = "Power Spectral Density WFE map "
-        StatisticalOpticalElement.__init__(self,name=name,**kwargs)
-        raise NotImplementedError('Not implemented yet')
+        # getPhasor specified to accept wave as float wavelength or
+        # Wavefront instance:
+        if not isinstance(wave, Wavefront):
+            wave = Wavefront(wavelength=wave)
 
-        # compute X and Y coordinate grids 
-        # compute wavenumber K in cycles/meter
-        # compute 2D PSD
-        # set piston to zero
-        # scale RMS error as desired
-        # create realization of the PSD using random phases
-        # force realized map to have the desired RMS
+        rho, theta = _wave_to_rho_theta(wave, self.radius)
 
-    def saveto(self, filename):
-        raise NotImplementedError('Not implemented yet')
- 
+        # the Zernike optic, being normalized on a circle, is
+        # implicitly also a circular aperture:
+        aperture_intensity = self.circular_aperture.getPhasor(wave)
 
+        combined_zernikes = np.zeros(wave.shape, dtype=np.float64)
+        for j, k in enumerate(self.coefficients, start=1):
+            combined_zernikes += k * zernike.cached_zernike1(
+                j,
+                wave.shape,
+                wave.pixelscale,
+                self.radius,
+                outside=0.0,
+                noll_normalize=True
+            )
 
+        combined_zernikes *= aperture_intensity
+        if units == 'waves':
+            combined_zernikes /= wave.wavelength
+        return combined_zernikes
+
+    def getPhasor(self, wave):
+        combined_zernikes = self.get_opd(wave, units='meters')
+        opd_as_phase = 2 * np.pi * combined_zernikes / wave.wavelength
+        zernike_wfe_phasor = np.exp(1.j * opd_as_phase)
+        return zernike_wfe_phasor

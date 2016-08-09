@@ -1,10 +1,22 @@
 #!/usr/bin/env python
 # Based on astropy affiliated package template's setup.py
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
+from __future__ import print_function
 
 import glob
 import os
 import sys
+import imp
+import ast
+
+try:
+    import numpy
+except ImportError:
+    print("""
+WARNING: NumPy was not found! setup.py will attempt to install it if asked, but
+\tyou may experience issues. Try installing NumPy first, separately.
+\tSee https://github.com/numpy/numpy/issues/2434 for details.
+""")
 
 import ah_bootstrap
 from setuptools import setup
@@ -35,22 +47,23 @@ LICENSE = metadata.get('license', 'unknown')
 URL = metadata.get('url', 'http://astropy.org')
 
 # Get the long description from the package's docstring
-__import__(PACKAGENAME)
-package = sys.modules[PACKAGENAME]
-LONG_DESCRIPTION = package.__doc__
+_, module_path, _ = imp.find_module(PACKAGENAME)
+with open(os.path.join(module_path, '__init__.py')) as f:
+    module_ast = ast.parse(f.read())
+LONG_DESCRIPTION = ast.get_docstring(module_ast)
 
 # Store the package name in a built-in variable so it's easy
 # to get from other parts of the setup infrastructure
 builtins._ASTROPY_PACKAGE_NAME_ = PACKAGENAME
 
 # VERSION should be PEP386 compatible (http://www.python.org/dev/peps/pep-0386)
-VERSION = '0.3.3.dev'
+VERSION = '0.3.6.dev'
 
 # Indicates if this version is a release version
 RELEASE = 'dev' not in VERSION
 
 if not RELEASE:
-    VERSION += get_git_devstr(True)
+    VERSION += get_git_devstr(False)
 
 # Populate the dict of setup command overrides; this should be done before
 # invoking any other functionality from distutils since it can potentially
@@ -91,12 +104,24 @@ for root, dirs, files in os.walk(PACKAGENAME):
                     os.path.relpath(root, PACKAGENAME), filename))
 package_info['package_data'][PACKAGENAME].extend(c_files)
 
+install_requires_packages = [
+      'six>=1.7.3',
+      'numpy>=1.8.0',
+      'scipy>=0.14.0',
+      'matplotlib>=1.3.0',
+      'astropy>=1.0.1',
+]
+
+# Python 3.4.x backports
+if sys.version_info[:2] < (3, 4):
+    install_requires_packages.append('enum34>=1.0.4')
+
 setup(name=PACKAGENAME,
       version=VERSION,
       description=DESCRIPTION,
       scripts=scripts,
-      requires=['astropy'],
-      install_requires=['astropy'],
+      setup_requires=['numpy>=1.8.0', 'astropy>=1.0.1'],
+      install_requires=install_requires_packages,
       provides=[PACKAGENAME],
       author=AUTHOR,
       author_email=AUTHOR_EMAIL,
@@ -105,6 +130,5 @@ setup(name=PACKAGENAME,
       long_description=LONG_DESCRIPTION,
       cmdclass=cmdclassd,
       zip_safe=False,
-      use_2to3=True,
       **package_info
 )

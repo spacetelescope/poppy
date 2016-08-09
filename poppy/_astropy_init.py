@@ -103,6 +103,12 @@ def test(package=None, test_path=None, args=None, plugins=None,
         explicitly updating the package template.
 
     """
+    
+    # work around pytest issue causing test failures on
+    # write only file systems, per advice from Christine Slocum
+    import sys
+    sys.dont_write_bytecode = True
+
     test_runner = _get_test_runner()
     return test_runner.run_tests(
         package=package, test_path=test_path, args=args,

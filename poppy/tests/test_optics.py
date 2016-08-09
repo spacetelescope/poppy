@@ -7,6 +7,7 @@ import astropy.io.fits as fits
 
 from .. import poppy_core 
 from .. import optics
+from .. import zernike
 from .test_core import check_wavefront
 
 
@@ -42,6 +43,8 @@ def test_InverseTransmission():
         optic = optics.CircularAperture(radius=radius)
         inverted = optics.InverseTransmission(optic)
         assert( np.all(  np.abs(optic.getPhasor(wave) - (1-inverted.getPhasor(wave))) < 1e-10 ))
+
+        assert optic.shape==inverted.shape
 
 
 #------ Generic Analytic elements -----
@@ -84,6 +87,25 @@ def test_BarOcculter():
     wave*= optic
     assert wave.shape[0] == 100
     assert wave.intensity.sum() == 9000 # 9/10 of the 1e4 element array
+
+
+def test_AnnularFieldStop():
+    optic= optics.AnnularFieldStop(radius_inner=1.0, radius_outer=2.0)
+    wave = poppy_core.Wavefront(npix=100, pixelscale=0.1, wavelength=1e-6) # 10x10 arcsec square
+
+    wave*= optic
+    # Just check a handful of points that it goes from 0 to 1 back to 0
+    assert wave.intensity[50,50] == 0
+    assert wave.intensity[55,50] == 0
+    assert wave.intensity[60,50] == 1
+    assert wave.intensity[69,50] == 1
+    assert wave.intensity[75,50] == 0
+    assert wave.intensity[95,50] == 0
+    # and check the area is approximately right
+    expected_area = np.pi*(optic.radius_outer**2 - optic.radius_inner**2) * 100
+    area = wave.intensity.sum()
+    assert np.abs(expected_area-area) < 0.01*expected_area
+
 
 #def test_rotations_RectangularFieldStop():
 #
@@ -242,8 +264,43 @@ def test_ObscuredCircularAperture_Airy(display=False):
         ax2=pl.imshow(np.abs(numeric[0].data-analytic) < 1e-4)
         pl.title("Difference <1e-4")
 
-#fits.writeto("test.fits", numeric[0].data-analytic)
-#print a2.max()
+
+def test_CompoundAnalyticOptic(display=False):
+    wavelen = 2e-6
+    nwaves = 2
+    r = 3
+
+    osys_compound = poppy_core.OpticalSystem()
+    osys_compound.addPupil(
+        optics.CompoundAnalyticOptic([
+            optics.CircularAperture(radius=r),
+            optics.ThinLens(nwaves=nwaves, reference_wavelength=wavelen,
+                            radius=r)
+        ])
+    )
+    osys_compound.addDetector(pixelscale=0.010, fov_pixels=512, oversample=1)
+    psf_compound = osys_compound.calcPSF(wavelength=wavelen, display=False)
+
+    osys_separate = poppy_core.OpticalSystem()
+    osys_separate.addPupil(optics.CircularAperture(radius=r))    # pupil radius in meters
+    osys_separate.addPupil(optics.ThinLens(nwaves=nwaves, reference_wavelength=wavelen,
+                                           radius=r))
+    osys_separate.addDetector(pixelscale=0.01, fov_pixels=512, oversample=1)
+    psf_separate = osys_separate.calcPSF(wavelength=wavelen, display=False)
+
+    if display:
+        from matplotlib import pyplot as plt
+        from poppy import utils
+        plt.figure()
+        plt.subplot(1, 2, 1)
+        utils.display_PSF(psf_separate, title='From Separate Optics')
+        plt.subplot(1, 2, 2)
+        utils.display_PSF(psf_compound, title='From Compound Optics')
+
+    difference = psf_compound[0].data - psf_separate[0].data
+
+    assert np.all(np.abs(difference) < 1e-3)
+
 
 
 def test_AsymmetricObscuredAperture(display=False):
@@ -282,27 +339,83 @@ def test_AsymmetricObscuredAperture(display=False):
         utils.display_PSF(numeric, vmin=1e-8, vmax=1e-2, colorbar=False)
         #pl.title("Numeric")
 
-#
+def test_GaussianAperture(display=False):
+    """ Test the Gaussian aperture """
+
+    ga = optics.GaussianAperture(fwhm=1)
+    w = poppy_core.Wavefront(npix=101) # enforce odd npix so there is a pixel at the exact center
+
+    w *= ga
+
+    assert(ga.w == ga.fwhm/(2*np.sqrt(np.log(2))))
+
+    assert(w.intensity.max() ==1)
+
+
+    # now mock up a wavefront with very specific coordinate values
+    # namely the origin, one HWHM away, and one w or sigma away.
+    class mock_wavefront(poppy_core.Wavefront):
+        def __init__(self, *args, **kwargs):
+            #super(poppy.Wavefront, self).__init__(*args, **kwargs) # super does not work for some reason?
+            poppy_core.Wavefront.__init__(self, *args, **kwargs)
+
+            self.wavefront = np.ones(5)
+            self.planetype=poppy_core.PlaneType.pupil
+            self.pixelscale = 0.5
+        def coordinates(self):
+            return (np.asarray([0,0.5, 0.0, ga.w, 0.0]), np.asarray([0, 0, 0.5, 0, -ga.w ]))
+
+    trickwave = mock_wavefront()
+    trickwave *= ga
+    assert(trickwave.amplitude[0]==1)
+    assert(np.allclose(trickwave.amplitude[1:3], 0.5))
+    assert(np.allclose(trickwave.amplitude[3:5], np.exp(-1)))
+
 
 def test_ThinLens(display=False):
+    pupil_radius = 1
 
-    pupil = optics.CircularAperture(radius=1) 
+    pupil = optics.CircularAperture(radius=pupil_radius)
     # let's add < 1 wave here so we don't have to worry about wrapping
-    lens = optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6)
-    wave = poppy_core.Wavefront(npix=101, diam=3.0, wavelength=1e-6) # 10x10 meter square
-    wave*= pupil
-    wave*= lens
+    lens = optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6, radius=pupil_radius)
+    # n.b. npix is 99 so that there are an integer number of pixels per meter (hence multiple of 3)
+    # and there is a central pixel at 0,0 (hence odd npix)
+    # Otherwise the strict test against half a wave min max doesn't work
+    # because we're missing some (tiny but nonzero) part of the aperture
+    wave = poppy_core.Wavefront(npix=99, diam=3.0, wavelength=1e-6)
+    wave *= pupil
+    wave *= lens
 
-    assert np.abs(wave.phase[wave.intensity> 0].max() - np.pi/2) < 1e-6
-    assert np.abs(wave.phase[wave.intensity> 0].min() + np.pi/2) < 1e-6
+    assert np.abs(wave.phase.max() - np.pi/2) < 1e-19
+    assert np.abs(wave.phase.min() + np.pi/2) < 1e-19
 
-    
-    return wave
- 
-#    osys = poppy_core.OpticalSystem()
-#
-#    osys.addDetector(pixelscale=0.030,fov_pixels=512, oversample=1)
-#    if display: osys.display()
-#    numeric = osys.calcPSF(wavelength=1.0e-6, display=False)
-#
+    # regression test to ensure null optical elements don't change ThinLens behavior
+    # see https://github.com/mperrin/poppy/issues/14
+    osys = poppy_core.OpticalSystem()
+    osys.addPupil(optics.CircularAperture(radius=1))
+    for i in range(10):
+        osys.addImage()
+        osys.addPupil()
 
+    osys.addPupil(optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6,
+                                  radius=pupil_radius))
+    osys.addDetector(pixelscale=0.01, fov_arcsec=3.0)
+    psf = osys.calcPSF(wavelength=1e-6)
+
+    osys2 = poppy_core.OpticalSystem()
+    osys2.addPupil(optics.CircularAperture(radius=1))
+    osys2.addPupil(optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6,
+                                   radius=pupil_radius))
+    osys2.addDetector(pixelscale=0.01, fov_arcsec=3.0)
+    psf2 = osys2.calcPSF()
+
+
+    if display:
+        import poppy
+        poppy.display_PSF(psf)
+        poppy.display_PSF(psf2)
+
+    assert np.allclose(psf[0].data,psf2[0].data), (
+        "ThinLens shouldn't be affected by null optical elements! Introducing extra image planes "
+        "made the output PSFs differ beyond numerical tolerances."
+    )

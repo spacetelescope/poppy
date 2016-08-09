@@ -47,7 +47,7 @@ def test_airy_2d(display=False):
     r, fn1d = airy_1d(diameter=1.0, wavelength=1e-6, length=256, pixelscale=0.010)
 
     cut = fn2d[255, 255:].flatten()
-    print cut.shape
+    print(cut.shape)
 
     if display:
         
@@ -74,7 +74,7 @@ def test_airy_2d(display=False):
 
     #return fn2d
 
-def test_sinc2_2d(display=True):
+def test_sinc2_2d(display=False):
     """ Test 2D Sinc function vs 1D function.
 
     """

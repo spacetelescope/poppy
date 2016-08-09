@@ -1,8 +1,3 @@
-.. JWST-PSFs documentation master file, created by
-   sphinx-quickstart on Mon Nov 29 15:57:01 2010.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 .. _classes:
 
 .. default-role:: obj
@@ -71,17 +66,4 @@ Optical Elements
 
  * `~poppy.Detector` represents a detector with some fixed sampling and pixel scale.
 
-
-
-
-Reference/API
-=============
-
-.. automodapi:: poppy
-
-
-
---------------
-
-Documentation last updated on |today|
 

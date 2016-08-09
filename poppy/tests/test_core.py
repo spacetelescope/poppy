@@ -1,11 +1,16 @@
-#Test functions for core poppy functionality
-
-from .. import poppy_core 
-from .. import optics
+# Test functions for core poppy functionality
+import os
 
 import numpy as np
-import astropy.io.fits as fits
+from astropy.io import fits
+import pytest
+try:
+    import scipy
+except ImportError:
+    scipy = None
 
+from .. import poppy_core
+from .. import optics
 
 ####### Test Common Infrastructre #######
 
@@ -52,7 +57,7 @@ class ParityTestAperture(optics.AnalyticOpticalElement):
 
     def __init__(self, name=None,  radius=1.0, pad_factor = 1.5, **kwargs):
         if name is None: name = "Circle, radius=%.2f m" % radius
-        poppy_core.AnalyticOpticalElement.__init__(self,name=name, **kwargs)
+        super(ParityTestAperture,self).__init__(name=name, **kwargs)
         self.radius = radius
         self.pupil_diam = pad_factor * 2* self.radius # for creating input wavefronts - let's pad a bit
 
@@ -72,7 +77,7 @@ class ParityTestAperture(optics.AnalyticOpticalElement):
         self.transmission[w_outside] = 0
 
         w_box1 = np.where( (r> self.radius*0.5) & (np.abs(x) < self.radius*0.1 ) & ( y < 0 ))
-        w_box2 = np.where( (r> self.radius*0.75) & (np.abs(y) < self.radius*0.2) & ( x < 0 ))
+        w_box2 = np.where( (r> self.radius*0.65) & (np.abs(y) < self.radius*0.4) & ( x < 0 ))
         self.transmission[w_box1] = 0
         self.transmission[w_box2] = 0
 
@@ -148,6 +153,33 @@ def test_CircularAperture_Airy(display=False):
 #print a2.max()
 
 
+def test_multiwavelength_opticalsystem():
+    """
+    Tests the ability to just provide wavelengths, weights directly
+    """
+    wavelengths = [2.0e-6, 2.1e-6, 2.2e-6]
+    weights = [0.3, 0.5, 0.2]
+
+    osys = poppy_core.OpticalSystem("test")
+    pupil = optics.CircularAperture(radius=1)
+    osys.addPupil(pupil) #function='Circle', radius=1)
+    osys.addDetector(pixelscale=0.1, fov_arcsec=5.0) # use a large FOV so we grab essentially all the light and conserve flux
+
+
+    psf = osys.calcPSF(wavelength=wavelengths, weight=weights)
+    assert psf[0].header['NWAVES'] == len(wavelengths), \
+        "Number of wavelengths in PSF header does not match number requested"
+
+    # Check weighted sum
+    output = np.zeros_like(psf[0].data)
+    for wavelength, weight in zip(wavelengths, weights):
+        output += weight * osys.calcPSF(wavelength=wavelength)[0].data
+
+    assert np.allclose(psf[0].data, output), \
+        "Multi-wavelength PSF does not match weighted sum of individual wavelength PSFs"
+
+    return psf
+
 
 def test_normalization():
     """ Test that we can compute a PSF and get the desired flux, 
@@ -201,16 +233,69 @@ def test_normalization():
 def test_fov_size_pixels():
     """ Test the PSF field of view size is as requested, in pixels for a square aperture"""
 
+    # square FOV
+    for size in (100, 137, 256):
+        osys = poppy_core.OpticalSystem("test", oversample=2)
+        pupil = optics.CircularAperture(radius=6.5/2)
+        osys.addPupil(pupil)
+        osys.addDetector(pixelscale=0.1, fov_pixels=size, oversample=1)
+
+        psf = osys.calcPSF(wavelength=1e-6)
+
+        assert psf[0].data.shape[0] == size
+        assert psf[0].data.shape[1] == size
+
+
+    # rectangular FOV
     osys = poppy_core.OpticalSystem("test", oversample=2)
     pupil = optics.CircularAperture(radius=6.5/2)
     osys.addPupil(pupil)
-    osys.addDetector(pixelscale=0.1, fov_pixels=100, oversample=1)
+    osys.addDetector(pixelscale=0.1, fov_pixels=(100,200) , oversample=1)
 
     psf = osys.calcPSF(wavelength=1e-6)
 
     assert psf[0].data.shape[0] == 100
-    assert psf[0].data.shape[1] == 100
+    assert psf[0].data.shape[1] == 200
 
+
+
+###    EXPECTED TO FAIL RIGHT NOW - Offsets don't work yet.
+###    See https://github.com/mperrin/poppy/issues/40
+import pytest
+@pytest.mark.xfail
+def test_fov_offset(scale=1.0):
+    """ Test offsetting the field of view of a Detector
+    This is distinct from offsetting the source! """
+    from ..utils import measure_centroid
+
+    size=100
+    pixscale = 0.1
+
+    # A PSF created on-axis with no offset
+    osys = poppy_core.OpticalSystem("test", oversample=2)
+    pupil = optics.CircularAperture(radius=6.5/2)
+    osys.addPupil(pupil)
+    osys.addDetector(pixelscale=pixscale, fov_pixels=size, oversample=1)
+    psf1 = osys.calcPSF()
+    # The measured centroid should put it in the center of the array
+    cent1 = measure_centroid(psf1, relativeto='center')
+    poppy_core._log.info("On-axis PSF (no offset) centroid is:" + str(cent1))
+    assert(abs(cent1[0]-0) < 1e-5)
+    assert(abs(cent1[1]-0) < 1e-5)
+
+    # Now create an equivalent PSF but offset the axes by 1 pixel in the first axis
+    osys2 = poppy_core.OpticalSystem("test", oversample=2)
+    osys2.addPupil(pupil)
+    osys2.addDetector(pixelscale=pixscale, fov_pixels=size, oversample=1, offset=(pixscale*scale,0))
+    psf2 = osys2.calcPSF()
+    # Its centroid shouldbe offset by a pixel
+    poppy_core._log.info("Offset PSF (by ({0},0) pixels ) centroid is: {1}".format(str(scale), str(cent1)))
+    cent2 = measure_centroid(psf2, relativeto='center')
+    assert(abs(cent2[0]-scale) < 1e-5)
+    assert(abs(cent2[1]-0) < 1e-5)
+
+
+    # and do the same thing in the second axis (after the above works)
 
 
 
@@ -221,7 +306,7 @@ def test_inverse_MFT():
 
     fov_arcsec  = 5.0
 
-    test_ap = optics.ParityTestAperture(radius=6.5/2)
+    test_ap = optics.ParityTestAperture(radius=6.5/2, pad_factor=1.5)
 
     osys = poppy_core.OpticalSystem("test", oversample=4)
     osys.addPupil(test_ap)
@@ -239,14 +324,10 @@ def test_inverse_MFT():
     assert(   np.abs(psf1[0].data - psf[0].data).max()  < 1e-7 )
 
 
-import pytest
-
-try:
-    import scipy
-    HAS_SCIPY = True
-except ImportError:
-    HAS_SCIPY = False
-@pytest.mark.skipif('not HAS_SCIPY')
+@pytest.mark.skipif(
+    (scipy is None),
+    reason='No SciPy installed'
+)
 def test_optic_resizing():
     '''
     Tests the rescaling functionality of OpticalElement.getPhasor(),
@@ -254,16 +335,32 @@ def test_optic_resizing():
     creating an optic with a large pixel scale, and checking the returned
     phasor of each has the dimensions of the input wavefront.
     '''
-    osys = poppy_core.OpticalSystem("test", oversample=1)
+
+    # diameter 1 meter, pixel scale 2 mm
+    inputwf = poppy_core.Wavefront(diam=1.0, npix=500)
+
+    # Test rescaling from finer scales: diameter 1 meter, pixel scale 1 mm 
     test_optic_small=fits.HDUList([fits.PrimaryHDU(np.zeros([1000,1000]))])
-    test_optic_small[0].header["PIXSCALE"]=.001
-
+    test_optic_small[0].header["PUPLSCAL"]=.001
     test_optic_small_element=poppy_core.FITSOpticalElement(transmission=test_optic_small)
+    assert(test_optic_small_element.getPhasor(inputwf).shape ==inputwf.shape )
 
-    test_optic_large=fits.HDUList([fits.PrimaryHDU(np.zeros([1000,1000]))])
-    test_optic_large[0].header["PIXSCALE"]=.1
+    # Test rescaling from coarser scales: diameter 1 meter, pixel scale 10 mm
+    test_optic_large=fits.HDUList([fits.PrimaryHDU(np.zeros([100,100]))])
+    test_optic_large[0].header["PUPLSCAL"]=.01
     test_optic_large_element=poppy_core.FITSOpticalElement(transmission=test_optic_large)
+    assert(test_optic_large_element.getPhasor(inputwf).shape ==inputwf.shape )
 
-    osys.addPupil(optics.CircularAperture(radius=3.25))
-    assert(test_optic_small_element.getPhasor(osys.inputWavefront()).shape ==osys.inputWavefront().shape )
-    assert(test_optic_large_element.getPhasor(osys.inputWavefront()).shape ==osys.inputWavefront().shape )
+    # Test rescaling where we have to pad with extra zeros: 
+    # diameter 0.8 mm, pixel scale 1 mm
+    test_optic_pad=fits.HDUList([fits.PrimaryHDU(np.zeros([800,800]))])
+    test_optic_pad[0].header["PUPLSCAL"]=.001
+    test_optic_pad_element=poppy_core.FITSOpticalElement(transmission=test_optic_pad)
+    assert(test_optic_pad_element.getPhasor(inputwf).shape ==inputwf.shape )
+
+    # Test rescaling where we have to trim to a smaller size:
+    # diameter 1.2 mm, pixel scale 1 mm
+    test_optic_crop=fits.HDUList([fits.PrimaryHDU(np.zeros([1200,1200]))])
+    test_optic_crop[0].header["PUPLSCAL"]=.001
+    test_optic_crop_element=poppy_core.FITSOpticalElement(transmission=test_optic_crop)
+    assert(test_optic_crop_element.getPhasor(inputwf).shape ==inputwf.shape )

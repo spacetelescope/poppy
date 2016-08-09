@@ -77,7 +77,7 @@ Defocus can be added using a lens::
 
             osys = poppy.OpticalSystem("test", oversample=2)
             osys.addPupil( poppy.CircularAperture(radius=3))    # pupil radius in meters
-            osys.addPupil( poppy.ThinLens(nwaves=nwaves, reference_wavelength=wavelen))
+            osys.addPupil( poppy.ThinLens(nwaves=nwaves, reference_wavelength=wavelen, radius=3))
             osys.addDetector(pixelscale=0.01, fov_arcsec=4.0)
 
             psf = osys.calcPSF(wavelength=wavelen)
@@ -231,5 +231,55 @@ On my circa-2010 Mac Pro, the results are dramatic::
 
         Elapsed time, FFT:  62.
         Elapsed time, SAM:  4.1
+
+
+Shifting and rotating optics
+---------------------------------
+
+
+All AnalyticOpticalElements support arbitrary shifts and rotations
+of the optic. Set the `shift_x`, `shift_y` or `rotation` attributes. 
+The shifts are given in meters for pupil plane optics, or arcseconds
+for image plane optics. 
+
+For instance we can demonstrate the shift invariance of PSFs::
+
+    ap_regular = poppy.CircularAperture(radius=2)
+    ap_shifted = poppy.CircularAperture(radius=2)
+    ap_shifted.shift_x =-0.75
+    ap_shifted.shift_y = 0.25
+
+    plt.figure(figsize=(6,6))
+
+    for optic, title, i in [(ap_regular, 'Unshifted', 1), (ap_shifted, 'Shifted', 3)]:
+
+        sys = poppy.OpticalSystem()
+        sys.addPupil(optic)
+        sys.addDetector(0.010, fov_pixels=100)
+        psf = sys.calcPSF()
+
+        ax1 = plt.subplot(2,2,i)
+        optic.display(nrows=2, colorbar=False, ax=ax1)
+        ax1.set_title(title+' pupil')
+        ax2 = plt.subplot(2,2,i+1)
+        poppy.display_PSF(psf,ax=ax2, colorbar=False)
+        ax2.set_title(title+' PSF')
+
+.. image:: ./example_shift_invariance.png
+   :scale: 100%
+   :align: center
+   :alt: Sample calculation result
+
+
+In addition to setting the attributes as shown in the above example, these
+options can be set directly in the initialization of such elements::
+
+    ap = poppy.RectangleAperture(rotation=30, shift_x=0.1)
+    ap.display(colorbar=False)
+
+.. image:: ./example_shift_and_rotate.png
+   :scale: 100%
+   :align: center
+   :alt: Sample calculation result
 
 
