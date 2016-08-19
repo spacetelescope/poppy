@@ -2415,7 +2415,7 @@ class OpticalElement(object):
         if self.planetype == _PUPIL:
             return "Pupil plane: %s " % (self.name)
         elif self.planetype == _IMAGE:
-            desc = "(%dx%d pixels, scale=%f arcsec/pixel)" % (self.shape[0], self.shape[0], self.pixelscale) if self.pixelscale is not None else "(Analytic)"
+            desc = "({}x{} pixels, scale={} arcsec/pixel)".format(self.shape[0], self.shape[0], self.pixelscale) if self.pixelscale is not None else "(Analytic)"
             return "Image plane: %s %s" % (self.name, desc)
         else:
             return "Optic: "+self.name
