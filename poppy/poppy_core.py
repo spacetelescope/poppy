@@ -606,7 +606,7 @@ class Wavefront(object):
             self._propagate_mft_inverse(optic)
             self.location = 'before '+optic.name
         elif self.planetype == _IMAGE and optic.planetype == _DETECTOR:
-            raise NotImplemented('image plane directly to detector propagation (resampling!) not implemented yet')
+            raise NotImplementedError('image plane directly to detector propagation (resampling!) not implemented yet')
         else:
             self._propagate_fft(optic)           # FFT pupil to image or image to pupil
             self.location = 'before '+optic.name
