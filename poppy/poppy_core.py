@@ -1558,10 +1558,12 @@ class OpticalSystem(object):
 
         if conf.use_multiprocessing and len(wavelength) > 1: ######### Parallellized computation ############
             # Avoid a Mac OS incompatibility that can lead to hard-to-reproduce crashes.
+            # see issues #23 and #176
             import sys
             import platform
             if ( (sys.version_info < (3,4,0)) and platform.system()=='Darwin' and
-                    '-Wl,Accelerate' in np.__config__.blas_opt_info['extra_link_args']):
+                    (('extra_link_args' in np.__config__.blas_opt_info) and
+                    '-Wl,Accelerate' in np.__config__.blas_opt_info['extra_link_args'])):
                     _log.error("Multiprocessing not compatible with Apple Accelerate library on Python < 3.4")
                     _log.error(" See https://github.com/mperrin/poppy/issues/23 ")
                     _log.error(" Either disable multiprocessing, or recompile your numpy without Accelerate.")
