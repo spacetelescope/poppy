@@ -1522,8 +1522,11 @@ class OpticalSystem(object):
         tstart = time.time()
         if source is not None:
             wavelength = source['wavelengths']
-            weight=source['weights']
-            if not isinstance(wavelength, u.Quantity): wavelength *= u.meter
+            weight = source['weights']
+
+            # Make sure the wavelength is unit-y
+            if not isinstance(wavelength, u.Quantity):
+                wavelength = np.asarray(wavelength) * u.meter
 
         # ensure wavelength is a quantity which is iterable:
         # (the check for a quantity of type length is applied in the decorator)
@@ -2079,10 +2082,21 @@ class MatrixFTCoronagraph(OpticalSystem):
                 intermediate_wfs.append(wavefront.copy())
 
             if display_intermediates:
-                if conf.enable_speed_tests: t0 = time.time()
-                title = None if current_plane_index > 1 else "propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6)
-                wavefront.display(what='best',nrows=len(self.planes),row=current_plane_index, colorbar=False, title=title)
-                #plt.title("propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6))
+                if conf.enable_speed_tests:
+                    t0 = time.time()
+
+                if current_plane_index > 1:
+                    title = None
+                else:
+                    title = "propagating $\lambda=$ {:.3} $\mu$m".format(wavelength.to(u.micron).value)
+
+                wavefront.display(
+                    what='best',
+                    nrows=len(self.planes),
+                    row=current_plane_index,
+                    colorbar=False,
+                    title=title
+                )
 
                 if conf.enable_speed_tests:
                     t1 = time.time()
@@ -2401,7 +2415,7 @@ class OpticalElement(object):
         if self.planetype == _PUPIL:
             return "Pupil plane: %s " % (self.name)
         elif self.planetype == _IMAGE:
-            desc = "(%dx%d pixels, scale=%f arcsec/pixel)" % (self.shape[0], self.shape[0], self.pixelscale) if self.pixelscale is not None else "(Analytic)"
+            desc = "({}x{} pixels, scale={} arcsec/pixel)".format(self.shape[0], self.shape[0], self.pixelscale) if self.pixelscale is not None else "(Analytic)"
             return "Image plane: %s %s" % (self.name, desc)
         else:
             return "Optic: "+self.name
