@@ -287,6 +287,46 @@ class Instrument(object):
         else:
             return result
 
+
+    def calc_datacube(self, wavelengths, *args, **kwargs):
+        """Calculate a spectral datacube of PSFs
+
+        Parameters
+        -----------
+        wavelengths : iterable of floats
+            List or ndarray or tuple of floating point wavelengths in meters, such as
+            you would supply in a call to calc_psf via the "monochromatic" option
+        """
+
+        nwavelengths = len(wavelengths)
+        if nwavelengths >100:
+            raise ValueError("Maximum number of wavelengths exceeded. Cannot be more than 100.")
+
+        # Set up cube and initialize structure based on PSF at first wavelength
+        poppy_core._log.info("Starting multiwavelength data cube calculation.")
+        psf = self.calc_psf(*args, monochromatic=wavelengths[0], **kwargs)
+        from copy import deepcopy
+        cube = deepcopy(psf)
+        for ext in range(len(psf)):
+            cube[ext].data = np.zeros( (nwavelengths, psf[ext].data.shape[0], psf[ext].data.shape[1]))
+            cube[ext].data[0] = psf[ext].data
+            cube[ext].header['WAVELN00'] = wavelengths[0]
+
+        # iterate rest of wavelengths
+        for i in range(1,nwavelengths):
+            wl = wavelengths[i]
+            psf = self.calc_psf(*args, monochromatic=wl, **kwargs)
+            for ext in range(len(psf)):
+                cube[ext].data[i] = psf[ext].data
+                cube[ext].header['WAVELN{:02d}'.format(i)] = wl
+                cube[ext].header.add_history("--- Cube Plane {} ---".format(i)) 
+                for h in psf[ext].header['HISTORY']:
+                    cube[ext].header.add_history(h)
+
+        cube[0].header['NWAVES'] = nwavelengths
+        return cube
+
+
     def _calcPSF_format_output(self, result, options):
         """ Apply desired formatting to output file:
                  - rebin to detector pixel scale if desired

@@ -606,7 +606,7 @@ class Wavefront(object):
             self._propagate_mft_inverse(optic)
             self.location = 'before '+optic.name
         elif self.planetype == _IMAGE and optic.planetype == _DETECTOR:
-            raise NotImplemented('image plane directly to detector propagation (resampling!) not implemented yet')
+            raise NotImplementedError('image plane directly to detector propagation (resampling!) not implemented yet')
         else:
             self._propagate_fft(optic)           # FFT pupil to image or image to pupil
             self.location = 'before '+optic.name
@@ -1558,10 +1558,12 @@ class OpticalSystem(object):
 
         if conf.use_multiprocessing and len(wavelength) > 1: ######### Parallellized computation ############
             # Avoid a Mac OS incompatibility that can lead to hard-to-reproduce crashes.
+            # see issues #23 and #176
             import sys
             import platform
             if ( (sys.version_info < (3,4,0)) and platform.system()=='Darwin' and
-                    '-Wl,Accelerate' in np.__config__.blas_opt_info['extra_link_args']):
+                    (('extra_link_args' in np.__config__.blas_opt_info) and
+                    '-Wl,Accelerate' in np.__config__.blas_opt_info['extra_link_args'])):
                     _log.error("Multiprocessing not compatible with Apple Accelerate library on Python < 3.4")
                     _log.error(" See https://github.com/mperrin/poppy/issues/23 ")
                     _log.error(" Either disable multiprocessing, or recompile your numpy without Accelerate.")
