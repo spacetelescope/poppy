@@ -25,6 +25,7 @@ contributions from Anand Sivaramakrishnan, Remi Soummer, Christine Slocum,
 and others on the Astropy team.
 
 
+
 Projects using poppy
 ----------------------------
 
