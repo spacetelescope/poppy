@@ -337,7 +337,9 @@ class Wavefront(object):
         row : int
             Which row to display this one in?
         vmin, vmax : floats
-            min and maximum values to display.
+            min and maximum values to display. When left unspecified, these default 
+            to [0, intens.max()] for intensity plots and [-0.25, 0.25] waves 
+            for phase plots. 
         scale : string
             'log' or 'linear', to define the desired display scale type for
             intensity. Default is log for image planes, linear otherwise.
