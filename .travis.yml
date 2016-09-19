@@ -21,6 +21,7 @@ env:
         # overidden underneath. They are defined here in order to save having
         # to repeat them for all configurations.
         - NUMPY_VERSION=1.11
+        - OLDER_NUMPY_VERSION=1.10
         - ASTROPY_VERSION=stable
         - CONDA_INSTALL='conda install --yes'
         - PIP_INSTALL='pip install'
@@ -29,21 +30,19 @@ env:
 
 matrix:
     include:
-        # Do a coverage test in Python 2.
-        #- python: 2.7
-        #  env: SETUP_CMD='test --coverage'
-
+        # Do a coverage test in Python 3.
+        - python: 3.5
+          env: SETUP_CMD='test --coverage'
         # Check for sphinx doc build errors
-        - python: 2.7
+        - python: 3.5
           env: SETUP_CMD='build_sphinx'
 
-        # Try all support Python versions with the latest NumPy
+        # Try all supported Python versions with the latest NumPy
         # and other dependencies
         - python: 2.7
           env: SETUP_CMD='test'
         - python: 3.5
           env: SETUP_CMD='test'
-
 
         # Try Astropy development version
         - python: 3.5
@@ -51,9 +50,7 @@ matrix:
 
         # Test one previous version of NumPy
         - python: 2.7
-          env: NUMPY_VERSION=1.10 SETUP_CMD='test'
-        - python: 3.5
-          env: NUMPY_VERSION=1.10 SETUP_CMD='test'
+          env: NUMPY_VERSION=OLDER_NUMPY_VERSION ASTROPY_VERSION=stable SETUP_CMD='test'
 
 before_install:
 

@@ -337,7 +337,10 @@ class Wavefront(object):
         row : int
             Which row to display this one in?
         vmin, vmax : floats
-            min and maximum values to display.
+            min and maximum values to display. When left unspecified, these default 
+            to [0, intens.max()] for linear (scale='linear') intensity plots, 
+            [1e-6*intens.max(), intens.max()] for logarithmic (scale='log') intensity
+            plots, and [-0.25, 0.25] waves for phase plots. 
         scale : string
             'log' or 'linear', to define the desired display scale type for
             intensity. Default is log for image planes, linear otherwise.
@@ -434,10 +437,16 @@ class Wavefront(object):
 
         # prepare color maps and normalizations for intensity and phase
         if vmax is None:
-            vmax = intens.max()
+            if what == 'phase':
+               vmax = 0.25
+            else:
+               vmax = intens.max()
         if scale == 'linear':
             if vmin is None:
-                vmin = 0
+                if what == 'phase':
+                    vmin = -0.25
+                else:
+                    vmin = 0
             norm_inten = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
             cmap_inten = getattr(matplotlib.cm, conf.cmap_pupil_intensity)
             cmap_inten.set_bad('0.0')
@@ -449,7 +458,7 @@ class Wavefront(object):
             cmap_inten.set_bad(cmap_inten(0))
         cmap_phase = getattr(matplotlib.cm, conf.cmap_diverging)
         cmap_phase.set_bad('0.3')
-        norm_phase = matplotlib.colors.Normalize(vmin=-0.25, vmax=0.25)
+        norm_phase = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
 
         # now display the chosen selection..
         if what == 'intensity':
@@ -606,7 +615,7 @@ class Wavefront(object):
             self._propagate_mft_inverse(optic)
             self.location = 'before '+optic.name
         elif self.planetype == _IMAGE and optic.planetype == _DETECTOR:
-            raise NotImplemented('image plane directly to detector propagation (resampling!) not implemented yet')
+            raise NotImplementedError('image plane directly to detector propagation (resampling!) not implemented yet')
         else:
             self._propagate_fft(optic)           # FFT pupil to image or image to pupil
             self.location = 'before '+optic.name
@@ -1393,6 +1402,7 @@ class OpticalSystem(object):
             how to normalize the wavefront?
             * 'first' = set total flux = 1 after the first optic, presumably a pupil
             * 'last' = set total flux = 1 after the entire optical system.
+            * 'exit_pupil' = set total flux = 1 at the last pupil of the optical system.
             * 'first=2' = set total flux = 2 after the first optic (used for debugging only)
         display_intermediates : bool
             Should intermediate steps in the calculation be displayed on screen? Default: False.
@@ -1558,10 +1568,12 @@ class OpticalSystem(object):
 
         if conf.use_multiprocessing and len(wavelength) > 1: ######### Parallellized computation ############
             # Avoid a Mac OS incompatibility that can lead to hard-to-reproduce crashes.
+            # see issues #23 and #176
             import sys
             import platform
             if ( (sys.version_info < (3,4,0)) and platform.system()=='Darwin' and
-                    '-Wl,Accelerate' in np.__config__.blas_opt_info['extra_link_args']):
+                    (('extra_link_args' in np.__config__.blas_opt_info) and
+                    '-Wl,Accelerate' in np.__config__.blas_opt_info['extra_link_args'])):
                     _log.error("Multiprocessing not compatible with Apple Accelerate library on Python < 3.4")
                     _log.error(" See https://github.com/mperrin/poppy/issues/23 ")
                     _log.error(" Either disable multiprocessing, or recompile your numpy without Accelerate.")
@@ -2415,7 +2427,7 @@ class OpticalElement(object):
         if self.planetype == _PUPIL:
             return "Pupil plane: %s " % (self.name)
         elif self.planetype == _IMAGE:
-            desc = "(%dx%d pixels, scale=%f arcsec/pixel)" % (self.shape[0], self.shape[0], self.pixelscale) if self.pixelscale is not None else "(Analytic)"
+            desc = "({}x{} pixels, scale={} arcsec/pixel)".format(self.shape[0], self.shape[0], self.pixelscale) if self.pixelscale is not None else "(Analytic)"
             return "Image plane: %s %s" % (self.name, desc)
         else:
             return "Optic: "+self.name

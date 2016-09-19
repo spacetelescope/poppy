@@ -563,12 +563,31 @@ def hexike_basis_wss(nterms=9, npix=512, rho=None, theta=None,
                  vertical=False, outside=np.nan):
     """Return a list of hexike polynomials 1-N based on analytic
     expressions. Note, this is strictly consistent with the
-    JWST WSS hexikes.
+    JWST WSS hexikes in both ordering and normalization.
 
     ***The ordering of hexike terms is DIFFERENT FROM that returned by
     the zernike_basis or regular hexike_basis functions. Use this one
     in particular if you need something consistent with JWST WSS internals.
     ***
+
+    That ordering is:
+        H1 = Piston
+        H2 = X tilt
+        H3 = Y tilt
+        H4 = Astigmatism-45
+        H5 = Focus
+        H6 = Astigmatism-00
+        H7 = Coma X
+        H8 = Coma Y
+        H9 = Spherical
+        H10 = Trefoil-0
+        H11 = Trefoil-30
+
+    The last two are included for completeness of that hexike order but
+    are not actually used in the WSS.
+    This function has an attributed hexike_basis_wss.label_strings for
+    convenient use in plot labeling.
+
 
     Parameters
     ----------
@@ -652,7 +671,7 @@ def hexike_basis_wss(nterms=9, npix=512, rho=None, theta=None,
             H[i] *= aperture
         return H[1:nterms+1]
 
-
+hexike_basis_wss.label_strings = ['Piston','X tilt', 'Y tilt', 'Astigmatism-45','Focus','Astigmatism-00','Coma X','Coma Y','Spherical','Trefoil-0','Trefoil-30']
 
 
 def arbitrary_basis(aperture, nterms=15, rho=None, theta=None):

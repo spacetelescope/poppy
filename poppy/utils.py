@@ -1457,7 +1457,8 @@ def fftw_save_wisdom(filename=None):
         'double': double.decode('ascii'),
         'single': single.decode('ascii'),
         'longdouble': longdouble.decode('ascii'),
-        '_FFTW_INIT': pickle.dumps(_FFTW_INIT)  # ugly to put a pickled string inside JSON
+        '_FFTW_INIT': pickle.dumps(_FFTW_INIT, protocol=0).decode('ascii')
+        # ugly to put a pickled string inside JSON
         # but native JSON turns tuples into lists and we need to
         # preserve tuple-ness for use in fftw_load_wisdom
         # edit: try saving entire dict instead of just keys for py3 compat
@@ -1511,7 +1512,7 @@ def fftw_load_wisdom(filename=None):
     _log.debug("Reloaded longdouble precision wisdom: {}".format(success_longdouble))
 
     try:
-        saved_fftw_init = pickle.loads(wisdom['_FFTW_INIT'])
+        saved_fftw_init = pickle.loads(wisdom['_FFTW_INIT'].encode('ascii'))
         for key in saved_fftw_init.keys():
             _FFTW_INIT[key] = True
         _log.debug("Reloaded _FFTW_INIT list of optimized array sizes ")
