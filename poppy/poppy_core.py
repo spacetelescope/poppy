@@ -337,7 +337,10 @@ class Wavefront(object):
         row : int
             Which row to display this one in?
         vmin, vmax : floats
-            min and maximum values to display.
+            min and maximum values to display. When left unspecified, these default 
+            to [0, intens.max()] for linear (scale='linear') intensity plots, 
+            [1e-6*intens.max(), intens.max()] for logarithmic (scale='log') intensity
+            plots, and [-0.25, 0.25] waves for phase plots. 
         scale : string
             'log' or 'linear', to define the desired display scale type for
             intensity. Default is log for image planes, linear otherwise.
@@ -434,10 +437,16 @@ class Wavefront(object):
 
         # prepare color maps and normalizations for intensity and phase
         if vmax is None:
-            vmax = intens.max()
+            if what == 'phase':
+               vmax = 0.25
+            else:
+               vmax = intens.max()
         if scale == 'linear':
             if vmin is None:
-                vmin = 0
+                if what == 'phase':
+                    vmin = -0.25
+                else:
+                    vmin = 0
             norm_inten = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
             cmap_inten = getattr(matplotlib.cm, conf.cmap_pupil_intensity)
             cmap_inten.set_bad('0.0')
@@ -449,7 +458,7 @@ class Wavefront(object):
             cmap_inten.set_bad(cmap_inten(0))
         cmap_phase = getattr(matplotlib.cm, conf.cmap_diverging)
         cmap_phase.set_bad('0.3')
-        norm_phase = matplotlib.colors.Normalize(vmin=-0.25, vmax=0.25)
+        norm_phase = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
 
         # now display the chosen selection..
         if what == 'intensity':
