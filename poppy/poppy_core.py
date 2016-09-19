@@ -1393,6 +1393,7 @@ class OpticalSystem(object):
             how to normalize the wavefront?
             * 'first' = set total flux = 1 after the first optic, presumably a pupil
             * 'last' = set total flux = 1 after the entire optical system.
+            * 'exit_pupil' = set total flux = 1 at the last pupil of the optical system.
             * 'first=2' = set total flux = 2 after the first optic (used for debugging only)
         display_intermediates : bool
             Should intermediate steps in the calculation be displayed on screen? Default: False.
