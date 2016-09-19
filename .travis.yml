@@ -33,8 +33,9 @@ matrix:
         # Do a coverage test in Python 3.
         - python: 3.5
           env: SETUP_CMD='test --coverage'
+
         # Check for sphinx doc build errors
-        - python: 3.5
+        - python: 2.7
           env: SETUP_CMD='build_sphinx'
 
         # Try all supported Python versions with the latest NumPy
@@ -50,7 +51,7 @@ matrix:
 
         # Test one previous version of NumPy
         - python: 2.7
-          env: NUMPY_VERSION=OLDER_NUMPY_VERSION ASTROPY_VERSION=stable SETUP_CMD='test'
+          env: NUMPY_VERSION=$OLDER_NUMPY_VERSION ASTROPY_VERSION=stable SETUP_CMD='test'
 
 before_install:
 
