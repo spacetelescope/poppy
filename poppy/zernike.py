@@ -114,7 +114,7 @@ def noll_indices(j):
     """
 
     if j < 1:
-        raise ValueError("Zernike index j must be a postitive integer.")
+        raise ValueError("Zernike index j must be a positive integer.")
 
     # from i, compute m and n
     # I'm not sure if there is an easier/cleaner algorithm or not.

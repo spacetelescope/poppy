@@ -4,6 +4,7 @@
 from .. import poppy_core
 from .. import optics
 from .. import matrixDFT
+from .. import zernike
 import sys
 if sys.version_info.major < 3:
     _PYTHON_2 = True
@@ -95,4 +96,15 @@ if _HAVE_PYTEST:
         with pytest.raises(ValueError) as excinfo:
             optics.CircularAperture(radius='a')
         assert _exception_message_starts_with(excinfo, "Argument 'radius' to function '__init__' must be a number")
+
+
+    def test_zernike_indices():
+        with pytest.raises(ValueError) as excinfo:
+            zernike.noll_indices(0)
+        assert _exception_message_starts_with(excinfo, "Zernike index j must be a positive integer")
+
+
+        with pytest.raises(ValueError) as excinfo:
+            zernike.zernike(2,4)
+        assert _exception_message_starts_with(excinfo, "Zernike index m must be >= index n")
 
