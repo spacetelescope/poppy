@@ -337,10 +337,10 @@ class Wavefront(object):
         row : int
             Which row to display this one in?
         vmin, vmax : floats
-            min and maximum values to display. When left unspecified, these default 
-            to [0, intens.max()] for linear (scale='linear') intensity plots, 
+            min and maximum values to display. When left unspecified, these default
+            to [0, intens.max()] for linear (scale='linear') intensity plots,
             [1e-6*intens.max(), intens.max()] for logarithmic (scale='log') intensity
-            plots, and [-0.25, 0.25] waves for phase plots. 
+            plots, and [-0.25, 0.25] waves for phase plots.
         scale : string
             'log' or 'linear', to define the desired display scale type for
             intensity. Default is log for image planes, linear otherwise.
@@ -1470,9 +1470,18 @@ class OpticalSystem(object):
                     display_what = optic.wavefront_display_hint
                 else:
                     display_what='best'
+                if hasattr(optic, 'wavefront_display_vmax_hint'):
+                    display_vmax = optic.wavefront_display_vmax_hint
+                else:
+                    display_vmax=None
+                if hasattr(optic, 'wavefront_display_vmin_hint'):
+                    display_vmin = optic.wavefront_display_vmin_hint
+                else:
+                    display_vmin=None
+
 
                 ax = wavefront.display(what=display_what,nrows=len(self.planes),row=current_plane_index,
-                                       colorbar=False, title=title)
+                                       colorbar=False, title=title, vmax=display_vmax, vmin=display_vmin)
                 if hasattr(optic,'display_annotate'):
                     optic.display_annotate(optic, ax)  # atypical calling convention needed empirically
 
@@ -1507,14 +1516,14 @@ class OpticalSystem(object):
             whether to output intermediate optical planes to disk. Default is False
         save_intermediate_what : string, optional
             What to save - phase, intensity, amplitude, complex, parts, all. Default is all.
-        display : bool, optional
-            whether to plot the results when finished or not.
         return_intermediates: bool, optional
             return intermediate wavefronts as well as PSF?
         source : dict
             a dict containing 'wavelengths' and 'weights' list.
         normalize : string, optional
             How to normalize the PSF. See the documentation for propagate_mono() for details.
+        display : bool, optional
+            whether to plot the results when finished or not.
         display_intermediates: bool, optional
             Display intermediate optical planes? Default is False. This option is incompatible with
             parallel calculations using `multiprocessing`. (If calculating in parallel, it will have no effect.)
@@ -1664,7 +1673,6 @@ class OpticalSystem(object):
                 # Add final intensity panel to intermediate WF plot
                 cmap = getattr(matplotlib.cm, conf.cmap_sequential)
                 cmap.set_bad('0.3')
-                #cmap.set_bad('k', 0.8)
                 halffov_x =outFITS[0].header['PIXELSCL']*outFITS[0].data.shape[1]/2
                 halffov_y =outFITS[0].header['PIXELSCL']*outFITS[0].data.shape[0]/2
                 extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
@@ -2294,8 +2302,9 @@ class OpticalElement(object):
         return self.get_phasor(wave)
 
 
+    @utils.quantity_input(opd_vmax=u.meter)
     def display(self, nrows=1, row=1, what='intensity', crosshairs=True, ax=None, colorbar=True,
-                colorbar_orientation=None, title=None, opd_vmax=0.5e-6):
+                colorbar_orientation=None, title=None, opd_vmax=0.5e-6*u.meter):
         """Display plots showing an optic's transmission and OPD.
 
         Parameters
@@ -2330,7 +2339,9 @@ class OpticalElement(object):
         cmap_opd = getattr(matplotlib.cm, conf.cmap_diverging)
         cmap_opd.set_bad('0.3')
         norm_amp = matplotlib.colors.Normalize(vmin=0, vmax=1)
-        norm_opd = matplotlib.colors.Normalize(vmin=-opd_vmax, vmax=opd_vmax)
+
+        opd_vmax_m = opd_vmax.to(u.meter).value
+        norm_opd = matplotlib.colors.Normalize(vmin=-opd_vmax_m, vmax=opd_vmax_m)
 
         # TODO infer correct units from pixelscale's units? 
         units = "[arcsec]" if self.planetype == _IMAGE else "[meters]"
@@ -2383,14 +2394,14 @@ class OpticalElement(object):
             plot_array = opd
             title = "OPD"
             cb_label = 'waves'
-            cb_values = np.array([-1, -0.5, 0, 0.5, 1]) * opd_vmax
+            cb_values = np.array([-1, -0.5, 0, 0.5, 1]) * opd_vmax_m
             cmap = cmap_opd
             norm = norm_opd
         elif what == 'opd':
             plot_array = opd
             title = "OPD"
             cb_label = 'meters'
-            cb_values = np.array([-1, -0.5, 0, 0.5, 1]) * opd_vmax
+            cb_values = np.array([-1, -0.5, 0, 0.5, 1]) * opd_vmax_m
             cmap = cmap_opd
             norm = norm_opd
         else:
