@@ -8,7 +8,7 @@ POPPY: Physical Optics Propagation in Python
    :target: https://pypi.python.org/pypi/poppy
    :alt: Badge showing current released PyPI version
 
-.. image:: https://travis-ci.org/mperrin/poppy.png?branch=master
+.. image:: https://travis-ci.org/mperrin/poppy.svg?branch=master
    :target: https://travis-ci.org/mperrin/poppy
    :alt: Badge showing continuous integration test status
 
