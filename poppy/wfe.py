@@ -21,6 +21,7 @@ import astropy.units as u
 from .optics import AnalyticOpticalElement, CircularAperture
 from .poppy_core import Wavefront, _PUPIL
 from . import zernike
+from . import utils
 
 __all__ = ['WavefrontError', 'ParameterizedWFE', 'ZernikeWFE', 'SineWaveWFE']
 
@@ -269,13 +270,14 @@ class SineWaveWFE(WavefrontError):
     (N.b. we intentionally avoid letting users specify this in terms of a spatial wavelength
     because that would risk potential ambiguity with the wavelength of light.)
     """
-    def  __init__(self,  spatialfreq=1.0, amplitude=1e-6, phaseoffset=0, **kwargs):
-        super(WavefrontError, self).__init__(**kwargs)
+    @utils.quantity_input(spatialfreq=1./u.meter, amplitude=u.meter)
+    def  __init__(self,  name='Sine WFE', spatialfreq=1.0, amplitude=1e-6, phaseoffset=0, **kwargs):
+        super(WavefrontError, self).__init__(name=name, **kwargs)
 
-        self.sine_spatial_freq = float(spatialfreq)
-        self.sine_phase_offset = float(phaseoffset)
+        self.sine_spatial_freq = spatialfreq
+        self.sine_phase_offset = phaseoffset
         # note, can't call this next one 'amplitude' since that's already a property
-        self.sine_amplitude = float(amplitude)
+        self.sine_amplitude = amplitude
 
     @_accept_wavefront_or_meters
     def get_opd(self, wave, units='meters'):
@@ -293,10 +295,10 @@ class SineWaveWFE(WavefrontError):
             wavelength value.
         """
 
-        y, x = self.get_coordinates(wave)
+        y, x = self.get_coordinates(wave)  # in meters
 
-        opd = self.sine_amplitude * np.sin( 2*np.pi *
-                (x / self.sine_spatial_freq + self.sine_phase_offset))
+        opd = self.sine_amplitude.to(u.meter).value * \
+                np.sin( 2*np.pi * (x * self.sine_spatial_freq.to(1/u.meter).value + self.sine_phase_offset))
 
         if units == 'waves':
             opd /= wave.wavelength.to(u.meter).value
