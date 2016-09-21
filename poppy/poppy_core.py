@@ -460,6 +460,14 @@ class Wavefront(object):
         cmap_phase.set_bad('0.3')
         norm_phase = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
 
+
+        def wrap_lines_title(title):
+            # Helper fn to add line breaks
+            title = title.replace('after', 'after\n')
+            title = title.replace('before', 'before\n')
+            return title
+
+
         # now display the chosen selection..
         if what == 'intensity':
             if ax is None:
@@ -474,9 +482,7 @@ class Wavefront(object):
                 origin='lower'
             )
             if title is None:
-                title = "Intensity " + self.location
-                title = title.replace('after', 'after\n')
-                title = title.replace('before', 'before\n')
+                title = wrap_lines_title("Intensity " + self.location)
             ax.set_title(title)
             ax.set_xlabel(unit)
             if colorbar:
@@ -496,7 +502,7 @@ class Wavefront(object):
                 origin='lower'
             )
             if title is None:
-                title = "Phase " + self.location
+                title = wrap_lines_title("Phase " + self.location)
             plt.title(title)
             plt.xlabel(unit)
             if colorbar:
@@ -1464,8 +1470,8 @@ class OpticalSystem(object):
 
             if display_intermediates:
                 if conf.enable_speed_tests: t0 = time.time()
-                title = None if current_plane_index > 1 else "propagating $\lambda=$ {0:.3f}".format(
-                    wavelength.to(u.micron))
+                #title = None if current_plane_index > 1 else "propagating $\lambda=$ {0:.3f}".format(
+                    #wavelength.to(u.micron))
                 if hasattr(optic, 'wavefront_display_hint'):
                     display_what = optic.wavefront_display_hint
                 else:
@@ -1481,7 +1487,7 @@ class OpticalSystem(object):
 
 
                 ax = wavefront.display(what=display_what,nrows=len(self.planes),row=current_plane_index,
-                                       colorbar=False, title=title, vmax=display_vmax, vmin=display_vmin)
+                                       colorbar=False, vmax=display_vmax, vmin=display_vmin)
                 if hasattr(optic,'display_annotate'):
                     optic.display_annotate(optic, ax)  # atypical calling convention needed empirically
 
@@ -1677,7 +1683,9 @@ class OpticalSystem(object):
                 halffov_y =outFITS[0].header['PIXELSCL']*outFITS[0].data.shape[0]/2
                 extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
                 unit="arcsec"
-                norm=matplotlib.colors.LogNorm(vmin=1e-8,vmax=1e-1)
+                vmax = outFITS[0].data.max()
+                vmin = vmax / 1e4
+                norm=matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)  #vmin=1e-8,vmax=1e-1)
                 plt.xlabel(unit)
 
                 utils.imshow_with_mouseover(outFITS[0].data, extent=extent, norm=norm, cmap=cmap,
