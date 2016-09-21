@@ -27,23 +27,27 @@ env:
         - NUMPY_VERSION=stable
         - ASTROPY_VERSION=stable
         - SETUP_CMD='test'
-        - PIP_DEPENDENCIES='six>=1.7.3 enum34>=1.0.4'
-        - CONDA_DEPENDENCIES='scipy matplotlib'
+        - PIP_DEPENDENCIES=''
+        - CONDA_DEPENDENCIES='scipy matplotlib six'
     matrix:
         # Make sure that egg_info works without dependencies
         - SETUP_CMD='egg_info'
-        # Try all python versions with the latest numpy
-        - SETUP_CMD='test'
 
 matrix:
     include:
+        # do the actual tests.
+        - python: 2.7
+          env: SETUP_CMD='test' PIP_DEPENDENCIES='enum34>=1.0.4'
+        - python: 3.5
+          env: SETUP_CMD='test'
+
         # Do a coverage test in Python 3.
         - python: 3.5
           env: SETUP_CMD='test --coverage'
 
         # Check for Sphinx doc build errors
         - python: 2.7
-          env: SETUP_CMD='build_sphinx'
+          env: SETUP_CMD='build_sphinx' PIP_DEPENDENCIES='enum34>=1.0.4'
 
         # Try Astropy development version
         - python: 3.5
@@ -51,9 +55,9 @@ matrix:
 
         # Try older numpy versions
         - python: 2.7
-          env: NUMPY_VERSION=1.10
+          env: NUMPY_VERSION=1.10 PIP_DEPENDENCIES='enum34>=1.0.4'
         - python: 2.7
-          env: NUMPY_VERSION=1.9
+          env: NUMPY_VERSION=1.9 PIP_DEPENDENCIES='enum34>=1.0.4'
 
         # Try numpy pre-release
         # this one is commented out for now because it gives errors of uncertain
