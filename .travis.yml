@@ -41,13 +41,6 @@ matrix:
         - python: 2.7
           env: SETUP_CMD='build_sphinx'
 
-        # Try all Python versions with the latest
-        # stable versions of dependencies
-        - python: 2.7
-          env: SETUP_CMD='test'
-        - python: 3.5
-          env: SETUP_CMD='test'
-
         # Try Astropy development version
         - python: 3.5
           env: ASTROPY_VERSION=development SETUP_CMD='test'
