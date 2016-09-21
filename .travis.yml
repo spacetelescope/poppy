@@ -37,6 +37,10 @@ env:
 
 matrix:
     include:
+        # Do a coverage test in Python 3.
+        - python: 3.5
+          env: SETUP_CMD='test --coverage'
+
         # Check for Sphinx doc build errors
         - python: 2.7
           env: SETUP_CMD='build_sphinx'
@@ -90,7 +94,7 @@ after_success:
     # If coveralls.io is set up for this package, uncomment the line
     # below and replace "packagename" with the name of your package.
     # The coveragerc file may be customized as needed for your package.
-    # - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls --rcfile='poppy/tests/coveragerc'; fi
+    - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls --rcfile='poppy/tests/coveragerc'; fi
 notifications:
   email:
     # - mperrin@stsci.edu
