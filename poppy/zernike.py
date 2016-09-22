@@ -346,7 +346,8 @@ def zernike_basis(nterms=15, npix=512, rho=None, theta=None, **kwargs):
     return zern_output
 
 
-def zernike_basis_faster(nterms=15, npix=512, outside=np.nan, **kwargs):
+@lru_cache()
+def zernike_basis_faster(nterms=15, npix=512, outside=np.nan):
     """
     Return a cube of Zernike terms from 1 to N each as a 2D array
     showing the value at each point. (Regions outside the unit circle on which
@@ -368,8 +369,7 @@ def zernike_basis_faster(nterms=15, npix=512, outside=np.nan, **kwargs):
         Desired pixel diameter for circular pupil. Only used if `rho`
         and `theta` are not provided.
 
-    Other parameters are passed through to `poppy.zernike.zernike`
-    and are documented there.
+
     """
     shape = (npix, npix)
     use_polar = False
