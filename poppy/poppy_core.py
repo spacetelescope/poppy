@@ -4,6 +4,7 @@ import copy
 import time
 import enum
 import warnings
+import textwrap
 
 import six
 
@@ -462,10 +463,14 @@ class Wavefront(object):
 
 
         def wrap_lines_title(title):
-            # Helper fn to add line breaks
-            title = title.replace('after', 'after\n')
-            title = title.replace('before', 'before\n')
-            return title
+            # Helper fn to add line breaks, tweaked to
+            # put in particular places for aesthetics
+            for prep in ['after','before']:
+                if prep in title:
+                    part1, part2 = title.split(prep)
+                    return part1+prep+"\n"+"\n".join(textwrap.wrap(part2,30))
+            return"\n".join(textwrap.wrap(title,30))
+
 
 
         # now display the chosen selection..
@@ -1340,8 +1345,8 @@ class OpticalSystem(object):
 
         """
 
-        # somewhat complicated logic here for historical reasons. 
-        # if we have a first optical plane, check and see if it specifies the entrance sampling. 
+        # somewhat complicated logic here for historical reasons.
+        # if we have a first optical plane, check and see if it specifies the entrance sampling.
 
         npix=None
         diam=None
@@ -1367,9 +1372,9 @@ class OpticalSystem(object):
             wavelength, npix, diam/npix))
 
         if np.abs(self.source_offset_r) > 0:
-            # Add a tilt to the input wavefront. 
-            # First we must work out the handedness of the input pupil relative to the 
-            # final image plane.  This is needed to apply (to the input pupil) shifts 
+            # Add a tilt to the input wavefront.
+            # First we must work out the handedness of the input pupil relative to the
+            # final image plane.  This is needed to apply (to the input pupil) shifts
             # with the correct handedness to get the desired motion in the final plane.
             sign_x = 1
             sign_y = 1
@@ -1384,7 +1389,7 @@ class OpticalSystem(object):
                     elif isinstance(plane, Rotation):
                         rotation_angle += plane.angle*sign_x*sign_y
 
-            # now we must also work out the rotation 
+            # now we must also work out the rotation
 
             # convert to offset X,Y in arcsec using the usual astronomical angle convention
             offset_x = sign_x * self.source_offset_r *-np.sin((self.source_offset_theta-rotation_angle)*np.pi/180)
@@ -1513,7 +1518,7 @@ class OpticalSystem(object):
         Parameters
         ----------
         wavelength : float or Astropy.Quantity, optional
-            wavelength in meters, or some other length unit if specified as an astropy.Quantity. Either 
+            wavelength in meters, or some other length unit if specified as an astropy.Quantity. Either
             scalar for monochromatic calculation or list or ndarray for multiwavelength calculation.
         weight : float, optional
             weight by which to multiply each wavelength. Must have same length as
@@ -1615,14 +1620,14 @@ class OpticalSystem(object):
             # This is a memory-intensive task so that can end up swapping to disk and thrashing IO
             nproc = conf.n_processes if conf.n_processes > 1 \
                                      else utils.estimate_optimal_nprocesses(self, nwavelengths=len(wavelength))
-            nproc = min(nproc, len(wavelength)) # never try more processes than wavelengths. 
+            nproc = min(nproc, len(wavelength)) # never try more processes than wavelengths.
             # be sure to cast nproc to int below; will fail if given a float even if of integer value
 
             if sys.version_info < (3, 4, 0):
                 pool = multiprocessing.Pool(int(nproc))
             else:
                 # Use new forkserver for more robustness;
-                # Resolves https://github.com/mperrin/poppy/issues/23 
+                # Resolves https://github.com/mperrin/poppy/issues/23
                 ctx = multiprocessing.get_context('forkserver')
                 pool =ctx.Pool(int(nproc))
 
@@ -1765,7 +1770,7 @@ class OpticalSystem(object):
 
         return {'steps': steps, 'output_shape': output_shape, 'output_size':output_size}
 
-    # back compatible aliases for PEP8 compliant names; 
+    # back compatible aliases for PEP8 compliant names;
     # these old versions will be deprecated in a future release.
     addPupil = add_pupil
     addImage = add_image
@@ -1972,8 +1977,8 @@ class SemiAnalyticCoronagraph(OpticalSystem):
 
 class MatrixFTCoronagraph(OpticalSystem):
     """ A subclass of OpticalSystem that implements a specialized propagation
-    algorithm for coronagraphs which are most efficiently modeled by 
-    matrix Fourier transforms, and in which the semi-analytical/Babinet 
+    algorithm for coronagraphs which are most efficiently modeled by
+    matrix Fourier transforms, and in which the semi-analytical/Babinet
     superposition approach does not apply.
 
     The way to use this class is to build an OpticalSystem class the usual way, and then
@@ -2258,7 +2263,7 @@ class OpticalElement(object):
                 self.phasor = self._resampled_amplitude * np.exp (1.j * self._resampled_opd * scale)
             else:
                 #raise NotImplementedError("Need to implement resampling.")
-                zoom=(self.pixelscale/wave.pixelscale).decompose().value 
+                zoom=(self.pixelscale/wave.pixelscale).decompose().value
                 resampled_opd = scipy.ndimage.interpolation.zoom(self.opd, zoom,
                         output=self.opd.dtype, order=self.interp_order)
                 resampled_amplitude = scipy.ndimage.interpolation.zoom(self.amplitude,zoom,output=self.amplitude.dtype,order=self.interp_order)
@@ -2351,10 +2356,14 @@ class OpticalElement(object):
         opd_vmax_m = opd_vmax.to(u.meter).value
         norm_opd = matplotlib.colors.Normalize(vmin=-opd_vmax_m, vmax=opd_vmax_m)
 
-        # TODO infer correct units from pixelscale's units? 
+        # TODO infer correct units from pixelscale's units?
         units = "[arcsec]" if self.planetype == _IMAGE else "[meters]"
         if nrows > 1:
+            # for display inside an optical system, we repurpose the units display to label the plane
             units = self.name + "\n" + units
+            # and wrap long lines if necessary
+            if len(units)>20:
+                units = "\n".join(textwrap.wrap(units,20))
 
         if self.pixelscale is not None:
             # TODO handle units better here for pupil vs. image planes? meters/pix vs arcsec/pix
@@ -2382,6 +2391,7 @@ class OpticalElement(object):
             self.display(what='opd', ax=ax2, crosshairs=crosshairs, colorbar=colorbar,
                          colorbar_orientation=colorbar_orientation, title=None, opd_vmax=opd_vmax,
                          nrows=nrows)
+            ax2.set_ylabel('') # suppress redundant label which duplicates the intensity plot's label
             return ax, ax2
         elif what == 'amplitude':
             plot_array = ampl
@@ -2438,8 +2448,8 @@ class OpticalElement(object):
         if hasattr(self,'display_annotate'):
             self.display_annotate(self, ax)  # atypical calling convention needed empirically
                                          # since Python doesn't seem to automatically pass
-                                         # self as first argument for functions added at 
-                                         # run time as attributes? 
+                                         # self as first argument for functions added at
+                                         # run time as attributes?
         return ax
 
     def __str__(self):
@@ -2803,7 +2813,7 @@ class CoordinateTransform(OpticalElement):
         self._suppress_display=hide
 
     def get_phasor(self,wave):
-        return 1.0  #no change in wavefront 
+        return 1.0  #no change in wavefront
         # returning this is necessary to allow the multiplication in propagate_mono to be OK
 
     def display(self, nrows=1, row=1, ax=None, **kwargs):
@@ -2846,7 +2856,7 @@ class Rotation(CoordinateTransform):
             raise ValueError("Unknown value for units='%s'. Must be degrees or radians." % units)
         self.angle = angle
 
-        CoordinateTransform.__init__(self, name= "Rotation by %.2f degrees" % angle, 
+        CoordinateTransform.__init__(self, name= "Rotation by %.2f degrees" % angle,
                 planetype=PlaneType.rotation, hide=hide, **kwargs)
 
     def __str__(self):
