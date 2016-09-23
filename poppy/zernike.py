@@ -892,7 +892,8 @@ def opd_from_zernikes(coeffs, basis=zernike_basis_faster, aperture=None, outside
     output = np.zeros_like(basis_set[0])
 
     for i, b in enumerate(basis_set):
-        output += coeffs[i]*b
+        if coeffs[i] !=0:
+            output += coeffs[i]*b
     if aperture is not None:
         output[~np.isfinite(aperture)] = np.nan
         output[aperture==0] = 0
