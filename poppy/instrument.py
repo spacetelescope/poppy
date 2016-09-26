@@ -213,17 +213,24 @@ class Instrument(object):
         if fov_arcsec is None and fov_pixels is None:  # pick decent defaults.
             fov_arcsec = self._getDefaultFOV()
         if fov_pixels is not None:
-            local_options['fov_spec'] = 'pixels = %d' % fov_pixels
+            if np.isscalar(fov_pixels):
+                fov_spec = 'pixels = %d' % fov_pixels
+            else:
+                fov_spec = 'pixels = (%d, %d)' % (fov_pixels[0], fov_pixels[1])
             local_options['fov_pixels'] = fov_pixels
         elif fov_arcsec is not None:
-            local_options['fov_spec'] = 'arcsec = %f' % fov_arcsec
+            if np.isscalar(fov_arcsec):
+                fov_spec = 'arcsec = %f' % fov_arcsec
+            else:
+                fov_spec = 'arcsec = (%.3f, %.3f)' % (fov_arcsec[0], fov_arcsec[1])
             local_options['fov_arcsec'] = fov_arcsec
+        local_options['fov_spec'] = fov_spec
 
         # ---- Implement the semi-convoluted logic for the oversampling options. See docstring above
         if oversample is not None and detector_oversample is not None and fft_oversample is not None:
             # all options set, contradictorily -> complain!
             raise ValueError(
-                "You cannot specify simultaneously the oversample= option with the detector_oversample" +
+                "You cannot specify simultaneously the oversample= option with the detector_oversample " +
                 "and fft_oversample options. Pick one or the other!")
         elif oversample is None and detector_oversample is None and fft_oversample is None:
             # nothing set -> set oversample = 4
@@ -577,10 +584,13 @@ class Instrument(object):
         sf = (1./(self.optsys.planes[0].pixelscale * 2*units.pixel)).to(1./units.meter).value
 
         det_fov_arcsec = self.optsys.planes[-1].fov_arcsec.to(units.arcsec).value
+        if np.isscalar(det_fov_arcsec): # FOV can be scalar (square) or rectangular
+            det_fov_arcsec = (det_fov_arcsec, det_fov_arcsec)
+
         # determine the angular scale that corresponds to for the given wavelength
         for wl in wavelengths:
             critical_angle_arcsec = wl*sf * poppy_core._RADIANStoARCSEC
-            if critical_angle_arcsec < det_fov_arcsec/2:
+            if (critical_angle_arcsec < det_fov_arcsec[0]/2) or (critical_angle_arcsec < det_fov_arcsec[1]/2):
                 import warnings
                 warnings.warn(("For wavelength {:.3f} microns, a FOV of {:.3f} arcsec diameter exceeds the maximum spatial frequency well sampled by "+
                         "the input pupil. Your computed PSF will suffer from aliasing for angles beyond {:.3f} arcsec radius.").format(
