@@ -5,6 +5,7 @@ import platform
 import re
 import time
 import astropy.io.fits as fits
+import astropy.units as units
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.interpolate
@@ -251,6 +252,7 @@ class Instrument(object):
         self.optsys = self._getOpticalSystem(fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
                                              fft_oversample=fft_oversample, detector_oversample=detector_oversample,
                                              options=local_options)
+        self._check_for_aliasing(wavelens)
         # and use it to compute the PSF (the real work happens here, in code in poppy.py)
         result = self.optsys.calcPSF(wavelens, weights, display_intermediates=display, display=display,
                                      save_intermediates=save_intermediates, return_intermediates=return_intermediates)
@@ -544,6 +546,45 @@ class Instrument(object):
                            name=self.name + " detector")
 
         return optsys
+
+    def _check_for_aliasing(self, wavelengths):
+        """ Check for spatial frequency aliasing and warn if the
+        user is requesting a FOV which is larger than supported based on
+        the available pupil resolution in the optical system entrance pupil.
+        If the requested FOV of the output PSF exceeds that which is Nyquist
+        sampled in the entrance pupil, raise a warning to the user.
+
+        The check implemented here is fairly simple, designed to catch the most
+        common cases, and makes assumptions about the optical system which are
+        not necessarily true in all cases, specifically that it starts with a
+        pupil plane with fixed spatial resolution and ends with a detector
+        plane. If either of those assumptions is violated, this check is skipped.
+
+        See https://github.com/mperrin/poppy/issues/135 and
+        https://github.com/mperrin/poppy/issues/180 for more background on the
+        relevant Fourier optics.
+        """
+        # Note this must be called after self.optsys is defined in calc_psf()
+
+        # compute spatial sampling in the entrance pupil
+        if not hasattr(self.optsys.planes[0], 'pixelscale') or self.optsys.planes[0].pixelscale is None:
+            return # analytic entrance pupil, no sampling limitations.
+        if not isinstance(self.optsys.planes[-1], poppy_core.Detector):
+            return # optical system doesn't end on some fixed sampling detector, not sure how to check sampling limitations
+
+        # determine the spatial frequency which is Nyquist sampled by the input pupil.
+        # convert this to units of cycles per meter and make it not a Quantity
+        sf = (1./(self.optsys.planes[0].pixelscale * 2*units.pixel)).to(1./units.meter).value
+
+        det_fov_arcsec = self.optsys.planes[-1].fov_arcsec.to(units.arcsec).value
+        # determine the angular scale that corresponds to for the given wavelength
+        for wl in wavelengths:
+            critical_angle_arcsec = wl*sf * poppy_core._RADIANStoARCSEC
+            if critical_angle_arcsec < det_fov_arcsec/2:
+                import warnings
+                warnings.warn(("For wavelength {:.3f} microns, a FOV of {:.3f} arcsec diameter exceeds the maximum spatial frequency well sampled by "+
+                        "the input pupil. Your computed PSF will suffer from aliasing for angles beyond {:.3f} arcsec radius.").format(
+                        wl*1e6, det_fov_arcsec,critical_angle_arcsec))
 
     def _get_aberrations(self):
         """Incorporate a pupil-plane optic that represents optical aberrations
