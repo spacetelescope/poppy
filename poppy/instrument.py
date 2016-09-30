@@ -658,7 +658,7 @@ class Instrument(object):
             poppy_core._log.info("        resulting image peak drops to {0:.3f} of its previous value".format(strehl))
             result[0].header['JITRTYPE'] = ('Gaussian convolution', 'Type of jitter applied')
             result[0].header['JITRSIGM'] = (sigma, 'Gaussian sigma for jitter [arcsec]')
-            result[0].header['JITRSTRL'] = (strehl, 'Image peak reduction due to jitter')
+            result[0].header['JITRSTRL'] = (strehl, 'Image peak reduction due to jitter (in oversampled img')
 
             result[0].data = out
         else:

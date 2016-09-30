@@ -829,7 +829,7 @@ def opd_expand_nonorthonormal(opd, aperture=None, nterms=15, basis=zernike_basis
     aperture : an aperture mask of which pixels are valid. ANything non-NaN is
                considered valid
     nterms : number of terms to fit
-    basis: which basis set to use. Defaults to Zernike
+    basis: which basis function to use. Defaults to Zernike
     iterations : int
         Number of iterations for convergence. Default is 5
 
