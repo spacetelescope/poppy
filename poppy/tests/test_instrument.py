@@ -24,7 +24,7 @@ def test_instrument_source_weight_dict(weights_dict=WEIGHTS_DICT):
     Tests the ability to provide a source spectrum in the form of wavelengths and weights
     """
     inst = instrument.Instrument()
-    psf = inst.calcPSF(source=weights_dict, fov_pixels=FOV_PIXELS,
+    psf = inst.calc_psf(source=weights_dict, fov_pixels=FOV_PIXELS,
                        detector_oversample=2, fft_oversample=2)
     assert psf[0].header['NWAVES'] == len(weights_dict['wavelengths']), \
         "Number of wavelengths in PSF header does not match number requested"
@@ -34,7 +34,7 @@ def test_instrument_source_weight_dict(weights_dict=WEIGHTS_DICT):
                                   detector_oversample=2, fft_oversample=2)
     output = np.zeros((2 * FOV_PIXELS, 2 * FOV_PIXELS))
     for wavelength, weight in zip(weights_dict['wavelengths'], weights_dict['weights']):
-        output += weight * osys.calcPSF(wavelength=wavelength)[0].data
+        output += weight * osys.calc_psf(wavelength=wavelength)[0].data
 
     assert np.allclose(psf[0].data, output), \
         "Multi-wavelength PSF does not match weighted sum of individual wavelength PSFs"
@@ -46,7 +46,7 @@ def test_instrument_source_weight_array(wavelengths=WAVELENGTHS_ARRAY, weights=W
     Tests the ability to provide a source spectrum as a (wavelengths, weights) tuple of arrays
     """
     inst = instrument.Instrument()
-    psf = inst.calcPSF(source=(wavelengths, weights), fov_pixels=FOV_PIXELS,
+    psf = inst.calc_psf(source=(wavelengths, weights), fov_pixels=FOV_PIXELS,
                        detector_oversample=2, fft_oversample=2)
     assert psf[0].header['NWAVES'] == len(wavelengths), \
         "Number of wavelengths in PSF header does not match number requested"
@@ -56,7 +56,7 @@ def test_instrument_source_weight_array(wavelengths=WAVELENGTHS_ARRAY, weights=W
                                   detector_oversample=2, fft_oversample=2)
     output = np.zeros((2 * FOV_PIXELS, 2 * FOV_PIXELS))
     for wavelength, weight in zip(wavelengths, weights):
-        output += weight * osys.calcPSF(wavelength=wavelength)[0].data
+        output += weight * osys.calc_psf(wavelength=wavelength)[0].data
 
     assert np.allclose(psf[0].data, output), \
         "Multi-wavelength PSF does not match weighted sum of individual wavelength PSFs"
@@ -76,9 +76,9 @@ def test_instrument_source_pysynphot():
 
     inst = instrument.Instrument()
     inst.filter = 'B'
-    psf_weights_explicit = inst.calcPSF(source=(wavelengths, weights), fov_pixels=FOV_PIXELS,
+    psf_weights_explicit = inst.calc_psf(source=(wavelengths, weights), fov_pixels=FOV_PIXELS,
                                         detector_oversample=2, fft_oversample=2, nlambda=5)
-    psf_weights_pysynphot = inst.calcPSF(source=pysynphot.BlackBody(5700), fov_pixels=FOV_PIXELS,
+    psf_weights_pysynphot = inst.calc_psf(source=pysynphot.BlackBody(5700), fov_pixels=FOV_PIXELS,
                                          detector_oversample=2, fft_oversample=2, nlambda=5)
     assert psf_weights_pysynphot[0].header['NWAVES'] == len(wavelengths), \
         "Number of wavelengths in PSF header does not match number requested"
@@ -102,9 +102,9 @@ def test_pysynphot_spectra_cache():
     ins = instrument.Instrument()
     cache_key = ins._getSpecCacheKey(source, nlambda)
     assert cache_key not in ins._spectra_cache, "How is the cache populated already?"
-    psf = ins.calcPSF(nlambda=2, source=source, fov_pixels=2)
+    psf = ins.calc_psf(nlambda=2, source=source, fov_pixels=2)
     assert cache_key in ins._spectra_cache, "Cache was not populated"
-    psf2 = ins.calcPSF(nlambda=2, source=source, fov_pixels=2)
+    psf2 = ins.calc_psf(nlambda=2, source=source, fov_pixels=2)
     maxdiff = np.abs(psf[0].data - psf2[0].data).max()
 
     assert(maxdiff < 1e-7), "PSF using cached spectrum differs from first PSF calculated"
@@ -123,7 +123,7 @@ def test_instrument_gaussian_jitter():
     inst.pixelscale=0.010
     inst.options['jitter'] = None
     oversample = 1 # oversample
-    psf_no_jitter = inst.calcPSF(monochromatic=1e-6, fov_arcsec=2, oversample=oversample)
+    psf_no_jitter = inst.calc_psf(monochromatic=1e-6, fov_arcsec=2, oversample=oversample)
 
 
     jitter_sigmas = [ 0.005,  0.020,  0.080, 0.16, 0.5]  # arcseconds
@@ -140,7 +140,7 @@ def test_instrument_gaussian_jitter():
 
         inst.options['jitter'] = 'gaussian'
         inst.options['jitter_sigma'] = JITTER_SIGMA
-        psf_jitter = inst.calcPSF(monochromatic=1e-6, fov_arcsec=2, oversample=oversample)
+        psf_jitter = inst.calc_psf(monochromatic=1e-6, fov_arcsec=2, oversample=oversample)
 
         fwhm_no_jitter = utils.measure_fwhm(psf_no_jitter)
         fwhm_with_jitter = utils.measure_fwhm(psf_jitter)
@@ -161,5 +161,26 @@ def test_instrument_gaussian_jitter():
         assert reldiff < tolerance, "Post-jitter PSF width is too different from expected width"
 
 
+def test_instrument_calc_datacube():
+    """ Tests ability to make a datacube"""
 
+    inst = instrument.Instrument()
+    psf = inst.calc_datacube(WAVELENGTHS_ARRAY, fov_pixels=FOV_PIXELS,
+                       detector_oversample=2, fft_oversample=2)
+    assert psf[0].header['NWAVES'] == len(WAVELENGTHS_ARRAY), \
+        "Number of wavelengths in PSF header does not match number requested"
+    assert len(psf[0].data.shape) == 3, "Incorrect dimensions for output cube"
+    assert psf[0].data.shape[0] ==  len(WAVELENGTHS_ARRAY), \
+                    "Spectral axis of datacube does not match number requested"
 
+    # Check individual planes
+    osys = inst._getOpticalSystem(fov_pixels=FOV_PIXELS,
+                                  detector_oversample=2, fft_oversample=2)
+    for i, wavelength in enumerate(WAVELENGTHS_ARRAY):
+
+        monopsf = osys.calc_psf(wavelength=wavelength)
+
+        assert np.allclose(psf[0].data[i], monopsf[0].data), \
+        "Multi-wavelength PSF does not match weighted sum of individual wavelength PSFs"
+
+    return psf

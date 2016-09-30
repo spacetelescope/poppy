@@ -5,6 +5,7 @@ import platform
 import re
 import time
 import astropy.io.fits as fits
+import astropy.units as units
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.interpolate
@@ -212,17 +213,24 @@ class Instrument(object):
         if fov_arcsec is None and fov_pixels is None:  # pick decent defaults.
             fov_arcsec = self._getDefaultFOV()
         if fov_pixels is not None:
-            local_options['fov_spec'] = 'pixels = %d' % fov_pixels
+            if np.isscalar(fov_pixels):
+                fov_spec = 'pixels = %d' % fov_pixels
+            else:
+                fov_spec = 'pixels = (%d, %d)' % (fov_pixels[0], fov_pixels[1])
             local_options['fov_pixels'] = fov_pixels
         elif fov_arcsec is not None:
-            local_options['fov_spec'] = 'arcsec = %f' % fov_arcsec
+            if np.isscalar(fov_arcsec):
+                fov_spec = 'arcsec = %f' % fov_arcsec
+            else:
+                fov_spec = 'arcsec = (%.3f, %.3f)' % (fov_arcsec[0], fov_arcsec[1])
             local_options['fov_arcsec'] = fov_arcsec
+        local_options['fov_spec'] = fov_spec
 
         # ---- Implement the semi-convoluted logic for the oversampling options. See docstring above
         if oversample is not None and detector_oversample is not None and fft_oversample is not None:
             # all options set, contradictorily -> complain!
             raise ValueError(
-                "You cannot specify simultaneously the oversample= option with the detector_oversample" +
+                "You cannot specify simultaneously the oversample= option with the detector_oversample " +
                 "and fft_oversample options. Pick one or the other!")
         elif oversample is None and detector_oversample is None and fft_oversample is None:
             # nothing set -> set oversample = 4
@@ -251,6 +259,7 @@ class Instrument(object):
         self.optsys = self._getOpticalSystem(fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
                                              fft_oversample=fft_oversample, detector_oversample=detector_oversample,
                                              options=local_options)
+        self._check_for_aliasing(wavelens)
         # and use it to compute the PSF (the real work happens here, in code in poppy.py)
         result = self.optsys.calcPSF(wavelens, weights, display_intermediates=display, display=display,
                                      save_intermediates=save_intermediates, return_intermediates=return_intermediates)
@@ -286,6 +295,46 @@ class Instrument(object):
             return result, intermediates
         else:
             return result
+
+
+    def calc_datacube(self, wavelengths, *args, **kwargs):
+        """Calculate a spectral datacube of PSFs
+
+        Parameters
+        -----------
+        wavelengths : iterable of floats
+            List or ndarray or tuple of floating point wavelengths in meters, such as
+            you would supply in a call to calc_psf via the "monochromatic" option
+        """
+
+        nwavelengths = len(wavelengths)
+        if nwavelengths >100:
+            raise ValueError("Maximum number of wavelengths exceeded. Cannot be more than 100.")
+
+        # Set up cube and initialize structure based on PSF at first wavelength
+        poppy_core._log.info("Starting multiwavelength data cube calculation.")
+        psf = self.calc_psf(*args, monochromatic=wavelengths[0], **kwargs)
+        from copy import deepcopy
+        cube = deepcopy(psf)
+        for ext in range(len(psf)):
+            cube[ext].data = np.zeros( (nwavelengths, psf[ext].data.shape[0], psf[ext].data.shape[1]))
+            cube[ext].data[0] = psf[ext].data
+            cube[ext].header['WAVELN00'] = wavelengths[0]
+
+        # iterate rest of wavelengths
+        for i in range(1,nwavelengths):
+            wl = wavelengths[i]
+            psf = self.calc_psf(*args, monochromatic=wl, **kwargs)
+            for ext in range(len(psf)):
+                cube[ext].data[i] = psf[ext].data
+                cube[ext].header['WAVELN{:02d}'.format(i)] = wl
+                cube[ext].header.add_history("--- Cube Plane {} ---".format(i)) 
+                for h in psf[ext].header['HISTORY']:
+                    cube[ext].header.add_history(h)
+
+        cube[0].header['NWAVES'] = nwavelengths
+        return cube
+
 
     def _calcPSF_format_output(self, result, options):
         """ Apply desired formatting to output file:
@@ -505,6 +554,48 @@ class Instrument(object):
 
         return optsys
 
+    def _check_for_aliasing(self, wavelengths):
+        """ Check for spatial frequency aliasing and warn if the
+        user is requesting a FOV which is larger than supported based on
+        the available pupil resolution in the optical system entrance pupil.
+        If the requested FOV of the output PSF exceeds that which is Nyquist
+        sampled in the entrance pupil, raise a warning to the user.
+
+        The check implemented here is fairly simple, designed to catch the most
+        common cases, and makes assumptions about the optical system which are
+        not necessarily true in all cases, specifically that it starts with a
+        pupil plane with fixed spatial resolution and ends with a detector
+        plane. If either of those assumptions is violated, this check is skipped.
+
+        See https://github.com/mperrin/poppy/issues/135 and
+        https://github.com/mperrin/poppy/issues/180 for more background on the
+        relevant Fourier optics.
+        """
+        # Note this must be called after self.optsys is defined in calc_psf()
+
+        # compute spatial sampling in the entrance pupil
+        if not hasattr(self.optsys.planes[0], 'pixelscale') or self.optsys.planes[0].pixelscale is None:
+            return # analytic entrance pupil, no sampling limitations.
+        if not isinstance(self.optsys.planes[-1], poppy_core.Detector):
+            return # optical system doesn't end on some fixed sampling detector, not sure how to check sampling limitations
+
+        # determine the spatial frequency which is Nyquist sampled by the input pupil.
+        # convert this to units of cycles per meter and make it not a Quantity
+        sf = (1./(self.optsys.planes[0].pixelscale * 2*units.pixel)).to(1./units.meter).value
+
+        det_fov_arcsec = self.optsys.planes[-1].fov_arcsec.to(units.arcsec).value
+        if np.isscalar(det_fov_arcsec): # FOV can be scalar (square) or rectangular
+            det_fov_arcsec = (det_fov_arcsec, det_fov_arcsec)
+
+        # determine the angular scale that corresponds to for the given wavelength
+        for wl in wavelengths:
+            critical_angle_arcsec = wl*sf * poppy_core._RADIANStoARCSEC
+            if (critical_angle_arcsec < det_fov_arcsec[0]/2) or (critical_angle_arcsec < det_fov_arcsec[1]/2):
+                import warnings
+                warnings.warn(("For wavelength {:.3f} microns, a FOV of {:.3f} arcsec diameter exceeds the maximum spatial frequency well sampled by "+
+                        "the input pupil. Your computed PSF will suffer from aliasing for angles beyond {:.3f} arcsec radius.").format(
+                        wl*1e6, det_fov_arcsec,critical_angle_arcsec))
+
     def _get_aberrations(self):
         """Incorporate a pupil-plane optic that represents optical aberrations
         (e.g. field-dependence as an OPD map). Subclasses should override this method.
@@ -567,7 +658,7 @@ class Instrument(object):
             poppy_core._log.info("        resulting image peak drops to {0:.3f} of its previous value".format(strehl))
             result[0].header['JITRTYPE'] = ('Gaussian convolution', 'Type of jitter applied')
             result[0].header['JITRSIGM'] = (sigma, 'Gaussian sigma for jitter [arcsec]')
-            result[0].header['JITRSTRL'] = (strehl, 'Image peak reduction due to jitter')
+            result[0].header['JITRSTRL'] = (strehl, 'Image peak reduction due to jitter (in oversampled img')
 
             result[0].data = out
         else:

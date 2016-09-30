@@ -151,6 +151,31 @@ def test_opd_expand(npix=512, input_coefficients=(0.1, 0.2, 0.3, 0.4, 0.5)):
     assert max_diff < 1e-3, "recovered coefficients from wf_expand more than 0.1% off"
 
 
+    # Test the nonorthonormal version too
+    # At a minimum, fitting with this variant version shouldn't be
+    # worse than the regular one on a clear circular aperture.
+    # We do the test in this same function for efficiency
+
+
+    recovered_coeffs_v2 = zernike.opd_expand_nonorthonormal(opd, nterms=len(input_coefficients))
+    max_diff_v2 = np.max(np.abs(np.asarray(input_coefficients) - np.asarray(recovered_coeffs_v2)))
+    assert max_diff_v2 < 1e-3, "recovered coefficients from wf_expand more than 0.1% off"
+
+
+
+def test_opd_from_zernikes():
+
+    coeffs = [0,0.1, 0.4, 2, -0.3]
+    opd = zernike.opd_from_zernikes(coeffs, npix=256)
+
+    outcoeffs = zernike.opd_expand(opd, nterms=len(coeffs))
+
+    diffs = np.abs(np.asarray(coeffs) - np.asarray(outcoeffs))/np.asarray(coeffs)
+    diffs[0] = 0 # ignore divide by zero on piston
+    max_diff = np.max(diffs )
+    assert max_diff < 2e-3, "recovered coefficients from opd_expand differ more than expected"
+
+
 def test_hex_aperture():
     """ Ensure the hex aperture used for Zernikes is consistent with the regular
     poppy HexagonAperture
@@ -161,3 +186,24 @@ def test_hex_aperture():
     for npix in npix_to_try:
         assert np.all(optics.HexagonAperture(side=1).sample(npix=npix) - zernike.hex_aperture(
             npix=npix) == 0), "hex_aperture and HexagonAperture outputs differ for npix={}".format(npix)
+
+
+def test_zern_name():
+    assert zernike.zern_name(3)=='Tilt Y', "Unexpected return value"
+    assert zernike.zern_name(11)=='Spherical', "Unexpected return value"
+    assert zernike.zern_name(20)=='Pentafoil X', "Unexpected return value"
+    assert zernike.zern_name(352)=='Z352', "Unexpected return value"
+
+def test_str_zernike():
+    assert zernike.str_zernike(4,0) == 'sqrt(5)* ( 6 r^4  -6 r^2  +1 r^0  ) ', "Unexpected return value"
+    assert zernike.str_zernike(5,5) == '\\sqrt{12}* ( 1 r^5  ) * \\cos(5 \\theta)', "Unexpected return value"
+
+
+
+def test_zernike_basis_faster():
+
+    bf = zernike.zernike_basis_faster(12, outside=0)
+    bs = zernike.zernike_basis(12, outside=0)
+    assert np.allclose(bf,bs), "Fast zernike basis calculation doesn't match the slow calculation"
+
+

@@ -4,6 +4,7 @@ import copy
 import time
 import enum
 import warnings
+import textwrap
 
 import six
 
@@ -337,7 +338,10 @@ class Wavefront(object):
         row : int
             Which row to display this one in?
         vmin, vmax : floats
-            min and maximum values to display.
+            min and maximum values to display. When left unspecified, these default
+            to [0, intens.max()] for linear (scale='linear') intensity plots,
+            [1e-6*intens.max(), intens.max()] for logarithmic (scale='log') intensity
+            plots, and [-0.25, 0.25] waves for phase plots.
         scale : string
             'log' or 'linear', to define the desired display scale type for
             intensity. Default is log for image planes, linear otherwise.
@@ -434,10 +438,16 @@ class Wavefront(object):
 
         # prepare color maps and normalizations for intensity and phase
         if vmax is None:
-            vmax = intens.max()
+            if what == 'phase':
+               vmax = 0.25
+            else:
+               vmax = intens.max()
         if scale == 'linear':
             if vmin is None:
-                vmin = 0
+                if what == 'phase':
+                    vmin = -0.25
+                else:
+                    vmin = 0
             norm_inten = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
             cmap_inten = getattr(matplotlib.cm, conf.cmap_pupil_intensity)
             cmap_inten.set_bad('0.0')
@@ -449,7 +459,19 @@ class Wavefront(object):
             cmap_inten.set_bad(cmap_inten(0))
         cmap_phase = getattr(matplotlib.cm, conf.cmap_diverging)
         cmap_phase.set_bad('0.3')
-        norm_phase = matplotlib.colors.Normalize(vmin=-0.25, vmax=0.25)
+        norm_phase = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+
+
+        def wrap_lines_title(title):
+            # Helper fn to add line breaks, tweaked to
+            # put in particular places for aesthetics
+            for prep in ['after','before']:
+                if prep in title:
+                    part1, part2 = title.split(prep)
+                    return part1+prep+"\n"+"\n".join(textwrap.wrap(part2,30))
+            return"\n".join(textwrap.wrap(title,30))
+
+
 
         # now display the chosen selection..
         if what == 'intensity':
@@ -465,9 +487,7 @@ class Wavefront(object):
                 origin='lower'
             )
             if title is None:
-                title = "Intensity " + self.location
-                title = title.replace('after', 'after\n')
-                title = title.replace('before', 'before\n')
+                title = wrap_lines_title("Intensity " + self.location)
             ax.set_title(title)
             ax.set_xlabel(unit)
             if colorbar:
@@ -487,7 +507,7 @@ class Wavefront(object):
                 origin='lower'
             )
             if title is None:
-                title = "Phase " + self.location
+                title = wrap_lines_title("Phase " + self.location)
             plt.title(title)
             plt.xlabel(unit)
             if colorbar:
@@ -606,7 +626,7 @@ class Wavefront(object):
             self._propagate_mft_inverse(optic)
             self.location = 'before '+optic.name
         elif self.planetype == _IMAGE and optic.planetype == _DETECTOR:
-            raise NotImplemented('image plane directly to detector propagation (resampling!) not implemented yet')
+            raise NotImplementedError('image plane directly to detector propagation (resampling!) not implemented yet')
         else:
             self._propagate_fft(optic)           # FFT pupil to image or image to pupil
             self.location = 'before '+optic.name
@@ -1325,8 +1345,8 @@ class OpticalSystem(object):
 
         """
 
-        # somewhat complicated logic here for historical reasons. 
-        # if we have a first optical plane, check and see if it specifies the entrance sampling. 
+        # somewhat complicated logic here for historical reasons.
+        # if we have a first optical plane, check and see if it specifies the entrance sampling.
 
         npix=None
         diam=None
@@ -1352,9 +1372,9 @@ class OpticalSystem(object):
             wavelength, npix, diam/npix))
 
         if np.abs(self.source_offset_r) > 0:
-            # Add a tilt to the input wavefront. 
-            # First we must work out the handedness of the input pupil relative to the 
-            # final image plane.  This is needed to apply (to the input pupil) shifts 
+            # Add a tilt to the input wavefront.
+            # First we must work out the handedness of the input pupil relative to the
+            # final image plane.  This is needed to apply (to the input pupil) shifts
             # with the correct handedness to get the desired motion in the final plane.
             sign_x = 1
             sign_y = 1
@@ -1369,7 +1389,7 @@ class OpticalSystem(object):
                     elif isinstance(plane, Rotation):
                         rotation_angle += plane.angle*sign_x*sign_y
 
-            # now we must also work out the rotation 
+            # now we must also work out the rotation
 
             # convert to offset X,Y in arcsec using the usual astronomical angle convention
             offset_x = sign_x * self.source_offset_r *-np.sin((self.source_offset_theta-rotation_angle)*np.pi/180)
@@ -1393,6 +1413,7 @@ class OpticalSystem(object):
             how to normalize the wavefront?
             * 'first' = set total flux = 1 after the first optic, presumably a pupil
             * 'last' = set total flux = 1 after the entire optical system.
+            * 'exit_pupil' = set total flux = 1 at the last pupil of the optical system.
             * 'first=2' = set total flux = 2 after the first optic (used for debugging only)
         display_intermediates : bool
             Should intermediate steps in the calculation be displayed on screen? Default: False.
@@ -1454,15 +1475,24 @@ class OpticalSystem(object):
 
             if display_intermediates:
                 if conf.enable_speed_tests: t0 = time.time()
-                title = None if current_plane_index > 1 else "propagating $\lambda=$ {0:.3f}".format(
-                    wavelength.to(u.micron))
+                #title = None if current_plane_index > 1 else "propagating $\lambda=$ {0:.3f}".format(
+                    #wavelength.to(u.micron))
                 if hasattr(optic, 'wavefront_display_hint'):
                     display_what = optic.wavefront_display_hint
                 else:
                     display_what='best'
+                if hasattr(optic, 'wavefront_display_vmax_hint'):
+                    display_vmax = optic.wavefront_display_vmax_hint
+                else:
+                    display_vmax=None
+                if hasattr(optic, 'wavefront_display_vmin_hint'):
+                    display_vmin = optic.wavefront_display_vmin_hint
+                else:
+                    display_vmin=None
+
 
                 ax = wavefront.display(what=display_what,nrows=len(self.planes),row=current_plane_index,
-                                       colorbar=False, title=title)
+                                       colorbar=False, vmax=display_vmax, vmin=display_vmin)
                 if hasattr(optic,'display_annotate'):
                     optic.display_annotate(optic, ax)  # atypical calling convention needed empirically
 
@@ -1488,7 +1518,7 @@ class OpticalSystem(object):
         Parameters
         ----------
         wavelength : float or Astropy.Quantity, optional
-            wavelength in meters, or some other length unit if specified as an astropy.Quantity. Either 
+            wavelength in meters, or some other length unit if specified as an astropy.Quantity. Either
             scalar for monochromatic calculation or list or ndarray for multiwavelength calculation.
         weight : float, optional
             weight by which to multiply each wavelength. Must have same length as
@@ -1497,14 +1527,14 @@ class OpticalSystem(object):
             whether to output intermediate optical planes to disk. Default is False
         save_intermediate_what : string, optional
             What to save - phase, intensity, amplitude, complex, parts, all. Default is all.
-        display : bool, optional
-            whether to plot the results when finished or not.
         return_intermediates: bool, optional
             return intermediate wavefronts as well as PSF?
         source : dict
             a dict containing 'wavelengths' and 'weights' list.
         normalize : string, optional
             How to normalize the PSF. See the documentation for propagate_mono() for details.
+        display : bool, optional
+            whether to plot the results when finished or not.
         display_intermediates: bool, optional
             Display intermediate optical planes? Default is False. This option is incompatible with
             parallel calculations using `multiprocessing`. (If calculating in parallel, it will have no effect.)
@@ -1558,10 +1588,12 @@ class OpticalSystem(object):
 
         if conf.use_multiprocessing and len(wavelength) > 1: ######### Parallellized computation ############
             # Avoid a Mac OS incompatibility that can lead to hard-to-reproduce crashes.
+            # see issues #23 and #176
             import sys
             import platform
             if ( (sys.version_info < (3,4,0)) and platform.system()=='Darwin' and
-                    '-Wl,Accelerate' in np.__config__.blas_opt_info['extra_link_args']):
+                    (('extra_link_args' in np.__config__.blas_opt_info) and
+                    '-Wl,Accelerate' in np.__config__.blas_opt_info['extra_link_args'])):
                     _log.error("Multiprocessing not compatible with Apple Accelerate library on Python < 3.4")
                     _log.error(" See https://github.com/mperrin/poppy/issues/23 ")
                     _log.error(" Either disable multiprocessing, or recompile your numpy without Accelerate.")
@@ -1588,14 +1620,14 @@ class OpticalSystem(object):
             # This is a memory-intensive task so that can end up swapping to disk and thrashing IO
             nproc = conf.n_processes if conf.n_processes > 1 \
                                      else utils.estimate_optimal_nprocesses(self, nwavelengths=len(wavelength))
-            nproc = min(nproc, len(wavelength)) # never try more processes than wavelengths. 
+            nproc = min(nproc, len(wavelength)) # never try more processes than wavelengths.
             # be sure to cast nproc to int below; will fail if given a float even if of integer value
 
             if sys.version_info < (3, 4, 0):
                 pool = multiprocessing.Pool(int(nproc))
             else:
                 # Use new forkserver for more robustness;
-                # Resolves https://github.com/mperrin/poppy/issues/23 
+                # Resolves https://github.com/mperrin/poppy/issues/23
                 ctx = multiprocessing.get_context('forkserver')
                 pool =ctx.Pool(int(nproc))
 
@@ -1652,12 +1684,13 @@ class OpticalSystem(object):
                 # Add final intensity panel to intermediate WF plot
                 cmap = getattr(matplotlib.cm, conf.cmap_sequential)
                 cmap.set_bad('0.3')
-                #cmap.set_bad('k', 0.8)
                 halffov_x =outFITS[0].header['PIXELSCL']*outFITS[0].data.shape[1]/2
                 halffov_y =outFITS[0].header['PIXELSCL']*outFITS[0].data.shape[0]/2
                 extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
                 unit="arcsec"
-                norm=matplotlib.colors.LogNorm(vmin=1e-8,vmax=1e-1)
+                vmax = outFITS[0].data.max()
+                vmin = vmax / 1e4
+                norm=matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)  #vmin=1e-8,vmax=1e-1)
                 plt.xlabel(unit)
 
                 utils.imshow_with_mouseover(outFITS[0].data, extent=extent, norm=norm, cmap=cmap,
@@ -1737,7 +1770,7 @@ class OpticalSystem(object):
 
         return {'steps': steps, 'output_shape': output_shape, 'output_size':output_size}
 
-    # back compatible aliases for PEP8 compliant names; 
+    # back compatible aliases for PEP8 compliant names;
     # these old versions will be deprecated in a future release.
     addPupil = add_pupil
     addImage = add_image
@@ -1944,8 +1977,8 @@ class SemiAnalyticCoronagraph(OpticalSystem):
 
 class MatrixFTCoronagraph(OpticalSystem):
     """ A subclass of OpticalSystem that implements a specialized propagation
-    algorithm for coronagraphs which are most efficiently modeled by 
-    matrix Fourier transforms, and in which the semi-analytical/Babinet 
+    algorithm for coronagraphs which are most efficiently modeled by
+    matrix Fourier transforms, and in which the semi-analytical/Babinet
     superposition approach does not apply.
 
     The way to use this class is to build an OpticalSystem class the usual way, and then
@@ -2230,7 +2263,7 @@ class OpticalElement(object):
                 self.phasor = self._resampled_amplitude * np.exp (1.j * self._resampled_opd * scale)
             else:
                 #raise NotImplementedError("Need to implement resampling.")
-                zoom=(self.pixelscale/wave.pixelscale).decompose().value 
+                zoom=(self.pixelscale/wave.pixelscale).decompose().value
                 resampled_opd = scipy.ndimage.interpolation.zoom(self.opd, zoom,
                         output=self.opd.dtype, order=self.interp_order)
                 resampled_amplitude = scipy.ndimage.interpolation.zoom(self.amplitude,zoom,output=self.amplitude.dtype,order=self.interp_order)
@@ -2282,8 +2315,9 @@ class OpticalElement(object):
         return self.get_phasor(wave)
 
 
+    @utils.quantity_input(opd_vmax=u.meter)
     def display(self, nrows=1, row=1, what='intensity', crosshairs=True, ax=None, colorbar=True,
-                colorbar_orientation=None, title=None, opd_vmax=0.5e-6):
+                colorbar_orientation=None, title=None, opd_vmax=0.5e-6*u.meter):
         """Display plots showing an optic's transmission and OPD.
 
         Parameters
@@ -2318,12 +2352,18 @@ class OpticalElement(object):
         cmap_opd = getattr(matplotlib.cm, conf.cmap_diverging)
         cmap_opd.set_bad('0.3')
         norm_amp = matplotlib.colors.Normalize(vmin=0, vmax=1)
-        norm_opd = matplotlib.colors.Normalize(vmin=-opd_vmax, vmax=opd_vmax)
 
-        # TODO infer correct units from pixelscale's units? 
+        opd_vmax_m = opd_vmax.to(u.meter).value
+        norm_opd = matplotlib.colors.Normalize(vmin=-opd_vmax_m, vmax=opd_vmax_m)
+
+        # TODO infer correct units from pixelscale's units?
         units = "[arcsec]" if self.planetype == _IMAGE else "[meters]"
         if nrows > 1:
+            # for display inside an optical system, we repurpose the units display to label the plane
             units = self.name + "\n" + units
+            # and wrap long lines if necessary
+            if len(units)>20:
+                units = "\n".join(textwrap.wrap(units,20))
 
         if self.pixelscale is not None:
             # TODO handle units better here for pupil vs. image planes? meters/pix vs arcsec/pix
@@ -2351,6 +2391,7 @@ class OpticalElement(object):
             self.display(what='opd', ax=ax2, crosshairs=crosshairs, colorbar=colorbar,
                          colorbar_orientation=colorbar_orientation, title=None, opd_vmax=opd_vmax,
                          nrows=nrows)
+            ax2.set_ylabel('') # suppress redundant label which duplicates the intensity plot's label
             return ax, ax2
         elif what == 'amplitude':
             plot_array = ampl
@@ -2371,14 +2412,14 @@ class OpticalElement(object):
             plot_array = opd
             title = "OPD"
             cb_label = 'waves'
-            cb_values = np.array([-1, -0.5, 0, 0.5, 1]) * opd_vmax
+            cb_values = np.array([-1, -0.5, 0, 0.5, 1]) * opd_vmax_m
             cmap = cmap_opd
             norm = norm_opd
         elif what == 'opd':
             plot_array = opd
             title = "OPD"
             cb_label = 'meters'
-            cb_values = np.array([-1, -0.5, 0, 0.5, 1]) * opd_vmax
+            cb_values = np.array([-1, -0.5, 0, 0.5, 1]) * opd_vmax_m
             cmap = cmap_opd
             norm = norm_opd
         else:
@@ -2407,15 +2448,15 @@ class OpticalElement(object):
         if hasattr(self,'display_annotate'):
             self.display_annotate(self, ax)  # atypical calling convention needed empirically
                                          # since Python doesn't seem to automatically pass
-                                         # self as first argument for functions added at 
-                                         # run time as attributes? 
+                                         # self as first argument for functions added at
+                                         # run time as attributes?
         return ax
 
     def __str__(self):
         if self.planetype == _PUPIL:
             return "Pupil plane: %s " % (self.name)
         elif self.planetype == _IMAGE:
-            desc = "(%dx%d pixels, scale=%f arcsec/pixel)" % (self.shape[0], self.shape[0], self.pixelscale) if self.pixelscale is not None else "(Analytic)"
+            desc = "({}x{} pixels, scale={} arcsec/pixel)".format(self.shape[0], self.shape[0], self.pixelscale) if self.pixelscale is not None else "(Analytic)"
             return "Image plane: %s %s" % (self.name, desc)
         else:
             return "Optic: "+self.name
@@ -2772,7 +2813,7 @@ class CoordinateTransform(OpticalElement):
         self._suppress_display=hide
 
     def get_phasor(self,wave):
-        return 1.0  #no change in wavefront 
+        return 1.0  #no change in wavefront
         # returning this is necessary to allow the multiplication in propagate_mono to be OK
 
     def display(self, nrows=1, row=1, ax=None, **kwargs):
@@ -2815,7 +2856,7 @@ class Rotation(CoordinateTransform):
             raise ValueError("Unknown value for units='%s'. Must be degrees or radians." % units)
         self.angle = angle
 
-        CoordinateTransform.__init__(self, name= "Rotation by %.2f degrees" % angle, 
+        CoordinateTransform.__init__(self, name= "Rotation by %.2f degrees" % angle,
                 planetype=PlaneType.rotation, hide=hide, **kwargs)
 
     def __str__(self):

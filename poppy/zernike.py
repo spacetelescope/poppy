@@ -114,7 +114,7 @@ def noll_indices(j):
     """
 
     if j < 1:
-        raise ValueError("Zernike index j must be a postitive integer.")
+        raise ValueError("Zernike index j must be a positive integer.")
 
     # from i, compute m and n
     # I'm not sure if there is an easier/cleaner algorithm or not.
@@ -346,7 +346,8 @@ def zernike_basis(nterms=15, npix=512, rho=None, theta=None, **kwargs):
     return zern_output
 
 
-def zernike_basis_faster(nterms=15, npix=512, outside=np.nan, **kwargs):
+@lru_cache()
+def zernike_basis_faster(nterms=15, npix=512, outside=np.nan):
     """
     Return a cube of Zernike terms from 1 to N each as a 2D array
     showing the value at each point. (Regions outside the unit circle on which
@@ -368,8 +369,7 @@ def zernike_basis_faster(nterms=15, npix=512, outside=np.nan, **kwargs):
         Desired pixel diameter for circular pupil. Only used if `rho`
         and `theta` are not provided.
 
-    Other parameters are passed through to `poppy.zernike.zernike`
-    and are documented there.
+
     """
     shape = (npix, npix)
     use_polar = False
@@ -563,12 +563,31 @@ def hexike_basis_wss(nterms=9, npix=512, rho=None, theta=None,
                  vertical=False, outside=np.nan):
     """Return a list of hexike polynomials 1-N based on analytic
     expressions. Note, this is strictly consistent with the
-    JWST WSS hexikes.
+    JWST WSS hexikes in both ordering and normalization.
 
     ***The ordering of hexike terms is DIFFERENT FROM that returned by
     the zernike_basis or regular hexike_basis functions. Use this one
     in particular if you need something consistent with JWST WSS internals.
     ***
+
+    That ordering is:
+        H1 = Piston
+        H2 = X tilt
+        H3 = Y tilt
+        H4 = Astigmatism-45
+        H5 = Focus
+        H6 = Astigmatism-00
+        H7 = Coma X
+        H8 = Coma Y
+        H9 = Spherical
+        H10 = Trefoil-0
+        H11 = Trefoil-30
+
+    The last two are included for completeness of that hexike order but
+    are not actually used in the WSS.
+    This function has an attributed hexike_basis_wss.label_strings for
+    convenient use in plot labeling.
+
 
     Parameters
     ----------
@@ -652,7 +671,7 @@ def hexike_basis_wss(nterms=9, npix=512, rho=None, theta=None,
             H[i] *= aperture
         return H[1:nterms+1]
 
-
+hexike_basis_wss.label_strings = ['Piston','X tilt', 'Y tilt', 'Astigmatism-45','Focus','Astigmatism-00','Coma X','Coma Y','Spherical','Trefoil-0','Trefoil-30']
 
 
 def arbitrary_basis(aperture, nterms=15, rho=None, theta=None):
@@ -810,7 +829,7 @@ def opd_expand_nonorthonormal(opd, aperture=None, nterms=15, basis=zernike_basis
     aperture : an aperture mask of which pixels are valid. ANything non-NaN is
                considered valid
     nterms : number of terms to fit
-    basis: which basis set to use. Defaults to Zernike
+    basis: which basis function to use. Defaults to Zernike
     iterations : int
         Number of iterations for convergence. Default is 5
 
@@ -873,7 +892,8 @@ def opd_from_zernikes(coeffs, basis=zernike_basis_faster, aperture=None, outside
     output = np.zeros_like(basis_set[0])
 
     for i, b in enumerate(basis_set):
-        output += coeffs[i]*b
+        if coeffs[i] !=0:
+            output += coeffs[i]*b
     if aperture is not None:
         output[~np.isfinite(aperture)] = np.nan
         output[aperture==0] = 0
