@@ -507,7 +507,7 @@ class FresnelWavefront(Wavefront):
     @utils.quantity_input(z=u.meter)
     def propagate_direct(self, z):
         """
-        Implements the direct propagation algorithm described in Andersen & Enmark (2011). Works best for
+        Implements the direct propagation algorithm as described in Andersen & Enmark (2011). Works best for
         far field propagation. Not part of the Gaussian beam propagation method.
 
         Parameters
@@ -522,7 +522,7 @@ class FresnelWavefront(Wavefront):
         z_direct = z.to(u.m).value
         y, x = self.coordinates()
         k = np.pi * 2.0 / self.wavelength.to(u.meter).value
-        s = self.n * self.pixelscale
+        s = self.n*u.pix * self.pixelscale
         _log.debug(
             "Propagation Parameters: k={0:0.2e},".format(k) + "S={0:0.2e},".format(s) + "z={0:0.2e},".format(z_direct))
 
