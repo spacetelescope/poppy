@@ -1001,7 +1001,7 @@ class FresnelOpticalSystem(OpticalSystem):
 
     @u.quantity_input(distance=u.m)
     def add_detector(self, pixelscale, distance=0.0 * u.m, **kwargs):
-        super(self, FresnelOpticalSystem).addDetector(pixelscale, **kwargs)
+        super(FresnelOpticalSystem, self).addDetector(pixelscale, **kwargs)
         self.distances.append(distance)
         if self.verbose:
             _log.info("Added detector: {0} after separation: {1:.2e} ".format(self.planes[-1].name, distance))
