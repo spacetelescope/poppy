@@ -149,7 +149,7 @@ class ConicLens(poppy.optics.CircularAperture):
         planetype : poppy.PlaneType, optional
             Optional optical plane type specifier
         """
-        CircularAperture.__init__(self, name=name, radius=radius.value, planetype=planetype, **kwargs)
+        CircularAperture.__init__(self, name=name, radius=radius.to(u.m).value, planetype=planetype, **kwargs)
         self.f_lens = f_lens
         self.K=K
 
@@ -220,9 +220,9 @@ class FresnelWavefront(Wavefront):
         """Current wavefront coordinate along the optical axis"""
         self.z_w0 = 0 * units
         """Coordinate along the optical axis of the latest beam waist"""
-        self.waists_w0 = [self.w_0.value]
+        self.waists_w0 = [self.w_0.to(u.m).value]
         """List of beam waist radii, in series as encountered during the course of an optical propagation."""
-        self.waists_z = [self.z_w0.value]
+        self.waists_z = [self.z_w0.to(u.m).value]
         """List of beam waist distances along the optical axis, in series as encountered
         during the course of an optical propagation."""
         self.spherical = False
@@ -469,8 +469,8 @@ class FresnelWavefront(Wavefront):
                 raise ValueError("Cannot convert to angular units for a beam with infinite focal length")
             platescale = (1 * u.radian / self.focal_length).to(u.arcsec / u.m)
             _log.debug("Converting to angular coords using plate scale = {}".format(platescale))
-            y *= platescale.value
-            x *= platescale.value
+            y *= platescale.value #TODO: .value can have undefined behavior, what base units should this be decomposed to?
+            x *= platescale.value #TODO: .value can have undefined behavior, what base units should this be decomposed to?
 
         return y, x
 
@@ -885,8 +885,8 @@ class FresnelWavefront(Wavefront):
             _log.debug("Magnification: {}  from R_in = {}, R_out = {}".format(mag, r_input_beam, r_output_beam))
             _log.debug("Output beam focal length is now {}".format(self.focal_length))
 
-        self.waists_z.append(self.z_w0.value)
-        self.waists_w0.append(self.w_0.value)
+        self.waists_z.append(self.z_w0.to(u.m).value)
+        self.waists_w0.append(self.w_0.to(u.m).value)
 
         # update wavefront location:
         if optic.planetype != PlaneType.unspecified:
