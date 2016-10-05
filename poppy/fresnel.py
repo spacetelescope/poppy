@@ -469,8 +469,8 @@ class FresnelWavefront(Wavefront):
                 raise ValueError("Cannot convert to angular units for a beam with infinite focal length")
             platescale = (1 * u.radian / self.focal_length).to(u.arcsec / u.m)
             _log.debug("Converting to angular coords using plate scale = {}".format(platescale))
-            y *= platescale.value #TODO: .value can have undefined behavior, what base units should this be decomposed to?
-            x *= platescale.value #TODO: .value can have undefined behavior, what base units should this be decomposed to?
+            y *= platescale.value
+            x *= platescale.value
 
         return y, x
 
