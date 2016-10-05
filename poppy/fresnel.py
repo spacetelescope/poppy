@@ -522,7 +522,7 @@ class FresnelWavefront(Wavefront):
         z_direct = z.to(u.m).value
         y, x = self.coordinates()
         k = np.pi * 2.0 / self.wavelength.to(u.meter).value
-        s = self.n*u.pix * self.pixelscale
+        s = self.n*u.pix * self.pixelscale #S is "simulation size" and has length of meters
         _log.debug(
             "Propagation Parameters: k={0:0.2e},".format(k) + "S={0:0.2e},".format(s) + "z={0:0.2e},".format(z_direct))
 
@@ -534,7 +534,7 @@ class FresnelWavefront(Wavefront):
 
         result = np.fft.fftshift(forward_fft(stage1)) * self.pixelscale ** 2 * quadphase_2nd  # eq.6.69 and #6.80
 
-        self.pixelscale = self.wavelength * z / s
+        self.pixelscale = self.wavelength * z / s/u.pix
         self.wavefront = result
         self.history.append("Direct propagation to z= {0:0.2e}".format(z))
 
