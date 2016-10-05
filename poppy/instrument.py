@@ -592,9 +592,9 @@ class Instrument(object):
             critical_angle_arcsec = wl*sf * poppy_core._RADIANStoARCSEC
             if (critical_angle_arcsec < det_fov_arcsec[0]/2) or (critical_angle_arcsec < det_fov_arcsec[1]/2):
                 import warnings
-                warnings.warn(("For wavelength {:.3f} microns, a FOV of {:.3f} arcsec diameter exceeds the maximum spatial frequency well sampled by "+
+                warnings.warn(("For wavelength {:.3f} microns, a FOV of {:.3f} * {:.3f} arcsec exceeds the maximum spatial frequency well sampled by "+
                         "the input pupil. Your computed PSF will suffer from aliasing for angles beyond {:.3f} arcsec radius.").format(
-                        wl*1e6, det_fov_arcsec,critical_angle_arcsec))
+                        wl*1e6, det_fov_arcsec[0], det_fov_arcsec[1],critical_angle_arcsec))
 
     def _get_aberrations(self):
         """Incorporate a pupil-plane optic that represents optical aberrations
