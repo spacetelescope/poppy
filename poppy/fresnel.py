@@ -527,12 +527,12 @@ class FresnelWavefront(Wavefront):
             "Propagation Parameters: k={0:0.2e},".format(k) + "S={0:0.2e},".format(s) + "z={0:0.2e},".format(z_direct))
 
         quadphase_1st = np.exp(1.0j * k * (x ** 2 + y ** 2) / (2 * z_direct))  # eq. 6.68
-        quadphase_2nd = np.exp(1.0j * k * z_direct) / (1.0j * self.wavelength * z_direct) * np.exp(
+        quadphase_2nd = np.exp(1.0j * k * z_direct) / (1.0j * self.wavelength.to(u.m).value * z_direct) * np.exp(
             1.0j * (x ** 2 + y ** 2) / (2 * z_direct))  # eq. 6.70
 
         stage1 = self.wavefront * quadphase_1st  # eq.6.67
 
-        result = np.fft.fftshift(forward_fft(stage1)) * self.pixelscale ** 2 * quadphase_2nd  # eq.6.69 and #6.80
+        result = np.fft.fftshift(forward_fft(stage1)) * self.pixelscale.to(u.m/u.pix).value ** 2 * quadphase_2nd  # eq.6.69 and #6.80
 
         self.pixelscale = self.wavelength * z / s/u.pix
         self.wavefront = result
@@ -616,11 +616,11 @@ class FresnelWavefront(Wavefront):
 
         if np.abs(dz) < 1 * u.Angstrom:
             _log.debug("Skipping small dz = " + str(dz))
+            #TO Do: make this scale with physics and only skip un-interesting distances instead of this arbitrary length -douglase
             return
 
         x, y = self.coordinates()  # meters
-        rhosqr = np.fft.fftshift(
-            (x / self.pixelscale / self.oversample) ** 2 + (y / self.pixelscale / self.oversample) ** 2)
+        rhosqr = np.fft.fftshift((x/(self.pixelscale.to(u.m/u.pix).value**2*self.n)) ** 2 + (y/(self.pixelscale.to(u.m/u.pix).value**2*self.n)) ** 2)
         t = -1.0j * np.pi * self.wavelength.to(u.meter).value * (
             z_direct) * rhosqr  # Transfer Function of diffraction propagation eq. 22, eq. 87
 
