@@ -136,7 +136,8 @@ class Instrument(object):
     # ----- actual optical calculations follow here -----
     def calc_psf(self, outfile=None, source=None, nlambda=None, monochromatic=None,
                  fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
-                 rebin=True, clobber=True, display=False, save_intermediates=False, return_intermediates=False):
+                 rebin=True, clobber=True, display=False, save_intermediates=False, return_intermediates=False,
+                 normalize='first'):
         """ Compute a PSF.
         The result can either be written to disk (set outfile="filename") or else will be returned as
         a FITS HDUlist object.
@@ -188,6 +189,9 @@ class Instrument(object):
             Options for saving to disk or returning to the calling function the intermediate optical planes during
             the propagation. This is useful if you want to e.g. examine the intensity in the Lyot plane for a
             coronagraphic propagation.
+        normalize : string
+            Desired normalization for output PSFs. See doc string for OpticalSystem.calc_psf. Default is
+            to normalize the entrance pupil to have integrated total intensity = 1.
 
         Returns
         -------
@@ -262,7 +266,8 @@ class Instrument(object):
         self._check_for_aliasing(wavelens)
         # and use it to compute the PSF (the real work happens here, in code in poppy.py)
         result = self.optsys.calcPSF(wavelens, weights, display_intermediates=display, display=display,
-                                     save_intermediates=save_intermediates, return_intermediates=return_intermediates)
+                                     save_intermediates=save_intermediates, return_intermediates=return_intermediates,
+                                     normalize=normalize)
 
         if return_intermediates:  # this implies we got handed back a tuple, so split it apart
             result, intermediates = result
