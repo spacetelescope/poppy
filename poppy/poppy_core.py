@@ -2670,8 +2670,8 @@ class FITSOpticalElement(OpticalElement):
                 raise ValueError("Pupil amplitude image must be 2-D and square")
 
 
-            assert self.amplitude.shape == self.opd.shape
-            assert self.amplitude.shape[0] == self.amplitude.shape[1]
+            assert self.amplitude.shape == self.opd.shape, "Amplitude and OPD FITS file shapes are incompatible."
+            assert self.amplitude.shape[0] == self.amplitude.shape[1], "Amplitude and OPD FITS files must be square."
 
             # ---- transformation: inversion ----
             # if an inversion is specified and we're not a null (scalar) opticm then do the inversion:
