@@ -149,7 +149,7 @@ class ConicLens(poppy.optics.CircularAperture):
         planetype : poppy.PlaneType, optional
             Optional optical plane type specifier
         """
-        CircularAperture.__init__(self, name=name, radius=radius.value, planetype=planetype, **kwargs)
+        CircularAperture.__init__(self, name=name, radius=radius.to(u.m).value, planetype=planetype, **kwargs)
         self.f_lens = f_lens
         self.K=K
 
@@ -220,9 +220,9 @@ class FresnelWavefront(Wavefront):
         """Current wavefront coordinate along the optical axis"""
         self.z_w0 = 0 * units
         """Coordinate along the optical axis of the latest beam waist"""
-        self.waists_w0 = [self.w_0.value]
+        self.waists_w0 = [self.w_0.to(u.m).value]
         """List of beam waist radii, in series as encountered during the course of an optical propagation."""
-        self.waists_z = [self.z_w0.value]
+        self.waists_z = [self.z_w0.to(u.m).value]
         """List of beam waist distances along the optical axis, in series as encountered
         during the course of an optical propagation."""
         self.spherical = False
@@ -522,19 +522,19 @@ class FresnelWavefront(Wavefront):
         z_direct = z.to(u.m).value
         y, x = self.coordinates()
         k = np.pi * 2.0 / self.wavelength.to(u.meter).value
-        s = self.n*u.pix * self.pixelscale
+        s = self.n*u.pix * self.pixelscale #S is "simulation size" and has length of meters
         _log.debug(
             "Propagation Parameters: k={0:0.2e},".format(k) + "S={0:0.2e},".format(s) + "z={0:0.2e},".format(z_direct))
 
         quadphase_1st = np.exp(1.0j * k * (x ** 2 + y ** 2) / (2 * z_direct))  # eq. 6.68
-        quadphase_2nd = np.exp(1.0j * k * z_direct) / (1.0j * self.wavelength * z_direct) * np.exp(
+        quadphase_2nd = np.exp(1.0j * k * z_direct) / (1.0j * self.wavelength.to(u.m).value * z_direct) * np.exp(
             1.0j * (x ** 2 + y ** 2) / (2 * z_direct))  # eq. 6.70
 
         stage1 = self.wavefront * quadphase_1st  # eq.6.67
 
-        result = np.fft.fftshift(forward_fft(stage1)) * self.pixelscale ** 2 * quadphase_2nd  # eq.6.69 and #6.80
+        result = np.fft.fftshift(forward_fft(stage1)) * self.pixelscale.to(u.m/u.pix).value ** 2 * quadphase_2nd  # eq.6.69 and #6.80
 
-        self.pixelscale = self.wavelength * z / s
+        self.pixelscale = self.wavelength * z / s/u.pix
         self.wavefront = result
         self.history.append("Direct propagation to z= {0:0.2e}".format(z))
 
@@ -616,11 +616,11 @@ class FresnelWavefront(Wavefront):
 
         if np.abs(dz) < 1 * u.Angstrom:
             _log.debug("Skipping small dz = " + str(dz))
+            #TO Do: make this scale with physics and only skip un-interesting distances instead of this arbitrary length -douglase
             return
 
         x, y = self.coordinates()  # meters
-        rhosqr = np.fft.fftshift(
-            (x / self.pixelscale / self.oversample) ** 2 + (y / self.pixelscale / self.oversample) ** 2)
+        rhosqr = np.fft.fftshift((x/(self.pixelscale.to(u.m/u.pix).value**2*self.n)) ** 2 + (y/(self.pixelscale.to(u.m/u.pix).value**2*self.n)) ** 2)
         t = -1.0j * np.pi * self.wavelength.to(u.meter).value * (
             z_direct) * rhosqr  # Transfer Function of diffraction propagation eq. 22, eq. 87
 
@@ -885,8 +885,8 @@ class FresnelWavefront(Wavefront):
             _log.debug("Magnification: {}  from R_in = {}, R_out = {}".format(mag, r_input_beam, r_output_beam))
             _log.debug("Output beam focal length is now {}".format(self.focal_length))
 
-        self.waists_z.append(self.z_w0.value)
-        self.waists_w0.append(self.w_0.value)
+        self.waists_z.append(self.z_w0.to(u.m).value)
+        self.waists_w0.append(self.w_0.to(u.m).value)
 
         # update wavefront location:
         if optic.planetype != PlaneType.unspecified:

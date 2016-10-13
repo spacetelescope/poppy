@@ -8,6 +8,10 @@ from poppy.poppy_core import _log, PlaneType
 import astropy.units as u
 import matplotlib.pyplot as plt
 import numpy as np
+import astropy.units as u
+import numpy as np
+from .. import fwcentroid
+from scipy.ndimage import zoom,shift
 
 def test_GaussianBeamParams():
     """Confirm that gaussian beam parameters agree with expectations"""
@@ -177,6 +181,32 @@ def test_Circular_Aperture_PTP(display=False, npix=512, display_proper=False):
     center_cut_y = inten[cen, cen-cutsize:cen+cutsize+1]
     assert(np.all((center_cut_y- center_cut_y[::-1])/center_cut_y < 0.001))
 
+    #test short distance propagation, as discussed in issue #194 (https://github.com/mperrin/poppy/issues/194)
+    npix = 512
+    wf = fresnel.FresnelWavefront(
+        2 * u.um,
+        wavelength=10e-9*u.m,
+        npix=npix,
+        oversample=4)
+    wf *= optics.CircularAperture(radius=800 * 1e-9*u.m)
+    wf_2 = wf.copy()
+    z = 12. * u.um
+
+    wf.propagate_direct(z)
+    wf_2.propagate_fresnel(z)
+
+    zoomed=(zoom(wf.intensity,(wf.pixelscale/wf_2.pixelscale).decompose().value))
+    n = zoomed.shape[0]
+
+
+
+    crop_2=wf_2.intensity[int(1023-n/2):int(1023+n/2), int(1023-n/2):int(1023+n/2)]
+    #zooming shifted the centroids, find new centers
+    cent=fwcentroid.fwcentroid(zoomed,halfwidth=8)
+    cent2=fwcentroid.fwcentroid(crop_2,halfwidth=8)
+    shifted=shift(crop_2,[cent[1]-cent2[1],cent[0]-cent2[0]])
+    diff=shifted/shifted.max()-zoomed/zoomed.max()
+    assert(diff.max() < 1e-3)
 
 def test_spherical_lens(display=False):
     """Make sure that spherical lens operator is working.
@@ -316,4 +346,6 @@ def test_fresnel_optical_system_Hubble(display=False):
     centerpix = hst.npix / hst.beam_ratio / 2
     cutout = psf[0].data[centerpix-64:centerpix+64, centerpix-64:centerpix+64] / psf[0].data[centerpix,centerpix]
     assert( np.abs(cutout-airy).max() < 1e-4 )
+
+
 
