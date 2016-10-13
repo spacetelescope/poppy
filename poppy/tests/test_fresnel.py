@@ -269,10 +269,9 @@ def test_fresnel_optical_system_Hubble(display=False):
     #d_pri_sec = 4.9069 * u.m      # however Lallo 2012 gives this value, which differs slightly
                                    # from what is used in the PROPER example case.
     fl_sec = -0.6790325 * u.m
-    d_sec_to_focus = 6.3919974 * u.m
+    d_sec_to_focus = 6.3916645 * u.m # place focal plane right at the beam waist after the SM
 
     osamp = 2 #oversampling factor
-    npix = 512
 
     hst = fresnel.FresnelOpticalSystem(pupil_diameter=2.4*u.m, beam_ratio=0.25)
     g1 = fresnel.QuadraticLens(fl_pri, name='Primary', planetype=poppy_core.PlaneType.pupil)
