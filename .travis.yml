@@ -1,16 +1,20 @@
 language: python
 
-# Setting sudo to false opts in to Travis-CI container-based builds.
-sudo: false
-
 python:
     - 2.7
     - 3.5
 
+# Setting sudo to false opts in to Travis-CI container-based builds.
+sudo: false
+
+# The apt packages below are needed for sphinx builds. A full list of packages
+# that can be included can be found here:
+#
+# https://github.com/travis-ci/apt-package-whitelist/blob/master/ubuntu-precise
+
 addons:
     apt:
         packages:
-            # Used for Spginx 
             - graphviz
             - texlive-latex-extra
             - dvipng
@@ -18,96 +22,84 @@ addons:
 env:
     global:
         # The following versions are the 'default' for tests, unless
-        # overidden underneath. They are defined here in order to save having
+        # overridden underneath. They are defined here in order to save having
         # to repeat them for all configurations.
-        - NUMPY_VERSION=1.11
-        - OLDER_NUMPY_VERSION=1.10
+        - NUMPY_VERSION=stable
         - ASTROPY_VERSION=stable
-        - CONDA_INSTALL='conda install --yes'
-        - PIP_INSTALL='pip install'
+        - SETUP_CMD='test'
+        - PIP_DEPENDENCIES=''
+        - CONDA_DEPENDENCIES='scipy matplotlib six'
     matrix:
+        # Make sure that egg_info works without dependencies
         - SETUP_CMD='egg_info'
 
 matrix:
     include:
+        # do the actual tests.
+        - python: 2.7
+          env: SETUP_CMD='test' PIP_DEPENDENCIES='enum34>=1.0.4'
+        - python: 3.5
+          env: SETUP_CMD='test'
+
         # Do a coverage test in Python 3.
         - python: 3.5
           env: SETUP_CMD='test --coverage'
 
-        # Check for sphinx doc build errors
+        # Check for Sphinx doc build errors
         - python: 2.7
-          env: SETUP_CMD='build_sphinx'
-
-        # Try all supported Python versions with the latest NumPy
-        # and other dependencies
-        - python: 2.7
-          env: SETUP_CMD='test'
-        - python: 3.5
-          env: SETUP_CMD='test'
+          env: SETUP_CMD='build_sphinx' PIP_DEPENDENCIES='enum34>=1.0.4'
 
         # Try Astropy development version
         - python: 3.5
           env: ASTROPY_VERSION=development SETUP_CMD='test'
 
-        # Test one previous version of NumPy
+        # Try older numpy versions
         - python: 2.7
-          env: NUMPY_VERSION=$OLDER_NUMPY_VERSION ASTROPY_VERSION=stable SETUP_CMD='test'
+          env: NUMPY_VERSION=1.10 PIP_DEPENDENCIES='enum34>=1.0.4'
+        - python: 2.7
+          env: NUMPY_VERSION=1.9 PIP_DEPENDENCIES='enum34>=1.0.4'
 
-before_install:
-
-    # Use utf8 encoding. Should be default, but this is insurance against
-    # future changes
-    - export PYTHONIOENCODING=UTF8
-    # Prefer Agg backend in case PyPlot is imported
-    # (see http://matplotlib.org/faq/environment_variables_faq.html)
-    - export MPLBACKEND=Agg
-    - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
-    - chmod +x miniconda.sh
-    - ./miniconda.sh -b
-    - export PATH=/home/travis/miniconda2/bin:$PATH
-    - conda update --yes conda
+        # Try numpy pre-release
+        # this one is commented out for now because it gives errors of uncertain
+        # origin but that are probably due to the dev numpy being sometimes
+        # unstable
+        #- python: 3.5
+        #  env: NUMPY_VERSION=prerelease
 
 install:
 
-    # CONDA
-    - conda create --yes -n test python=$TRAVIS_PYTHON_VERSION
-    - source activate test
+    # We now use the ci-helpers package to set up our testing environment.
+    # This is done by using Miniconda and then using conda and pip to install
+    # dependencies. Which dependencies are installed using conda and pip is
+    # determined by the CONDA_DEPENDENCIES and PIP_DEPENDENCIES variables,
+    # which should be space-delimited lists of package names. See the README
+    # in https://github.com/astropy/ci-helpers for information about the full
+    # list of environment variables that can be used to customize your
+    # environment. In some cases, ci-helpers may not offer enough flexibility
+    # in how to install a package, in which case you can have additional
+    # commands in the install: section below.
 
-    # CORE DEPENDENCIES
-    - $CONDA_INSTALL numpy=$NUMPY_VERSION pytest pip Cython jinja2
-    - $PIP_INSTALL pytest-xdist
+    - git clone git://github.com/astropy/ci-helpers.git
+    - source ci-helpers/travis/setup_conda_$TRAVIS_OS_NAME.sh
 
-    # ASTROPY
-    - if [[ $ASTROPY_VERSION == development ]]; then $PIP_INSTALL git+http://github.com/astropy/astropy.git#egg=astropy; fi
-    - if [[ $ASTROPY_VERSION == stable ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION astropy; fi
-
-    # OPTIONAL DEPENDENCIES
-    # Here you can add any dependencies your package may have. You can use
-    # conda for packages available through conda, or pip for any other
-    # packages. You should leave the `numpy=$NUMPY_VERSION` in the `conda`
-    # install since this ensures Numpy does not get automatically upgraded.
-    - if [[ $SETUP_CMD != egg_info ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION matplotlib scipy; fi
-    - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL six enum34; fi
-
-    # DOCUMENTATION DEPENDENCIES
-    # build_sphinx needs sphinx and matplotlib (for plot_directive). Note that
-    # this matplotlib will *not* work with py 3.x, but our sphinx build is
-    # currently 2.7, so that's fine
-    - if [[ $SETUP_CMD == build_sphinx* ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION Sphinx matplotlib; fi
-
-    # COVERAGE DEPENDENCIES
-    - if [[ $SETUP_CMD == 'test --coverage' ]]; then $PIP_INSTALL coverage coveralls; fi
+    # As described above, using ci-helpers, you should be able to set up an
+    # environment with dependencies installed using conda and pip, but in some
+    # cases this may not provide enough flexibility in how to install a
+    # specific dependency (and it will not be able to install non-Python
+    # dependencies). Therefore, you can also include commands below (as
+    # well as at the start of the install section or in the before_install
+    # section if they are needed before setting up conda) to install any
+    # other dependencies.
 
 script:
-    - python setup.py $SETUP_CMD
+   - python setup.py $SETUP_CMD
 
 after_success:
     # If coveralls.io is set up for this package, uncomment the line
     # below and replace "packagename" with the name of your package.
     # The coveragerc file may be customized as needed for your package.
     - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls --rcfile='poppy/tests/coveragerc'; fi
-
 notifications:
-    email:
-        - mperrin@stsci.edu
-        - jlong@stsci.edu
+  email:
+    # - mperrin@stsci.edu
+    - jlong@stsci.edu
