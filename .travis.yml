@@ -101,5 +101,5 @@ after_success:
     - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls --rcfile='poppy/tests/coveragerc'; fi
 notifications:
   email:
-    # - mperrin@stsci.edu
+    - mperrin@stsci.edu
     - jlong@stsci.edu
