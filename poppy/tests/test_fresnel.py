@@ -71,8 +71,10 @@ def test_Gaussian_Beam_curvature_near_waist(npoints=5, plot=False):
     assert np.allclose(wz/wf.w_0, calc_wz)
 
 
-def test_Circular_Aperture_PTP(display=False, npix=512, display_proper=False):
-    """Confirm that magnitude of central spike from diffraction
+def test_Circular_Aperture_PTP_long(display=False, npix=512, display_proper=False):
+    """ Tests plane-to-plane propagation at large distances.
+
+    Confirm that magnitude of central spike from diffraction
     due to a circular aperture agrees with expectation.
 
     The comparison is against a worked example presented as
@@ -181,8 +183,13 @@ def test_Circular_Aperture_PTP(display=False, npix=512, display_proper=False):
     center_cut_y = inten[cen, cen-cutsize:cen+cutsize+1]
     assert(np.all((center_cut_y- center_cut_y[::-1])/center_cut_y < 0.001))
 
+
+def test_Circular_Aperture_PTP_short(display=False, npix=512, display_proper=False):
+    """ Tests plane-to-plane propagation at short distances, by comparison
+    of the results from propagate_ptp and propagate_direct calculations
+
+    """
     #test short distance propagation, as discussed in issue #194 (https://github.com/mperrin/poppy/issues/194)
-    npix = 512
     wf = fresnel.FresnelWavefront(
         2 * u.um,
         wavelength=10e-9*u.m,
@@ -192,13 +199,14 @@ def test_Circular_Aperture_PTP(display=False, npix=512, display_proper=False):
     wf_2 = wf.copy()
     z = 12. * u.um
 
+    # Calculate same result using 2 different algorithms:
     wf.propagate_direct(z)
     wf_2.propagate_fresnel(z)
 
+    # The results have different pixel scale so we need to resize
+    # in order to compare them
     zoomed=(zoom(wf.intensity,(wf.pixelscale/wf_2.pixelscale).decompose().value))
     n = zoomed.shape[0]
-
-
 
     crop_2=wf_2.intensity[int(1023-n/2):int(1023+n/2), int(1023-n/2):int(1023+n/2)]
     #zooming shifted the centroids, find new centers
