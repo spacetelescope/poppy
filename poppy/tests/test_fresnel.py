@@ -283,7 +283,7 @@ def test_fresnel_optical_system_Hubble(display=False):
     hst.add_optic(optics.ScalarTransmission(planetype=poppy_core.PlaneType.image), distance=d_sec_to_focus)
 
     # Create a PSF
-    psf, waves = hst.calcPSF(wavelength=0.5e-6, display_intermediates=display, return_intermediates=True)
+    psf, waves = hst.calc_psf(wavelength=0.5e-6, display_intermediates=display, return_intermediates=True)
 
 
     ### check the beam size is as expected at primary and secondary mirror
