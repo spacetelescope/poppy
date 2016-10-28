@@ -1,15 +1,16 @@
+.. _whatsnew:
 
 Release Notes
 ===============
 
 For a list of contributors, see :ref:`about`.
 
-.. _whatsnew:
+.. _rel0.5.1:
 
 0.5.1
 -----
 
-*Unreleased*
+*2016 October 28*
 
  * Fix ConfigParser import (see `astropy/package-template#172 <https://github.com/astropy/package-template/pull/172>`_)
  * Fixes to formatting of ``astropy.units.Quantity`` values (`#171 <https://github.com/mperrin/poppy/issues/171>`_, `#174 <https://github.com/mperrin/poppy/pull/174>`_, `#179 <https://github.com/mperrin/poppy/pull/174>`_; @josephoenix, @neilzim)
@@ -29,7 +30,7 @@ For a list of contributors, see :ref:`about`.
 0.5.0
 -----
 
-*2016 June 10:*
+*2016 June 10*
 
 Several moderately large enhancements, involving lots of under-the-hood updates to the code. (*While we have tested this code extensively, it is possible that there may be
 some lingering bugs. As always, please let us know of any issues encountered via `the github issues page 
@@ -41,8 +42,7 @@ some lingering bugs. As always, please let us know of any issues encountered via
    ``wavelength=500*u.nm``, etc. You can also generally use Quantities for 
    arguments to OpticalElement classes, e.g. ``radius=2*u.cm``. This is *optional*; the
    API still accepts bare floating-point numbers which are treated as implicitly in meters.
-   (`#145 <https://github.com/mperrin/poppy/issues/145>`_, `#165 <https://github.com/mperrin/poppy/pull/165>`_;
-        @mperrin, douglase)
+   (`#145 <https://github.com/mperrin/poppy/issues/145>`_, `#165 <https://github.com/mperrin/poppy/pull/165>`_; @mperrin, douglase)
  * The ``getPhasor`` function for all OpticalElements has been refactored to split it into 3
    functions: ``get_transmission`` (for electric field amplitude transmission), ``get_opd``
    (for the optical path difference affectig the phase), and ``get_phasor`` (which combines transmission 
