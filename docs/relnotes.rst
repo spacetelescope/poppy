@@ -5,6 +5,11 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+0.6.0
+-----
+
+*Unreleased*
+
 .. _rel0.5.1:
 
 0.5.1
