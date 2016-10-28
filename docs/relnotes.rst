@@ -6,6 +6,23 @@ For a list of contributors, see :ref:`about`.
 
 .. _whatsnew:
 
+0.5.1
+-----
+
+*Unreleased*
+
+ * Fix ConfigParser import (see `astropy/package-template#172 <https://github.com/astropy/package-template/pull/172>`_)
+ * Fixes to formatting of ``astropy.units.Quantity`` values (`#171 <https://github.com/mperrin/poppy/issues/171>`_, `#174 <https://github.com/mperrin/poppy/pull/174>`_, `#179 <https://github.com/mperrin/poppy/pull/174>`_; @josephoenix, @neilzim)
+ * Fixes to ``fftw_save_wisdom`` and ``fftw_load_wisdom`` (`#177 <https://github.com/mperrin/poppy/issues/177>`_, `#178 <https://github.com/mperrin/poppy/pull/178>`_; @mmecthley)
+ * Add ``calc_datacube`` method to ``poppy.Instrument`` (`#182 <https://github.com/mperrin/poppy/issues/182>`_; @mperrin)
+ * Test for Apple Accelerate more narrowly (`#176 <https://github.com/mperrin/poppy/issues/176>`_; @mperrin)
+ * ``Wavefront.display()`` correctly handles ``vmin`` and ``vmax`` args (`#183 <https://github.com/mperrin/poppy/pull/183>`_; @neilzim)
+ * Changes to Travis-CI configuration (`#197 <https://github.com/mperrin/poppy/pull/197>`_; @etollerud)
+ * Warn on requested field-of-view too large for pupil sampling (`#180 <https://github.com/mperrin/poppy/issues/180>`_; reported by @mmechtley, addressed by @mperrin)
+ * Bugfix for ``add_detector`` in ``FresnelOpticalSystem`` (`#193 <https://github.com/mperrin/poppy/pull/193>`_; @maciekgroch)
+ * Fixes to unit handling and short-distance propagation in ``FresnelOpticalSystem`` (`#194 <https://github.com/mperrin/poppy/issues/194>`_; @maciekgroch, @douglase, @mperrin)
+ * PEP8 renaming for ``poppy.fresnel`` for consistency with the rest of POPPY: ``propagateTo`` becomes ``propagate_to``, ``addPupil`` and ``addImage`` become ``add_pupil`` and ``add_image``, ``inputWavefront`` becomes ``input_wavefront``, ``calcPSF`` becomes ``calc_psf`` (@mperrin)
+
 .. _rel0.5.0:
 
 0.5.0
