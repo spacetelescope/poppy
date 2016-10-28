@@ -22,6 +22,7 @@ For a list of contributors, see :ref:`about`.
  * Bugfix for ``add_detector`` in ``FresnelOpticalSystem`` (`#193 <https://github.com/mperrin/poppy/pull/193>`_; @maciekgroch)
  * Fixes to unit handling and short-distance propagation in ``FresnelOpticalSystem`` (`#194 <https://github.com/mperrin/poppy/issues/194>`_; @maciekgroch, @douglase, @mperrin)
  * PEP8 renaming for ``poppy.fresnel`` for consistency with the rest of POPPY: ``propagateTo`` becomes ``propagate_to``, ``addPupil`` and ``addImage`` become ``add_pupil`` and ``add_image``, ``inputWavefront`` becomes ``input_wavefront``, ``calcPSF`` becomes ``calc_psf`` (@mperrin)
+ * Fix ``display_psf(..., markcentroid=True)`` (`#175 <https://github.com/mperrin/poppy/issues/175>`_, @josephoenix)
 
 .. _rel0.5.0:
 
