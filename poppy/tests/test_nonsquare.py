@@ -55,9 +55,12 @@ def test_nonsquare_detector_values(oversample=1, pixelscale=0.010, wavelength=1e
 
         #pl.figure(2)
         psf0 = results[0]
+        print(psf0)
         bx=10
-        ceny = psf0.shape[0]/2
-        cenx = psf0.shape[1]/2
+
+        # integer division // fixes index errors in Numpy >= 1.12.0
+        ceny = psf0.shape[0]//2
+        cenx = psf0.shape[1]//2
 
         cut0 = psf0[ceny-bx:ceny+bx, cenx-bx:cenx+bx]
 
@@ -76,8 +79,9 @@ def test_nonsquare_detector_values(oversample=1, pixelscale=0.010, wavelength=1e
 
             #pl.subplot(1, len(fovs_to_test),  i+1)
 
-            ceny = thispsf.shape[0]/2
-            cenx = thispsf.shape[1]/2
+            # integer division // fixes index errors in Numpy >= 1.12.0
+            ceny = thispsf.shape[0]//2
+            cenx = thispsf.shape[1]//2
 
             thiscut = thispsf[ceny-bx:ceny+bx, cenx-bx:cenx+bx]
             #pl.imshow(np.log10(thiscut))

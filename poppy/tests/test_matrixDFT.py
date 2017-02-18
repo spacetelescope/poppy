@@ -341,8 +341,9 @@ def test_DFT_rect_fov_sampling(fov_npix = (500,1000), pixelscale=0.03, display=F
 
     plane=1
 
-    cut_h = intermediates[plane].intensity[fov_npix[0]/2,                           fov_npix[1]/2-delta:fov_npix[1]/2+delta]
-    cut_v = intermediates[plane].intensity[fov_npix[0]/2-delta:fov_npix[0]/2+delta, fov_npix[1]/2]
+    # integer division // fixes index errors in Numpy >= 1.12.0
+    cut_h = intermediates[plane].intensity[fov_npix[0]//2, fov_npix[1]//2-delta:fov_npix[1]//2+delta]
+    cut_v = intermediates[plane].intensity[fov_npix[0]//2-delta:fov_npix[0]//2+delta, fov_npix[1]//2]
 
     assert(np.all(np.abs(cut_h-cut_v) < 1e-12))
 
