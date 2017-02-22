@@ -37,6 +37,7 @@ Direct contributors to POPPY code
  * Neil Zimmerman
  * Anand Sivaramakrishnan
  * Christine Slocum
+ * Kyle Douglass
 
 Indirect Contributors (algorithms, advice, ideas, inspirations)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
