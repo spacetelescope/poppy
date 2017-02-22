@@ -77,7 +77,6 @@ def test_wavefront_inversion():
     # test the inversion
     wave_inv = wave.copy()
     wave_inv.invert()
-    # integer division // fixes index errors in Numpy >= 1.12.0
     assert np.allclose(wave0.wavefront[npix//2], wave_inv.wavefront[npix//2, ::-1])
     assert np.allclose(wave0.wavefront[:, npix//2], wave_inv.wavefront[::-1, npix//2])
 

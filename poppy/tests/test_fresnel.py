@@ -175,7 +175,6 @@ def test_Circular_Aperture_PTP_long(display=False, npix=512, display_proper=Fals
     # due to the minor asymmetry from having the FFT center pixel
     # not precisely centered in the array.)
 
-    # integer division // fixes index errors in Numpy >= 1.12.0
     cen = inten.shape[0]//2
     cutsize=10
     center_cut_x = inten[cen-cutsize:cen+cutsize+1, cen]
@@ -351,7 +350,6 @@ def test_fresnel_optical_system_Hubble(display=False):
                               shape=(128,128), pixelscale=psf[0].header['PIXELSCL'],
                              center=(64,64))
 
-    # explicit cast to integer fixes index errors in Numpy >= 1.12.0
     centerpix = int(hst.npix / hst.beam_ratio / 2)
     cutout = psf[0].data[centerpix-64:centerpix+64, centerpix-64:centerpix+64] / psf[0].data[centerpix,centerpix]
     assert( np.abs(cutout-airy).max() < 1e-4 )
