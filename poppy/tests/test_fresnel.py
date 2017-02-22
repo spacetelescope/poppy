@@ -145,7 +145,7 @@ def test_Circular_Aperture_PTP_long(display=False, npix=512, display_proper=Fals
         gw.display('both',colorbar=True)
         plt.figure(figsize=(12,6))
 
-        plt.plot(x[0,:], inten[inten.shape[1]/2,:], label='POPPY')
+        plt.plot(x[0,:], inten[inten.shape[1]//2,:], label='POPPY')
         plt.title("z={:0.2e} , compare to Anderson and Enmark fig.6.15".format(z))
         plt.gca().set_xlim(-1, 1)
         plt.text(0.1,2, "Max value: {0:.4f}\nExpected:   {1:.4f}".format(np.max(inten), max(proper_y)))
@@ -175,7 +175,7 @@ def test_Circular_Aperture_PTP_long(display=False, npix=512, display_proper=Fals
     # due to the minor asymmetry from having the FFT center pixel
     # not precisely centered in the array.)
 
-    cen = inten.shape[0]/2
+    cen = inten.shape[0]//2
     cutsize=10
     center_cut_x = inten[cen-cutsize:cen+cutsize+1, cen]
     assert(np.all((center_cut_x- center_cut_x[::-1])/center_cut_x < 0.001))
@@ -350,7 +350,7 @@ def test_fresnel_optical_system_Hubble(display=False):
                               shape=(128,128), pixelscale=psf[0].header['PIXELSCL'],
                              center=(64,64))
 
-    centerpix = hst.npix / hst.beam_ratio / 2
+    centerpix = int(hst.npix / hst.beam_ratio / 2)
     cutout = psf[0].data[centerpix-64:centerpix+64, centerpix-64:centerpix+64] / psf[0].data[centerpix,centerpix]
     assert( np.abs(cutout-airy).max() < 1e-4 )
 
