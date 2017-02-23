@@ -71,8 +71,7 @@ Defining a custom optic from a FITS file
 
 Of course, any arbitrary optic can be represented in discrete form in 2D arrays
 and then read into poppy using the FITSOpticalElement class.
-The parameters of the  array are defined via  :ref:`FITS header keywords'<fits_headers>.
-
+The physical parameters of the array are defined using :ref:`fitsheaders`.
 
 The transmission array should contain floating point values between 0.0 and
 1.0.  These represent the local transmission of the electric field amplitude,
