@@ -115,7 +115,7 @@ The general notion of an :py:class:`~poppy.Instrument` is that it consists of bo
 2. Some defined spectral bandpass(es) such as selectable filters. If the :py:mod:`pysynphot` module is available, it will be used to perform careful synthetic photometry of targets with a given spectrum observed in the given bandpass. If :py:mod:`pysynphot` is not installed, the code will fall back to a much simpler model assuming constant number of counts vs wavelength.  
 
 
-Configurable options such as optical masks and filters are specified as properties of the instrument instance; an appropriate :py:class:`~poppy.OpticalSystem` will be generated when the :py:meth:`~poppy.Instrument.calcPSF` method is called. 
+Configurable options such as optical masks and filters are specified as properties of the instrument instance; an appropriate :py:class:`~poppy.OpticalSystem` will be generated when the :py:meth:`~poppy.Instrument.calc_psf` method is called. 
 
 The :py:class:`~poppy.Instrument` is fairly complex, and has a lot of internal submethods used to modularize the calculation and allow subclassing and customization. For developing your own instrument classes, it may be useful to start with the instrument classes in WebbPSF as worked examples. 
 
@@ -144,8 +144,8 @@ An :py:class:`~poppy.Instrument` will get its configuration from three places:
        The options dictionary allows you to set a subset of options that are loosely considered to be independent of the instrument configuration (e.g. filter wheels) and of the particular calculation. This includes offsetting the source from the center of the FOV, shifting the pupil, applying jitter to the final image, or forcing the parity of the final output array.
 
        Users are free to introduce new options by documenting an option name and retrieving the value at an appropriate point in their implementation of :py:meth:`~poppy.Instrument._getOpticalSystem` (to which the options dictionary is passed as keyword argument ``options``).
-   (3) The :py:meth:`~poppy.Instrument.calcPSF` method of the :py:class:`~poppy.Instrument` subclass
+   (3) The :py:meth:`~poppy.Instrument.calc_psf` method of the :py:class:`~poppy.Instrument` subclass
 
-       For interoperability, it's not recommended to change the function signature of :py:meth:`~poppy.Instrument.calcPSF`. However, it is an additional way that users will pass configuration information into the calculation, and a starting point for more involved customization that cannot be achieved by overriding one of the private methods above.
+       For interoperability, it's not recommended to change the function signature of :py:meth:`~poppy.Instrument.calc_psf`. However, it is an additional way that users will pass configuration information into the calculation, and a starting point for more involved customization that cannot be achieved by overriding one of the private methods above.
 
 Be warned that the :py:class:`poppy.Instrument` API evolved in tandem with WebbPSF, and certain things are subject to change as we extend it to use cases beyond the requirements of WebbPSF.

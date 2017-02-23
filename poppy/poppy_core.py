@@ -2275,8 +2275,8 @@ class OpticalElement(object):
                 lx,ly=resampled_amplitude.shape
                 #crop down to match size of wavefront:
                 lx_w,ly_w = wave.amplitude.shape
-                border_x = np.abs(np.floor((lx-lx_w)/2))
-                border_y = np.abs(np.floor((ly-ly_w)/2))
+                border_x = np.abs(lx-lx_w) // 2
+                border_y = np.abs(ly-ly_w) // 2
                 if (self.pixelscale*self.amplitude.shape[0] < wave.pixelscale*wave.amplitude.shape[0]) or (self.pixelscale*self.amplitude.shape[1] < wave.pixelscale*wave.amplitude.shape[0]):
                     #raise ValueError("Optic is smaller than input wavefront")
                     _log.warn("Optic"+str(np.shape(resampled_opd))+" is smaller than input wavefront"+str([lx_w,ly_w])+", will attempt to zero-pad the rescaled array")
