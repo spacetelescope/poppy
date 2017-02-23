@@ -278,9 +278,12 @@ class AnalyticOpticalElement(OpticalElement):
         phdu.header['CONTENTS'] = what
         phdu.header['PLANETYP'] = (self.planetype.value, "0=unspecified, 1=pupil, 2=image, 3=detector, 4=rot")
         if self.planetype == _IMAGE:
-            phdu.header['PIXSCALE'] = (pixelscale.to(u.arcsec/u.pixel).value, 'Image plane pixel scale in arcsec/pix')
+            phdu.header['PIXELSCL'] = (pixelscale.to(u.arcsec/u.pixel).value, 'Image plane pixel scale in arcsec/pix')
+            outFITS[0].header['PIXUNIT'] = 'arcsecond'
         else:
             phdu.header['PUPLSCAL'] = (pixelscale.to(u.meter/u.pixel).value, 'Pupil plane pixel scale in meter/pix')
+            phdu.header['PIXELSCL'] = phdu.header['PUPLSCAL']
+            phdu.header['PIXUNIT'] = 'meter'
 
         if hasattr(self, 'shift_x'):
             phdu.header['SHIFTX'] = (self.shift_x, "X axis shift of input optic")

@@ -290,10 +290,12 @@ class Wavefront(object):
             else:
                 outFITS[0].header['FOV_X'] = (fov_arcsec[1], 'Field of view in arcsec (full array), X direction')
                 outFITS[0].header['FOV_Y'] = (fov_arcsec[0], 'Field of view in arcsec (full array), Y direction')
+                outFITS[0].header['PIXUNIT'] = 'arcsecond'
+
         else:
             outFITS[0].header['PIXELSCL'] = (self.pixelscale.to(u.meter/u.pixel).value, 'Pixel scale in meters/pixel')
             outFITS[0].header['DIAM'] =  (self.diam.to(u.meter).value, 'Pupil diameter in meters (not incl padding)')
-
+            outFITS[0].header['PIXUNIT'] = 'meter'
         for h in self.history:
             outFITS[0].header.add_history(h)
 
@@ -2738,10 +2740,10 @@ class FITSOpticalElement(OpticalElement):
             if pixelscale is None and self.planetype is None:
                 # we don't know which keywords might be present yet, so check for both keywords
                 # in both header objects (at least one must be non-None at this point!)
-                _log.debug("  Looking for 'PUPLSCAL' or 'PIXSCALE' in FITS headers to set "
+                _log.debug("  Looking for 'PUPLSCAL' or 'PIXSCALE' or 'PIXELSCL' in FITS headers to set "
                            "pixel scale")
                 keyword, self.pixelscale = _find_pixelscale_in_headers(
-                    ('PUPLSCAL', 'PIXSCALE'),
+                    ('PUPLSCAL', 'PIXSCALE','PIXELSCL'),
                     (self.amplitude_header, self.opd_header)
                 )
                 if keyword == 'PUPLSCAL':
@@ -2752,7 +2754,7 @@ class FITSOpticalElement(OpticalElement):
                 # the planetype tells us which header keyword to check when a keyword is
                 # not provided (PIXSCALE for image planes)...
                 _, self.pixelscale = _find_pixelscale_in_headers(
-                    ('PIXSCALE',),
+                    ('PIXSCALE','PIXELSCL'),
                     (self.amplitude_header, self.opd_header)
                 )
             elif pixelscale is None and self.planetype == _PUPIL:
