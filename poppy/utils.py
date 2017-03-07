@@ -498,7 +498,7 @@ def display_profiles(HDUlist_or_filename=None, ext=0, overplot=False, title=None
 
 
 def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stddev=False, binsize=None, maxradius=None,
-                   normalize='None'):
+                   normalize='None', pa_range=None):
     """ Compute a radial profile of the image.
 
     This computes a discrete radial profile evaluated on the provided binsize. For a version
@@ -523,6 +523,11 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
     normalize : string
         set to 'peak' to normalize peak intensity =1, or to 'total' to normalize total flux=1.
         Default is no normalization.
+    pa_range : list of floats, optional
+        Optional specification for [min, max] position angles to be included in the radial profile.
+        I.e. calculate that profile only for some wedge, not the full image. Specify the PA in degrees
+        counterclockwise from +Y axis=0. Note that you can specify ranges across zero using negative numbers,
+        such as pa_range=[-10,10].  The allowed PA range runs from -180 to 180 degrees.
 
     Returns
     --------
@@ -556,18 +561,33 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
     if binsize is None:
         binsize = pixelscale
 
-    y, x = np.indices(image.shape)
+    y, x = np.indices(image.shape, dtype=float)
     if center is None:
         # get exact center of image
         # center = (image.shape[1]/2, image.shape[0]/2)
         center = tuple((a - 1) / 2.0 for a in image.shape[::-1])
 
-    r = np.sqrt((x - center[0]) ** 2 + (y - center[1]) ** 2) * pixelscale / binsize  # radius in bin size steps
-    ind = np.argsort(r.flat)
+    x-=center[0]
+    y-=center[1]
 
-    sr = r.flat[ind]
-    sim = image.flat[ind]
-    ri = sr.astype(int)
+    r = np.sqrt(x** 2 + y** 2) * pixelscale / binsize  # radius in bin size steps
+
+    if pa_range is None:
+        # Use full image
+        ind = np.argsort(r.flat)
+        sr = r.flat[ind]            # sorted r
+        sim = image.flat[ind]       # sorted image
+
+    else:
+        # Apply the PA range restriction
+        pa = np.rad2deg(np.arctan2(-x,y)) # Note the (-x,y) convention is needed for astronomical PA convention
+        mask = (pa >= pa_range[0]) & (pa <= pa_range[1])
+        ind = np.argsort(r[mask].flat)
+        sr = r[mask].flat[ind]
+        sim = image[mask].flat[ind]
+
+
+    ri = sr.astype(int)         # sorted r as int
     deltar = ri[1:] - ri[:-1]  # assume all radii represented (more work if not)
     rind = np.where(deltar)[0]
     nr = rind[1:] - rind[:-1]  # number in radius bin
@@ -585,6 +605,10 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
     radialprofile2[1:] = radialprofile
     rr = np.arange(
         len(radialprofile2)) * binsize + binsize * 0.5  # these should be centered in the bins, so add a half.
+    if pa_range is not None:
+        # for PA ranges < 45 deg or so, the innermost pixel that's valid in the mask may be
+        # more than a pixel from the center. Therefore we have to include that offset here
+        rr += binsize * np.floor(sr[0])
 
     if stddev:
         stddevs = np.zeros_like(radialprofile2)

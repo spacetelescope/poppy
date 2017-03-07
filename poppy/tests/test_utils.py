@@ -9,6 +9,9 @@ except ImportError:
     pyfftw = None
 
 from .. import utils
+from .. import poppy_core
+import poppy
+import scipy
 
 def test_padToSize():
     square = np.ones((300,300))
@@ -42,6 +45,86 @@ def makeGaussian(size, fwhm = 3, center=None):
 
     return np.exp(-4*np.log(2) * ((x-x0)**2 + (y-y0)**2) / fwhm**2)
 
+def test_radial_profile(plot=False):
+    """ Test radial profile calculation, including circular and square apertures,
+    and including with the pa_range option.
+    """
+
+    ### Tests on a circular aperture
+
+    o = poppy_core.OpticalSystem()
+    o.add_pupil(poppy.CircularAperture(radius=1.0))
+    o.add_detector(0.010, fov_pixels=512)
+    psf = o.calc_psf()
+
+    rad, prof = poppy.radial_profile(psf)
+    rad2, prof2 = poppy.radial_profile(psf, pa_range=[-20,20])
+    rad3, prof3 = poppy.radial_profile(psf, pa_range=[-20+90, 20+90])
+
+
+    # Compute analytical Airy function, on exact same radial sampling as that profile.
+    v = np.pi*  rad*poppy.misc._ARCSECtoRAD * 2.0/1e-06
+    airy = ((2*scipy.special.jn(1, v))/v)**2
+    r0 = 33 # 0.33 arcsec ~ first airy ring in this case.
+    airy_peak_envelope = airy[r0]*prof.max() / (rad/rad[r0])**3
+
+    absdiff =  np.abs(prof - airy*prof.max())
+
+    if plot:
+        import matplotlib.pyplot as plt
+        plt.figure(figsize=(12,6))
+        plt.subplot(1,2,1)
+        poppy.display_psf(psf, colorbar_orientation='horizontal', title='Circular Aperture, d=2 m')
+
+        plt.subplot(1,2,2)
+        plt.semilogy(rad,prof)
+        plt.semilogy(rad2,prof2, ls='--', color='red')
+        plt.semilogy(rad3,prof3, ls=':', color='cyan')
+        plt.semilogy(rad, airy_peak_envelope, color='gray')
+        plt.semilogy(rad, airy_peak_envelope/50, color='gray', alpha=0.5)
+
+
+        plt.semilogy(rad, absdiff, color='purple')
+
+    # Test the radial profile is close to the analytical Airy function.
+    # It's hard to define relative fractional closeness for comparisons to
+    # a function with many zero crossings; we can't just take (f1-f2)/(f1+f2)
+    # This is a bit of a hack but let's test that the difference between
+    # numerical and analytical is always less than 1/50th of the peaks of the
+    # Airy function (fit based on the 1/r^3 power law fall off)
+
+    assert np.all( absdiff[0:300] < airy_peak_envelope[0:300]/50)
+
+    # Test that the partial radial profiles agree with the full one. This test is
+    # a little tricky since the sampling in r may not agree exactly.
+    # TODO write test comparison here
+
+    # Let's also test that the partial radial profiles on 90 degrees agree with each other.
+    # These should match to machine precision.
+    assert np.allclose(prof2, prof3)
+
+    ### Next test is on a square aperture
+    o = poppy.OpticalSystem()
+    o.add_pupil(poppy.SquareAperture())
+    o.add_detector(0.010, fov_pixels=512)
+    psf = o.calc_psf()
+    rad, prof = poppy.radial_profile(psf)
+    rad2, prof2 = poppy.radial_profile(psf, pa_range=[-20,20])
+    rad3, prof3 = poppy.radial_profile(psf, pa_range=[-20+90, 20+90])
+
+
+    if plot:
+        plt.figure(figsize=(12,6))
+        plt.subplot(1,2,1)
+        poppy.display_psf(psf, colorbar_orientation='horizontal', title='Square Aperture, size=1 m')
+
+        plt.subplot(1,2,2)
+        plt.semilogy(rad,prof)
+        plt.semilogy(rad2,prof2, ls='--', color='red')
+        plt.semilogy(rad3,prof3, ls=':', color='cyan')
+
+    assert np.allclose(prof2, prof3)
+    # TODO compare those to be near a sinc profile as expected?
 
 def test_measure_FWHM(display=False):
     """ Test the utils.measure_FWHM function
