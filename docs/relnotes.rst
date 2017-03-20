@@ -183,7 +183,7 @@ And a few more significant enhancements:
  * Display methods for radial profile and encircled energy gain a normalization keyword (@douglase)
  * matrixDFT: refactor into unified function for all centering types (@josephoenix)
  * matrixDFT bug fix for axes parity flip versus FFT transforms (Anand Sivaramakrishnan, @josephoenix, @mperrin)
- * Bug fix: Instrument class can now pass through dict or tuple sources to OpticalSystem calcPSF (@mperrin)
+ * Bug fix: Instrument class can now pass through dict or tuple sources to OpticalSystem calc_psf (@mperrin)
  * Bug fix: InverseTransmission class shape property works now. (@mperrin)
  * Refactor instrument validateConfig method and calling path (@josephoenix)
  * Code cleanup and rebalancing where lines had been blurred between poppy and webbpsf (@josephoenix, @mperrin)
@@ -248,8 +248,8 @@ Released April 7, 2014
  * Added support for rectangular subarray calculations. You can invoke these by setting fov_pixels or fov_arcsec with a 2-element iterable::
 
     >> nc = webbpsf.NIRCam()
-    >> nc.calcPSF('F212N', fov_arcsec=[3,6])
-    >> nc.calcPSF('F187N', fov_pixels=(300,100) )
+    >> nc.calc_psf('F212N', fov_arcsec=[3,6])
+    >> nc.calc_psf('F187N', fov_pixels=(300,100) )
 
    Those two elements give the desired field size as (Y,X) following the usual Python axis order convention.
  * Added support for pyFFTW in addition to PyFFTW3.

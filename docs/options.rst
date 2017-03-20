@@ -6,7 +6,7 @@ Output PSF Normalization
 --------------------------
 
 
-Output PSFs can be normalized in different ways, based on the ``normalization`` keyword to ``calcPSF``. The options are: 
+Output PSFs can be normalized in different ways, based on the ``normalization`` keyword to ``calc_psf``. The options are: 
 
   * ``normalize="first"``: The wavefront is normalized to total intensity 1 over the entrance pupil. If there are obstructions downstream of the entrance pupil (e.g. coronagraph masks) then the output PSF intensity will be < 1. 
   * ``normalize="last"``: The output PSF's integrated total intensity is normalized to 1.0, over whatever FOV that PSF has. (Note that this 

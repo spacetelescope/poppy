@@ -77,8 +77,8 @@ def test_wavefront_inversion():
     # test the inversion
     wave_inv = wave.copy()
     wave_inv.invert()
-    assert np.allclose(wave0.wavefront[npix/2], wave_inv.wavefront[npix/2, ::-1])
-    assert np.allclose(wave0.wavefront[:, npix/2], wave_inv.wavefront[::-1, npix/2])
+    assert np.allclose(wave0.wavefront[npix//2], wave_inv.wavefront[npix//2, ::-1])
+    assert np.allclose(wave0.wavefront[:, npix//2], wave_inv.wavefront[::-1, npix//2])
 
 
 def test_wavefront_asFITS():
