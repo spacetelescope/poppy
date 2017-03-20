@@ -333,7 +333,7 @@ class Instrument(object):
             for ext in range(len(psf)):
                 cube[ext].data[i] = psf[ext].data
                 cube[ext].header['WAVELN{:02d}'.format(i)] = wl
-                cube[ext].header.add_history("--- Cube Plane {} ---".format(i)) 
+                cube[ext].header.add_history("--- Cube Plane {} ---".format(i))
                 for h in psf[ext].header['HISTORY']:
                     cube[ext].header.add_history(h)
 
