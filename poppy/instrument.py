@@ -858,8 +858,8 @@ class Instrument(object):
             filterfits = fits.open(filterfile)
             filterdata = filterfits[1].data
             try:
-                f1 = filterdata.WAVELENGTH
-                d2 = filterdata.THROUGHPUT
+                wavelengths = filterdata.WAVELENGTH.astype('=f8')
+                throughputs = filterdata.THROUGHPUT.astype('=f8')
             except AttributeError:
                 raise ValueError(
                     "The supplied file, {0}, does not appear to be a FITS table with WAVELENGTH and " +
@@ -877,13 +877,11 @@ class Instrument(object):
                 waveunit = 'Angstrom'
             poppy_core._log.warn(
                 "CAUTION: Just interpolating rather than integrating filter profile, over {0} steps".format(nlambda))
-            wtrans = np.where(filterdata.THROUGHPUT > 0.4)
-            lrange = filterdata.WAVELENGTH[wtrans] * 1e-10  # convert from Angstroms to Meters
+            wtrans = np.where(throughputs > 0.4)
+            lrange = wavelengths[wtrans] * 1e-10  # convert from Angstroms to Meters
             # get evenly spaced points within the range of allowed lambdas, centered on each bin
-            lambd = np.linspace(np.min(lrange), np.max(lrange), nlambda, endpoint=False) + (np.max(lrange) - np.min(
-                lrange)) / (2 * nlambda)
-
-            filter_fn = scipy.interpolate.interp1d(filterdata.WAVELENGTH * 1e-10, filterdata.THROUGHPUT, kind='cubic',
+            lambd = np.linspace(np.min(lrange), np.max(lrange), nlambda, endpoint=False) + (np.max(lrange) - np.min(lrange)) / (2 * nlambda)
+            filter_fn = scipy.interpolate.interp1d(wavelengths * 1e-10, throughputs, kind='cubic',
                                                    bounds_error=False)
             weights = filter_fn(lambd)
             return lambd, weights
