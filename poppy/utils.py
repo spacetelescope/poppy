@@ -571,7 +571,8 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
     deltar = ri[1:] - ri[:-1]  # assume all radii represented (more work if not)
     rind = np.where(deltar)[0]
     nr = rind[1:] - rind[:-1]  # number in radius bin
-    csim = np.cumsum(sim, dtype=float)  # cumulative sum to figure out sums for each bin
+    csim = np.nan_to_num(sim).cumsum(dtype=float)   # cumulative sum to figure out sums for each bin
+    #np.nancumsum is implemented in >1.12
     tbin = csim[rind[1:]] - csim[rind[:-1]]  # sum for image values in radius bins
     radialprofile = tbin / nr
 
@@ -595,7 +596,7 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
             else:
                 wg = np.where((r_pix >= (radius - binsize / 2)) & (r_pix < (radius + binsize / 2)))
                 # wg = np.where( (r >= rr[i-1]) &  (r <rr[i] )))
-            stddevs[i] = image[wg].std()
+            stddevs[i] = np.nanstd(image[wg])
         return rr, stddevs
 
     if not EE:
