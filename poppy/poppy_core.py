@@ -2368,7 +2368,6 @@ class OpticalElement(object):
                 units = "\n".join(textwrap.wrap(units,20))
 
         if self.pixelscale is not None:
-            # TODO handle units better here for pupil vs. image planes? meters/pix vs arcsec/pix
             if self.pixelscale.decompose().unit ==u.m/u.pix:
                 halfsize = self.pixelscale.to(u.m/u.pix).value * self.amplitude.shape[0] / 2
             elif self.pixelscale.decompose().unit == u.radian/u.pix:
