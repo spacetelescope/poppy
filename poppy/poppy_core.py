@@ -549,7 +549,7 @@ class Wavefront(object):
                 origin='lower'
             )
             if title is None:
-                title = wrap_lines_title("Intensity " + self.location)
+                title = wrap_lines_title("Amplitude " + self.location)
             ax.set_title(title)
             ax.set_xlabel(unit)
             if colorbar:
