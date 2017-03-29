@@ -24,6 +24,9 @@ from . import poppy_core
 from . import optics
 from . import utils
 
+import logging
+_log = logging.getLogger('poppy')
+
 __all__ = ['Instrument']
 
 
@@ -499,10 +502,24 @@ class Instrument(object):
 
         poppy_core._log.debug("Oversample: %d  %d " % (fft_oversample, detector_oversample))
         optsys = poppy_core.OpticalSystem(name=self.name, oversample=fft_oversample)
-        if 'source_offset_r' in options:
-            optsys.source_offset_r = options['source_offset_r']
-        if 'source_offset_theta' in options:
-            optsys.source_offset_theta = options['source_offset_theta']
+
+        if 'source_offset_x' in options or 'source_offset_y' in options:
+            if 'source_offset_r' in options:
+                raise ValueError("Cannot set source offset using source_offset_x and source_offset_y"+
+                                 " at the same time as source_offset_r")
+            offx = options.get('source_offset_x', 0)
+            offy = options.get('source_offset_y', 0)
+            optsys.source_offset_r = np.sqrt(offx**2+offy**2)
+            optsys.source_offset_theta = np.rad2deg(np.arctan2(-offx, offy))
+            _log.debug("Source offset from X,Y = ({}, {}) is (r,theta) = {},{}".format(
+                offx,offy, optsys.source_offset_r, optsys.source_offset_theta))
+        else:
+            if 'source_offset_r' in options:
+                optsys.source_offset_r = options['source_offset_r']
+            if 'source_offset_theta' in options:
+                optsys.source_offset_theta = options['source_offset_theta']
+            _log.debug("Source offset is (r,theta) = {},{}".format(
+                optsys.source_offset_r, optsys.source_offset_theta))
 
         # ---- set pupil intensity
         pupil_optic = None  # no optic yet defined
@@ -865,7 +882,7 @@ class Instrument(object):
                     "The supplied file, {0}, does not appear to be a FITS table with WAVELENGTH and " +
                     "THROUGHPUT columns.".format(filterfile))
             if 'WAVEUNIT' in filterfits[1].header:
-                waveunit = filterfits[1].header['WAVEUNIT']
+                waveunit = filterfits[1].header['WAVEUNIT'].lower()
                 if re.match(r'[Aa]ngstroms?', waveunit) is None:
                     raise ValueError(
                         "The supplied file, {0}, has WAVEUNIT='{1}'. Only WAVEUNIT = Angstrom supported " +
