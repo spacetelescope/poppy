@@ -536,8 +536,29 @@ class Wavefront(object):
 
             plot_axes = [ax1, ax2]
             to_return = (ax1, ax2)
+        if what == 'amplitude':
+            if ax is None:
+                ax = plt.subplot(nr, nc, int(row))
+
+            utils.imshow_with_mouseover(
+                amp,
+                ax=ax,
+                extent=extent,
+                norm=norm_inten,
+                cmap=cmap_inten,
+                origin='lower'
+            )
+            if title is None:
+                title = wrap_lines_title("Intensity " + self.location)
+            ax.set_title(title)
+            ax.set_xlabel(unit)
+            if colorbar:
+                plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
+            plot_axes = [ax]
+            to_return = ax
         else:
-            raise ValueError("Invalid value for what to display; must be 'amplitude', 'phase', or 'both'.")
+            raise ValueError("Invalid value for what to display; must be: "
+                             "'intensity', 'amplitude', 'phase', or 'both'.")
 
         # now apply axes cropping and/or overplots, if requested.
         for ax in plot_axes:
