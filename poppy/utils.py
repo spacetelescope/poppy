@@ -247,7 +247,7 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
 
     if markcentroid:
         _log.info("measuring centroid to mark on plot...")
-        ceny, cenx = measure_centroid(HDUlist, ext=ext, units='arcsec', relativeto='center', boxsize=20, threshhold=0.1)
+        ceny, cenx = measure_centroid(HDUlist, ext=ext, units='arcsec', relativeto='center', boxsize=20, threshold=0.1)
         ax.plot(cenx, ceny, 'k+', markersize=15, markeredgewidth=1)
         _log.info("centroid: (%f, %f) " % (cenx, ceny))
         plt.draw()
