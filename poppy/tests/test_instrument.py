@@ -83,7 +83,8 @@ def test_instrument_source_pysynphot():
     assert psf_weights_pysynphot[0].header['NWAVES'] == len(wavelengths), \
         "Number of wavelengths in PSF header does not match number requested"
 
-    assert np.allclose(psf_weights_explicit[0].data, psf_weights_pysynphot[0].data), (
+    assert np.allclose(psf_weights_explicit[0].data, psf_weights_pysynphot[0].data,
+            rtol=1e-4), ( # Slightly larger tolerance to accomodate minor changes w/ pysynphot versions
         "PySynphot multiwavelength PSF does not match the weights and wavelengths pre-computed for "
         "a 5500 K blackbody in Johnson B (has pysynphot changed?)"
     )
