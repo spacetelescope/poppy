@@ -509,7 +509,8 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
     Parameters
     ----------
     HDUlist_or_filename : string
-        what it sounds like.
+        FITS HDUList object or path to a FITS file. 
+        NaN values in the FITS data array are treated as masked and ignored in computing bin statistics.
     ext : int
         Extension in FITS file
     EE : bool
