@@ -235,7 +235,7 @@ def test_spherical_lens(display=False):
     #build a simple system without apertures.
     beam_diameter =  .025*u.m
     fl = u.m*0.7
-    wavefront = fresnel.FresnelWavefront(beam_radius=beam_diameter/2., 
+    wavefront = fresnel.FresnelWavefront(beam_radius=beam_diameter/2.,
                                    wavelength=500.0e-9, npix=256,
                                    oversample=1)
     diam = beam_diameter
@@ -304,11 +304,11 @@ def test_fresnel_optical_system_Hubble(display=False):
 
     ### check the focal length of the overall system is as expected
     expected_system_focal_length = 1./(1./fl_pri + 1./fl_sec - (d_pri_sec)/(fl_pri*fl_sec))
-    # n.b. the value calculated here, 57.48 m, is a bit less than the 
+    # n.b. the value calculated here, 57.48 m, is a bit less than the
     # generally stated focal length of Hubble, 57.6 meters. Adjusting the
     # primary-to-secondary spacing by about 100 microns can resolve this
     # discrepancy. We here opt to stick with the values used in the PROPER
-    # example, to facilitate cross-checking the two codes. 
+    # example, to facilitate cross-checking the two codes.
 
     assert(not np.isfinite(waves[0].focal_length))  # plane wave after circular aperture
     assert(waves[1].focal_length==fl_pri)           # focal len after primary
@@ -353,6 +353,55 @@ def test_fresnel_optical_system_Hubble(display=False):
     centerpix = int(hst.npix / hst.beam_ratio / 2)
     cutout = psf[0].data[centerpix-64:centerpix+64, centerpix-64:centerpix+64] / psf[0].data[centerpix,centerpix]
     assert( np.abs(cutout-airy).max() < 1e-4 )
+
+def test_fresnel_FITS_Optical_element(tmpdir, display=False):
+    """ Test that Fresnel works with FITS optical elements.
+
+    Incidentally serves as a test of the fix for the FITS endian issue
+    in recent scipy builds. See https://github.com/mperrin/poppy/issues/213
+
+    Incidentally also serves as a test that we can round-trip an
+    AnalyticOpticalElement into a FITS file and then back into
+    a FITSOpticalElement. See #49
+    import tempfile
+
+    Parameters
+    ----------
+    tmpdir : string
+        temporary directory for output FITS file. To be provided by py.test's
+        tmpdir test fixture.
+
+    """
+    import os.path
+    import astropy.io.fits as fits
+    from .. import wfe
+
+    m1_zernike= wfe.ZernikeWFE(radius=1.2,
+        coefficients=[0,0,0,0,0,1e-7],
+        oversample=0)
+
+    fits_zern = m1_zernike.to_fits(what='opd')
+
+    filename=os.path.join(str(tmpdir), "astigmatism.fits")
+    fits_zern.writeto(filename, clobber=True)
+    astig_surf = poppy_core.FITSOpticalElement(opd=filename,
+        planetype=poppy_core._INTERMED,
+        oversample=1)
+
+    osys = poppy_core.OpticalSystem()
+    circular_aperture = optics.CircularAperture(radius=1.2)
+    osys.addPupil(circular_aperture)
+    osys.addPupil(astig_surf)
+    osys.addDetector(pixelscale=.01, fov_arcsec=5)
+
+    psf_with_astigmatism, wfronts = osys.calc_psf( display_intermediates=display,return_intermediates=True)
+
+    cx, cy = utils.measure_centroid(psf_with_astigmatism)
+    expected_cx, expected_cy = 499.5, 499.5
+    assert np.abs(cx-expected_cx)< 0.02, "PSF centroid is not as expected in X"
+    assert np.abs(cy-expected_cy)< 0.02, "PSF centroid is not as expected in Y"
+    assert psf_with_astigmatism[0].data.sum() > 0.99, "PSF total flux is not as expected."
+    assert np.abs(psf_with_astigmatism[0].data.max() - 0.00178667) < 1e-5, "PSF peak pixel is not as expected"
 
 
 
