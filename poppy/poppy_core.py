@@ -2737,6 +2737,11 @@ class FITSOpticalElement(OpticalElement):
                             return keyword, header[keyword]
                 raise LookupError(_MISSING_PIXELSCALE_MSG.format(', '.join(keywords)))
 
+            # The following logic is convoluted for historical back compatibility.
+            # All new files should use PIXELSCL. But we still allow reading in
+            # older files with PIXSCALE or PUPLSCAL.
+            # This code can probably be simplified.
+
             if pixelscale is None and self.planetype is None:
                 # we don't know which keywords might be present yet, so check for both keywords
                 # in both header objects (at least one must be non-None at this point!)
@@ -2754,13 +2759,13 @@ class FITSOpticalElement(OpticalElement):
                 # the planetype tells us which header keyword to check when a keyword is
                 # not provided (PIXSCALE for image planes)...
                 _, self.pixelscale = _find_pixelscale_in_headers(
-                    ('PIXSCALE','PIXELSCL'),
+                    ('PIXELSCL', 'PIXSCALE'),
                     (self.amplitude_header, self.opd_header)
                 )
-            elif pixelscale is None and self.planetype == _PUPIL:
+            elif pixelscale is None and (self.planetype == _PUPIL or self.planetype == _INTERMED):
                 # ... likewise for pupil planes
                 _, self.pixelscale = _find_pixelscale_in_headers(
-                    ('PUPLSCAL',),
+                    ('PIXELSCL', 'PUPLSCAL',),
                     (self.amplitude_header, self.opd_header)
                 )
             elif isinstance(pixelscale, six.string_types):

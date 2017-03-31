@@ -268,22 +268,32 @@ class AnalyticOpticalElement(OpticalElement):
 
         kwargs['return_scale'] = True
 
+        if what=='complex':
+            raise ValueError("FITS cannot handle complex arrays directly. Save the amplitude and opd separately.")
+
         output_array, pixelscale = self.sample(wavelength=wavelength, npix=npix, what=what,
                                                **kwargs)
+        long_contents = {'amplitude': "Electric field amplitude transmission",
+                         'intensity': "Electric field intensity transmission",
+                         'opd': "Optical path difference",
+                         'phase': "Wavefront phase delay"}
+
         phdu = fits.PrimaryHDU(output_array)
         phdu.header['OPTIC'] = (self.name, "Descriptive name of this optic")
         phdu.header['NAME'] = self.name
         phdu.header['SOURCE'] = 'Computed with POPPY'
         phdu.header['VERSION'] = (version, "software version of POPPY")
-        phdu.header['CONTENTS'] = what
+        phdu.header['CONTENTS'] = (what, long_contents[what])
         phdu.header['PLANETYP'] = (self.planetype.value, "0=unspecified, 1=pupil, 2=image, 3=detector, 4=rot")
         if self.planetype == _IMAGE:
             phdu.header['PIXELSCL'] = (pixelscale.to(u.arcsec/u.pixel).value, 'Image plane pixel scale in arcsec/pix')
-            outFITS[0].header['PIXUNIT'] = 'arcsecond'
+            outFITS[0].header['PIXUNIT'] = ('arcsecond', "Unit for PIXELSCL")
         else:
             phdu.header['PUPLSCAL'] = (pixelscale.to(u.meter/u.pixel).value, 'Pupil plane pixel scale in meter/pix')
-            phdu.header['PIXELSCL'] = phdu.header['PUPLSCAL']
-            phdu.header['PIXUNIT'] = 'meter'
+            phdu.header['PIXELSCL'] = (phdu.header['PUPLSCAL'], 'Pupil plane pixel scale in meter/pix')
+            phdu.header['PIXUNIT'] = ('meter', "Unit for PIXELSCL")
+        if what=='opd':
+            phdu.header['BUNIT'] = ('meter', "Optical Path Difference is given in meters.")
 
         if hasattr(self, 'shift_x'):
             phdu.header['SHIFTX'] = (self.shift_x, "X axis shift of input optic")
