@@ -2574,11 +2574,12 @@ class FITSOpticalElement(OpticalElement):
                 if isinstance(transmission,six.string_types):
                     self.amplitude_file = transmission
                     self.amplitude, self.amplitude_header = fits.getdata(self.amplitude_file, header=True)
+                    self.amplitude = self.amplitude.astype('=f8') # ensure native byte order, see #213
                     if self.name=='unnamed optic': self.name='Optic from '+self.amplitude_file
                     _log.info(self.name+": Loaded amplitude transmission from "+self.amplitude_file)
                 elif isinstance(transmission,fits.HDUList):
                     self.amplitude_file='supplied as fits.HDUList object'
-                    self.amplitude = transmission[0].data.copy()
+                    self.amplitude = transmission[0].data.astype('=f8') # ensure native byte order, see #213
                     self.amplitude_header = transmission[0].header.copy()
                     if self.name=='unnamed optic': self.name='Optic from fits.HDUList object'
                     _log.info(self.name+": Loaded amplitude transmission from supplied fits.HDUList object")
@@ -2608,7 +2609,7 @@ class FITSOpticalElement(OpticalElement):
             elif isinstance(opd, fits.HDUList):
                 # load from fits HDUList
                 self.opd_file='supplied as fits.HDUList object'
-                self.opd = opd[0].data.copy()
+                self.opd = opd[0].data.astype('=f8')
                 self.opd_header = opd[0].header.copy()
                 if self.name=='unnamed optic': self.name='OPD from supplied fits.HDUList object'
                 _log.info(self.name+": Loaded OPD from supplied fits.HDUList object")
@@ -2616,6 +2617,7 @@ class FITSOpticalElement(OpticalElement):
                 # load from regular FITS filename
                 self.opd_file=opd
                 self.opd, self.opd_header = fits.getdata(self.opd_file, header=True)
+                self.opd = self.opd.astype('=f8')
                 if self.name=='unnamed optic': self.name='OPD from '+self.opd_file
                 _log.info(self.name+": Loaded OPD from "+self.opd_file)
 
@@ -2624,6 +2626,7 @@ class FITSOpticalElement(OpticalElement):
                 self.opd_file = opd[0]
                 self.opd_slice = opd[1]
                 self.opd, self.opd_header = fits.getdata(self.opd_file, header=True)
+                self.opd = self.opd.astype('=f8')
                 self.opd = self.opd[self.opd_slice, :,:]
                 if self.name=='unnamed optic': self.name='OPD from %s, plane %d' % (self.opd_file, self.opd_slice)
                 _log.info(self.name+": Loaded OPD from  %s, plane %d" % (self.opd_file, self.opd_slice) )
