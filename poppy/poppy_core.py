@@ -515,7 +515,6 @@ class Wavefront(object):
 
             plot_axes = [ax]
             to_return = ax
-
         elif what == 'both':
             ax1 = plt.subplot(nrows, 2, (row * 2) - 1)
             plt.imshow(amp, extent=extent, cmap=cmap_inten, norm=norm_inten, origin='lower')
@@ -536,7 +535,7 @@ class Wavefront(object):
 
             plot_axes = [ax1, ax2]
             to_return = (ax1, ax2)
-        if what == 'amplitude':
+        elif what == 'amplitude':
             if ax is None:
                 ax = plt.subplot(nr, nc, int(row))
 
