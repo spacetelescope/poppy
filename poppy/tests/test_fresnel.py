@@ -410,7 +410,7 @@ def test_fresnel_propagate_direct_forward_and_back():
     wf = fresnel.FresnelWavefront(
         0.5 * u.m, wavelength=wavelen, npix=npix, oversample=4
     )
-    wf *= poppy_core.CircularAperture(radius=0.5)
+    wf *= optics.CircularAperture(radius=0.5)
     z = ((wf.pixelscale * u.pix) ** 2 * wf.n / (2200 * u.nm)).to(u.m)
     start = wf.wavefront.copy()
     wf.propagate_direct(z)
@@ -424,7 +424,7 @@ def test_fresnel_propagate_direct_back_and_forward():
     wf = fresnel.FresnelWavefront(
         0.5 * u.m, wavelength=wavelen, npix=npix, oversample=4
     )
-    wf *= poppy_core.CircularAperture(radius=0.5)
+    wf *= optics.CircularAperture(radius=0.5)
     z = ((wf.pixelscale * u.pix) ** 2 * wf.n / (2200 * u.nm)).to(u.m)
     start = wf.wavefront.copy()
     wf.propagate_direct(-z)
@@ -438,7 +438,7 @@ def test_fresnel_propagate_direct_2forward_and_back():
     wf = fresnel.FresnelWavefront(
         0.5 * u.m, wavelength=wavelen, npix=npix, oversample=4
     )
-    wf *= poppy_core.CircularAperture(radius=0.5)
+    wf *= optics.CircularAperture(radius=0.5)
     z = ((wf.pixelscale * u.pix) ** 2 * wf.n / (2200 * u.nm)).to(u.m)
 
     wf.propagate_direct(z)
@@ -446,18 +446,3 @@ def test_fresnel_propagate_direct_2forward_and_back():
     wf.propagate_direct(z)
     wf.propagate_direct(-z)
     np.testing.assert_almost_equal(wf.wavefront, start)
-
-
-def test_fresnel_propagate_direct_ptp_compare():
-    npix = 1024
-    wavelen = 2200 * u.nm
-    wf1 = fresnel.FresnelWavefront(
-        0.5 * u.m, wavelength=wavelen, npix=npix, oversample=4
-    )
-    wf1 *= poppy_core.CircularAperture(radius=0.5)
-    wf2 = wf1.copy()
-    z = ((wf1.pixelscale * u.pix) ** 2 * wf1.n / (2200 * u.nm)).to(u.m)
-
-    wf1.propagate_direct(z)
-    wf2._propagate_ptp(z)
-    np.testing.assert_almost_equal(wf1.wavefront, wf2.wavefront)
