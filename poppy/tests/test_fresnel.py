@@ -404,4 +404,45 @@ def test_fresnel_FITS_Optical_element(tmpdir, display=False):
     assert np.abs(psf_with_astigmatism[0].data.max() - 0.00178667) < 1e-5, "PSF peak pixel is not as expected"
 
 
+def test_fresnel_propagate_direct_forward_and_back():
+    npix = 1024
+    wavelen = 2200 * u.nm
+    wf = fresnel.FresnelWavefront(
+        0.5 * u.m, wavelength=wavelen, npix=npix, oversample=4
+    )
+    wf *= optics.CircularAperture(radius=0.5)
+    z = ((wf.pixelscale * u.pix) ** 2 * wf.n / (2200 * u.nm)).to(u.m)
+    start = wf.wavefront.copy()
+    wf.propagate_direct(z)
+    wf.propagate_direct(-z)
+    np.testing.assert_almost_equal(wf.wavefront, start)
 
+
+def test_fresnel_propagate_direct_back_and_forward():
+    npix = 1024
+    wavelen = 2200 * u.nm
+    wf = fresnel.FresnelWavefront(
+        0.5 * u.m, wavelength=wavelen, npix=npix, oversample=4
+    )
+    wf *= optics.CircularAperture(radius=0.5)
+    z = ((wf.pixelscale * u.pix) ** 2 * wf.n / (2200 * u.nm)).to(u.m)
+    start = wf.wavefront.copy()
+    wf.propagate_direct(-z)
+    wf.propagate_direct(z)
+    np.testing.assert_almost_equal(wf.wavefront, start)
+
+
+def test_fresnel_propagate_direct_2forward_and_back():
+    npix = 1024
+    wavelen = 2200 * u.nm
+    wf = fresnel.FresnelWavefront(
+        0.5 * u.m, wavelength=wavelen, npix=npix, oversample=4
+    )
+    wf *= optics.CircularAperture(radius=0.5)
+    z = ((wf.pixelscale * u.pix) ** 2 * wf.n / (2200 * u.nm)).to(u.m)
+
+    wf.propagate_direct(z)
+    start = wf.wavefront.copy()
+    wf.propagate_direct(z)
+    wf.propagate_direct(-z)
+    np.testing.assert_almost_equal(wf.wavefront, start)
