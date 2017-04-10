@@ -55,9 +55,9 @@ matrix:
 
         # Try older numpy versions
         - python: 2.7
-          env: NUMPY_VERSION=1.10 PIP_DEPENDENCIES='enum34>=1.0.4'
+          env: NUMPY_VERSION=1.11 PIP_DEPENDENCIES='enum34>=1.0.4'
         - python: 2.7
-          env: NUMPY_VERSION=1.9 PIP_DEPENDENCIES='enum34>=1.0.4'
+          env: NUMPY_VERSION=1.10 PIP_DEPENDENCIES='enum34>=1.0.4'
 
         # Try numpy pre-release
         # this one is commented out for now because it gives errors of uncertain
