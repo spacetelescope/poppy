@@ -731,7 +731,6 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None):
     # precompute zernikes on oversized array
     Z = np.zeros((nterms + 1,) + padded_shape)
     Z[1:] = zernike_basis(nterms=nterms, npix=npix, rho=rho, theta=theta, outside=0.0)
-    return Z
     # slice down to original aperture array size
     Z = Z[:,padding[0]:padded_shape[0]-padding[0],
             padding[1]:padded_shape[1]-padding[1]]
