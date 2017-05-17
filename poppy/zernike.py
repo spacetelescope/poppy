@@ -712,7 +712,7 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None):
 
     # get max extent of aperture from array center
     yind, xind = np.where(aperture > 0)
-    distance = np.sqrt( (yind-shape[0]/2.)**2 + (xind-shape[1]/2.)**2 )
+    distance = np.sqrt( (yind-(shape[0]-1)/2.)**2 + (xind-(shape[1]-1)/2.)**2 )
     max_extent = distance.max()
 
     # calculate padding for oversizing zernike_basis
