@@ -519,7 +519,7 @@ class FresnelWavefront(Wavefront):
         self.angular_coordinates = False  # coordinates must be in meters for propagation
         _USE_FFTW = (poppy.conf.use_fftw and _FFTW_AVAILABLE)
         forward_fft = pyfftw.interfaces.numpy_fft.fft2 if _USE_FFTW else np.fft.fft2
-
+        backward_fft = pyfftw.interfaces.numpy_fft.ifft2 if _USE_FFTW else np.fft.ifft2
         z_direct = z.to(u.m).value
         y, x = self.coordinates()
         k = np.pi * 2.0 / self.wavelength.to(u.meter).value
@@ -529,16 +529,25 @@ class FresnelWavefront(Wavefront):
 
         quadphase_1st = np.exp(1.0j * k * (x ** 2 + y ** 2) / (2 * z_direct))  # eq. 6.68
         quadphase_2nd = np.exp(1.0j * k * z_direct) / (1.0j * self.wavelength.to(u.m).value * z_direct) * np.exp(
-            1.0j * (x ** 2 + y ** 2) / (2 * z_direct))  # eq. 6.70
+            1.0j * k * (x ** 2 + y ** 2) / (2 * z_direct))  # eq. 6.70
 
         stage1 = self.wavefront * quadphase_1st  # eq.6.67
+        if z_direct > 0:
+            result = np.fft.ifftshift(stage1)
+            result = forward_fft(result)
+            result = np.fft.fftshift(result)
+            result *= self.pixelscale.to(u.m / u.pix).value ** 2# eq.6.69 and #6.80
+        else:
+            result = np.fft.fftshift(stage1)
+            result = backward_fft(result)
+            result = np.fft.ifftshift(result)
+            result *= self.pixelscale.to(u.m / u.pix).value ** 2 * self.n ** 2
+        result *= quadphase_2nd
 
-        result = np.fft.fftshift(forward_fft(stage1)) * self.pixelscale.to(
-            u.m / u.pix).value ** 2 * quadphase_2nd  # eq.6.69 and #6.80
-
-        self.pixelscale = self.wavelength * z / s / u.pix
+        self.pixelscale = self.wavelength * abs(z) / s / u.pix
         self.wavefront = result
         self.history.append("Direct propagation to z= {0:0.2e}".format(z))
+        self.z += z
 
     @utils.quantity_input(distance=u.meter)
     def propagate_to(self, optic, distance):
