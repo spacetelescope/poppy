@@ -674,7 +674,7 @@ def hexike_basis_wss(nterms=9, npix=512, rho=None, theta=None,
 hexike_basis_wss.label_strings = ['Piston','X tilt', 'Y tilt', 'Astigmatism-45','Focus','Astigmatism-00','Coma X','Coma Y','Spherical','Trefoil-0','Trefoil-30']
 
 
-def arbitrary_basis(aperture, nterms=15, rho=None, theta=None):
+def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
     """ Orthonormal basis on arbitrary aperture, via Gram-Schmidt
 
     Return a cube of Zernike-like terms from 1 to N, calculated on an
@@ -698,21 +698,49 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None):
         Image plane coordinates. `rho` should be 0 at the origin
         and 1.0 at the edge of the pupil. `theta` should be
         the angle in radians.
+    outside : float
+        Value for pixels outside the circular aperture (rho > 1).
+        Default is `np.nan`, but you may also find it useful for this to
+        be 0.0 sometimes.
     """
     # code submitted by Arthur Vigan - see https://github.com/mperrin/poppy/issues/166
 
     shape = aperture.shape
-    npix  = shape[0]
+    assert len(shape) == 2 and shape[0] == shape[1], \
+        "only square aperture arrays are supported"
+
+    if theta is None and rho is None:
+        # To avoid clipping the aperture, we precompute the zernike modes
+        # on an array oversized s.t. the zernike disk circumscribes the 
+        # entire aperture. We then slice the zernike array down to the 
+        # requested array size and cut the aperture out of it.
+
+        # get max extent of aperture from array center
+        yind, xind = np.where(aperture > 0)
+        distance = np.sqrt( (yind-(shape[0]-1)/2.)**2 + (xind-(shape[1]-1)/2.)**2 )
+        max_extent = distance.max()
+
+        # calculate padding for oversizing zernike_basis
+        ceil = lambda x: np.ceil(x) if x > 0 else 0 # avoid negative values
+        padding = ( int(ceil((max_extent - shape[0] / 2.))),
+                    int(ceil((max_extent - shape[1] / 2.))) )
+        padded_shape = (shape[0] + padding[0] * 2, shape[1] + padding[1] * 2)
+        npix = padded_shape[0]
+
+        # precompute zernikes on oversized array
+        Z = np.zeros((nterms + 1,) + padded_shape)
+        Z[1:] = zernike_basis(nterms=nterms, npix=npix, rho=rho, theta=theta, outside=0.0)
+        # slice down to original aperture array size
+        Z = Z[:,padding[0]:padded_shape[0]-padding[0],
+                padding[1]:padded_shape[1]-padding[1]]
+    else:
+        # precompute zernikes on user-defined rho, theta
+        Z = np.zeros((nterms + 1,) + shape)
+        Z[1:] = zernike_basis(nterms=nterms, rho=rho, theta=theta, outside=0.0)
 
     A = aperture.sum()
-
-    # precompute zernikes
-    Z = np.zeros((nterms + 1,) + shape)
-    Z[1:] = zernike_basis(nterms=nterms, npix=npix, rho=rho, theta=theta, outside=0.0)
-
-
     G = [np.zeros(shape), np.ones(shape)]  # array of G_i etc. intermediate fn
-    H = [np.zeros(shape), np.ones(shape) * aperture]  # array of hexikes
+    H = [np.zeros(shape), np.ones(shape) * aperture]  # array of zernikes on arbitrary basis
     c = {}  # coefficients hash
 
     for j in np.arange(nterms - 1) + 1:  # can do one less since we already have the piston term
@@ -733,8 +761,10 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None):
         #TODO - contemplate whether the above algorithm is numerically stable
         # cf. modified gram-schmidt algorithm discussion on wikipedia.
 
-    # drop the 0th null element, return the rest
-    return H[1:]
+    basis = np.asarray(H[1:]) # drop the 0th null element
+    basis[:,aperture < 1] = outside
+
+    return basis
 
 
 def opd_expand(opd, aperture=None, nterms=15, basis=zernike_basis,
