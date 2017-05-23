@@ -705,35 +705,34 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None):
     assert len(shape) == 2 and shape[0] == shape[1], \
         "only square aperture arrays are supported"
 
-    # To avoid clipping the aperture, we precompute the zernike modes
-    # on an array oversized s.t. the zernike disk circumscribes the 
-    # entire aperture. We then slice the zernike array down to the 
-    # requested array size and cut the aperture out of it.
+    if theta is None and rho is None:
+        # To avoid clipping the aperture, we precompute the zernike modes
+        # on an array oversized s.t. the zernike disk circumscribes the 
+        # entire aperture. We then slice the zernike array down to the 
+        # requested array size and cut the aperture out of it.
 
-    # get max extent of aperture from array center
-    yind, xind = np.where(aperture > 0)
-    distance = np.sqrt( (yind-(shape[0]-1)/2.)**2 + (xind-(shape[1]-1)/2.)**2 )
-    max_extent = distance.max()
+        # get max extent of aperture from array center
+        yind, xind = np.where(aperture > 0)
+        distance = np.sqrt( (yind-(shape[0]-1)/2.)**2 + (xind-(shape[1]-1)/2.)**2 )
+        max_extent = distance.max()
 
-    # calculate padding for oversizing zernike_basis
-    ceil = lambda x: np.ceil(x) if x > 0 else 0 # avoid negative values
-    padding = ( int(ceil((max_extent - shape[0] / 2.))),
-                int(ceil((max_extent - shape[1] / 2.))) )
-    padded_shape = (shape[0] + padding[0] * 2, shape[1] + padding[1] * 2)
-    npix = padded_shape[0]
+        # calculate padding for oversizing zernike_basis
+        ceil = lambda x: np.ceil(x) if x > 0 else 0 # avoid negative values
+        padding = ( int(ceil((max_extent - shape[0] / 2.))),
+                    int(ceil((max_extent - shape[1] / 2.))) )
+        padded_shape = (shape[0] + padding[0] * 2, shape[1] + padding[1] * 2)
+        npix = padded_shape[0]
 
-    # pad theta and rho arrays
-    if theta is not None:
-        theta = np.pad(theta,padding,mode='constant',constant_values=0.)
-    if rho is not None:
-        rho = np.pad(rho,padding,mode='constant',constant_values=1.)
-
-    # precompute zernikes on oversized array
-    Z = np.zeros((nterms + 1,) + padded_shape)
-    Z[1:] = zernike_basis(nterms=nterms, npix=npix, rho=rho, theta=theta, outside=0.0)
-    # slice down to original aperture array size
-    Z = Z[:,padding[0]:padded_shape[0]-padding[0],
-            padding[1]:padded_shape[1]-padding[1]]
+        # precompute zernikes on oversized array
+        Z = np.zeros((nterms + 1,) + padded_shape)
+        Z[1:] = zernike_basis(nterms=nterms, npix=npix, rho=rho, theta=theta, outside=0.0)
+        # slice down to original aperture array size
+        Z = Z[:,padding[0]:padded_shape[0]-padding[0],
+                padding[1]:padded_shape[1]-padding[1]]
+    else:
+        # precompute zernikes on user-defined rho, theta
+        Z = np.zeros((nterms + 1,) + shape)
+        Z[1:] = zernike_basis(nterms=nterms, rho=rho, theta=theta, outside=0.0)
 
     A = aperture.sum()
     G = [np.zeros(shape), np.ones(shape)]  # array of G_i etc. intermediate fn
