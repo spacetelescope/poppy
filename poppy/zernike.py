@@ -674,7 +674,7 @@ def hexike_basis_wss(nterms=9, npix=512, rho=None, theta=None,
 hexike_basis_wss.label_strings = ['Piston','X tilt', 'Y tilt', 'Astigmatism-45','Focus','Astigmatism-00','Coma X','Coma Y','Spherical','Trefoil-0','Trefoil-30']
 
 
-def arbitrary_basis(aperture, nterms=15, rho=None, theta=None):
+def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
     """ Orthonormal basis on arbitrary aperture, via Gram-Schmidt
 
     Return a cube of Zernike-like terms from 1 to N, calculated on an
@@ -698,6 +698,10 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None):
         Image plane coordinates. `rho` should be 0 at the origin
         and 1.0 at the edge of the pupil. `theta` should be
         the angle in radians.
+    outside : float
+        Value for pixels outside the circular aperture (rho > 1).
+        Default is `np.nan`, but you may also find it useful for this to
+        be 0.0 sometimes.
     """
     # code submitted by Arthur Vigan - see https://github.com/mperrin/poppy/issues/166
 
@@ -757,8 +761,10 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None):
         #TODO - contemplate whether the above algorithm is numerically stable
         # cf. modified gram-schmidt algorithm discussion on wikipedia.
 
-    # drop the 0th null element, return the rest
-    return H[1:]
+    basis = np.asarray(H[1:]) # drop the 0th null element
+    basis[:,aperture < 1] = outside
+
+    return basis
 
 
 def opd_expand(opd, aperture=None, nterms=15, basis=zernike_basis,
