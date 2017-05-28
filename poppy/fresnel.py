@@ -63,7 +63,12 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
         """
 
         y, x = wave.coordinates()
-        rsqd = (x ** 2 + y ** 2) * u.m ** 2
+        #if _USE_CUDA:
+        #    rsqd = (accelerate.cuda.blas.Blas.dot(x,x) + accelerate.cuda.blas.Blas.dot(y,y)) * u.m ** 2
+        #else:
+        rsqd = (np.dot(x,x) + np.dot(y,y)) * u.m ** 2
+
+
         _log.debug("Applying spherical phase curvature ={0:0.2e}".format(self.z))
         _log.debug("Applying spherical lens phase ={0:0.2e}".format(1.0 / self.z))
         _log.debug("max_rsqd ={0:0.2e}".format(np.max(rsqd)))
@@ -352,12 +357,13 @@ class FresnelWavefront(Wavefront):
                                                               threads=poppy.conf.n_processes) / self.shape[0]
         elif _USE_CUDA:
             _log.debug("   Using cuda via accelerate")
-            self.cuFFTPLAN.forward(self.wavefront,out=self.wavefront) / self.shape[0]
+            self.cuFFTPLAN.forward(self.wavefront,out=self.wavefront)
+            self.wavefront *= 1/self.wavefront.shape[0]
         else:
             _log.debug("   Using numpy FFT")
             self.wavefront = np.fft.fft2(self.wavefront) / self.shape[0]
-
-    def _inv_fft(self):
+            
+    def _inv_fft(self): 
         """
         Apply normalized Inverse 2D Fast Fourier Transform to wavefront
         """
@@ -372,7 +378,9 @@ class FresnelWavefront(Wavefront):
                                                                threads=poppy.conf.n_processes) * self.shape[0]
         elif _USE_CUDA:
             _log.debug("   Using cuda via accelerate")
-            self.wavefront = self.cuFFTPLAN.inverse(self.wavefront,out=self.wavefront) / self.shape[0]
+            self.wavefront = self.cuFFTPLAN.inverse(self.wavefront,out=self.wavefront)
+            self.wavefront *= 1.0/self.wavefront.size*self.shape[0] #pycuda doesn't normalize.
+            print(self.wavefront.real.sum())
         else:
             _log.debug("   Using numpy FFT")
             self.wavefront = np.fft.ifft2(self.wavefront) * self.shape[0]
