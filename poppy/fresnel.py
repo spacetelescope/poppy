@@ -15,7 +15,7 @@ _log = logging.getLogger('poppy')
 
 if _FFTW_AVAILABLE:
     import pyfftw
-    
+
 if _ACCELERATE_AVAILABLE:
     import accelerate
     _USE_CUDA = (poppy.conf.use_cuda and _ACCELERATE_AVAILABLE)
@@ -352,7 +352,7 @@ class FresnelWavefront(Wavefront):
                                                               threads=poppy.conf.n_processes) / self.shape[0]
         elif _USE_CUDA:
             _log.debug("   Using cuda via accelerate")
-            self.wavefront =self.cuFFTPLAN.forward(self.wavefront) / self.shape[0]
+            self.cuFFTPLAN.forward(self.wavefront,out=self.wavefront) / self.shape[0]
         else:
             _log.debug("   Using numpy FFT")
             self.wavefront = np.fft.fft2(self.wavefront) / self.shape[0]
@@ -372,7 +372,7 @@ class FresnelWavefront(Wavefront):
                                                                threads=poppy.conf.n_processes) * self.shape[0]
         elif _USE_CUDA:
             _log.debug("   Using cuda via accelerate")
-            self.wavefront = self.cuFFTPLAN.inverse(self.wavefront) / self.shape[0]
+            self.wavefront = self.cuFFTPLAN.inverse(self.wavefront,out=self.wavefront) / self.shape[0]
         else:
             _log.debug("   Using numpy FFT")
             self.wavefront = np.fft.ifft2(self.wavefront) * self.shape[0]
