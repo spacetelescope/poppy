@@ -7,7 +7,7 @@ import logging
 import time
 
 import poppy
-from poppy.poppy_core import PlaneType, _FFTW_AVAILABLE, OpticalSystem, Wavefront
+from poppy.poppy_core import PlaneType, _ACCELERATE_AVAILABLE, _FFTW_AVAILABLE, OpticalSystem, Wavefront
 from . import utils
 
 _log = logging.getLogger('poppy')
@@ -15,6 +15,11 @@ _log = logging.getLogger('poppy')
 
 if _FFTW_AVAILABLE:
     import pyfftw
+    
+if _ACCELERATE_AVAILABLE:
+    import accelerate
+    _USE_CUDA = (poppy.conf.use_cuda and _ACCELERATE_AVAILABLE)
+
 
 __all__ = ['QuadPhase', 'QuadraticLens', 'FresnelWavefront', 'FresnelOpticalSystem']
 
@@ -261,6 +266,10 @@ class FresnelWavefront(Wavefront):
         if self.planetype == PlaneType.image:
             raise ValueError(
                 "Input wavefront needs to be a pupil plane in units of m/pix. Specify a diameter not a pixelscale.")
+        if _USE_CUDA:
+            #initialize FFT plan
+            self.cuFFTPLAN = accelerate.cuda.fft.FFTPlan(self.shape,np.complex128,np.complex128)
+
 
     def display(self, *args, **kwargs):
         if 'use_angular_coordinates' not in kwargs:
@@ -330,7 +339,8 @@ class FresnelWavefront(Wavefront):
         """
         Apply normalized forward 2D Fast Fourier Transform to wavefront
         """
-        _USE_FFTW = (poppy.conf.use_fftw and _FFTW_AVAILABLE)
+
+        _USE_FFTW = (poppy.conf.use_fftw and _FFTW_AVAILABLE and not _USE_CUDA)
 
         if _USE_FFTW:
             # FFTW wisdom could be implemented here.
@@ -340,6 +350,9 @@ class FresnelWavefront(Wavefront):
             self.wavefront = pyfftw.interfaces.numpy_fft.fft2(self.wavefront, overwrite_input=True,
                                                               planner_effort='FFTW_MEASURE',
                                                               threads=poppy.conf.n_processes) / self.shape[0]
+        elif _USE_CUDA:
+            _log.debug("   Using cuda via accelerate")
+            self.wavefront =self.cuFFTPLAN.forward(self.wavefront) / self.shape[0]
         else:
             _log.debug("   Using numpy FFT")
             self.wavefront = np.fft.fft2(self.wavefront) / self.shape[0]
@@ -357,6 +370,9 @@ class FresnelWavefront(Wavefront):
             self.wavefront = pyfftw.interfaces.numpy_fft.ifft2(self.wavefront, overwrite_input=True,
                                                                planner_effort='FFTW_MEASURE',
                                                                threads=poppy.conf.n_processes) * self.shape[0]
+        elif _USE_CUDA:
+            _log.debug("   Using cuda via accelerate")
+            self.wavefront = self.cuFFTPLAN.inverse(self.wavefront) / self.shape[0]
         else:
             _log.debug("   Using numpy FFT")
             self.wavefront = np.fft.ifft2(self.wavefront) * self.shape[0]

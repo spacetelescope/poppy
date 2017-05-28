@@ -29,6 +29,7 @@ __all__ = ['Wavefront',  'OpticalSystem', 'SemiAnalyticCoronagraph', 'MatrixFTCo
 # Setup infrastructure for FFTW
 _FFTW_INIT = {}  # dict of array sizes for which we have already performed the required FFTW planning step
 _FFTW_FLAGS = ['measure']
+
 try:
     # try to import FFTW to see if it is available
     import pyfftw
@@ -37,6 +38,14 @@ except ImportError:
     pyfftw = None
     _FFTW_AVAILABLE = False
 
+try:
+    # try to import accelerate package to see if it is available
+    import accelerate
+    _ACCELERATE_AVAILABLE = True
+
+except ImportError:
+    pyfftw = None
+    _ACCELERATE_AVAILABLE = False
 
 # internal constants for types of plane
 class PlaneType(enum.Enum):

@@ -60,6 +60,8 @@ class Conf(_config.ConfigNamespace):
             'automatically save and reload FFTW ' +
             '"wisdom" for improved speed?')
 
+    use_cuda = _config.ConfigItem(True, 'Use cuda via accelerate for FFTs (assuming it' +
+            'is available)?')
     default_image_display_fov = _config.ConfigItem(5.0, 'Default image' +
             'display field of view, in arcseconds. Adjust this to display ' +
             'only a subregion of a larger output array.')
