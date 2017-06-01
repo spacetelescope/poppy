@@ -63,11 +63,7 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
         """
 
         y, x = wave.coordinates()
-        #if _USE_CUDA:
-        #    rsqd = (accelerate.cuda.blas.Blas.dot(x,x) + accelerate.cuda.blas.Blas.dot(y,y)) * u.m ** 2
-        #else:
-        rsqd = (np.dot(x,x) + np.dot(y,y)) * u.m ** 2
-
+        rsqd = (x ** 2 + y ** 2) * u.m ** 2		
 
         _log.debug("Applying spherical phase curvature ={0:0.2e}".format(self.z))
         _log.debug("Applying spherical lens phase ={0:0.2e}".format(1.0 / self.z))
