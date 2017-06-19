@@ -140,6 +140,64 @@ def test_cross_hexikes():
         _test_cross_hexikes(testj=testj, nterms=6)
 
 
+def test_arbitrary_basis_rms(nterms=10, size=500):
+    """Verify RMS(Zernike[n,m]) == 1."""
+    # choose a square aperture for the test
+    square_aperture = optics.SquareAperture(size=1.).sample(npix=size,grid_size=1.1)
+    square_basis = zernike.arbitrary_basis(square_aperture,nterms=nterms)
+
+    assert np.nanstd(square_basis[0]) == 0.0, "Mode(j=0) has nonzero RMS"
+    for j in range(1, nterms):
+        rms = np.nanstd(square_basis[j])  # exclude masked pixels
+        assert abs(1.0 - rms) < 0.001, "Mode(j={}) has RMS value of {}".format(j, rms)
+
+
+def _test_cross_arbitrary_basis(testj=4, nterms=10, npix=500):
+    """Verify the functions are orthogonal, by taking the
+    integrals of a given mode times N other ones.
+
+    Parameters :
+    --------------
+    testj : int
+        Index of the Zernike-like polynomial to test against the others
+    nterms : int
+        Test that polynomial against those from 1 to this N
+    npix : int
+        Size of array to use for this test
+    """
+    # choose a square aperture for the test
+    square_aperture = optics.SquareAperture(size=1.).sample(npix=npix,grid_size=1.1)
+    square_basis = zernike.arbitrary_basis(square_aperture,nterms=nterms)
+
+    test_mode = square_basis[testj - 1]
+    for idx, array in enumerate(square_basis):
+        j = idx + 1
+        if j == testj or j == 1:
+            continue  # discard piston term and self
+        prod = array * test_mode
+        wg = np.where(np.isfinite(prod))
+        cross_sum = np.abs(prod[wg].sum())
+
+        # Threshold was originally 1e-9, but we ended up getting 1.19e-9 on some machines (not always)
+        # this seems acceptable, so relaxing criteria slightly
+        assert cross_sum < 2e-9, (
+            "orthogonality failure, Sum[Mode(j={}) * Mode(j={})] = {} (> 2e-9)".format(
+                j, testj, cross_sum)
+        )
+
+
+def test_cross_arbitrary_basis():
+    """Verify orthogonality for a subset of Hexikes by taking the integral of
+    that Hexike times N other ones.
+
+    Note that the Hexike are only strictly orthonormal over a
+    fully hexagonal aperture evauated analytically. For any discrete
+    aperture the orthonormality is only approximate.
+    """
+    for testj in (2, 3, 4, 5, 6):
+        _test_cross_arbitrary_basis(testj=testj, nterms=6)
+
+
 def test_opd_expand(npix=512, input_coefficients=(0.1, 0.2, 0.3, 0.4, 0.5)):
     basis = zernike.zernike_basis(nterms=len(input_coefficients), npix=npix)
     for idx, coeff in enumerate(input_coefficients):
