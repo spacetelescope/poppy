@@ -1624,6 +1624,10 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
     ----------
     opticslist : list
         A list of AnalyticOpticalElements to be merged together.
+    mergemode : string, default = 'and'
+        Method for merging transmissions:
+            'and' : resulting transmission is product of constituents
+            'or'  : resulting transmission is sum of constituents.
 
     """
 
@@ -1640,7 +1644,7 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
                 return False  # no other types allowed, skip the rest of the list
         return True
 
-    def __init__(self, opticslist=None, name="unnamed", verbose=True, **kwargs):
+    def __init__(self, opticslist=None, name="unnamed", mergemode="and", verbose=True, **kwargs):
         if opticslist is None:
             raise ValueError("Missing required opticslist argument to CompoundAnalyticOptic")
         AnalyticOpticalElement.__init__(self, name=name, verbose=verbose, **kwargs)
@@ -1648,6 +1652,14 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
         self.opticslist = []
         self._default_display_size = 3*u.arcsec
         self.planetype = None
+
+        # check for valid mergemode
+        if mergemode=="and":
+            self.mergemode="and"
+        elif mergemode=="or":
+            self.mergemode="or"
+        else:
+            raise ValueError("mergemode must be either 'and' or 'or'.")
 
         for optic in opticslist:
             if not self._validate_only_analytic_optics(opticslist):
@@ -1681,7 +1693,12 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
     def get_transmission(self,wave):
         trans = np.ones(wave.shape, dtype=np.float)
         for optic in self.opticslist:
-            trans *= optic.get_transmission(wave)
+            if self.mergemode=="and":
+                trans *= optic.get_transmission(wave)
+            elif self.mergemode=="or":
+                trans = trans + optic.get_transmission(wave) - trans*optic.get_transmission(wave)
+            else:
+                raise ValueError("mergemode must be either 'and' or 'or'.")
         return trans
 
     def get_opd(self,wave):
