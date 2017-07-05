@@ -1626,8 +1626,11 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
         A list of AnalyticOpticalElements to be merged together.
     mergemode : string, default = 'and'
         Method for merging transmissions:
-            'and' : resulting transmission is product of constituents
-            'or'  : resulting transmission is sum of constituents.
+            'and' : resulting transmission is product of constituents. (E.g
+                    trans = trans1*trans2)
+            'or'  : resulting transmission is sum of constituents, with overlap
+                    subtracted.  (E.g. trans = trans1 + trans2 - trans1*trans2)
+        In both methods, the resulting OPD is the sum of the constituents' OPDs.
 
     """
 
