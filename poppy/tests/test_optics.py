@@ -324,13 +324,16 @@ def test_CompoundAnalyticOptic(display=False):
     nwaves = 2
     r = 3
 
+    # First test the "and" mergemode
+
     osys_compound = poppy_core.OpticalSystem()
     osys_compound.addPupil(
         optics.CompoundAnalyticOptic([
             optics.CircularAperture(radius=r),
             optics.ThinLens(nwaves=nwaves, reference_wavelength=wavelen,
                             radius=r)
-        ])
+        ]
+        , mergemode='and')
     )
     osys_compound.addDetector(pixelscale=0.010, fov_pixels=512, oversample=1)
     psf_compound = osys_compound.calcPSF(wavelength=wavelen, display=False)
@@ -355,7 +358,40 @@ def test_CompoundAnalyticOptic(display=False):
 
     assert np.all(np.abs(difference) < 1e-3)
 
+    # Next test the 'or' mergemode
+    # This creates two overlapping CircularAperture with different
+    # radii and check that the result equals a single CircularAperture
+    # with the size of the larger
 
+    r1 = 1.0; r2=2.0
+
+    osys_compound = poppy_core.OpticalSystem()
+    osys_compound.addPupil(
+        optics.CompoundAnalyticOptic([
+            optics.CircularAperture(radius=r1),
+            optics.CircularAperture(radius=r2)
+        ]
+        , mergemode='or')
+    )
+    osys_compound.addDetector(pixelscale=0.010, fov_pixels=512, oversample=1)
+    psf_compound = osys_compound.calcPSF(wavelength=wavelen, display=False)
+
+    osys_separate = poppy_core.OpticalSystem()
+    osys_separate.addPupil(optics.CircularAperture(radius=r2))
+    osys_separate.addDetector(pixelscale=0.01, fov_pixels=512, oversample=1)
+    psf_separate = osys_separate.calcPSF(wavelength=wavelen, display=False)
+    if display: 
+        from matplotlib import pyplot as plt
+        from poppy import utils
+        plt.figure()
+        plt.subplot(1, 2, 1)
+        utils.display_PSF(psf_separate, title='From Separate Optics')
+        plt.subplot(1, 2, 2)
+        utils.display_PSF(psf_compound, title='From Compound Optics')
+
+    difference = psf_compound[0].data - psf_separate[0].data
+
+    assert np.all(np.abs(difference) < 1e-3)
 
 def test_AsymmetricObscuredAperture(display=False):
     """  Test that we can run the code with asymmetric spiders
