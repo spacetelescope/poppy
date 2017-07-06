@@ -350,9 +350,9 @@ def test_CompoundAnalyticOptic(display=False):
         from poppy import utils
         plt.figure()
         plt.subplot(1, 2, 1)
-        utils.display_PSF(psf_separate, title='From Separate Optics')
+        utils.display_PSF(psf_separate, title='From Separate Optics (or)')
         plt.subplot(1, 2, 2)
-        utils.display_PSF(psf_compound, title='From Compound Optics')
+        utils.display_PSF(psf_compound, title='From Compound Optics (and)')
 
     difference = psf_compound[0].data - psf_separate[0].data
 
@@ -362,6 +362,8 @@ def test_CompoundAnalyticOptic(display=False):
     # This creates two overlapping CircularAperture with different
     # radii and check that the result equals a single CircularAperture
     # with the size of the larger
+
+    #TODO this fails.  Looks like the resulting aperture is too small.
 
     r1 = 1.0; r2=2.0
 
@@ -385,9 +387,9 @@ def test_CompoundAnalyticOptic(display=False):
         from poppy import utils
         plt.figure()
         plt.subplot(1, 2, 1)
-        utils.display_PSF(psf_separate, title='From Separate Optics')
+        utils.display_PSF(psf_separate, title='From Separate Optics (or)')
         plt.subplot(1, 2, 2)
-        utils.display_PSF(psf_compound, title='From Compound Optics')
+        utils.display_PSF(psf_compound, title='From Compound Optics (or)')
 
     difference = psf_compound[0].data - psf_separate[0].data
 
