@@ -342,7 +342,7 @@ def test_CompoundAnalyticOptic(display=False):
     osys_separate.addPupil(optics.CircularAperture(radius=r))    # pupil radius in meters
     osys_separate.addPupil(optics.ThinLens(nwaves=nwaves, reference_wavelength=wavelen,
                                            radius=r))
-    osys_separate.addDetector(pixelscale=0.01, fov_pixels=512, oversample=1)
+    osys_separate.addDetector(pixelscale=0.010, fov_pixels=512, oversample=1)
     psf_separate = osys_separate.calcPSF(wavelength=wavelen, display=False)
 
     if display:
@@ -350,7 +350,7 @@ def test_CompoundAnalyticOptic(display=False):
         from poppy import utils
         plt.figure()
         plt.subplot(1, 2, 1)
-        utils.display_PSF(psf_separate, title='From Separate Optics (or)')
+        utils.display_PSF(psf_separate, title='From Separate Optics (and)')
         plt.subplot(1, 2, 2)
         utils.display_PSF(psf_compound, title='From Compound Optics (and)')
 
@@ -365,32 +365,49 @@ def test_CompoundAnalyticOptic(display=False):
 
     #TODO this fails.  Looks like the resulting aperture is too small.
 
-    r1 = 1.0; r2=2.0
+    r1 = 1.0; r2=2.0;
 
     osys_compound = poppy_core.OpticalSystem()
-    osys_compound.addPupil(
-        optics.CompoundAnalyticOptic([
+    osys_c_pupil = optics.CompoundAnalyticOptic([
             optics.CircularAperture(radius=r1),
             optics.CircularAperture(radius=r2)
         ]
         , mergemode='or')
+    osys_compound.addPupil(
+        osys_c_pupil
     )
     osys_compound.addDetector(pixelscale=0.010, fov_pixels=512, oversample=1)
-    psf_compound = osys_compound.calcPSF(wavelength=wavelen, display=False)
+    psf_compound, ints_compound = osys_compound.calcPSF(wavelength=wavelen, display=False, return_intermediates=True)
 
     osys_separate = poppy_core.OpticalSystem()
-    osys_separate.addPupil(optics.CircularAperture(radius=r2))
-    osys_separate.addDetector(pixelscale=0.01, fov_pixels=512, oversample=1)
-    psf_separate = osys_separate.calcPSF(wavelength=wavelen, display=False)
+    osys_s_pupil = optics.CircularAperture(radius=r2)
+    osys_separate.addPupil(osys_s_pupil)
+    osys_separate.addDetector(pixelscale=0.010, fov_pixels=512, oversample=1)
+    psf_separate, ints_separate = osys_separate.calcPSF(wavelength=wavelen, display=False, return_intermediates=True)
     if display: 
-        from matplotlib import pyplot as plt
-        from poppy import utils
+        #from matplotlib import pyplot as plt
+        #from poppy import utils
         plt.figure()
-        plt.subplot(1, 2, 1)
+        osys_s_pupil.display(title='Separate pupil (or)')
+        plt.figure()
+        osys_c_pupil.display(title='Compound pupil (or)')
+        plt.figure()
         utils.display_PSF(psf_separate, title='From Separate Optics (or)')
-        plt.subplot(1, 2, 2)
+        plt.figure()
         utils.display_PSF(psf_compound, title='From Compound Optics (or)')
 
+    #check transmission
+    testwave = poppy_core.Wavefront(wavelength=wavelen,npix=1024)
+    diff_trans = osys_c_pupil.get_transmission(testwave) - osys_s_pupil.get_transmission(testwave)
+    
+    assert np.all(np.abs(diff_trans) < 1e-3)
+    
+    #check wavefronts
+    diff_amp = ints_compound[0].amplitude - ints_separate[0].amplitude
+    
+    assert np.all(np.abs(diff_amp) < 1e-3)
+    
+    #check psf
     difference = psf_compound[0].data - psf_separate[0].data
 
     assert np.all(np.abs(difference) < 1e-3)
