@@ -363,9 +363,9 @@ def test_CompoundAnalyticOptic(display=False):
     # radii and check that the result equals a single CircularAperture
     # with the size of the larger
 
-    #TODO this fails.  Looks like the resulting aperture is too small.
+    #TODO this fails.  Looks like the resulting aperture is too small when doing calcPSF.
 
-    r1 = 1.0; r2=2.0;
+    r1 = 1.0; r2=2.0
 
     osys_compound = poppy_core.OpticalSystem()
     osys_c_pupil = optics.CompoundAnalyticOptic([
@@ -396,18 +396,21 @@ def test_CompoundAnalyticOptic(display=False):
         plt.figure()
         utils.display_PSF(psf_compound, title='From Compound Optics (or)')
 
-    #check transmission
+    #check transmission of OpticalElement objects
+    # PASSES commit 1e4709b
     testwave = poppy_core.Wavefront(wavelength=wavelen,npix=1024)
     diff_trans = osys_c_pupil.get_transmission(testwave) - osys_s_pupil.get_transmission(testwave)
     
     assert np.all(np.abs(diff_trans) < 1e-3)
     
-    #check wavefronts
+    #check pupil amplitudes
+    # FAILS commit 1e4709b
     diff_amp = ints_compound[0].amplitude - ints_separate[0].amplitude
     
     assert np.all(np.abs(diff_amp) < 1e-3)
     
     #check psf
+    # FAILS commit 1e4709b
     difference = psf_compound[0].data - psf_separate[0].data
 
     assert np.all(np.abs(difference) < 1e-3)
