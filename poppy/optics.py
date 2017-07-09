@@ -1777,7 +1777,7 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
             if all([hasattr(o, 'pupil_diam') for o in self.opticslist]):
                 self.pupil_diam = np.asarray([o.pupil_diam.to(u.meter).value for o in self.opticslist]).max() * u.meter
 
-    def get_transmission(self,wave):
+    def get_transmission(self, wave):
         if self.mergemode=="and":
             trans = np.ones(wave.shape, dtype=np.float)
             for optic in self.opticslist:
@@ -1788,17 +1788,16 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
                 trans = trans + optic.get_transmission(wave) - trans * optic.get_transmission(wave)
         else:
             raise ValueError("mergemode must be either 'and' or 'or'.")
-        return trans
+        self.transmission = trans
+        return self.transmission
 
     def get_opd(self,wave):
         opd = np.zeros(wave.shape, dtype=np.float)
         for optic in self.opticslist:
             opd += optic.get_opd(wave)
-        return opd
+        self.opd = opd
+        return self.opd
 
     def get_phasor(self, wave):
-        phasor = np.ones(wave.shape, dtype=np.complex)
-        for optic in self.opticslist:
-            nextphasor = optic.get_phasor(wave)
-            phasor *= nextphasor
-        return phasor
+        self.phasor = self.get_transmission(wave)*np.exp(1.j*self.get_opd(wave)*2.0*np.pi/wave.wavelength.to(u.meter).value)
+        return self.phasor
