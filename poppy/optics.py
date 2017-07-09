@@ -1797,7 +1797,3 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
             opd += optic.get_opd(wave)
         self.opd = opd
         return self.opd
-
-    def get_phasor(self, wave):
-        self.phasor = self.get_transmission(wave)*np.exp(1.j*self.get_opd(wave)*2.0*np.pi/wave.wavelength.to(u.meter).value)
-        return self.phasor
