@@ -359,18 +359,19 @@ def test_CompoundAnalyticOptic(display=False):
     assert np.all(np.abs(difference) < 1e-3)
 
     # Next test the 'or' mergemode
-    # This creates two overlapping CircularAperture with different
-    # radii and check that the result equals a single CircularAperture
-    # with the size of the larger
+    # This creates two overlapping RectangleAperture with different
+    # heights and check that the result equals the larger
 
     #TODO this fails.  Looks like the resulting aperture is too small when doing calcPSF.
 
-    r1 = 1.0; r2=2.0
+    w = 1.0
+    h1=2.0 
+    h2=0.5
 
     osys_compound = poppy_core.OpticalSystem()
     osys_c_pupil = optics.CompoundAnalyticOptic([
-            optics.CircularAperture(radius=r1),
-            optics.CircularAperture(radius=r2)
+            optics.RectangleAperture(width=w, height=h1),
+            optics.RectangleAperture(width=w, height=h2)
         ]
         , mergemode='or')
     osys_compound.addPupil(
@@ -380,7 +381,7 @@ def test_CompoundAnalyticOptic(display=False):
     psf_compound, ints_compound = osys_compound.calcPSF(wavelength=wavelen, display=False, return_intermediates=True)
 
     osys_separate = poppy_core.OpticalSystem()
-    osys_s_pupil = optics.CircularAperture(radius=r2)
+    osys_s_pupil = optics.RectangleAperture(width=w, height=max(h1, h2))
     osys_separate.addPupil(osys_s_pupil)
     osys_separate.addDetector(pixelscale=0.010, fov_pixels=512, oversample=1)
     psf_separate, ints_separate = osys_separate.calcPSF(wavelength=wavelen, display=False, return_intermediates=True)
