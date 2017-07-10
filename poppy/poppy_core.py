@@ -861,6 +861,7 @@ class Wavefront(object):
         self.planetype = _PUPIL
         self.pixelscale = self.diam / self.wavefront.shape[0] / u.pixel
 
+    @utils.quantity_input(Xangle=u.arcsec, Yangle=u.arcsec)
     def tilt(self, Xangle=0.0, Yangle=0.0):
         """ Tilt a wavefront in X and Y.
 
@@ -888,15 +889,20 @@ class Wavefront(object):
             raise NotImplementedError("Are you sure you want to tilt a wavefront in an _IMAGE plane?")
 
         if np.abs(Xangle) > 0 or np.abs(Yangle) > 0:
-            xangle_rad = Xangle * (np.pi / 180 / 60 / 60)
-            yangle_rad = Yangle * (np.pi / 180 / 60 / 60)
+            xangle_rad = Xangle.to(u.radian).value
+            yangle_rad = Yangle.to(u.radian).value
+
+            if isinstance(self.pixelscale,u.Quantity):
+                pixelscale = self.pixelscale.to(u.m/u.pixel).value
+            else:
+                pixelscale = self.pixelscale
 
             npix = self.wavefront.shape[0]
             V, U = np.indices(self.wavefront.shape, dtype=float)
             V -= (npix - 1) / 2.0
-            V *= self.pixelscale
+            V *= pixelscale
             U -= (npix - 1) / 2.0
-            U *= self.pixelscale
+            U *= pixelscale
 
             tiltphasor = np.exp(2.0j * np.pi * (U * xangle_rad + V * yangle_rad) / self.wavelength.to(u.meter).value)
             self.wavefront *= tiltphasor

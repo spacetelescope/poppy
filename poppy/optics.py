@@ -896,7 +896,7 @@ class FQPM_FFT_aligner(AnalyticOpticalElement):
             raise ValueError("FQPM get_opd must be called with a Wavefront to define the spacing")
         assert wave.planetype != _IMAGE, "This optic does not work on image planes"
 
-        fft_im_pixelscale = wave.wavelength / wave.diam / wave.oversample * _RADIANStoARCSEC
+        fft_im_pixelscale = wave.wavelength / wave.diam / wave.oversample * (u.radian)
         required_offset = -fft_im_pixelscale * 0.5
         if self.direction == 'backward':
             required_offset *= -1

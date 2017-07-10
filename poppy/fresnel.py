@@ -65,6 +65,10 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
 
         k = 2 * np.pi / wave.wavelength
         lens_phasor = np.exp(1.j * k * rsqd / (2.0 * self.z))
+
+        # ensure the result is a plain numpy ndarray, not an astropy.Quantity:
+        lens_phasor = lens_phasor.to(u.dimensionless_unscaled).value
+
         return lens_phasor
 
 

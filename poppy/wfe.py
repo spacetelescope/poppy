@@ -253,7 +253,7 @@ class ZernikeWFE(WavefrontError):
 
         combined_zernikes *= aperture_intensity
         if units == 'waves':
-            combined_zernikes /= wave.wavelength
+            combined_zernikes /= wave.wavelength.to(u.meter).value
         return combined_zernikes
 
 class SineWaveWFE(WavefrontError):
