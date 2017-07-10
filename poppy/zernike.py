@@ -291,6 +291,9 @@ def zernike1(j, **kwargs):
 def cached_zernike1(j, shape, pixelscale, pupil_radius, outside=np.nan, noll_normalize=True):
     """Compute Zernike based on Noll index *j*, using an LRU cache
     for efficiency. Refer to the `zernike1` docstring for details.
+
+    Note: all arguents should be plain ints, tuples, floats etc rather than
+    Astropy Quantities.
     """
     y, x = Wavefront.pupil_coordinates(shape, pixelscale)
     r = np.sqrt(x ** 2 + y ** 2)

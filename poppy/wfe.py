@@ -156,23 +156,20 @@ class ParameterizedWFE(WavefrontError):
         compatibility with `zernike.zernike_basis` and
         `zernike.hexike_basis`.)
     """
+    @utils.quantity_input(coefficients=u.meter, radius=u.meter)
     def __init__(self, name="Parameterized Distortion", coefficients=None, radius=None,
                  basis_factory=None, **kwargs):
         if not isinstance(basis_factory, collections.Callable):
             raise ValueError("'basis_factory' must be a callable that can "
                              "calculate basis functions")
-        try:
-            self.radius = float(radius)
-        except TypeError:
-            raise ValueError("'radius' must be the radius of a circular aperture in meters"
-                             "(optionally circumscribing a pupil of another shape)")
+        self.radius = radius
         self.coefficients = coefficients
         self.basis_factory = basis_factory
         super(ParameterizedWFE, self).__init__(name=name, **kwargs)
 
     @_accept_wavefront_or_meters
     def get_opd(self, wave, units='meters'):
-        rho, theta = _wave_to_rho_theta(wave, self.radius)
+        rho, theta = _wave_to_rho_theta(wave, self.radius.to(u.meter).value)
         combined_distortion = np.zeros(rho.shape)
 
         nterms = len(self.coefficients)
@@ -181,7 +178,8 @@ class ParameterizedWFE(WavefrontError):
         for idx, coefficient in enumerate(self.coefficients):
             if coefficient == 0.0:
                 continue  # save the trouble of a multiply-and-add of zeros
-            combined_distortion += coefficient * computed_terms[idx]
+            coefficient_in_m = coefficient.to(u.meter).value
+            combined_distortion += coefficient_in_m * computed_terms[idx]
         if units == 'meters':
             return combined_distortion
         elif units == 'waves':
@@ -205,12 +203,9 @@ class ZernikeWFE(WavefrontError):
         Pupil radius, in meters, over which the Zernike terms should be
         computed such that rho = 1 at r = `radius`.
     """
+    @utils.quantity_input(coefficients=u.meter, radius=u.meter)
     def __init__(self, name="Zernike WFE", coefficients=None, radius=None, **kwargs):
-        try:
-            self.radius = float(radius)
-        except TypeError:
-            raise ValueError("'radius' must be the radius of a circular aperture in meters"
-                             "(optionally circumscribing a pupil of another shape)")
+        self.radius = radius
 
         self.coefficients = coefficients
         self.circular_aperture = CircularAperture(radius=self.radius, **kwargs)
@@ -232,7 +227,7 @@ class ZernikeWFE(WavefrontError):
             waves based on the `Wavefront` wavelength or a supplied
             wavelength value.
         """
-        rho, theta = _wave_to_rho_theta(wave, self.radius)
+        rho, theta = _wave_to_rho_theta(wave, self.radius.to(u.meter).value)
 
         # the Zernike optic, being normalized on a circle, is
         # implicitly also a circular aperture:
@@ -247,7 +242,7 @@ class ZernikeWFE(WavefrontError):
                 j,
                 wave.shape,
                 pixelscale_m,
-                self.radius,
+                self.radius.to(u.meter).value,
                 outside=0.0,
                 noll_normalize=True
             )
