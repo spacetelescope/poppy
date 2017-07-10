@@ -415,13 +415,13 @@ def display_ee(HDUlist_or_filename=None, ext=0, overplot=False, ax=None, mark_le
 
     """
     if isinstance(HDUlist_or_filename, six.string_types):
-        HDUlist = fits.open(HDUlist_or_filename, ext=ext)
+        hdu_list = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
-        HDUlist = HDUlist_or_filename
+        hdu_list = HDUlist_or_filename
     else:
         raise ValueError("input must be a filename or HDUlist")
 
-    radius, profile, EE = radial_profile(HDUlist, EE=True, **kwargs)
+    radius, profile, EE = radial_profile(hdu_list, EE=True, ext=ext, **kwargs)
 
     if not overplot:
         if ax is None:
@@ -458,17 +458,17 @@ def display_profiles(HDUlist_or_filename=None, ext=0, overplot=False, title=None
 
     """
     if isinstance(HDUlist_or_filename, six.string_types):
-        HDUlist = fits.open(HDUlist_or_filename, ext=ext)
+        hdu_list = fits.open(HDUlist_or_filename, ext=ext)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
-        HDUlist = HDUlist_or_filename
+        hdu_list = HDUlist_or_filename
     else:
         raise ValueError("input must be a filename or HDUlist")
 
-    radius, profile, EE = radial_profile(HDUlist, EE=True, ext=ext, **kwargs)
+    radius, profile, EE = radial_profile(hdu_list, EE=True, ext=ext, **kwargs)
 
     if title is None:
         try:
-            title = "%s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER'])
+            title = "%s, %s" % (hdu_list[ext].header['INSTRUME'], hdu_list[ext].header['FILTER'])
         except KeyError:
             title = str(HDUlist_or_filename)
 
@@ -509,7 +509,8 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
     Parameters
     ----------
     HDUlist_or_filename : string
-        what it sounds like.
+        FITS HDUList object or path to a FITS file. 
+        NaN values in the FITS data array are treated as masked and ignored in computing bin statistics.
     ext : int
         Extension in FITS file
     EE : bool
@@ -538,13 +539,13 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
         as precise as possible.
     """
     if isinstance(HDUlist_or_filename, six.string_types):
-        HDUlist = fits.open(HDUlist_or_filename)
+        hdu_list = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
-        HDUlist = HDUlist_or_filename
+        hdu_list = HDUlist_or_filename
     else:
         raise ValueError("input must be a filename or HDUlist")
 
-    image = HDUlist[ext].data.copy()  # don't change normalization of actual input array, work with a copy!
+    image = hdu_list[ext].data.copy()  # don't change normalization of actual input array, work with a copy!
 
     if normalize.lower() == 'peak':
         _log.debug("Calculating profile with PSF normalized to peak = 1")
@@ -553,7 +554,7 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
         _log.debug("Calculating profile with PSF normalized to total = 1")
         image /= image.sum()
 
-    pixelscale = HDUlist[ext].header['PIXELSCL']
+    pixelscale = hdu_list[ext].header['PIXELSCL']
 
     if maxradius is not None:
         raise NotImplemented("add max radius")
@@ -591,7 +592,8 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
     deltar = ri[1:] - ri[:-1]  # assume all radii represented (more work if not)
     rind = np.where(deltar)[0]
     nr = rind[1:] - rind[:-1]  # number in radius bin
-    csim = np.cumsum(sim, dtype=float)  # cumulative sum to figure out sums for each bin
+    csim = np.nan_to_num(sim).cumsum(dtype=float)   # cumulative sum to figure out sums for each bin
+    #np.nancumsum is implemented in >1.12
     tbin = csim[rind[1:]] - csim[rind[:-1]]  # sum for image values in radius bins
     radialprofile = tbin / nr
 
@@ -619,7 +621,7 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
             else:
                 wg = np.where((r_pix >= (radius - binsize / 2)) & (r_pix < (radius + binsize / 2)))
                 # wg = np.where( (r >= rr[i-1]) &  (r <rr[i] )))
-            stddevs[i] = image[wg].std()
+            stddevs[i] = np.nanstd(image[wg])
         return rr, stddevs
 
     if not EE:

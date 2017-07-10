@@ -324,13 +324,16 @@ def test_CompoundAnalyticOptic(display=False):
     nwaves = 2
     r = 3
 
+    # First test the "and" mergemode
+
     osys_compound = poppy_core.OpticalSystem()
     osys_compound.addPupil(
         optics.CompoundAnalyticOptic([
             optics.CircularAperture(radius=r),
             optics.ThinLens(nwaves=nwaves, reference_wavelength=wavelen,
                             radius=r)
-        ])
+        ]
+        , mergemode='and')
     )
     osys_compound.addDetector(pixelscale=0.010, fov_pixels=512, oversample=1)
     psf_compound = osys_compound.calcPSF(wavelength=wavelen, display=False)
@@ -339,7 +342,7 @@ def test_CompoundAnalyticOptic(display=False):
     osys_separate.addPupil(optics.CircularAperture(radius=r))    # pupil radius in meters
     osys_separate.addPupil(optics.ThinLens(nwaves=nwaves, reference_wavelength=wavelen,
                                            radius=r))
-    osys_separate.addDetector(pixelscale=0.01, fov_pixels=512, oversample=1)
+    osys_separate.addDetector(pixelscale=0.010, fov_pixels=512, oversample=1)
     psf_separate = osys_separate.calcPSF(wavelength=wavelen, display=False)
 
     if display:
@@ -347,15 +350,75 @@ def test_CompoundAnalyticOptic(display=False):
         from poppy import utils
         plt.figure()
         plt.subplot(1, 2, 1)
-        utils.display_PSF(psf_separate, title='From Separate Optics')
+        utils.display_PSF(psf_separate, title='From Separate Optics (and)')
         plt.subplot(1, 2, 2)
-        utils.display_PSF(psf_compound, title='From Compound Optics')
+        utils.display_PSF(psf_compound, title='From Compound Optics (and)')
 
     difference = psf_compound[0].data - psf_separate[0].data
 
     assert np.all(np.abs(difference) < 1e-3)
 
+    # Next test the 'or' mergemode
+    # This creates two overlapping RectangleAperture with different
+    # heights and check that the result equals the larger
 
+    #TODO this fails.  Looks like the resulting aperture is too small when doing calcPSF.
+
+    w = 1.0
+    h1=2.0 
+    h2=0.5
+
+    osys_compound = poppy_core.OpticalSystem()
+    osys_c_pupil = optics.CompoundAnalyticOptic([
+            optics.RectangleAperture(width=w, height=h1),
+            optics.RectangleAperture(width=w, height=h2)
+        ]
+        , mergemode='or')
+    osys_compound.addPupil(
+        osys_c_pupil
+    )
+    osys_compound.addDetector(pixelscale=0.010, fov_pixels=512, oversample=1)
+    psf_compound, ints_compound = osys_compound.calcPSF(wavelength=wavelen, display=False, return_intermediates=True)
+
+    osys_separate = poppy_core.OpticalSystem()
+    osys_s_pupil = optics.RectangleAperture(width=w, height=max(h1, h2))
+    osys_separate.addPupil(osys_s_pupil)
+    osys_separate.addDetector(pixelscale=0.010, fov_pixels=512, oversample=1)
+    psf_separate, ints_separate = osys_separate.calcPSF(wavelength=wavelen, display=False, return_intermediates=True)
+    if display: 
+        #from matplotlib import pyplot as plt
+        #from poppy import utils
+        plt.figure()
+        osys_s_pupil.display(title='Separate pupil (or)')
+        plt.figure()
+        osys_c_pupil.display(title='Compound pupil (or)')
+        plt.figure()
+        ints_separate[0].display(title='Separate wave[0] (or)')
+        plt.figure()
+        ints_compound[0].display(title='Compound wave[0] (or)')
+        plt.figure()
+        utils.display_PSF(psf_separate, title='From Separate Optics (or)')
+        plt.figure()
+        utils.display_PSF(psf_compound, title='From Compound Optics (or)')
+
+    #check transmission of OpticalElement objects
+    # PASSES commit 1e4709b
+    testwave = poppy_core.Wavefront(wavelength=wavelen,npix=1024)
+    diff_trans = osys_c_pupil.get_transmission(testwave) - osys_s_pupil.get_transmission(testwave)
+    
+    assert np.all(np.abs(diff_trans) < 1e-3)
+    
+    #check pupil amplitudes
+    # FAILS commit 1e4709b
+    diff_amp = ints_compound[0].amplitude - ints_separate[0].amplitude
+    
+    assert np.all(np.abs(diff_amp) < 1e-3)
+    
+    #check psf
+    # FAILS commit 1e4709b
+    difference = psf_compound[0].data - psf_separate[0].data
+
+    assert np.all(np.abs(difference) < 1e-3)
 
 def test_AsymmetricObscuredAperture(display=False):
     """  Test that we can run the code with asymmetric spiders

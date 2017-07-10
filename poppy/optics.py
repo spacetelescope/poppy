@@ -1706,6 +1706,13 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
     ----------
     opticslist : list
         A list of AnalyticOpticalElements to be merged together.
+    mergemode : string, default = 'and'
+        Method for merging transmissions:
+            'and' : resulting transmission is product of constituents. (E.g
+                    trans = trans1*trans2)
+            'or'  : resulting transmission is sum of constituents, with overlap
+                    subtracted.  (E.g. trans = trans1 + trans2 - trans1*trans2)
+        In both methods, the resulting OPD is the sum of the constituents' OPDs.
 
     """
 
@@ -1722,7 +1729,7 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
                 return False  # no other types allowed, skip the rest of the list
         return True
 
-    def __init__(self, opticslist=None, name="unnamed", verbose=True, **kwargs):
+    def __init__(self, opticslist=None, name="unnamed", mergemode="and", verbose=True, **kwargs):
         if opticslist is None:
             raise ValueError("Missing required opticslist argument to CompoundAnalyticOptic")
         AnalyticOpticalElement.__init__(self, name=name, verbose=verbose, **kwargs)
@@ -1730,6 +1737,14 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
         self.opticslist = []
         self._default_display_size = 3*u.arcsec
         self.planetype = None
+
+        # check for valid mergemode
+        if mergemode=="and":
+            self.mergemode="and"
+        elif mergemode=="or":
+            self.mergemode="or"
+        else:
+            raise ValueError("mergemode must be either 'and' or 'or'.")
 
         for optic in opticslist:
             if not self._validate_only_analytic_optics(opticslist):
@@ -1760,21 +1775,23 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
             if all([hasattr(o, 'pupil_diam') for o in self.opticslist]):
                 self.pupil_diam = np.asarray([o.pupil_diam.to(u.meter).value for o in self.opticslist]).max() * u.meter
 
-    def get_transmission(self,wave):
-        trans = np.ones(wave.shape, dtype=np.float)
-        for optic in self.opticslist:
-            trans *= optic.get_transmission(wave)
-        return trans
+    def get_transmission(self, wave):
+        if self.mergemode=="and":
+            trans = np.ones(wave.shape, dtype=np.float)
+            for optic in self.opticslist:
+                trans *= optic.get_transmission(wave)
+        elif self.mergemode=="or":
+            trans = np.zeros(wave.shape, dtype=np.float)
+            for optic in self.opticslist:
+                trans = trans + optic.get_transmission(wave) - trans * optic.get_transmission(wave)
+        else:
+            raise ValueError("mergemode must be either 'and' or 'or'.")
+        self.transmission = trans
+        return self.transmission
 
     def get_opd(self,wave):
         opd = np.zeros(wave.shape, dtype=np.float)
         for optic in self.opticslist:
             opd += optic.get_opd(wave)
-        return opd
-
-    def get_phasor(self, wave):
-        phasor = np.ones(wave.shape, dtype=np.complex)
-        for optic in self.opticslist:
-            nextphasor = optic.get_phasor(wave)
-            phasor *= nextphasor
-        return phasor
+        self.opd = opd
+        return self.opd
