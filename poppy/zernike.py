@@ -240,6 +240,10 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
         raise ValueError("If you provide either the `theta` or `rho` input array, you must "
                              "provide both of them.")
 
+    if not np.all(rho.shape==theta.shape):
+        raise ValueError('The rho and theta arrays do not have consistent shape.')
+
+
 
     aperture = np.ones(rho.shape)
     aperture[np.where(rho > 1)] = 0.0  # this is the aperture mask
@@ -331,10 +335,14 @@ def zernike_basis(nterms=15, npix=512, rho=None, theta=None, **kwargs):
     Other parameters are passed through to `poppy.zernike.zernike`
     and are documented there.
     """
-    if rho is not None:
+    if rho is not None and  theta is not None:
         # both are required, but validated in zernike1
         shape = rho.shape
         use_polar = True
+    elif (theta is None and rho is not None) or (theta is not None and rho is None):
+        raise ValueError("If you provide either the `theta` or `rho` input array, you must "
+                             "provide both of them.")
+
     else:
         shape = (npix, npix)
         use_polar = False
@@ -539,7 +547,7 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
     A = aperture.sum()
 
     # precompute zernikes
-    Z = np.full((nterms + 1,) + shape, outside)
+    Z = np.full((nterms + 1,) + shape, outside,dtype=float)
     Z[1:] = zernike_basis(nterms=nterms, npix=npix, rho=rho, theta=theta, outside=0.0)
 
 
@@ -565,8 +573,9 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
         #TODO - contemplate whether the above algorithm is numerically stable
         # cf. modified gram-schmidt algorithm discussion on wikipedia.
 
-    # drop the 0th null element, return the rest
-    return H[1:]
+    basis = np.asarray(H[1:]) # drop the 0th null element
+    basis[:,aperture < 1] = outside
+    return basis
 
 def hexike_basis_wss(nterms=9, npix=512, rho=None, theta=None,
                 x=None,y=None,
