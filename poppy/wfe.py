@@ -242,7 +242,8 @@ class ZernikeWFE(WavefrontError):
 
         combined_zernikes = np.zeros(wave.shape, dtype=np.float64)
         for j, k in enumerate(self.coefficients, start=1):
-            combined_zernikes += k * zernike.cached_zernike1(
+            k_in_m = k.to(u.meter).value
+            combined_zernikes += k_in_m * zernike.cached_zernike1(
                 j,
                 wave.shape,
                 pixelscale_m,

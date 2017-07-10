@@ -682,7 +682,6 @@ class SquareFieldStop(RectangularFieldStop):
         self._default_display_size = size * 1.2*u.arcsec
 
 
-
 class HexagonFieldStop(AnalyticImagePlaneElement):
     """ Defines an ideal hexagonal field stop
 
@@ -763,7 +762,6 @@ class HexagonFieldStop(AnalyticImagePlaneElement):
         self.transmission[w_right_tri] = 1
 
         return self.transmission
-
 
 
 class AnnularFieldStop(AnalyticImagePlaneElement):
