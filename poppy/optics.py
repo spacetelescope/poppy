@@ -305,7 +305,7 @@ class AnalyticOpticalElement(OpticalElement):
         hdul = fits.HDUList(hdus=[phdu])
 
         if outname is not None:
-            phdu.writeto(outname, clobber=True)
+            phdu.writeto(outname, overwrite=True)
             _log.info("Output written to " + outname)
 
         return hdul

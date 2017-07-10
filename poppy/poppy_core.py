@@ -301,7 +301,7 @@ class Wavefront(object):
 
         return outFITS
 
-    def writeto(self, filename, clobber=True, **kwargs):
+    def writeto(self, filename, overwrite=True, **kwargs):
         """Write a wavefront to a FITS file.
 
         Parameters
@@ -310,7 +310,7 @@ class Wavefront(object):
             filename to use
         what : string
             what to write. Must be one of 'parts', 'intensity', 'complex'
-        clobber : bool, optional
+        overwrite : bool, optional
             overwhat existing? default is True
 
         Returns
@@ -319,7 +319,7 @@ class Wavefront(object):
             The output is written to disk.
 
         """
-        self.as_fits(**kwargs).writeto(filename, clobber=clobber)
+        self.as_fits(**kwargs).writeto(filename, overwrite=overwrite)
         _log.info("  Wavefront saved to %s" % filename)
 
     def display(self, what='intensity', nrows=1, row=1, showpadding=False,
@@ -2743,8 +2743,8 @@ class FITSOpticalElement(OpticalElement):
                 self.amplitude[wnoise] = 0
                 self.opd       = scipy.ndimage.interpolation.rotate(self.opd,       rotation, reshape=False)
                 _log.info("  Rotated optic by %f degrees counter clockwise." % rotation)
-                #fits.PrimaryHDU(self.amplitude).writeto("test_rotated_amp.fits", clobber=True)
-                #fits.PrimaryHDU(self.opd).writeto("test_rotated_opt.fits", clobber=True)
+                #fits.PrimaryHDU(self.amplitude).writeto("test_rotated_amp.fits", overwrite=True)
+                #fits.PrimaryHDU(self.opd).writeto("test_rotated_opt.fits", overwrite=True)
                 self._rotation = rotation
 
 

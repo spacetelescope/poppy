@@ -139,7 +139,7 @@ class Instrument(object):
     # ----- actual optical calculations follow here -----
     def calc_psf(self, outfile=None, source=None, nlambda=None, monochromatic=None,
                  fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
-                 rebin=True, clobber=True, display=False, save_intermediates=False, return_intermediates=False,
+                 rebin=True, overwrite=True, display=False, save_intermediates=False, return_intermediates=False,
                  normalize='first'):
         """ Compute a PSF.
         The result can either be written to disk (set outfile="filename") or else will be returned as
@@ -184,7 +184,7 @@ class Instrument(object):
             If set, the output file will contain a FITS image extension containing the PSF rebinned
             onto the actual detector pixel scale. Thus, setting oversample=<N> and rebin=True is
             the proper way to obtain high-fidelity PSFs computed on the detector scale. Default is True.
-        clobber : bool
+        overwrite : bool
             overwrite output FITS file if it already exists?
         display : bool
             Whether to display the PSF when done or not.
@@ -296,7 +296,7 @@ class Instrument(object):
 
         if outfile is not None:
             result[0].header["FILENAME"] = (os.path.basename(outfile), "Name of this file")
-            result.writeto(outfile, clobber=clobber)
+            result.writeto(outfile, overwrite=overwrite)
             poppy_core._log.info("Saved result to " + outfile)
 
         if return_intermediates:

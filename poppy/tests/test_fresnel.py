@@ -383,7 +383,7 @@ def test_fresnel_FITS_Optical_element(tmpdir, display=False):
     fits_zern = m1_zernike.to_fits(what='opd')
 
     filename=os.path.join(str(tmpdir), "astigmatism.fits")
-    fits_zern.writeto(filename, clobber=True)
+    fits_zern.writeto(filename, overwrite=True)
     astig_surf = poppy_core.FITSOpticalElement(opd=filename,
         planetype=poppy_core._INTERMED,
         oversample=1)
