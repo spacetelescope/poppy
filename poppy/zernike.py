@@ -243,8 +243,6 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
     if not np.all(rho.shape==theta.shape):
         raise ValueError('The rho and theta arrays do not have consistent shape.')
 
-
-
     aperture = np.ones(rho.shape)
     aperture[np.where(rho > 1)] = 0.0  # this is the aperture mask
 
