@@ -7,7 +7,7 @@ About POPPY
 Acknowledging or citing POPPY
 --------------------------------
 
-If you use this pacakge for work or research presented in a publication
+If you use this package for work or research presented in a publication
 (whether directly, or as a dependency to another package), we would be grateful
 if you could include the following acknowledgment:
 
