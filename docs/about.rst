@@ -7,7 +7,7 @@ About POPPY
 Acknowledging or citing POPPY
 --------------------------------
 
-If you use this pacakge for work or research presented in a publication
+If you use this package for work or research presented in a publication
 (whether directly, or as a dependency to another package), we would be grateful
 if you could include the following acknowledgment:
 
@@ -31,13 +31,15 @@ list of contributors.
 Direct contributors to POPPY code
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
- * Marshall Perrin
- * Joseph Long
- * Ewan Douglas
- * Neil Zimmerman
- * Anand Sivaramakrishnan
- * Christine Slocum
- * Kyle Douglass
+ * Marshall Perrin (@mperrin)
+ * Joseph Long (@josephoenix)
+ * Ewan Douglas (@douglase)
+ * Neil Zimmerman (@neilzim)
+ * Anand Sivaramakrishnan (@anand0xff)
+ * Maciek Grochowicz (@maciekgroch)
+ * Ted Corcovilos (@corcoted)
+ * Kyle Douglass (@kmdouglas)
+ * Christine Slocum (@cslocum)
 
 Indirect Contributors (algorithms, advice, ideas, inspirations)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -45,7 +47,6 @@ Indirect Contributors (algorithms, advice, ideas, inspirations)
  * Remi Soummer
  * Laurent Pueyo
  * Charles Lajoie
- * Kyle Van Gorkom
  * Mark Sienkiewicz
  * Perry Greenfield
 
@@ -67,7 +68,7 @@ Contributors via Astropy Affiliated Package Template
 
 
 This work was supported in part by the JWST mission, a joint effort of NASA,
-ESA, and CSA, and by the WFIRST pre-phase-A mission development project. STScI
+ESA, and CSA, and by the WFIRST Phase-A mission development project. STScI
 is operated on behalf of NASA by the Association of Universities for Research
 in Astronomy.
 
@@ -76,7 +77,7 @@ in Astronomy.
 License
 -----------------
 
-Copyright (C) 2010-2016 Association of Universities for Research in Astronomy (AURA)
+Copyright (C) 2010-2017 Association of Universities for Research in Astronomy (AURA)
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:

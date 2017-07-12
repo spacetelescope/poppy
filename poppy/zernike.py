@@ -228,17 +228,20 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
                   "(are you sure you wanted this Zernike?)".format(m, n))
     _log.debug("Zernike(n=%d, m=%d)" % (n, m))
 
-    if theta is None:
+
+    if theta is None and rho is None:
         x = (np.arange(npix, dtype=np.float64) - (npix - 1) / 2.) / ((npix - 1) / 2.)
         y = x
         xx, yy = np.meshgrid(x, y)
 
         rho = np.sqrt(xx ** 2 + yy ** 2)
         theta = np.arctan2(yy, xx)
-    else:
-        if rho is None:
-            raise ValueError("If you provide a theta input array, you must also provide an array "
-                             "r with the corresponding radii for each point.")
+    elif (theta is None and rho is not None) or (theta is not None and rho is None):
+        raise ValueError("If you provide either the `theta` or `rho` input array, you must "
+                             "provide both of them.")
+
+    if not np.all(rho.shape==theta.shape):
+        raise ValueError('The rho and theta arrays do not have consistent shape.')
 
     aperture = np.ones(rho.shape)
     aperture[np.where(rho > 1)] = 0.0  # this is the aperture mask
@@ -330,10 +333,14 @@ def zernike_basis(nterms=15, npix=512, rho=None, theta=None, **kwargs):
     Other parameters are passed through to `poppy.zernike.zernike`
     and are documented there.
     """
-    if rho is not None:
+    if rho is not None and  theta is not None:
         # both are required, but validated in zernike1
         shape = rho.shape
         use_polar = True
+    elif (theta is None and rho is not None) or (theta is not None and rho is None):
+        raise ValueError("If you provide either the `theta` or `rho` input array, you must "
+                             "provide both of them.")
+
     else:
         shape = (npix, npix)
         use_polar = False
@@ -439,7 +446,7 @@ def zernike_basis_faster(nterms=15, npix=512, outside=np.nan):
     return zern_output
 
 
-def hex_aperture(npix=1024, rho=None, theta=None, vertical=False):
+def hex_aperture(npix=1024, rho=None, theta=None, vertical=False, outside=0):
     """
     Return an aperture function for a hexagon.
 
@@ -459,11 +466,17 @@ def hex_aperture(npix=1024, rho=None, theta=None, vertical=False):
         that it can be circumscribed in a rho = 1 circle.
     vertical : bool
         Make flat sides parallel to the Y axis instead of the default X.
+    outside : float
+        Value for pixels outside the hexagonal aperture.
+        Default is `np.nan`, but you may also find it useful for this to
+        be 0.0 sometimes.
+
     """
 
     if rho is not None or theta is not None:
         if rho is None or theta is None:
-            raise ValueError("You must supply both `theta` and `rho`, or neither.")
+            raise ValueError("If you provide either the `theta` or `rho` input array, "
+                             "you must provide both of them.")
         # easier to define a hexagon in cartesian, so...
         x = rho * np.cos(theta)
         y = rho * np.sin(theta)
@@ -475,7 +488,7 @@ def hex_aperture(npix=1024, rho=None, theta=None, vertical=False):
 
     absy = np.abs(y)
 
-    aperture = np.zeros(x.shape)
+    aperture = np.full(x.shape, outside)
     w_rect = np.where((np.abs(x) <= 0.5) & (np.abs(y) <= np.sqrt(3) / 2))
     w_left_tri = np.where((x <= -0.5) & (x >= -1) & (absy <= (x + 1) * np.sqrt(3)))
     w_right_tri = np.where((x >= 0.5) & (x <= 1) & (absy <= (1 - x) * np.sqrt(3)))
@@ -528,11 +541,11 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
     else:
         shape = (npix, npix)
 
-    aperture = hex_aperture(npix=npix, rho=rho, theta=theta, vertical=vertical)
+    aperture = hex_aperture(npix=npix, rho=rho, theta=theta, vertical=vertical, outside=0)
     A = aperture.sum()
 
     # precompute zernikes
-    Z = np.zeros((nterms + 1,) + shape)
+    Z = np.full((nterms + 1,) + shape, outside,dtype=float)
     Z[1:] = zernike_basis(nterms=nterms, npix=npix, rho=rho, theta=theta, outside=0.0)
 
 
@@ -558,8 +571,9 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
         #TODO - contemplate whether the above algorithm is numerically stable
         # cf. modified gram-schmidt algorithm discussion on wikipedia.
 
-    # drop the 0th null element, return the rest
-    return H[1:]
+    basis = np.asarray(H[1:]) # drop the 0th null element
+    basis[:,aperture < 1] = outside
+    return basis
 
 def hexike_basis_wss(nterms=9, npix=512, rho=None, theta=None,
                 x=None,y=None,
