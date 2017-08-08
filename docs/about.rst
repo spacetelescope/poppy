@@ -3,7 +3,6 @@
 About POPPY
 ===================
 
-
 Acknowledging or citing POPPY
 --------------------------------
 
@@ -29,7 +28,7 @@ on Github at http://github.com/mperrin/poppy . See that page for the most up-to-
 list of contributors. 
 
 Direct contributors to POPPY code
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
  * Marshall Perrin (@mperrin)
  * Joseph Long (@josephoenix)
@@ -40,6 +39,7 @@ Direct contributors to POPPY code
  * Ted Corcovilos (@corcoted)
  * Kyle Douglass (@kmdouglas)
  * Christine Slocum (@cslocum)
+ * Matt Mechtley (@mmechtley)
 
 Indirect Contributors (algorithms, advice, ideas, inspirations)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

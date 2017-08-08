@@ -1,16 +1,41 @@
+.. _whatsnew:
 
 Release Notes
 ===============
 
 For a list of contributors, see :ref:`about`.
 
-.. _whatsnew:
+0.6.0
+-----
 
+*Unreleased*
 
-0.5
----
+.. _rel0.5.1:
 
-*2016 June 10:*
+0.5.1
+-----
+
+*2016 October 28*
+
+ * Fix ConfigParser import (see `astropy/package-template#172 <https://github.com/astropy/package-template/pull/172>`_)
+ * Fixes to formatting of ``astropy.units.Quantity`` values (`#171 <https://github.com/mperrin/poppy/issues/171>`_, `#174 <https://github.com/mperrin/poppy/pull/174>`_, `#179 <https://github.com/mperrin/poppy/pull/174>`_; @josephoenix, @neilzim)
+ * Fixes to ``fftw_save_wisdom`` and ``fftw_load_wisdom`` (`#177 <https://github.com/mperrin/poppy/issues/177>`_, `#178 <https://github.com/mperrin/poppy/pull/178>`_; @mmecthley)
+ * Add ``calc_datacube`` method to ``poppy.Instrument`` (`#182 <https://github.com/mperrin/poppy/issues/182>`_; @mperrin)
+ * Test for Apple Accelerate more narrowly (`#176 <https://github.com/mperrin/poppy/issues/176>`_; @mperrin)
+ * ``Wavefront.display()`` correctly handles ``vmin`` and ``vmax`` args (`#183 <https://github.com/mperrin/poppy/pull/183>`_; @neilzim)
+ * Changes to Travis-CI configuration (`#197 <https://github.com/mperrin/poppy/pull/197>`_; @etollerud)
+ * Warn on requested field-of-view too large for pupil sampling (`#180 <https://github.com/mperrin/poppy/issues/180>`_; reported by @mmechtley, addressed by @mperrin)
+ * Bugfix for ``add_detector`` in ``FresnelOpticalSystem`` (`#193 <https://github.com/mperrin/poppy/pull/193>`_; @maciekgroch)
+ * Fixes to unit handling and short-distance propagation in ``FresnelOpticalSystem`` (`#194 <https://github.com/mperrin/poppy/issues/194>`_; @maciekgroch, @douglase, @mperrin)
+ * PEP8 renaming for ``poppy.fresnel`` for consistency with the rest of POPPY: ``propagateTo`` becomes ``propagate_to``, ``addPupil`` and ``addImage`` become ``add_pupil`` and ``add_image``, ``inputWavefront`` becomes ``input_wavefront``, ``calcPSF`` becomes ``calc_psf`` (@mperrin)
+ * Fix ``display_psf(..., markcentroid=True)`` (`#175 <https://github.com/mperrin/poppy/issues/175>`_, @josephoenix)
+
+.. _rel0.5.0:
+
+0.5.0
+-----
+
+*2016 June 10*
 
 Several moderately large enhancements, involving lots of under-the-hood updates to the code. (*While we have tested this code extensively, it is possible that there may be
 some lingering bugs. As always, please let us know of any issues encountered via `the github issues page 
@@ -22,8 +47,7 @@ some lingering bugs. As always, please let us know of any issues encountered via
    ``wavelength=500*u.nm``, etc. You can also generally use Quantities for 
    arguments to OpticalElement classes, e.g. ``radius=2*u.cm``. This is *optional*; the
    API still accepts bare floating-point numbers which are treated as implicitly in meters.
-   (`#145 <https://github.com/mperrin/poppy/issues/145>`_, `#165 <https://github.com/mperrin/poppy/pull/165>`_;
-        @mperrin, douglase)
+   (`#145 <https://github.com/mperrin/poppy/issues/145>`_, `#165 <https://github.com/mperrin/poppy/pull/165>`_; @mperrin, douglase)
  * The ``getPhasor`` function for all OpticalElements has been refactored to split it into 3
    functions: ``get_transmission`` (for electric field amplitude transmission), ``get_opd``
    (for the optical path difference affectig the phase), and ``get_phasor`` (which combines transmission 
@@ -71,7 +95,7 @@ And some smaller enhancements and fixes:
  * remove deprecated parameters in some function calls 
    (`#148 <https://github.com/mperrin/poppy/issues/148>`_; @mperrin)
 
-
+.. _rel0.4.1:
 
 0.4.1
 -----
@@ -97,7 +121,7 @@ And a few more significant enhancements:
  * The `OpticalSystem` class now has `npix` and `pupil_diameter` parameters, consistent with the `FresnelOpticalSystem`.  (`#141 <https://github.com/mperrin/poppy/issues/141>`_; @mperrin)
  * Added `SineWaveWFE` class to represent a periodic phase ripple.
 
-
+.. _rel0.4.0:
 
 0.4.0
 -----
@@ -144,6 +168,7 @@ And a few more significant enhancements:
    `#126 <https://github.com/mperrin/poppy/pull/126>`_, 
    `#127 <https://github.com/mperrin/poppy/pull/127>`_; @josephoenix, @mperrin)
 
+.. _rel0.3.5:
 
 0.3.5
 -----
@@ -169,10 +194,10 @@ And a few more significant enhancements:
    * Copy in-memory FITS HDULists that are passed in to FITSOpticalElement so that in-place modifications don't affect the caller's copy of the data (`#89 <https://github.com/mperrin/poppy/issues/89>`_)
    * Error in the :py:func:`poppy.utils.measure_EE` function produced values for the edges of the radial bins that were too large, biasing EE values and leading to weird interpolation behavior near r = 0. (`#96 <https://github.com/mperrin/poppy/pull/96>`_)
 
-
+.. _rel0.3.4:
 
 0.3.4
--------------------
+-----
 
 2015 February 17
 
@@ -192,8 +217,11 @@ And a few more significant enhancements:
  * Set up integration with Travis CI for continuous testing. See https://travis-ci.org/mperrin/poppy
  
 
+.. _rel0.3.3:
+
 0.3.3
--------------------
+-----
+
 2014 Nov
 
 :ref:`Bigger team!<about_team>`. This release log now includes github usernames of contributors: 
@@ -209,14 +237,20 @@ And a few more significant enhancements:
  * Bug fix to compound optic display (@mperrin)
  * Documentation improvements (team)
 
+.. _rel0.3.2:
+
 0.3.2
--------------------
+-----
+
 Released 2014 Sept 8
 
  * Bug fix: Correct pupil orientation for inverse transformed pupils using PyFFTW so that it is consistent with the result using numpy FFT.
 
+.. _rel0.3.1:
+
 0.3.1
--------------------
+-----
+
 Released August 14 2014
 
  * Astropy compatibility updated to 0.4. 
@@ -231,10 +265,10 @@ Released August 14 2014
  * Packaging improvements and installation process streamlining, courtesy of Christine Slocum and Erik Bray
  * Documentation improvements, in particular adding an IPython notebook tutorial. 
 
+.. _rel0.3.0:
 
-
-0.3
-----------
+0.3.0
+-----
 
 Released April 7, 2014
 
@@ -260,11 +294,12 @@ Released April 7, 2014
  * Added AnalyticOpticalElement.sample() function to sample analytic functions onto a user defined grid. Refactored 
    the display() and toFITS() functions. Improved functionality of display for CompoundAnalyticOptics. 
 
+.. _rel0.2.8:
+
 0.2.8
-----------
+-----
+
  * First release as a standalone package (previously was integrated as part of webbpsf). See the release notes for WebbPSF for prior verions.
  * switched package building to use `setuptools` instead of `distutils`/`stsci_distutils_hack`
  * new `Instrument` class in poppy provides much of the functionality previously in JWInstrument, to make it
    easier to model generic non-JWST instruments using this code.
-
-
