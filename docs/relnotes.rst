@@ -10,6 +10,23 @@ For a list of contributors, see :ref:`about`.
 
 *Unreleased*
 
+ * WavefrontError and subclasses now handle tilts and shifts correctly (`#229 <https://github.com/mperrin/poppy/issues/229>`_, @mperrin) Thanks @corcoted for reporting!
+ * Fix the ``test_zernikes_rms`` test case to correctly take the absolute value of the RMS error, support ``outside=`` for ``hexike_basis``, enforce which arguments are required for ``zernike()``. (`#223 <https://github.com/mperrin/poppy/issues/223>`_, @mperrin) Thanks to @kvangorkom for reporting!
+ * Bug fix for stricter Quantity behavior (``UnitTypeError``) in Astropy 2.0 (@mperrin)
+ * Added an optional parameter "mergemode" to CompoundAnalyticOptic which provides two ways to combine AnalyticOptics: ``mergemode="and"`` is the previous behavior (and new default), ``mergemode="or"`` adds the transmissions of the optics, correcting for any overlap. (`#227 <https://github.com/mperrin/poppy/pull/227>`_, @corcoted)
+ * Add HexagonFieldStop optic (useful for making hexagon image masks for JWST WFSC, among other misc tasks.) (@mperrin)
+ * Fix behavior where ``zernike.arbitrary_basis`` would sometimes clip apertures (`#222 <https://github.com/mperrin/poppy/pull/222>`_, @kvangorkom)
+ * Fix ``propagate_direct`` in fresnel wavefront as described in issue `#216 <https://github.com/mperrin/poppy/issues/216>_` (`#218 <https://github.com/mperrin/poppy/pull/218>`_, @maciekgroch)
+ * ``display_ee()`` was not passing the ``ext=`` argument through to ``radial_profile()``, but now it does. (`#220 <https://github.com/mperrin/poppy/pull/220>`_, @josephoenix)
+ * Fix displaying planes where ``what='amplitude'`` (`#217 <https://github.com/mperrin/poppy/pull/217>`_, @maciekgroch)
+ * Fix handling of FITSOpticalElement big-endian arrays to match recent changes in SciPy (@mperrin) Thanks to @douglase for reporting!
+ * ``radial_profile`` now handles ``nan`` values in radial standard deviations (`#214 <https://github.com/mperrin/poppy/pull/214>`_, @douglase)
+ * The FITS header keywords that are meaningful to POPPY are now documented in :doc:`fitsheaders` and a new ``PIXUNIT`` keyword encodes "units of the pixels in the header, typically either *arcsecond* or *meter*" (`#205 <https://github.com/mperrin/poppy/pull/205>`_, @douglase)
+ * A typo in the handling of the ``markcentroid`` argument to ``display_psf`` is now fixed (so the argument can be set ``True``) (`#211 <https://github.com/mperrin/poppy/pull/211>`_, @josephoenix)
+ * ``radial_profile`` now accepts an optional ``pa_range=`` argument to specify the [min, max] position angles to be included in the radial profile. (@mperrin)
+ * Fixes in POPPY to account for the fact that NumPy 1.12+ raises an ``IndexError`` when non-integers are used to index an array (`#203 <https://github.com/mperrin/poppy/pull/203>`_, @kmdouglass)
+ * POPPY demonstration notebooks have been refreshed by @douglase to match output of the current code
+
 .. _rel0.5.1:
 
 0.5.1
