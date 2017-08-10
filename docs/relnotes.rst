@@ -5,10 +5,12 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+.. _rel0.6.0:
+
 0.6.0
 -----
 
-*Unreleased*
+*2017 August 10*
 
  * WavefrontError and subclasses now handle tilts and shifts correctly (`#229 <https://github.com/mperrin/poppy/issues/229>`_, @mperrin) Thanks @corcoted for reporting!
  * Fix the ``test_zernikes_rms`` test case to correctly take the absolute value of the RMS error, support ``outside=`` for ``hexike_basis``, enforce which arguments are required for ``zernike()``. (`#223 <https://github.com/mperrin/poppy/issues/223>`_, @mperrin) Thanks to @kvangorkom for reporting!
