@@ -11,7 +11,7 @@ def test_zernikes_rms(nterms=10, size=500):
         n, m = zernike.noll_indices(j)
         z = zernike.zernike(n, m, npix=size)
         rms = np.nanstd(z)  # exclude masked pixels
-        assert 1.0 - rms < 0.001, "Zernike(j={}) has RMS value of {}".format(j, rms)
+        assert abs(1.0 - rms) < 0.001, "Zernike(j={}) has RMS value of {}".format(j, rms)
 
 
 def test_ones_zernikes(nterms=10):
@@ -70,6 +70,7 @@ def _test_cross_zernikes(testj=4, nterms=10, npix=500):
     """
 
     zj = zernike.zernike1(testj, npix=npix)
+    assert np.sum(np.isfinite(zj)) > 0, "Zernike calculation failure; all NaNs."
     zbasis = zernike.zernike_basis(nterms=nterms, npix=npix)
     for idx, z in enumerate(zbasis):
         j = idx + 1
@@ -100,6 +101,8 @@ def _test_cross_hexikes(testj=4, nterms=10, npix=500):
     """Verify the functions are orthogonal, by taking the
     integrals of a given Hexike times N other ones.
 
+    This is a helper function for test_cross_hexike.
+
     Parameters :
     --------------
     testj : int
@@ -112,6 +115,7 @@ def _test_cross_hexikes(testj=4, nterms=10, npix=500):
 
     hexike_basis = zernike.hexike_basis(nterms=nterms, npix=npix)
     test_hexike = hexike_basis[testj - 1]
+    assert np.sum(np.isfinite(test_hexike)) > 0, "Hexike calculation failure; all NaNs."
     for idx, hexike_array in enumerate(hexike_basis):
         j = idx + 1
         if j == testj or j == 1:
@@ -156,6 +160,8 @@ def _test_cross_arbitrary_basis(testj=4, nterms=10, npix=500):
     """Verify the functions are orthogonal, by taking the
     integrals of a given mode times N other ones.
 
+    This is a helper function for test_cross_arbitrary_basis.
+
     Parameters :
     --------------
     testj : int
@@ -170,6 +176,7 @@ def _test_cross_arbitrary_basis(testj=4, nterms=10, npix=500):
     square_basis = zernike.arbitrary_basis(square_aperture,nterms=nterms)
 
     test_mode = square_basis[testj - 1]
+    assert np.sum(np.isfinite(test_mode)) > 0, "Basis function calculation failure; all NaNs."
     for idx, array in enumerate(square_basis):
         j = idx + 1
         if j == testj or j == 1:
@@ -187,8 +194,8 @@ def _test_cross_arbitrary_basis(testj=4, nterms=10, npix=500):
 
 
 def test_cross_arbitrary_basis():
-    """Verify orthogonality for a subset of Hexikes by taking the integral of
-    that Hexike times N other ones.
+    """Verify orthogonality for a subset of basis functions by taking the integral of
+    each function times N other ones.
 
     Note that the Hexike are only strictly orthonormal over a
     fully hexagonal aperture evauated analytically. For any discrete
@@ -220,9 +227,7 @@ def test_opd_expand(npix=512, input_coefficients=(0.1, 0.2, 0.3, 0.4, 0.5)):
     assert max_diff_v2 < 1e-3, "recovered coefficients from wf_expand more than 0.1% off"
 
 
-
 def test_opd_from_zernikes():
-
     coeffs = [0,0.1, 0.4, 2, -0.3]
     opd = zernike.opd_from_zernikes(coeffs, npix=256)
 
@@ -252,14 +257,13 @@ def test_zern_name():
     assert zernike.zern_name(20)=='Pentafoil X', "Unexpected return value"
     assert zernike.zern_name(352)=='Z352', "Unexpected return value"
 
+
 def test_str_zernike():
     assert zernike.str_zernike(4,0) == 'sqrt(5)* ( 6 r^4  -6 r^2  +1 r^0  ) ', "Unexpected return value"
     assert zernike.str_zernike(5,5) == '\\sqrt{12}* ( 1 r^5  ) * \\cos(5 \\theta)', "Unexpected return value"
 
 
-
 def test_zernike_basis_faster():
-
     bf = zernike.zernike_basis_faster(12, outside=0)
     bs = zernike.zernike_basis(12, outside=0)
     assert np.allclose(bf,bs), "Fast zernike basis calculation doesn't match the slow calculation"

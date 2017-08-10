@@ -1,7 +1,7 @@
 .. _fitsheaders:
 
 POPPY FITS Header Keywords Definitions
-=============
+======================================
 
 
 * `WAVELEN`: Wavelength in meters

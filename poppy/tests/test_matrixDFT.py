@@ -108,7 +108,7 @@ def test_MFT_flux_conservation(centering='FFTSTYLE', outdir=None, outname='test_
     pupil = makedisk(s=(npupil, npupil), c=ctr, r=float(npupil)/2.0001, t=np.float64, grey=0)
     pupil /= np.sqrt(pupil.sum())
     if outdir is not None:
-        fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
+        fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", overwrite=True)
 
     # MFT setup style and execute
     mft = matrixDFT.MatrixFourierTransform(centering=centering, verbose=True)
@@ -126,11 +126,11 @@ def test_MFT_flux_conservation(centering='FFTSTYLE', outdir=None, outname='test_
     if outdir is not None:
         complexinfo(a, str="mft1 asf")
         asf = a.real.copy()
-        fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
+        fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", overwrite=True)
         cpsf = a * a.conjugate()
         psf = cpsf.real.copy()
-        #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), clobber='y')
-        fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
+        #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), overwrite='y')
+        fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", overwrite=True)
 
     assert np.abs(1.0 - ratio) < precision
 
@@ -205,7 +205,7 @@ def test_DFT_rect(centering='FFTSTYLE', outdir=None, outname='DFT1R_', npix=None
 
 
     if outdir is not None:
-        fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
+        fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", overwrite=True)
 
     _log.info('performing MFT with pupil shape: '+ str(pupil.shape)+ ' nlamd: '+ str( nlamd)+ '  npix: '+ str(npix))
     a = mft1.perform(pupil, nlamd, npix)
@@ -233,11 +233,11 @@ def test_DFT_rect(centering='FFTSTYLE', outdir=None, outname='DFT1R_', npix=None
     #_log.info(complexinfo(a, str=",ft1 asf"))
     asf = a.real.copy()
     if outdir is not None:
-        fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
+        fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", overwrite=True)
     cpsf = a * a.conjugate()
     psf = cpsf.real.copy()
     if outdir is not None:
-        fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
+        fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", overwrite=True)
 
     # Inverse transform:
     pupil2 = mft1.inverse(a, u, npupil)
@@ -294,7 +294,7 @@ def test_DFT_center( npix=100, outdir=None, outname='DFT1'):
     pupil /= np.sqrt(pupil.sum())
 
     if outdir is not None:
-        fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
+        fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", overwrite=True)
 
     a = mft1.perform(pupil, u, npix)
 
@@ -314,10 +314,10 @@ def test_DFT_center( npix=100, outdir=None, outname='DFT1'):
     asf = a.real.copy()
     cpsf = a * a.conjugate()
     psf = cpsf.real.copy()
-    #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), clobber='y')
+    #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), overwrite='y')
     if outdir is not None:
-        fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
-        fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
+        fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", overwrite=True)
+        fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", overwrite=True)
 
 def test_DFT_rect_fov_sampling(fov_npix = (500,1000), pixelscale=0.03, display=False):
     """ Test that we can create a rectangular FOV which nonetheless
@@ -447,7 +447,7 @@ def run_all_MFS_tests_DFT(outdir=None, outname='DFT1'):
     pupil /= np.sqrt(pupil.sum())
 
     if outdir is not None:
-        fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
+        fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", overwrite=True)
 
     npix=512
     a1 = DFT_combined(pupil, u, npix, centering='FFTSTYLE')
@@ -457,11 +457,11 @@ def run_all_MFS_tests_DFT(outdir=None, outname='DFT1'):
     a5 = DFT_symmetric(pupil, u, npix)
 
     if outdir is not None:
-        fits.writeto(outdir+os.sep+outname+"_a1_fft.fits",(a1*a1.conjugate()).real, clobber=True)
-        fits.writeto(outdir+os.sep+outname+"_a2_sym.fits",(a2*a2.conjugate()).real, clobber=True)
-        fits.writeto(outdir+os.sep+outname+"_a3_adj.fits",(a3*a3.conjugate()).real, clobber=True)
-        fits.writeto(outdir+os.sep+outname+"_a4_fftr.fits",(a4*a4.conjugate()).real, clobber=True)
-        fits.writeto(outdir+os.sep+outname+"_a5_symr.fits",(a5*a5.conjugate()).real, clobber=True)
+        fits.writeto(outdir+os.sep+outname+"_a1_fft.fits",(a1*a1.conjugate()).real, overwrite=True)
+        fits.writeto(outdir+os.sep+outname+"_a2_sym.fits",(a2*a2.conjugate()).real, overwrite=True)
+        fits.writeto(outdir+os.sep+outname+"_a3_adj.fits",(a3*a3.conjugate()).real, overwrite=True)
+        fits.writeto(outdir+os.sep+outname+"_a4_fftr.fits",(a4*a4.conjugate()).real, overwrite=True)
+        fits.writeto(outdir+os.sep+outname+"_a5_symr.fits",(a5*a5.conjugate()).real, overwrite=True)
 
     npix=513
     b1 = DFT_combined(pupil, u, npix, centering='FFTSTYLE')
@@ -472,11 +472,11 @@ def run_all_MFS_tests_DFT(outdir=None, outname='DFT1'):
 
 
     if outdir is not None:
-        fits.writeto(outdir+os.sep+outname+"_b1_fft.fits",(b1*b1.conjugate()).real, clobber=True)
-        fits.writeto(outdir+os.sep+outname+"_b2_sym.fits",(b2*b2.conjugate()).real, clobber=True)
-        fits.writeto(outdir+os.sep+outname+"_b3_adj.fits",(b3*b3.conjugate()).real, clobber=True)
-        fits.writeto(outdir+os.sep+outname+"_b4_fftr.fits",(b4*b4.conjugate()).real, clobber=True)
-        fits.writeto(outdir+os.sep+outname+"_b5_symr.fits",(b5*b5.conjugate()).real, clobber=True)
+        fits.writeto(outdir+os.sep+outname+"_b1_fft.fits",(b1*b1.conjugate()).real, overwrite=True)
+        fits.writeto(outdir+os.sep+outname+"_b2_sym.fits",(b2*b2.conjugate()).real, overwrite=True)
+        fits.writeto(outdir+os.sep+outname+"_b3_adj.fits",(b3*b3.conjugate()).real, overwrite=True)
+        fits.writeto(outdir+os.sep+outname+"_b4_fftr.fits",(b4*b4.conjugate()).real, overwrite=True)
+        fits.writeto(outdir+os.sep+outname+"_b5_symr.fits",(b5*b5.conjugate()).real, overwrite=True)
 
 
     u2 = (u, u/4)
@@ -488,11 +488,11 @@ def run_all_MFS_tests_DFT(outdir=None, outname='DFT1'):
     c5 = DFT_adjustable_rect(pupil, u2, npix2)
 
     if outdir is not None:
-        fits.writeto(outdir+os.sep+outname+"_c1_fft.fits",(c1*c1.conjugate()).real, clobber=True)
-        fits.writeto(outdir+os.sep+outname+"_c2_sym.fits",(c2*c2.conjugate()).real, clobber=True)
-        fits.writeto(outdir+os.sep+outname+"_c3_adj.fits",(c3*c3.conjugate()).real, clobber=True)
-        fits.writeto(outdir+os.sep+outname+"_c4_fftr.fits",(c4*c4.conjugate()).real, clobber=True)
-        fits.writeto(outdir+os.sep+outname+"_c5_adjr.fits",(c5*c5.conjugate()).real, clobber=True)
+        fits.writeto(outdir+os.sep+outname+"_c1_fft.fits",(c1*c1.conjugate()).real, overwrite=True)
+        fits.writeto(outdir+os.sep+outname+"_c2_sym.fits",(c2*c2.conjugate()).real, overwrite=True)
+        fits.writeto(outdir+os.sep+outname+"_c3_adj.fits",(c3*c3.conjugate()).real, overwrite=True)
+        fits.writeto(outdir+os.sep+outname+"_c4_fftr.fits",(c4*c4.conjugate()).real, overwrite=True)
+        fits.writeto(outdir+os.sep+outname+"_c5_adjr.fits",(c5*c5.conjugate()).real, overwrite=True)
 
 
     for c, label in zip([c1, c2, c3, c4,c5], ['comb-fft', 'comb-sym', 'comb-adj', 'fft_rect', 'adj_rect']) :

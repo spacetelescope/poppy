@@ -71,24 +71,6 @@ class WavefrontError(AnalyticOpticalElement):
         if not isinstance(wave, Wavefront):
             wave = Wavefront(wavelength=wave)
 
-    @_accept_wavefront_or_meters
-    def getPhasor(self, wave):
-        """Construct the phasor array for an input wavefront `wave`
-        that will apply the wavefront error model based on an OPD
-        map from the `get_opd` method.
-
-        Parameters
-        ----------
-        wave : Wavefront or float
-            Wavefront object with a `coordinates` method that returns (y, x)
-            coordinate arrays in meters in the pupil plane, or float with
-            a wavefront wavelength in meters
-        """
-        opd_map = self.get_opd(wave, units='meters')
-        opd_as_phase = 2 * np.pi * opd_map / (wave.wavelength.to(u.meter).value)
-        wfe_phasor = np.exp(1.j * opd_as_phase)
-        return wfe_phasor
-
     def rms(self):
         """RMS wavefront error induced by this surface"""
         raise NotImplementedError('Not implemented yet')
@@ -97,7 +79,7 @@ class WavefrontError(AnalyticOpticalElement):
         """Peak-to-valley wavefront error induced by this surface"""
         raise NotImplementedError('Not implemented yet')
 
-def _wave_to_rho_theta(wave, pupil_radius):
+def _wave_y_x_to_rho_theta(y, x, pupil_radius):
     """
     Return wave coordinates in (rho, theta) for a Wavefront object
     normalized such that rho == 1.0 at the pupil radius
@@ -110,7 +92,6 @@ def _wave_to_rho_theta(wave, pupil_radius):
     pupil_radius : float
         Radius (in meters) of a circle circumscribing the pupil.
     """
-    y, x = wave.coordinates()
     r = np.sqrt(x ** 2 + y ** 2)
 
     rho = r / pupil_radius
@@ -156,23 +137,22 @@ class ParameterizedWFE(WavefrontError):
         compatibility with `zernike.zernike_basis` and
         `zernike.hexike_basis`.)
     """
+    @utils.quantity_input(coefficients=u.meter, radius=u.meter)
     def __init__(self, name="Parameterized Distortion", coefficients=None, radius=None,
                  basis_factory=None, **kwargs):
         if not isinstance(basis_factory, collections.Callable):
             raise ValueError("'basis_factory' must be a callable that can "
                              "calculate basis functions")
-        try:
-            self.radius = float(radius)
-        except TypeError:
-            raise ValueError("'radius' must be the radius of a circular aperture in meters"
-                             "(optionally circumscribing a pupil of another shape)")
+        self.radius = radius
         self.coefficients = coefficients
         self.basis_factory = basis_factory
         super(ParameterizedWFE, self).__init__(name=name, **kwargs)
 
     @_accept_wavefront_or_meters
     def get_opd(self, wave, units='meters'):
-        rho, theta = _wave_to_rho_theta(wave, self.radius)
+        y, x = self.get_coordinates(wave)
+        rho, theta = _wave_y_x_to_rho_theta(y, x, self.radius.to(u.meter).value)
+
         combined_distortion = np.zeros(rho.shape)
 
         nterms = len(self.coefficients)
@@ -181,7 +161,8 @@ class ParameterizedWFE(WavefrontError):
         for idx, coefficient in enumerate(self.coefficients):
             if coefficient == 0.0:
                 continue  # save the trouble of a multiply-and-add of zeros
-            combined_distortion += coefficient * computed_terms[idx]
+            coefficient_in_m = coefficient.to(u.meter).value
+            combined_distortion += coefficient_in_m * computed_terms[idx]
         if units == 'meters':
             return combined_distortion
         elif units == 'waves':
@@ -205,12 +186,9 @@ class ZernikeWFE(WavefrontError):
         Pupil radius, in meters, over which the Zernike terms should be
         computed such that rho = 1 at r = `radius`.
     """
+    @utils.quantity_input(coefficients=u.meter, radius=u.meter)
     def __init__(self, name="Zernike WFE", coefficients=None, radius=None, **kwargs):
-        try:
-            self.radius = float(radius)
-        except TypeError:
-            raise ValueError("'radius' must be the radius of a circular aperture in meters"
-                             "(optionally circumscribing a pupil of another shape)")
+        self.radius = radius
 
         self.coefficients = coefficients
         self.circular_aperture = CircularAperture(radius=self.radius, **kwargs)
@@ -232,7 +210,6 @@ class ZernikeWFE(WavefrontError):
             waves based on the `Wavefront` wavelength or a supplied
             wavelength value.
         """
-        rho, theta = _wave_to_rho_theta(wave, self.radius)
 
         # the Zernike optic, being normalized on a circle, is
         # implicitly also a circular aperture:
@@ -240,20 +217,39 @@ class ZernikeWFE(WavefrontError):
 
         pixelscale_m = wave.pixelscale.to(u.meter/u.pixel).value
 
+        # whether we can use pre-cached zernikes for speed depends on whether
+        # there are any coord offsets. See #229
+        has_offset_coords = (hasattr(self, "shift_x") or hasattr(self, "shift_y")
+                or hasattr(self, "rotation"))
+        if has_offset_coords:
+            y, x = self.get_coordinates(wave)
+            rho, theta = _wave_y_x_to_rho_theta(y, x, self.radius.to(u.meter).value)
+
         combined_zernikes = np.zeros(wave.shape, dtype=np.float64)
         for j, k in enumerate(self.coefficients, start=1):
-            combined_zernikes += k * zernike.cached_zernike1(
-                j,
-                wave.shape,
-                pixelscale_m,
-                self.radius,
-                outside=0.0,
-                noll_normalize=True
-            )
+            k_in_m = k.to(u.meter).value
+
+            if has_offset_coords:
+                combined_zernikes += k_in_m * zernike.zernike1(
+                    j,
+                    rho=rho,
+                    theta=theta,
+                    outside=0.0,
+                    noll_normalize=True
+                )
+            else:
+                combined_zernikes += k_in_m * zernike.cached_zernike1(
+                    j,
+                    wave.shape,
+                    pixelscale_m,
+                    self.radius.to(u.meter).value,
+                    outside=0.0,
+                    noll_normalize=True
+                )
 
         combined_zernikes *= aperture_intensity
         if units == 'waves':
-            combined_zernikes /= wave.wavelength
+            combined_zernikes /= wave.wavelength.to(u.meter).value
         return combined_zernikes
 
 class SineWaveWFE(WavefrontError):

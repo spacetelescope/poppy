@@ -2,7 +2,7 @@ language: python
 
 python:
     - 2.7
-    - 3.5
+    - 3.6
 
 # Setting sudo to false opts in to Travis-CI container-based builds.
 sudo: false
@@ -38,26 +38,28 @@ matrix:
         # do the actual tests.
         - python: 2.7
           env: SETUP_CMD='test' PIP_DEPENDENCIES='enum34>=1.0.4'
-        - python: 3.5
+        - python: 3.6
           env: SETUP_CMD='test'
 
         # Do a coverage test in Python 3.
-        - python: 3.5
+        - python: 3.6
           env: SETUP_CMD='test --coverage'
 
         # Check for Sphinx doc build errors
+        # This fails on 3.6 for some reason?? Not critical enough to
+        # debug now so leave at 2.7
         - python: 2.7
           env: SETUP_CMD='build_sphinx' PIP_DEPENDENCIES='enum34>=1.0.4'
 
         # Try Astropy development version
-        - python: 3.5
+        - python: 3.6
           env: ASTROPY_VERSION=development SETUP_CMD='test'
 
         # Try older numpy versions
         - python: 2.7
-          env: NUMPY_VERSION=1.11 PIP_DEPENDENCIES='enum34>=1.0.4'
+          env: NUMPY_VERSION=1.12 PIP_DEPENDENCIES='enum34>=1.0.4'
         - python: 2.7
-          env: NUMPY_VERSION=1.10 PIP_DEPENDENCIES='enum34>=1.0.4'
+          env: NUMPY_VERSION=1.11 PIP_DEPENDENCIES='enum34>=1.0.4'
 
         # Try numpy pre-release
         # this one is commented out for now because it gives errors of uncertain
