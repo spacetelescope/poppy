@@ -2729,8 +2729,8 @@ class FITSOpticalElement(OpticalElement):
                       decimal values between -0.5 and 0.5, a fraction of the total optic diameter. """)
                 rolly = int(np.round(self.amplitude.shape[0] * shift[1])) #remember Y,X order for shape, but X,Y order for shift
                 rollx = int(np.round(self.amplitude.shape[1] * shift[0]))
-                _log.info("Requested optic shift of (%6.3f, %6.3f) %%" % (shift))
-                _log.info("Actual shift applied   = (%6.3f, %6.3f) %%" % (rollx*1.0/self.amplitude.shape[1], rolly *1.0/ self.amplitude.shape[0]))
+                _log.info("Requested optic shift of (%6.3f, %6.3f) " % (shift))
+                _log.info("Actual shift applied   = (%6.3f, %6.3f) " % (rollx*1.0/self.amplitude.shape[1], rolly *1.0/ self.amplitude.shape[0]))
                 self._shift = (rollx*1.0/self.amplitude.shape[1], rolly *1.0/ self.amplitude.shape[0])
 
                 self.amplitude = scipy.ndimage.shift(self.amplitude, (rolly, rollx))
