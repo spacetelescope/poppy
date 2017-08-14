@@ -1054,8 +1054,11 @@ class FresnelOpticalSystem(OpticalSystem):
         return inwave
 
     @utils.quantity_input(wavelength=u.meter)
-    def propagate_mono(self, wavelength=2e-6 * u.meter, normalize='first',
-                       retain_intermediates=False, display_intermediates=False):
+    def propagate_mono(self, wavelength=2e-6 * u.meter,
+                           normalize='first',
+                           retain_intermediates=False,
+                           retain_final=False,
+                           display_intermediates=False):
         """Propagate a monochromatic wavefront through the optical system, via Fresnel calculations.
         Called from within `calc_psf`.
         Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s (empty if
@@ -1076,7 +1079,12 @@ class FresnelOpticalSystem(OpticalSystem):
             Should intermediate steps in the calculation be retained? Default: False.
             If True, the second return value of the method will be a list of `poppy.Wavefront` objects
             representing intermediate optical planes from the calculation.
-
+        retain_final : bool
+            Should the final complex wavefront be retained? Default: False.
+            If True, the second return value of the method will be a single element list
+            (for consistency with retain intermediates) containing a `poppy.Wavefront` object
+            representing the final optical plane from the calculation.
+            Overridden by retain_intermediates.
         Returns
         -------
         final_wf : fits.HDUList
@@ -1144,6 +1152,9 @@ class FresnelOpticalSystem(OpticalSystem):
         if poppy.conf.enable_speed_tests:
             t_stop = time.time()
             _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop - t_start))
+
+        if (not retain_intermediates) & (retain_final): #return the full complex wavefront of the last plane.
+                intermediate_wfs = [wavefront]
 
         return wavefront.asFITS(), intermediate_wfs
 
