@@ -457,8 +457,8 @@ def test_fresnel_return_complex():
     gl=fresnel.QuadraticLens(500*u.cm)
 
     tel.add_optic(gl)
-    tel.add_optic(poppy.CircularAperture(radius=M1_radius,name="M1 aperture"))
-    tel.add_optic(poppy.ScalarTransmission( name="primary mirror focal plane"), distance=fl_M1)
+    tel.add_optic(optics.CircularAperture(radius=M1_radius,name="M1 aperture"))
+    tel.add_optic(optics.ScalarTransmission( name="primary mirror focal plane"), distance=fl_M1)
     
     psf=tel.calcPSF(return_final=True)
     

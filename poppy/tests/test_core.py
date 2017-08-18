@@ -394,7 +394,7 @@ def test_unit_conversions():
         assert np.all(np.abs(difference) < 3e-5)
 
 def test_return_final_wf():
-    osys = OpticalSystem()
+    osys =poppy_core.OpticalSystem()
     osys.add_pupil(poppy.CircularAperture(radius=3))   
     osys.add_detector(pixelscale=0.010, fov_arcsec=5.0)
     psf = osys.calc_psf(2e-6,return_final=True) 
