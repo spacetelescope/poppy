@@ -395,7 +395,7 @@ def test_unit_conversions():
 
 def test_return_final_wf():
     osys =poppy_core.OpticalSystem()
-    osys.add_pupil(poppy.CircularAperture(radius=3))   
+    osys.add_pupil(optics.CircularAperture(radius=3))   
     osys.add_detector(pixelscale=0.010, fov_arcsec=5.0)
     psf = osys.calc_psf(2e-6,return_final=True) 
     assert len(psf[1])==1 #make sure only one element was returned
