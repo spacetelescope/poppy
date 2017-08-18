@@ -1092,7 +1092,7 @@ class FresnelOpticalSystem(OpticalSystem):
         intermediate_wfs : list
             A list of `poppy.Wavefront` objects representing the wavefront at intermediate optical planes.
             The 0th item is "before first optical plane", 1st is "after first plane and before second plane", and so on.
-            (n.b. This will be empty if `retain_intermediates` is False.)
+            (n.b. This will be empty if `retain_intermediates` is False and singular if retain_final is True.)
         """
 
         if poppy.conf.enable_speed_tests:

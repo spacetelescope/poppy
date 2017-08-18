@@ -446,3 +446,21 @@ def test_fresnel_propagate_direct_2forward_and_back():
     wf.propagate_direct(z)
     wf.propagate_direct(-z)
     np.testing.assert_almost_equal(wf.wavefront, start)
+
+def test_fresnel_return_complex(): 
+    # physical radius values
+    M1_radius = 3. * u.m 
+    fl_M1 = M1_radius/2.0
+    # intermediary distances
+
+    M1 = poppy.QuadraticLens(fl_M1, name='M1')
+    tel = poppy.FresnelOpticalSystem(pupil_diameter=2.4*u.m)
+
+    tel.add_optic(M1)
+    tel.add_optic(poppy.CircularAperture(radius=M1_radius,name="M1 aperture"))
+    tel.add_optic(poppy.ScalarTransmission( name="primary mirror focal plane"), distance=fl_M1)
+    
+    psf=tel.calcPSF(return_final=True)
+    
+    assert len(psf[1])==1
+    assert np.max(psf[1][0].intensity-psf[0][0].data)**2 ==0
