@@ -2019,7 +2019,7 @@ class SemiAnalyticCoronagraph(OpticalSystem):
         current_plane_index += 1
         if retain_intermediates:
             intermediate_wfs.append(wavefront_combined.copy())
-            
+
         if display_intermediates:
             wavefront_combined.display(what='best',nrows=nrows,row=6, colorbar=False)
             #suptitle.remove() #  does not work due to some matplotlib limitation, so work arount:
