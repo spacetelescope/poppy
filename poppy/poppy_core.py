@@ -1685,7 +1685,7 @@ class OpticalSystem(object):
 
             # build a single iterable containing the required function arguments
             _log.info("Beginning multiprocessor job using {0} processes".format(nproc))
-            worker_arguments = [(self, wlen, retain_intermediates, retain_final, normalize, _USE_FFTW)
+            worker_arguments = [(self, wlen, retain_intermediates, return_final, normalize, _USE_FFTW)
                                 for wlen in wavelength]
             results = pool.map(_wrap_propagate_for_multiprocessing, worker_arguments)
             _log.info("Finished multiprocessor job")
