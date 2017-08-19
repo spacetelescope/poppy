@@ -71,7 +71,7 @@ def _wrap_propagate_for_multiprocessing(args):
     as a tuple, transmitting that to the new process, and then unpickling that,
     unpacking the results, and *then* at last making our instance method call.
     """
-    optical_system, wavelength, retain_intermediates, normalize, usefftwflag = args
+    optical_system, wavelength, retain_intermediates, retain_final, normalize, usefftwflag = args
     conf.use_fftw = usefftwflag  # passed in from parent process
 
     # we're in a different Python interpreter process so we
@@ -1685,7 +1685,7 @@ class OpticalSystem(object):
 
             # build a single iterable containing the required function arguments
             _log.info("Beginning multiprocessor job using {0} processes".format(nproc))
-            worker_arguments = [(self, wlen, retain_intermediates, normalize, _USE_FFTW)
+            worker_arguments = [(self, wlen, retain_intermediates, retain_final, normalize, _USE_FFTW)
                                 for wlen in wavelength]
             results = pool.map(_wrap_propagate_for_multiprocessing, worker_arguments)
             _log.info("Finished multiprocessor job")
