@@ -463,4 +463,4 @@ def test_fresnel_return_complex():
     psf=tel.calcPSF(return_final=True)
     
     assert len(psf[1])==1
-    assert np.max(psf[1][0].intensity-psf[0][0].data)**2 ==0
+    assert np.max((psf[1][0].intensity-psf[0][0].data)**2) ==0
