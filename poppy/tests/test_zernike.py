@@ -233,8 +233,8 @@ def test_opd_from_zernikes():
 
     outcoeffs = zernike.opd_expand(opd, nterms=len(coeffs))
 
-    diffs = np.abs(np.asarray(coeffs) - np.asarray(outcoeffs))/np.asarray(coeffs)
-    diffs[0] = 0 # ignore divide by zero on piston
+    # only compare on indices 1-3 to avoid divide by zero on piston
+    diffs = np.abs(np.asarray(coeffs[1:5]) - np.asarray(outcoeffs[1:5]))/np.asarray(coeffs[1:5])
     max_diff = np.max(diffs )
     assert max_diff < 2e-3, "recovered coefficients from opd_expand differ more than expected"
 
