@@ -912,7 +912,7 @@ def pad_to_oversample(array, oversample):
 
 def pad_to_size(array, padded_shape):
     """ Add zeros around the edge of an array, to reach a specific defined size and shape.
-    This is similar to padToOversample but is more flexible.
+    This is similar to pad_to_oversample but is more flexible.
 
     Parameters
     ----------
@@ -940,8 +940,8 @@ def pad_to_size(array, padded_shape):
         outsize1 = padded_shape[1]
     # npix = array.shape[0]
     padded = np.zeros(shape=padded_shape, dtype=array.dtype)
-    n0 = (outsize0 - array.shape[0]) / 2  # pixel offset for the inner array
-    m0 = (outsize1 - array.shape[1]) / 2  # pixel offset in second dimension
+    n0 = (outsize0 - array.shape[0]) // 2  # pixel offset for the inner array
+    m0 = (outsize1 - array.shape[1]) // 2  # pixel offset in second dimension
     n1 = n0 + array.shape[0]
     m1 = m0 + array.shape[1]
     n0 = int(round(n0))  # because astropy test_plugins enforces integer indices
