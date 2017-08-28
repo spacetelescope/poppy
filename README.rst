@@ -20,7 +20,7 @@ POPPY (**P**\ hysical **O**\ ptics **P**\ ropagation in **Py**\ thon) is a Pytho
 
 POPPY was developed as part of a simulation package for the James Webb Space Telescope, but is more broadly applicable to many kinds of imaging simulations. It is not, however, a substitute for high fidelity optical design software such as Zemax or Code V, but rather is intended as a lightweight alternative for cases for which diffractive rather than geometric optics is the topic of interest, and which require portability between platforms or ease of scripting.
 
-For documentation, see https://pythonhosted.org/poppy/
+For documentation, see http://poppy-optics.readthedocs.io/
 
 Code by Marshall Perrin, Joseph Long, Ewan Douglas, Neil Zimmerman, Anand Sivaramakrishnan, Kyle Douglass, Maciek Grochowicz & Ted Corcovilos, with additional contributions from Remi Soummer, Kyle Van Gorkom, Christine Slocum, and others on the Astropy team.
 
