@@ -113,7 +113,7 @@ install_requires_packages = [
       'numpy>=1.8.0',
       'scipy>=0.14.0',
       'matplotlib>=1.3.0',
-      'astropy>=1.0.1',
+      'astropy>=1.3',
 ]
 
 # Python 3.4.x backports
