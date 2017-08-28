@@ -5,10 +5,19 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+0.6.2
+-----
+
+*Unreleased*
+
+.. _rel0.6.1:
+
 0.6.1
 -----
 
-*(unreleased)*
+*2017 August 11*
+
+ * Update ``ah_bootstrap.py`` to avoid an issue where POPPY would not successfully install when pulled in as a dependency by another package (@josephoenix)
 
 .. _rel0.6.0:
 
