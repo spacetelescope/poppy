@@ -305,7 +305,7 @@ class AnalyticOpticalElement(OpticalElement):
         hdul = fits.HDUList(hdus=[phdu])
 
         if outname is not None:
-            phdu.writeto(outname, clobber=True)
+            phdu.writeto(outname, overwrite=True)
             _log.info("Output written to " + outname)
 
         return hdul
@@ -682,6 +682,88 @@ class SquareFieldStop(RectangularFieldStop):
         self._default_display_size = size * 1.2*u.arcsec
 
 
+class HexagonFieldStop(AnalyticImagePlaneElement):
+    """ Defines an ideal hexagonal field stop
+
+    Specify either the side length (= corner radius) or the
+    flat-to-flat distance, or the point-to-point diameter, in
+    angular units
+
+    Parameters
+    ----------
+    name : string
+        Descriptive name
+    side : float, optional
+        side length (and/or radius) of hexagon, in arcsec. Overrides flattoflat if both are present.
+    flattoflat : float, optional
+        Distance between sides (flat-to-flat) of the hexagon, in arcsec. Default is 1.0
+    diameter : float, optional
+        point-to-point diameter of hexagon. Twice the side length. Overrides flattoflat, but is overridden by side.
+
+
+    Note you can also specify the standard parameter "rotation" to rotate the hexagon by some amount.
+
+    """
+
+    @utils.quantity_input(side=u.arcsec, diameter=u.arcsec, flattoflat=u.arcsec)
+    def __init__(self, name=None, side=None, diameter=None, flattoflat=None, **kwargs):
+        if flattoflat is None and side is None and diameter is None:
+            self.side = 1.0*u.arcsec
+        elif side is not None:
+            self.side = side
+        elif diameter is not None:
+            self.side = diameter/2
+        else:
+            self.side = flattoflat / np.sqrt(3.)
+
+        if name is None:
+            name = "Hexagon, side length= {}".format(self.side)
+
+        AnalyticImagePlaneElement.__init__(self, name=name, **kwargs)
+
+    @property
+    def diameter(self):
+        return self.side*2
+
+    @property
+    def flat_to_flat(self):
+        return self.side*np.sqrt(3.)
+
+    def get_transmission(self, wave):
+        """ Compute the transmission inside/outside of the occulter.
+        """
+        if not isinstance(wave, Wavefront):  # pragma: no cover
+            raise ValueError("HexagonFieldStop get_transmission must be called with a Wavefront "
+                             "to define the spacing")
+        assert (wave.planetype == _IMAGE)
+
+        y, x = self.get_coordinates(wave)
+        side = self.side.to(u.arcsec).value
+        absy = np.abs(y)
+
+        self.transmission = np.zeros(wave.shape)
+
+        w_rect = np.where(
+            (np.abs(x) <= 0.5 * side) &
+            (absy <= np.sqrt(3) / 2 * side)
+        )
+        w_left_tri = np.where(
+            (x <= -0.5 * side) &
+            (x >= -1 * side) &
+            (absy <= (x + 1 * side) * np.sqrt(3))
+        )
+        w_right_tri = np.where(
+            (x >= 0.5 * side) &
+            (x <= 1 * side) &
+            (absy <= (1 * side - x) * np.sqrt(3))
+        )
+        self.transmission[w_rect] = 1
+        self.transmission[w_left_tri] = 1
+        self.transmission[w_right_tri] = 1
+
+        return self.transmission
+
+
 class AnnularFieldStop(AnalyticImagePlaneElement):
     """ Defines a circular field stop with an (optional) opaque circular center region
 
@@ -812,7 +894,7 @@ class FQPM_FFT_aligner(AnalyticOpticalElement):
             raise ValueError("FQPM get_opd must be called with a Wavefront to define the spacing")
         assert wave.planetype != _IMAGE, "This optic does not work on image planes"
 
-        fft_im_pixelscale = wave.wavelength / wave.diam / wave.oversample * _RADIANStoARCSEC
+        fft_im_pixelscale = wave.wavelength / wave.diam / wave.oversample * (u.radian)
         required_offset = -fft_im_pixelscale * 0.5
         if self.direction == 'backward':
             required_offset *= -1
@@ -962,7 +1044,7 @@ class HexagonAperture(AnalyticOpticalElement):
         elif diameter is not None:
             self.side = diameter/2
         else:
-            self.side = lattoflat / np.sqrt(3.)
+            self.side = flattoflat / np.sqrt(3.)
 
         self.pupil_diam = 2 * self.side  # for creating input wavefronts
         if name is None:
@@ -1624,6 +1706,13 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
     ----------
     opticslist : list
         A list of AnalyticOpticalElements to be merged together.
+    mergemode : string, default = 'and'
+        Method for merging transmissions:
+            'and' : resulting transmission is product of constituents. (E.g
+                    trans = trans1*trans2)
+            'or'  : resulting transmission is sum of constituents, with overlap
+                    subtracted.  (E.g. trans = trans1 + trans2 - trans1*trans2)
+        In both methods, the resulting OPD is the sum of the constituents' OPDs.
 
     """
 
@@ -1640,7 +1729,7 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
                 return False  # no other types allowed, skip the rest of the list
         return True
 
-    def __init__(self, opticslist=None, name="unnamed", verbose=True, **kwargs):
+    def __init__(self, opticslist=None, name="unnamed", mergemode="and", verbose=True, **kwargs):
         if opticslist is None:
             raise ValueError("Missing required opticslist argument to CompoundAnalyticOptic")
         AnalyticOpticalElement.__init__(self, name=name, verbose=verbose, **kwargs)
@@ -1648,6 +1737,14 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
         self.opticslist = []
         self._default_display_size = 3*u.arcsec
         self.planetype = None
+
+        # check for valid mergemode
+        if mergemode=="and":
+            self.mergemode="and"
+        elif mergemode=="or":
+            self.mergemode="or"
+        else:
+            raise ValueError("mergemode must be either 'and' or 'or'.")
 
         for optic in opticslist:
             if not self._validate_only_analytic_optics(opticslist):
@@ -1678,21 +1775,23 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
             if all([hasattr(o, 'pupil_diam') for o in self.opticslist]):
                 self.pupil_diam = np.asarray([o.pupil_diam.to(u.meter).value for o in self.opticslist]).max() * u.meter
 
-    def get_transmission(self,wave):
-        trans = np.ones(wave.shape, dtype=np.float)
-        for optic in self.opticslist:
-            trans *= optic.get_transmission(wave)
-        return trans
+    def get_transmission(self, wave):
+        if self.mergemode=="and":
+            trans = np.ones(wave.shape, dtype=np.float)
+            for optic in self.opticslist:
+                trans *= optic.get_transmission(wave)
+        elif self.mergemode=="or":
+            trans = np.zeros(wave.shape, dtype=np.float)
+            for optic in self.opticslist:
+                trans = trans + optic.get_transmission(wave) - trans * optic.get_transmission(wave)
+        else:
+            raise ValueError("mergemode must be either 'and' or 'or'.")
+        self.transmission = trans
+        return self.transmission
 
     def get_opd(self,wave):
         opd = np.zeros(wave.shape, dtype=np.float)
         for optic in self.opticslist:
             opd += optic.get_opd(wave)
-        return opd
-
-    def get_phasor(self, wave):
-        phasor = np.ones(wave.shape, dtype=np.complex)
-        for optic in self.opticslist:
-            nextphasor = optic.get_phasor(wave)
-            phasor *= nextphasor
-        return phasor
+        self.opd = opd
+        return self.opd

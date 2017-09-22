@@ -13,12 +13,17 @@ from .. import poppy_core
 import poppy
 import scipy
 
-def test_padToSize():
-    square = np.ones((300,300))
+def test_pad_to_size():
 
-    for desiredshape in [ (500, 500), (400,632), (2048, 312)]:
-        newshape = utils.pad_to_size(square, desiredshape).shape
-        for i in [0,1]: assert newshape[i] == desiredshape[i]
+    for starting_shape in [(20,20), (21,21), (300,300), (128,256)]:
+
+        square = np.ones(starting_shape)
+
+        for desiredshape in [ (500, 500), (400,632), (2048, 312)]:
+            newshape = utils.pad_to_size(square, desiredshape).shape
+            for i in [0,1]:
+                assert newshape[i] == desiredshape[i], "Error padding from {} to {}".format(starting_shape, desired_shape)
+
 
 
 

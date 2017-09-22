@@ -61,7 +61,7 @@ LONG_DESCRIPTION = ast.get_docstring(module_ast)
 builtins._ASTROPY_PACKAGE_NAME_ = PACKAGENAME
 
 # VERSION should be PEP386 compatible (http://www.python.org/dev/peps/pep-0386)
-VERSION = '0.6.0rc1'
+VERSION = '0.6.2.dev'
 
 # Indicates if this version is a release version
 RELEASE = 'dev' not in VERSION
@@ -113,7 +113,7 @@ install_requires_packages = [
       'numpy>=1.8.0',
       'scipy>=0.14.0',
       'matplotlib>=1.3.0',
-      'astropy>=1.0.1',
+      'astropy>=1.3',
 ]
 
 # Python 3.4.x backports

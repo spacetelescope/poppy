@@ -415,13 +415,13 @@ def display_ee(HDUlist_or_filename=None, ext=0, overplot=False, ax=None, mark_le
 
     """
     if isinstance(HDUlist_or_filename, six.string_types):
-        HDUlist = fits.open(HDUlist_or_filename, ext=ext)
+        hdu_list = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
-        HDUlist = HDUlist_or_filename
+        hdu_list = HDUlist_or_filename
     else:
         raise ValueError("input must be a filename or HDUlist")
 
-    radius, profile, EE = radial_profile(HDUlist, EE=True, **kwargs)
+    radius, profile, EE = radial_profile(hdu_list, EE=True, ext=ext, **kwargs)
 
     if not overplot:
         if ax is None:
@@ -458,17 +458,17 @@ def display_profiles(HDUlist_or_filename=None, ext=0, overplot=False, title=None
 
     """
     if isinstance(HDUlist_or_filename, six.string_types):
-        HDUlist = fits.open(HDUlist_or_filename, ext=ext)
+        hdu_list = fits.open(HDUlist_or_filename, ext=ext)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
-        HDUlist = HDUlist_or_filename
+        hdu_list = HDUlist_or_filename
     else:
         raise ValueError("input must be a filename or HDUlist")
 
-    radius, profile, EE = radial_profile(HDUlist, EE=True, ext=ext, **kwargs)
+    radius, profile, EE = radial_profile(hdu_list, EE=True, ext=ext, **kwargs)
 
     if title is None:
         try:
-            title = "%s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER'])
+            title = "%s, %s" % (hdu_list[ext].header['INSTRUME'], hdu_list[ext].header['FILTER'])
         except KeyError:
             title = str(HDUlist_or_filename)
 
@@ -539,13 +539,13 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
         as precise as possible.
     """
     if isinstance(HDUlist_or_filename, six.string_types):
-        HDUlist = fits.open(HDUlist_or_filename)
+        hdu_list = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
-        HDUlist = HDUlist_or_filename
+        hdu_list = HDUlist_or_filename
     else:
         raise ValueError("input must be a filename or HDUlist")
 
-    image = HDUlist[ext].data.copy()  # don't change normalization of actual input array, work with a copy!
+    image = hdu_list[ext].data.copy()  # don't change normalization of actual input array, work with a copy!
 
     if normalize.lower() == 'peak':
         _log.debug("Calculating profile with PSF normalized to peak = 1")
@@ -554,7 +554,7 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
         _log.debug("Calculating profile with PSF normalized to total = 1")
         image /= image.sum()
 
-    pixelscale = HDUlist[ext].header['PIXELSCL']
+    pixelscale = hdu_list[ext].header['PIXELSCL']
 
     if maxradius is not None:
         raise NotImplemented("add max radius")
@@ -912,7 +912,7 @@ def pad_to_oversample(array, oversample):
 
 def pad_to_size(array, padded_shape):
     """ Add zeros around the edge of an array, to reach a specific defined size and shape.
-    This is similar to padToOversample but is more flexible.
+    This is similar to pad_to_oversample but is more flexible.
 
     Parameters
     ----------
@@ -940,8 +940,8 @@ def pad_to_size(array, padded_shape):
         outsize1 = padded_shape[1]
     # npix = array.shape[0]
     padded = np.zeros(shape=padded_shape, dtype=array.dtype)
-    n0 = (outsize0 - array.shape[0]) / 2  # pixel offset for the inner array
-    m0 = (outsize1 - array.shape[1]) / 2  # pixel offset in second dimension
+    n0 = (outsize0 - array.shape[0]) // 2  # pixel offset for the inner array
+    m0 = (outsize1 - array.shape[1]) // 2  # pixel offset in second dimension
     n1 = n0 + array.shape[0]
     m1 = m0 + array.shape[1]
     n0 = int(round(n0))  # because astropy test_plugins enforces integer indices
