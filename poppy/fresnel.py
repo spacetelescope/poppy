@@ -68,7 +68,8 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
                  name='Quadratic Wavefront Curvature Operator',
                  **kwargs):
         poppy.AnalyticOpticalElement.__init__(self, name=name, planetype=planetype, **kwargs)
-        self.z = z.to(u.m)
+        self.z = z
+        self._z_m = z.to(u.m).value
 
     def get_phasor(self, wave):
         """ return complex phasor for the quadratic phase
@@ -80,14 +81,13 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
         """
 
         y, x = wave.coordinates()
-        rsqd = (x ** 2 + y ** 2) * u.m ** 2		
-
+        rsqd = (x ** 2 + y ** 2)# * u.m ** 2
         _log.debug("Applying spherical phase curvature ={0:0.2e}".format(self.z))
         _log.debug("Applying spherical lens phase ={0:0.2e}".format(1.0 / self.z))
         _log.debug("max_rsqd ={0:0.2e}".format(np.max(rsqd)))
 
-        k = 2 * np.pi / wave.wavelength
-        lens_phasor = np.exp(1.j * k * rsqd / (2.0 * self.z))
+        k = 2 * np.pi / wave._wavelength_m
+        lens_phasor = np.exp(1.j * k * rsqd / (2.0 * self._z_m))
         return lens_phasor
 
 

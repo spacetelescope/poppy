@@ -175,7 +175,12 @@ class Wavefront(object):
         self.history.append(" using array size %s" % (self.wavefront.shape,))
         self.location = 'Entrance Pupil'
         "Descriptive string for where a wavefront is instantaneously located. Used mostly for titling displayed plots."
-
+    @property
+    def _wavelength_m(self):
+        if isinstance( self.wavelength, u.quantity.Quantity):
+            return self.wavelength.to(u.m).value
+        else:
+            return self.wavelength
     def __str__(self):
         # TODO add switches for image/pupil planes
         return """Wavefront:
@@ -264,7 +269,6 @@ class Wavefront(object):
                 return utils.removePadding(attribute_array.copy(), self.oversample)
             else:
                 return attribute_array.copy()
-
         if what.lower() == 'all':
             intens = get_unpadded(self.intensity)
             outarr = np.zeros((3, intens.shape[0], intens.shape[1]))
