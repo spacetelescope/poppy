@@ -259,6 +259,7 @@ class FresnelWavefront(Wavefront):
         self.focal_length = np.inf * u.m
         """Focal length of the current beam, or infinity if not a focused beam"""
 
+
         if self.oversample > 1 and not self.ispadded:  # add padding for oversampling, if necessary
             self.wavefront = utils.pad_to_oversample(self.wavefront, self.oversample)
             self.ispadded = True
@@ -274,6 +275,11 @@ class FresnelWavefront(Wavefront):
 
         if self.oversample < 2:
             _log.warn("Oversampling > 2x suggested for reliable results.")
+
+        self._y, self._x = np.indices(self.shape, dtype=float)
+        self._y -= (self.wavefront.shape[0]) / 2.0
+        self._x -= (self.wavefront.shape[1]) / 2.0
+        """saves x and y indices for future use"""
 
         # FIXME MP: this self.n attribute appears unnecessary?
         if self.shape[0] == self.shape[1]:
@@ -443,7 +449,7 @@ class FresnelWavefront(Wavefront):
     #  methods supporting coordinates, including switching between distance and angular units
 
     @staticmethod
-    def pupil_coordinates(shape, pixelscale):
+    def pupil_coordinates(x,y, pixelscale):
         """Utility function to generate coordinates arrays for a pupil
         plane wavefront
 
@@ -463,17 +469,19 @@ class FresnelWavefront(Wavefront):
         # slightly differently. This is required for use in the angular spectrum propagation in the PTP and
         # Direct propagations.
 
-        y, x = np.indices(shape, dtype=float)
+        #y, x = np.indices(shape, dtype=float)
         pixelscale_mpix = pixelscale.to(u.meter / u.pixel).value
         if not np.isscalar(pixelscale_mpix):
             pixel_scale_x, pixel_scale_y = pixelscale_mpix
         else:
             pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
 
-        y -= (shape[0]) / 2.0
-        x -= (shape[1]) / 2.0
-
-        return pixel_scale_y * y, pixel_scale_x * x
+        #y -= (shape[0]) / 2.0
+        #x -= (shape[1]) / 2.0
+        if _NUMEXPR_AVAILABLE:
+            return ne.evaluate("pixel_scale_y * y"),  ne.evaluate("pixel_scale_x * x")
+        else:
+            return pixel_scale_y * y, pixel_scale_x * x
 
     def coordinates(self):
         """ Return Y, X coordinates for this wavefront, in the manner of numpy.indices()
@@ -497,7 +505,7 @@ class FresnelWavefront(Wavefront):
             Wavefront coordinates in either meters or arcseconds for pupil and image, respectively
         """
 
-        y, x = type(self).pupil_coordinates(self.shape, self._pixelscale_m)
+        y, x = type(self).pupil_coordinates(self._x,self._y, self._pixelscale_m)
 
         # If the wavefront been explicitly set to use angular units,
         # for instance at an image plane,then
