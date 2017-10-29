@@ -15,7 +15,9 @@ _log = logging.getLogger('poppy')
 
 if _FFTW_AVAILABLE:
     import pyfftw
-
+if _NUMEXPR_AVAILABLE:
+    import numexpr as ne
+    
 if _ACCELERATE_AVAILABLE:
     import accelerate.cuda
     _USE_CUDA = (poppy.conf.use_cuda and _ACCELERATE_AVAILABLE)
