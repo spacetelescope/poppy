@@ -7,7 +7,7 @@ import logging
 import time
 
 import poppy
-from poppy.poppy_core import PlaneType, _ACCELERATE_AVAILABLE, _FFTW_AVAILABLE, _NUMEXPR_AVAILABLE, OpticalSystem, Wavefront
+from poppy.poppy_core import PlaneType, _ACCELERATE_AVAILABLE, _FFTW_AVAILABLE, _NUMEXPR_AVAILABLE, OpticalSystem, Wavefront, _exp
 from . import utils
 
 _log = logging.getLogger('poppy')
@@ -25,11 +25,6 @@ if _ACCELERATE_AVAILABLE:
     #@numbapro.vectorize([numba.float64(numba.float64, numba.float64,numba.float64)],
     #             target='gpu')
     
-def _exp(x):
-    if _NUMEXPR_AVAILABLE:
-         return  ne.evaluate("exp(x)")
-    else:
-        return np.exp(x)
 
 __all__ = ['QuadPhase', 'QuadraticLens', 'FresnelWavefront', 'FresnelOpticalSystem']
 
@@ -84,10 +79,12 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
         if _NUMEXPR_AVAILABLE:
             rsqd = ne.evaluate("(x ** 2 + y ** 2)")
             #faster to evaluate all in one line but advantage diminishes w/ size
+            #also significantly faster to call numexpr here then call _exp
+            lens_phasor = ne.evaluate("exp(1.j * k * rsqd / (2.0 *z))")
 
         else:
             rsqd = (x ** 2 + y ** 2)# * u.m ** 2
-        lens_phasor = _exp(1.j * k * rsqd / (2.0 *z))
+            lens_phasor = _exp(1.j * k * rsqd / (2.0 *z))
 
         _log.debug("max_rsqd ={0:0.2e}".format(np.max(rsqd)))
 
@@ -670,7 +667,7 @@ class FresnelWavefront(Wavefront):
 
         self._fft()
 
-        self.wavefront = self.wavefront * np.exp(t)  # eq. 6.68
+        self.wavefront = self.wavefront * _exp(t)  # eq. 6.68
 
         self._inv_fft()
         self.z += dz

@@ -72,6 +72,11 @@ _INTERMED = PlaneType.intermediate  # for Fresnel propagation
 
 _RADIANStoARCSEC = 180.*60*60 / np.pi
 
+def _exp(x):
+    if _NUMEXPR_AVAILABLE:
+        return  ne.evaluate("exp(x)")
+    else:
+        return np.exp(x)
 
 
 def _wrap_propagate_for_multiprocessing(args):
@@ -177,7 +182,7 @@ class Wavefront(object):
         "Descriptive string for where a wavefront is instantaneously located. Used mostly for titling displayed plots."
     @property
     def _wavelength_m(self):
-        if isinstance( self.wavelength, u.quantity.Quantity):
+        if isinstance(self.wavelength, u.quantity.Quantity):
             return self.wavelength.to(u.m).value
         else:
             return self.wavelength
