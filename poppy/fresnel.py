@@ -7,7 +7,7 @@ import logging
 import time
 
 import poppy
-from poppy.poppy_core import PlaneType, _ACCELERATE_AVAILABLE, _FFTW_AVAILABLE, OpticalSystem, Wavefront
+from poppy.poppy_core import PlaneType, _ACCELERATE_AVAILABLE, _FFTW_AVAILABLE, _NUMEXPR_AVAILABLE, OpticalSystem, Wavefront
 from . import utils
 
 _log = logging.getLogger('poppy')
@@ -17,8 +17,25 @@ if _FFTW_AVAILABLE:
     import pyfftw
 
 if _ACCELERATE_AVAILABLE:
-    import accelerate
+    import accelerate.cuda
     _USE_CUDA = (poppy.conf.use_cuda and _ACCELERATE_AVAILABLE)
+    #accelerated
+    #@numbapro.vectorize([numba.float64(numba.float64, numba.float64,numba.float64)],
+    #              target='gpu')
+    #def fexp_cuda(x, y,z):
+    #    '''
+    #    
+    #    optimized exponential function
+    #    Parameters
+    #    -----------------
+    #    x : numpy array
+    #    y : numpy array
+    #    z : numpy array
+    #
+    #    returns 
+    #    $\exp((x^2 + y^2)/z)$
+    #    ''' 
+    #    return math.exp((x**2 + y**2)/z)
 
 
 __all__ = ['QuadPhase', 'QuadraticLens', 'FresnelWavefront', 'FresnelOpticalSystem']

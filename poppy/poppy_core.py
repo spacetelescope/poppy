@@ -42,10 +42,17 @@ try:
     # try to import accelerate package to see if it is available
     import accelerate
     _ACCELERATE_AVAILABLE = True
-
 except ImportError:
-    pyfftw = None
+    accelerate = None
     _ACCELERATE_AVAILABLE = False
+    
+try:
+    # try to import numexpr package to see if it is available
+    import numexpr as ne
+    _NUMEXPR_AVAILABLE = True
+except ImportError:
+    ne = None
+    _NUMEXPR_AVAILABLE = False
 
 # internal constants for types of plane
 class PlaneType(enum.Enum):
