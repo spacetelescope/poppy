@@ -23,22 +23,13 @@ if _ACCELERATE_AVAILABLE:
     _USE_CUDA = (poppy.conf.use_cuda and _ACCELERATE_AVAILABLE)
     #accelerated
     #@numbapro.vectorize([numba.float64(numba.float64, numba.float64,numba.float64)],
-    #              target='gpu')
-    #def fexp_cuda(x, y,z):
-    #    '''
-    #    
-    #    optimized exponential function
-    #    Parameters
-    #    -----------------
-    #    x : numpy array
-    #    y : numpy array
-    #    z : numpy array
-    #
-    #    returns 
-    #    $\exp((x^2 + y^2)/z)$
-    #    ''' 
-    #    return math.exp((x**2 + y**2)/z)
-
+    #             target='gpu')
+    
+def _exp(x):
+    if _NUMEXPR_AVAILABLE:
+         return  ne.evaluate("exp(x)")
+    else:
+        return np.exp(x)
 
 __all__ = ['QuadPhase', 'QuadraticLens', 'FresnelWavefront', 'FresnelOpticalSystem']
 
@@ -69,7 +60,10 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
                  planetype=PlaneType.intermediate,
                  name='Quadratic Wavefront Curvature Operator',
                  **kwargs):
-        poppy.AnalyticOpticalElement.__init__(self, name=name, planetype=planetype, **kwargs)
+        poppy.AnalyticOpticalElement.__init__(self,
+                                                  name=name,
+                                                  planetype=planetype,
+                                                  **kwargs)
         self.z = z
         self._z_m = z.to(u.m).value
 
@@ -83,16 +77,19 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
         """
 
         y, x = wave.coordinates()
-        rsqd = (x ** 2 + y ** 2)# * u.m ** 2
         _log.debug("Applying spherical phase curvature ={0:0.2e}".format(self.z))
         _log.debug("Applying spherical lens phase ={0:0.2e}".format(1.0 / self.z))
-        _log.debug("max_rsqd ={0:0.2e}".format(np.max(rsqd)))
-
+        z= self._z_m #numexpr can't evaluate self.
         k = 2 * np.pi / wave._wavelength_m
         if _NUMEXPR_AVAILABLE:
-            lens_phasor = ne.evaluate("exp((x**2 + y**2)/z)")
+            rsqd = ne.evaluate("(x ** 2 + y ** 2)")
+            #faster to evaluate all in one line but advantage diminishes w/ size
+
         else:
-            lens_phasor = np.exp(1.j * k * rsqd / (2.0 * self._z_m))
+            rsqd = (x ** 2 + y ** 2)# * u.m ** 2
+        lens_phasor = _exp(1.j * k * rsqd / (2.0 *z))
+
+        _log.debug("max_rsqd ={0:0.2e}".format(np.max(rsqd)))
 
         return lens_phasor
 
