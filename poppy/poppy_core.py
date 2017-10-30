@@ -50,9 +50,12 @@ try:
     # try to import numexpr package to see if it is available
     import numexpr as ne
     _NUMEXPR_AVAILABLE = True
+
 except ImportError:
     ne = None
     _NUMEXPR_AVAILABLE = False
+
+_USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
 
 # internal constants for types of plane
 class PlaneType(enum.Enum):
@@ -73,8 +76,7 @@ _INTERMED = PlaneType.intermediate  # for Fresnel propagation
 _RADIANStoARCSEC = 180.*60*60 / np.pi
 
 def _exp(x):
-    if _NUMEXPR_AVAILABLE:
-        print("ne")
+    if _USE_NUMEXPR:
         return  ne.evaluate("exp(x)")
     else:
         return np.exp(x)
@@ -543,6 +545,7 @@ class Wavefront(object):
 
             plot_axes = [ax]
             to_return = ax
+
         elif what == 'both':
             ax1 = plt.subplot(nrows, 2, (row * 2) - 1)
             plt.imshow(amp, extent=extent, cmap=cmap_inten, norm=norm_inten, origin='lower')
@@ -3025,5 +3028,4 @@ class Detector(OpticalElement):
 
     def __str__(self):
         return "Detector plane: {} ({}x{} pixels, {})".format(self.name, self.shape[1], self.shape[0], self.pixelscale)
-
 

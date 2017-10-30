@@ -15,16 +15,16 @@ _log = logging.getLogger('poppy')
 
 if _FFTW_AVAILABLE:
     import pyfftw
-if _NUMEXPR_AVAILABLE:
-    import numexpr as ne
     
-if _ACCELERATE_AVAILABLE:
-    import accelerate.cuda
-    _USE_CUDA = (poppy.conf.use_cuda and _ACCELERATE_AVAILABLE)
-else:
-    _USE_CUDA = False
+_USE_NUMEXPR = (poppy.conf.use_numexpr and _NUMEXPR_AVAILABLE)
 
-_NUMEXPR_AVAILABLE = False
+if _USE_NUMEXPR:
+    import numexpr as ne
+
+_USE_CUDA = (poppy.conf.use_cuda and _ACCELERATE_AVAILABLE)
+
+if _USE_CUDA:
+    import accelerate.cuda
 
 
 __all__ = ['QuadPhase', 'QuadraticLens', 'FresnelWavefront', 'FresnelOpticalSystem']
@@ -77,9 +77,9 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
         _log.debug("Applying spherical lens phase ={0:0.2e}".format(1.0 / self.z))
         z= self._z_m #numexpr can't evaluate self.
         k = 2 * np.pi / wave._wavelength_m
-        if False:
+        if _USE_NUMEXPR:
             rsqd = ne.evaluate("(x ** 2 + y ** 2)")
-            #faster to evaluate all in one line but advantage diminishes w/ size
+            #slight faster to evaluate in one line but advantage diminishes w/size
             #also significantly faster to call numexpr here then call _exp
             lens_phasor = ne.evaluate("exp(1.j * k * rsqd / (2.0 *z))")
 
@@ -379,7 +379,6 @@ class FresnelWavefront(Wavefront):
             _log.debug("   Using cuda via accelerate")
             self.cuFFTPLAN.forward(self.wavefront,out=self.wavefront)
             self.wavefront *= 1/self.wavefront.shape[0]
-            print("using cuda")
         else:
             _log.debug("   Using numpy FFT")
             self.wavefront = np.fft.fft2(self.wavefront) / self.shape[0]
@@ -401,7 +400,6 @@ class FresnelWavefront(Wavefront):
             _log.debug("   Using cuda via accelerate")
             self.wavefront = self.cuFFTPLAN.inverse(self.wavefront,out=self.wavefront)
             self.wavefront *= 1.0/self.wavefront.size*self.shape[0] #pycuda doesn't normalize.
-            print(self.wavefront.real.sum())
         else:
             _log.debug("   Using numpy FFT")
             self.wavefront = np.fft.ifft2(self.wavefront) * self.shape[0]
@@ -480,7 +478,7 @@ class FresnelWavefront(Wavefront):
 
         #y -= (shape[0]) / 2.0
         #x -= (shape[1]) / 2.0
-        if _NUMEXPR_AVAILABLE:
+        if _USE_NUMEXPR:
             return ne.evaluate("pixel_scale_y * y"),  ne.evaluate("pixel_scale_x * x")
         else:
             return pixel_scale_y * y, pixel_scale_x * x
