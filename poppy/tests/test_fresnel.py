@@ -201,6 +201,8 @@ def test_Circular_Aperture_PTP_short(display=False, npix=512, display_proper=Fal
         wavelength=10e-9*u.m,
         npix=npix,
         oversample=4)
+    wf_2 *= optics.CircularAperture(radius=800 * 1e-9*u.m)
+
     z = 12. * u.um
 
     # Calculate same result using 2 different algorithms:
