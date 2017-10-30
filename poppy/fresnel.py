@@ -7,7 +7,7 @@ import logging
 import time
 
 import poppy
-from poppy.poppy_core import PlaneType, _FFTW_AVAILABLE, OpticalSystem, Wavefront
+from poppy.poppy_core import PlaneType, _ACCELERATE_AVAILABLE, _FFTW_AVAILABLE, _NUMEXPR_AVAILABLE, OpticalSystem, Wavefront, _exp
 from . import utils
 
 _log = logging.getLogger('poppy')
@@ -15,6 +15,17 @@ _log = logging.getLogger('poppy')
 
 if _FFTW_AVAILABLE:
     import pyfftw
+if _NUMEXPR_AVAILABLE:
+    import numexpr as ne
+    
+if _ACCELERATE_AVAILABLE:
+    import accelerate.cuda
+    _USE_CUDA = (poppy.conf.use_cuda and _ACCELERATE_AVAILABLE)
+else:
+    _USE_CUDA = False
+
+_NUMEXPR_AVAILABLE = False
+
 
 __all__ = ['QuadPhase', 'QuadraticLens', 'FresnelWavefront', 'FresnelOpticalSystem']
 
@@ -45,9 +56,13 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
                  planetype=PlaneType.intermediate,
                  name='Quadratic Wavefront Curvature Operator',
                  **kwargs):
-        poppy.AnalyticOpticalElement.__init__(self, name=name, planetype=planetype, **kwargs)
-        self.z = z.to(u.m)
-
+        poppy.AnalyticOpticalElement.__init__(self,
+                                                  name=name,
+                                                  planetype=planetype,
+                                                  **kwargs)
+        self.z = z
+        self._z_m = z.to(u.m).value
+        
     def get_phasor(self, wave):
         """ return complex phasor for the quadratic phase
 
@@ -58,16 +73,21 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
         """
 
         y, x = wave.coordinates()
-        rsqd = (x ** 2 + y ** 2) * u.m ** 2
         _log.debug("Applying spherical phase curvature ={0:0.2e}".format(self.z))
         _log.debug("Applying spherical lens phase ={0:0.2e}".format(1.0 / self.z))
+        z= self._z_m #numexpr can't evaluate self.
+        k = 2 * np.pi / wave._wavelength_m
+        if False:
+            rsqd = ne.evaluate("(x ** 2 + y ** 2)")
+            #faster to evaluate all in one line but advantage diminishes w/ size
+            #also significantly faster to call numexpr here then call _exp
+            lens_phasor = ne.evaluate("exp(1.j * k * rsqd / (2.0 *z))")
+
+        else:
+            rsqd = (x ** 2 + y ** 2)# * u.m ** 2
+            lens_phasor = _exp(1.j * k * rsqd / (2.0 *z))
+
         _log.debug("max_rsqd ={0:0.2e}".format(np.max(rsqd)))
-
-        k = 2 * np.pi / wave.wavelength
-        lens_phasor = np.exp(1.j * k * rsqd / (2.0 * self.z))
-
-        # ensure the result is a plain numpy ndarray, not an astropy.Quantity:
-        lens_phasor = lens_phasor.to(u.dimensionless_unscaled).value
 
         return lens_phasor
 
@@ -240,6 +260,7 @@ class FresnelWavefront(Wavefront):
         self.focal_length = np.inf * u.m
         """Focal length of the current beam, or infinity if not a focused beam"""
 
+
         if self.oversample > 1 and not self.ispadded:  # add padding for oversampling, if necessary
             self.wavefront = utils.pad_to_oversample(self.wavefront, self.oversample)
             self.ispadded = True
@@ -256,6 +277,11 @@ class FresnelWavefront(Wavefront):
         if self.oversample < 2:
             _log.warn("Oversampling > 2x suggested for reliable results.")
 
+        self._y, self._x = np.indices(self.shape, dtype=float)
+        self._y -= (self.wavefront.shape[0]) / 2.0
+        self._x -= (self.wavefront.shape[1]) / 2.0
+        """saves x and y indices for future use"""
+
         # FIXME MP: this self.n attribute appears unnecessary?
         if self.shape[0] == self.shape[1]:
             self.n = self.shape[0]
@@ -265,6 +291,10 @@ class FresnelWavefront(Wavefront):
         if self.planetype == PlaneType.image:
             raise ValueError(
                 "Input wavefront needs to be a pupil plane in units of m/pix. Specify a diameter not a pixelscale.")
+        if _USE_CUDA:
+            #initialize FFT plan (can't be pickled)
+            self.cuFFTPLAN = accelerate.cuda.fft.FFTPlan(self.shape,np.complex128,np.complex128)
+
 
     def display(self, *args, **kwargs):
         if 'use_angular_coordinates' not in kwargs:
@@ -334,7 +364,8 @@ class FresnelWavefront(Wavefront):
         """
         Apply normalized forward 2D Fast Fourier Transform to wavefront
         """
-        _USE_FFTW = (poppy.conf.use_fftw and _FFTW_AVAILABLE)
+
+        _USE_FFTW = (poppy.conf.use_fftw and _FFTW_AVAILABLE and not _USE_CUDA)
 
         if _USE_FFTW:
             # FFTW wisdom could be implemented here.
@@ -344,11 +375,16 @@ class FresnelWavefront(Wavefront):
             self.wavefront = pyfftw.interfaces.numpy_fft.fft2(self.wavefront, overwrite_input=True,
                                                               planner_effort='FFTW_MEASURE',
                                                               threads=poppy.conf.n_processes) / self.shape[0]
+        elif _USE_CUDA:
+            _log.debug("   Using cuda via accelerate")
+            self.cuFFTPLAN.forward(self.wavefront,out=self.wavefront)
+            self.wavefront *= 1/self.wavefront.shape[0]
+            print("using cuda")
         else:
             _log.debug("   Using numpy FFT")
             self.wavefront = np.fft.fft2(self.wavefront) / self.shape[0]
-
-    def _inv_fft(self):
+            
+    def _inv_fft(self): 
         """
         Apply normalized Inverse 2D Fast Fourier Transform to wavefront
         """
@@ -361,6 +397,11 @@ class FresnelWavefront(Wavefront):
             self.wavefront = pyfftw.interfaces.numpy_fft.ifft2(self.wavefront, overwrite_input=True,
                                                                planner_effort='FFTW_MEASURE',
                                                                threads=poppy.conf.n_processes) * self.shape[0]
+        elif _USE_CUDA:
+            _log.debug("   Using cuda via accelerate")
+            self.wavefront = self.cuFFTPLAN.inverse(self.wavefront,out=self.wavefront)
+            self.wavefront *= 1.0/self.wavefront.size*self.shape[0] #pycuda doesn't normalize.
+            print(self.wavefront.real.sum())
         else:
             _log.debug("   Using numpy FFT")
             self.wavefront = np.fft.ifft2(self.wavefront) * self.shape[0]
@@ -410,7 +451,7 @@ class FresnelWavefront(Wavefront):
     #  methods supporting coordinates, including switching between distance and angular units
 
     @staticmethod
-    def pupil_coordinates(shape, pixelscale):
+    def pupil_coordinates(x,y, pixelscale):
         """Utility function to generate coordinates arrays for a pupil
         plane wavefront
 
@@ -430,17 +471,19 @@ class FresnelWavefront(Wavefront):
         # slightly differently. This is required for use in the angular spectrum propagation in the PTP and
         # Direct propagations.
 
-        y, x = np.indices(shape, dtype=float)
+        #y, x = np.indices(shape, dtype=float)
         pixelscale_mpix = pixelscale.to(u.meter / u.pixel).value
         if not np.isscalar(pixelscale_mpix):
             pixel_scale_x, pixel_scale_y = pixelscale_mpix
         else:
             pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
 
-        y -= (shape[0]) / 2.0
-        x -= (shape[1]) / 2.0
-
-        return pixel_scale_y * y, pixel_scale_x * x
+        #y -= (shape[0]) / 2.0
+        #x -= (shape[1]) / 2.0
+        if _NUMEXPR_AVAILABLE:
+            return ne.evaluate("pixel_scale_y * y"),  ne.evaluate("pixel_scale_x * x")
+        else:
+            return pixel_scale_y * y, pixel_scale_x * x
 
     def coordinates(self):
         """ Return Y, X coordinates for this wavefront, in the manner of numpy.indices()
@@ -464,7 +507,7 @@ class FresnelWavefront(Wavefront):
             Wavefront coordinates in either meters or arcseconds for pupil and image, respectively
         """
 
-        y, x = type(self).pupil_coordinates(self.shape, self._pixelscale_m)
+        y, x = type(self).pupil_coordinates(self._x,self._y, self._pixelscale_m)
 
         # If the wavefront been explicitly set to use angular units,
         # for instance at an image plane,then
@@ -1086,7 +1129,9 @@ class FresnelOpticalSystem(OpticalSystem):
             The 0th item is "before first optical plane", 1st is "after first plane and before second plane", and so on.
             (n.b. This will be empty if `retain_intermediates` is False.)
         """
-
+        if _USE_CUDA:
+            _log.debug("_USE_CUDA enabled, will not retain intermediates")
+            retain_intermediates=False
         if poppy.conf.enable_speed_tests:
             t_start = time.time()
         if self.verbose:

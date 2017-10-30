@@ -29,6 +29,7 @@ __all__ = ['Wavefront',  'OpticalSystem', 'SemiAnalyticCoronagraph', 'MatrixFTCo
 # Setup infrastructure for FFTW
 _FFTW_INIT = {}  # dict of array sizes for which we have already performed the required FFTW planning step
 _FFTW_FLAGS = ['measure']
+
 try:
     # try to import FFTW to see if it is available
     import pyfftw
@@ -37,6 +38,21 @@ except ImportError:
     pyfftw = None
     _FFTW_AVAILABLE = False
 
+try:
+    # try to import accelerate package to see if it is available
+    import accelerate
+    _ACCELERATE_AVAILABLE = True
+except ImportError:
+    accelerate = None
+    _ACCELERATE_AVAILABLE = False
+    
+try:
+    # try to import numexpr package to see if it is available
+    import numexpr as ne
+    _NUMEXPR_AVAILABLE = True
+except ImportError:
+    ne = None
+    _NUMEXPR_AVAILABLE = False
 
 # internal constants for types of plane
 class PlaneType(enum.Enum):
@@ -56,6 +72,12 @@ _INTERMED = PlaneType.intermediate  # for Fresnel propagation
 
 _RADIANStoARCSEC = 180.*60*60 / np.pi
 
+def _exp(x):
+    if _NUMEXPR_AVAILABLE:
+        print("ne")
+        return  ne.evaluate("exp(x)")
+    else:
+        return np.exp(x)
 
 
 def _wrap_propagate_for_multiprocessing(args):
@@ -159,7 +181,12 @@ class Wavefront(object):
         self.history.append(" using array size %s" % (self.wavefront.shape,))
         self.location = 'Entrance Pupil'
         "Descriptive string for where a wavefront is instantaneously located. Used mostly for titling displayed plots."
-
+    @property
+    def _wavelength_m(self):
+        if isinstance(self.wavelength, u.quantity.Quantity):
+            return self.wavelength.to(u.m).value
+        else:
+            return self.wavelength
     def __str__(self):
         # TODO add switches for image/pupil planes
         return """Wavefront:
@@ -248,7 +275,6 @@ class Wavefront(object):
                 return utils.removePadding(attribute_array.copy(), self.oversample)
             else:
                 return attribute_array.copy()
-
         if what.lower() == 'all':
             intens = get_unpadded(self.intensity)
             outarr = np.zeros((3, intens.shape[0], intens.shape[1]))

@@ -8,13 +8,14 @@ import astropy.units as u
 import warnings
 
 from . import utils
+
 from .version import version
 
 import logging
 
 _log = logging.getLogger('poppy')
 
-from .poppy_core import OpticalElement, Wavefront, PlaneType, _PUPIL, _IMAGE, _RADIANStoARCSEC
+from .poppy_core import OpticalElement, Wavefront, PlaneType, _PUPIL, _IMAGE, _RADIANStoARCSEC, _exp
 
 __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'InverseTransmission',
            'BandLimitedCoron', 'IdealFQPM', 'RectangularFieldStop', 'SquareFieldStop',
@@ -105,7 +106,7 @@ class AnalyticOpticalElement(OpticalElement):
             wavelength=wave
         scale = 2. * np.pi / wavelength.to(u.meter).value
 
-        return self.get_transmission(wave) * np.exp (1.j * self.get_opd(wave) * scale)
+        return self.get_transmission(wave) * _exp (1.j * self.get_opd(wave) * scale)
 
     def getPhasor(self,wave):
         warnings.warn("getPhasor is deprecated; use get_phasor instead", DeprecationWarning)
