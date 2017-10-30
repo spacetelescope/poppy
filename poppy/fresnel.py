@@ -21,10 +21,11 @@ if _NUMEXPR_AVAILABLE:
 if _ACCELERATE_AVAILABLE:
     import accelerate.cuda
     _USE_CUDA = (poppy.conf.use_cuda and _ACCELERATE_AVAILABLE)
-    #accelerated
-    #@numbapro.vectorize([numba.float64(numba.float64, numba.float64,numba.float64)],
-    #             target='gpu')
-    
+else:
+    _USE_CUDA = False
+
+_NUMEXPR_AVAILABLE = False
+
 
 __all__ = ['QuadPhase', 'QuadraticLens', 'FresnelWavefront', 'FresnelOpticalSystem']
 
@@ -61,7 +62,7 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
                                                   **kwargs)
         self.z = z
         self._z_m = z.to(u.m).value
-
+        
     def get_phasor(self, wave):
         """ return complex phasor for the quadratic phase
 
@@ -76,7 +77,7 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
         _log.debug("Applying spherical lens phase ={0:0.2e}".format(1.0 / self.z))
         z= self._z_m #numexpr can't evaluate self.
         k = 2 * np.pi / wave._wavelength_m
-        if _NUMEXPR_AVAILABLE:
+        if False:
             rsqd = ne.evaluate("(x ** 2 + y ** 2)")
             #faster to evaluate all in one line but advantage diminishes w/ size
             #also significantly faster to call numexpr here then call _exp
@@ -291,7 +292,7 @@ class FresnelWavefront(Wavefront):
             raise ValueError(
                 "Input wavefront needs to be a pupil plane in units of m/pix. Specify a diameter not a pixelscale.")
         if _USE_CUDA:
-            #initialize FFT plan
+            #initialize FFT plan (can't be pickled)
             self.cuFFTPLAN = accelerate.cuda.fft.FFTPlan(self.shape,np.complex128,np.complex128)
 
 
@@ -378,6 +379,7 @@ class FresnelWavefront(Wavefront):
             _log.debug("   Using cuda via accelerate")
             self.cuFFTPLAN.forward(self.wavefront,out=self.wavefront)
             self.wavefront *= 1/self.wavefront.shape[0]
+            print("using cuda")
         else:
             _log.debug("   Using numpy FFT")
             self.wavefront = np.fft.fft2(self.wavefront) / self.shape[0]
@@ -675,7 +677,7 @@ class FresnelWavefront(Wavefront):
 
         self._fft()
 
-        self.wavefront = self.wavefront * _exp(t)  # eq. 6.68
+        self.wavefront = self.wavefront * np.exp(t)  # eq. 6.68
 
         self._inv_fft()
         self.z += dz
@@ -1118,7 +1120,9 @@ class FresnelOpticalSystem(OpticalSystem):
             The 0th item is "before first optical plane", 1st is "after first plane and before second plane", and so on.
             (n.b. This will be empty if `retain_intermediates` is False.)
         """
-
+        if _USE_CUDA:
+            _log.debug("_USE_CUDA enabled, will not retain intermediates")
+            retain_intermediates=False
         if poppy.conf.enable_speed_tests:
             t_start = time.time()
         if self.verbose:

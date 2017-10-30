@@ -74,6 +74,7 @@ _RADIANStoARCSEC = 180.*60*60 / np.pi
 
 def _exp(x):
     if _NUMEXPR_AVAILABLE:
+        print("ne")
         return  ne.evaluate("exp(x)")
     else:
         return np.exp(x)
