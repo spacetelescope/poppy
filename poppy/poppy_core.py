@@ -156,7 +156,10 @@ class Wavefront(object):
 
         self.wavelength = wavelength
         """Wavelength in meters (or other unit if specified)"""
-
+        if isinstance(self.wavelength, u.quantity.Quantity):
+            self._wavelength_m = self.wavelength.to(u.m).value
+        else:
+            self._wavelength_m = self.wavelength
         self.diam = diam          # pupil plane size in meters
         """Diameter in meters. Applies to a pupil plane only."""
         self.fov = None                                     # image plane size in arcsec
@@ -183,12 +186,7 @@ class Wavefront(object):
         self.history.append(" using array size %s" % (self.wavefront.shape,))
         self.location = 'Entrance Pupil'
         "Descriptive string for where a wavefront is instantaneously located. Used mostly for titling displayed plots."
-    @property
-    def _wavelength_m(self):
-        if isinstance(self.wavelength, u.quantity.Quantity):
-            return self.wavelength.to(u.m).value
-        else:
-            return self.wavelength
+
     def __str__(self):
         # TODO add switches for image/pupil planes
         return """Wavefront:

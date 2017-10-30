@@ -26,6 +26,7 @@ _USE_CUDA = (poppy.conf.use_cuda and _ACCELERATE_AVAILABLE)
 if _USE_CUDA:
     import accelerate.cuda
 
+pi = np.pi
 
 __all__ = ['QuadPhase', 'QuadraticLens', 'FresnelWavefront', 'FresnelOpticalSystem']
 
@@ -677,14 +678,20 @@ class FresnelWavefront(Wavefront):
             return
 
         x, y = self.coordinates()  # meters
-        rhosqr = np.fft.fftshift((x / (self.pixelscale.to(u.m / u.pix).value ** 2 * self.n)) ** 2 + (
-                                  y / (self.pixelscale.to(u.m / u.pix).value ** 2 * self.n)) ** 2)
-        t = -1.0j * np.pi * self.wavelength.to(u.meter).value * (
-            z_direct) * rhosqr  # Transfer Function of diffraction propagation eq. 22, eq. 87
+        meter_per_pix = self.pixelscale.to(u.m / u.pix).value
+        rhosqr = np.fft.fftshift((x / ( meter_per_pix** 2 * self.n)) ** 2 + (
+                                  y / (meter_per_pix** 2 * self.n)) ** 2)
+        # Transfer Function of diffraction propagation eq. 22, eq. 87
+        wavelen_m = self._wavelength_m 
+
+        if _USE_NUMEXPR:
+                t= ne.evaluate("-1.0j * pi * wavelen_m * (z_direct) * rhosqr")
+        else:
+                t = -1.0j * np.pi * wavelen_m * (z_direct) * rhosqr
 
         self._fft()
 
-        self.wavefront = self.wavefront * np.exp(t)  # eq. 6.68
+        self.wavefront = self.wavefront * _exp(t)  # eq. 6.68
 
         self._inv_fft()
         self.z += dz
