@@ -7,7 +7,8 @@ import logging
 import time
 
 import poppy
-from poppy.poppy_core import PlaneType, _ACCELERATE_AVAILABLE, _FFTW_AVAILABLE, _NUMEXPR_AVAILABLE, OpticalSystem, Wavefront, _exp
+from poppy.poppy_core import PlaneType, _USE_CUDA, _FFTW_AVAILABLE, _USE_NUMEXPR, OpticalSystem, Wavefront
+from poppy.accel_math import _exp, _fftshift
 from . import utils
 
 _log = logging.getLogger('poppy')
@@ -15,15 +16,12 @@ _log = logging.getLogger('poppy')
 
 if _FFTW_AVAILABLE:
     import pyfftw
-    
-_USE_NUMEXPR = (poppy.conf.use_numexpr and _NUMEXPR_AVAILABLE)
 
 if _USE_NUMEXPR:
     import numexpr as ne
 
-_USE_CUDA = (poppy.conf.use_cuda and _ACCELERATE_AVAILABLE)
-
 if _USE_CUDA:
+    #FIX ME: continuum.io's accelerate library is going to b replaced with pyculib
     import accelerate.cuda
 
 pi = np.pi
@@ -112,7 +110,7 @@ class _QuadPhaseShifted(QuadPhase):
         wave : object
             FresnelWavefront instance
         """
-        return np.fft.fftshift(super(_QuadPhaseShifted, self).get_phasor(wave))
+        return _fftshift(super(_QuadPhaseShifted, self).get_phasor(wave))
 
 
 class QuadraticLens(QuadPhase):
@@ -821,7 +819,7 @@ class FresnelWavefront(Wavefront):
             plt.figure()
             self.display('both', colorbar=True, title="Starting Surface")
 
-        self.wavefront = np.fft.fftshift(self.wavefront)
+        self.wavefront = _fftshift(self.wavefront)
         _log.debug("Beginning Fresnel Prop. Waist at z = " + str(self.z_w0))
 
         if not self.spherical:
@@ -863,7 +861,7 @@ class FresnelWavefront(Wavefront):
             plt.figure()
             self.display('both', colorbar=True)
 
-        self.wavefront = np.fft.fftshift(self.wavefront)
+        self.wavefront = _fftshift(self.wavefront)
         self.planetype = PlaneType.intermediate
         _log.debug("------ Propagated to plane of type " + str(self.planetype) + " at z = {0:0.2e} ------".format(z))
 

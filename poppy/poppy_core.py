@@ -54,7 +54,8 @@ try:
 except ImportError:
     ne = None
     _NUMEXPR_AVAILABLE = False
-
+    
+_USE_CUDA = (conf.use_cuda and _ACCELERATE_AVAILABLE)
 _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
 
 # internal constants for types of plane
@@ -74,13 +75,6 @@ _ROTATION = PlaneType.rotation  # not a real optic, just a coordinate transform
 _INTERMED = PlaneType.intermediate  # for Fresnel propagation
 
 _RADIANStoARCSEC = 180.*60*60 / np.pi
-
-def _exp(x):
-    if _USE_NUMEXPR:
-        return  ne.evaluate("exp(x)")
-    else:
-        return np.exp(x)
-
 
 def _wrap_propagate_for_multiprocessing(args):
     """ This is an internal helper routine for parallelizing computations across multiple processors.
