@@ -446,3 +446,21 @@ def test_fresnel_propagate_direct_2forward_and_back():
     wf.propagate_direct(z)
     wf.propagate_direct(-z)
     np.testing.assert_almost_equal(wf.wavefront, start)
+
+def test_fresnel_return_complex(): 
+    # physical radius values
+    M1_radius = 3. * u.m 
+    fl_M1 = M1_radius/2.0
+    # intermediary distances
+
+    tel = fresnel.FresnelOpticalSystem(pupil_diameter=2.4*u.m)
+    gl=fresnel.QuadraticLens(500*u.cm)
+
+    tel.add_optic(gl)
+    tel.add_optic(optics.CircularAperture(radius=M1_radius,name="M1 aperture"))
+    tel.add_optic(optics.ScalarTransmission( name="primary mirror focal plane"), distance=fl_M1)
+    
+    psf=tel.calcPSF(return_final=True)
+    
+    assert len(psf[1])==1
+    assert np.allclose(psf[1][0].intensity,psf[0][0].data)

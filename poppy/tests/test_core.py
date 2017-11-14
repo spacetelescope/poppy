@@ -393,3 +393,11 @@ def test_unit_conversions():
         difference = numeric_psf[0].data-analytic
         assert np.all(np.abs(difference) < 3e-5)
 
+def test_return_complex():
+    osys =poppy_core.OpticalSystem()
+    osys.add_pupil(optics.CircularAperture(radius=3))   
+    osys.add_detector(pixelscale=0.010, fov_arcsec=5.0)
+    psf = osys.calc_psf(2e-6,return_final=True) 
+    assert len(psf[1])==1 #make sure only one element was returned
+    #test that the wavefront returned is the final wavefront:
+    assert np.allclose(psf[1][0].intensity,psf[0][0].data)
