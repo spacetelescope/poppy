@@ -734,13 +734,13 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
 
         # get max extent of aperture from array center
         yind, xind = np.where(aperture > 0)
-        distance = np.sqrt( (yind-(shape[0]-1)/2.)**2 + (xind-(shape[1]-1)/2.)**2 )
+        distance = np.sqrt( (yind - (shape[0] - 1) / 2.)**2 + (xind - (shape[1] - 1) / 2.)**2 )
         max_extent = distance.max()
 
         # calculate padding for oversizing zernike_basis
         ceil = lambda x: np.ceil(x) if x > 0 else 0 # avoid negative values
-        padding = ( int(ceil((max_extent - shape[0] / 2.))),
-                    int(ceil((max_extent - shape[1] / 2.))) )
+        padding = ( int(ceil((max_extent - (shape[0] - 1) / 2.))),
+                    int(ceil((max_extent - (shape[1] - 1) / 2.))) )
         padded_shape = (shape[0] + padding[0] * 2, shape[1] + padding[1] * 2)
         npix = padded_shape[0]
 
@@ -748,8 +748,8 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
         Z = np.zeros((nterms + 1,) + padded_shape)
         Z[1:] = zernike_basis(nterms=nterms, npix=npix, rho=rho, theta=theta, outside=0.0)
         # slice down to original aperture array size
-        Z = Z[:,padding[0]:padded_shape[0]-padding[0],
-                padding[1]:padded_shape[1]-padding[1]]
+        Z = Z[:,padding[0]:padded_shape[0] - padding[0],
+                padding[1]:padded_shape[1] - padding[1]]
     else:
         # precompute zernikes on user-defined rho, theta
         Z = np.zeros((nterms + 1,) + shape)
