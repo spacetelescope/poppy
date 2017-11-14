@@ -739,8 +739,8 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
 
         # calculate padding for oversizing zernike_basis
         ceil = lambda x: np.ceil(x) if x > 0 else 0 # avoid negative values
-        padding = ( int(ceil((max_extent - shape[0] / 2.))),
-                    int(ceil((max_extent - shape[1] / 2.))) )
+        padding = ( int(ceil((max_extent - (shape[0] - 1) / 2.))),
+                    int(ceil((max_extent - (shape[1] - 1) / 2.))) )
         padded_shape = (shape[0] + padding[0] * 2, shape[1] + padding[1] * 2)
         npix = padded_shape[0]
 
