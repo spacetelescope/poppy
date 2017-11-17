@@ -307,12 +307,11 @@ class FresnelWavefront(Wavefront):
     @property
     def divergence(self):
         """
-        Divergence of the gaussian beam
+        Half-angle divergence of the gaussian beam
 
-        I.e. the angle between the optical axis and the beam radius at a large distance.
-        Angle in radians.
+        I.e.  the angle between the optical axis and the beam radius (at a large distance  from the waist) in radians.
         """
-        return 2 * self.wavelength / (np.pi * self.w_0)
+        return self.wavelength / (np.pi * self.w_0)
 
     @property
     def param_str(self):
