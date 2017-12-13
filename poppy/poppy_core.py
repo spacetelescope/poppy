@@ -2720,6 +2720,17 @@ class FITSOpticalElement(OpticalElement):
                 self.opd = self.opd[:,::-1]
                 _log.debug("Inverted optic in the X axis")
 
+            # ---- transformation: rotation ----
+            # If a rotation is specified and we're NOT a null (scalar) optic, then do the rotation:
+            if rotation is not None and len(self.amplitude.shape) ==2:
+                # do rotation with interpolation, but try to clean up some of the artifacts afterwards.
+                # this is imperfect at best, of course...
+                self.amplitude = scipy.ndimage.interpolation.rotate(self.amplitude, rotation, reshape=False).clip(min=0,max=1.0)
+                wnoise = np.where(( self.amplitude < 1e-3) & (self.amplitude > 0))
+                self.amplitude[wnoise] = 0
+                self.opd       = scipy.ndimage.interpolation.rotate(self.opd,       rotation, reshape=False)
+                _log.info("  Rotated optic by %f degrees counter clockwise." % rotation)
+                self._rotation = rotation
 
             # ---- transformation: shift ----
             # if a shift is specified and we're NOT a null (scalar) optic, then do the shift:
@@ -2735,23 +2746,6 @@ class FITSOpticalElement(OpticalElement):
 
                 self.amplitude = scipy.ndimage.shift(self.amplitude, (rolly, rollx))
                 self.opd       = scipy.ndimage.shift(self.opd,       (rolly, rollx))
-
-            # ---- transformation: rotation ----
-            # Likewise, if a rotation is specified and we're NOT a null (scalar) optic, then do the rotation:
-            if rotation is not None and len(self.amplitude.shape) ==2:
-
-                # do rotation with interpolation, but try to clean up some of the artifacts afterwards.
-                # this is imperfect at best, of course...
-
-                self.amplitude = scipy.ndimage.interpolation.rotate(self.amplitude, rotation, reshape=False).clip(min=0,max=1.0)
-                wnoise = np.where(( self.amplitude < 1e-3) & (self.amplitude > 0))
-                self.amplitude[wnoise] = 0
-                self.opd       = scipy.ndimage.interpolation.rotate(self.opd,       rotation, reshape=False)
-                _log.info("  Rotated optic by %f degrees counter clockwise." % rotation)
-                #fits.PrimaryHDU(self.amplitude).writeto("test_rotated_amp.fits", overwrite=True)
-                #fits.PrimaryHDU(self.opd).writeto("test_rotated_opt.fits", overwrite=True)
-                self._rotation = rotation
-
 
             # Determine the pixel scale for this image.
             _MISSING_PIXELSCALE_MSG = ("No FITS header keyword for pixel scale found "
@@ -2826,8 +2820,8 @@ class FITSOpticalElement(OpticalElement):
 
     @property
     def pupil_diam(self):
+        "Diameter of the pupil (if this is a pupil plane optic)"
         return self.pixelscale * (self.amplitude.shape[0]*u.pixel)
-    "Diameter of the pupil (if this is a pupil plane optic)"
 
 
 class CoordinateTransform(OpticalElement):

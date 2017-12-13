@@ -428,9 +428,11 @@ class Instrument(object):
             opdstring = os.path.basename(self.pupilopd)
         elif isinstance(self.pupilopd, fits.HDUList):
             opdstring = 'OPD from supplied FITS HDUlist object'
+        elif isinstance(self.pupilopd, poppy_core.OpticalElement):
+            opdstring = 'OPD from supplied OpticalElement: ' + str(self.pupilopd)
         else:  # tuple?
             opdstring = "%s slice %d" % (os.path.basename(self.pupilopd[0]), self.pupilopd[1])
-        result[0].header['PUPILOPD'] = (opdstring, 'Pupil wavefront OPD source')
+        result[0].header['PUPILOPD'] = (opdstring, 'Pupil OPD source')
 
         result[0].header['INSTRUME'] = (self.name, 'Instrument')
         result[0].header['FILTER'] = (self.filter, 'Filter name')
@@ -680,7 +682,7 @@ class Instrument(object):
             poppy_core._log.info("        resulting image peak drops to {0:.3f} of its previous value".format(strehl))
             result[0].header['JITRTYPE'] = ('Gaussian convolution', 'Type of jitter applied')
             result[0].header['JITRSIGM'] = (sigma, 'Gaussian sigma for jitter [arcsec]')
-            result[0].header['JITRSTRL'] = (strehl, 'Image peak reduction due to jitter (in oversampled img')
+            result[0].header['JITRSTRL'] = (strehl, 'Strehl reduction from jitter ')
 
             result[0].data = out
         else:
