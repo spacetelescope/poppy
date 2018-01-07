@@ -71,7 +71,7 @@ def _wrap_propagate_for_multiprocessing(args):
     as a tuple, transmitting that to the new process, and then unpickling that,
     unpacking the results, and *then* at last making our instance method call.
     """
-    optical_system, wavelength, retain_intermediates, normalize, usefftwflag = args
+    optical_system, wavelength, retain_intermediates, retain_final, normalize, usefftwflag = args
     conf.use_fftw = usefftwflag  # passed in from parent process
 
     # we're in a different Python interpreter process so we
@@ -80,7 +80,10 @@ def _wrap_propagate_for_multiprocessing(args):
         utils._loaded_fftw_wisdom = False
         utils.fftw_load_wisdom()
 
-    return optical_system.propagate_mono(wavelength, retain_intermediates=retain_intermediates, normalize=normalize)
+    return optical_system.propagate_mono(wavelength,
+                                             retain_intermediates=retain_intermediates,
+                                             retain_final=retain_final,
+                                             normalize=normalize)
 
 
 class Wavefront(object):
@@ -1427,8 +1430,12 @@ class OpticalSystem(object):
         return inwave
 
     @utils.quantity_input(wavelength=u.meter)
-    def propagate_mono(self, wavelength=2e-6*u.meter, normalize='first',
-                       retain_intermediates=False, display_intermediates=False):
+    def propagate_mono(self,
+                           wavelength=2e-6*u.meter,
+                           normalize='first',
+                           retain_intermediates=False,
+                           retain_final=False,
+                           display_intermediates=False):
         """Propagate a monochromatic wavefront through the optical system. Called from within `calc_psf`.
         Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s (empty if
         `retain_intermediates=False`).
@@ -1449,6 +1456,12 @@ class OpticalSystem(object):
             Should intermediate steps in the calculation be retained? Default: False.
             If True, the second return value of the method will be a list of `poppy.Wavefront` objects
             representing intermediate optical planes from the calculation.
+        retain_final : bool
+            Should the final complex wavefront be retained? Default: False.
+            If True, the second return value of the method will be a single element list
+            (for consistency with retain intermediates) containing a `poppy.Wavefront` object
+            representing the final optical plane from the calculation.
+            Overridden by retain_intermediates.
 
         Returns
         -------
@@ -1457,7 +1470,7 @@ class OpticalSystem(object):
         intermediate_wfs : list
             A list of `poppy.Wavefront` objects representing the wavefront at intermediate optical planes.
             The 0th item is "before first optical plane", 1st is "after first plane and before second plane", and so on.
-            (n.b. This will be empty if `retain_intermediates` is False.)
+            (n.b. This will be empty if `retain_intermediates` is False and singular if retain_final is True.)
         """
 
         if conf.enable_speed_tests:
@@ -1531,12 +1544,23 @@ class OpticalSystem(object):
         if conf.enable_speed_tests:
             t_stop = time.time()
             _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop-t_start))
+        
+        if (not retain_intermediates) & (retain_final): #return the full complex wavefront of the last plane.
+                intermediate_wfs = [wavefront]
 
         return wavefront.as_fits(), intermediate_wfs
 
     @utils.quantity_input(wavelength=u.meter)
-    def calc_psf(self, wavelength=1e-6*u.meter, weight=None, save_intermediates=False, save_intermediates_what='all',
-                display=False, return_intermediates=False, source=None, normalize='first', display_intermediates=False):
+    def calc_psf(self, wavelength=1e-6*u.meter,
+                     weight=None,
+                     save_intermediates=False,
+                     save_intermediates_what='all',
+                     display=False,
+                     return_intermediates=False,
+                     return_final=False,
+                     source=None,
+                     normalize='first',
+                     display_intermediates=False):
         """Calculate a PSF, either multi-wavelength or monochromatic.
 
         The wavelength coverage computed will be:
@@ -1661,7 +1685,7 @@ class OpticalSystem(object):
 
             # build a single iterable containing the required function arguments
             _log.info("Beginning multiprocessor job using {0} processes".format(nproc))
-            worker_arguments = [(self, wlen, retain_intermediates, normalize, _USE_FFTW)
+            worker_arguments = [(self, wlen, retain_intermediates, return_final, normalize, _USE_FFTW)
                                 for wlen in wavelength]
             results = pool.map(_wrap_propagate_for_multiprocessing, worker_arguments)
             _log.info("Finished multiprocessor job")
@@ -1691,6 +1715,7 @@ class OpticalSystem(object):
                 mono_psf, mono_intermediate_wfs = self.propagate_mono(
                     wlen,
                     retain_intermediates=retain_intermediates,
+                    retain_final=return_final,
                     display_intermediates=display_intermediates,
                     normalize=normalize
                 )
@@ -1755,8 +1780,10 @@ class OpticalSystem(object):
 
         if self.verbose:
             _log.info("PSF Calculation completed.")
-        if return_intermediates:
+
+        if (return_intermediates) | (return_final):
             return outFITS, intermediate_wfs
+            
         else:
             return outFITS
 
@@ -1877,8 +1904,11 @@ class SemiAnalyticCoronagraph(OpticalSystem):
                                      fov_arcsec = self.occulter_box*2, name='Oversampled Occulter Plane')
 
     @utils.quantity_input(wavelength=u.meter)
-    def propagate_mono(self, wavelength=2e-6*u.meter, normalize='first',
-                       retain_intermediates=False, display_intermediates=False):
+    def propagate_mono(self, wavelength=2e-6*u.meter,
+                           normalize='first',
+                           retain_final=False,
+                           retain_intermediates=False,
+                           display_intermediates=False):
         """Propagate a monochromatic wavefront through the optical system. Called from within `calc_psf`.
         Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s (empty if
         `retain_intermediates=False`).
@@ -1897,7 +1927,12 @@ class SemiAnalyticCoronagraph(OpticalSystem):
             Should intermediate steps in the calculation be retained? Default: False.
             If True, the second return value of the method will be a list of `poppy.Wavefront` objects
             representing intermediate optical planes from the calculation.
-
+        retain_final : bool
+            Should the final complex wavefront be retained? Default: False.
+            If True, the second return value of the method will be a single element list
+            (for consistency with retain intermediates) containing a `poppy.Wavefront` object
+            representing the final optical plane from the calculation.
+            Overridden by retain_intermediates.
         Returns
         -------
         final_wf : fits.HDUList
@@ -1905,7 +1940,7 @@ class SemiAnalyticCoronagraph(OpticalSystem):
         intermediate_wfs : list
             A list of `poppy.Wavefront` objects representing the wavefront at intermediate optical planes.
             The 0th item is "before first optical plane", 1st is "after first plane and before second plane", and so on.
-            (n.b. This will be empty if `retain_intermediates` is False.)
+            (n.b. This will be empty if `retain_intermediates` is False and singular if retain_final is True.)
         """
         if conf.enable_speed_tests:
            t_start = time.time()
@@ -2057,8 +2092,11 @@ class MatrixFTCoronagraph(OpticalSystem):
         self.occulter_box = occulter_box
 
     @utils.quantity_input(wavelength=u.meter)
-    def propagate_mono(self, wavelength=1e-6, normalize='first',
-                       retain_intermediates=False, display_intermediates=False):
+    def propagate_mono(self, wavelength=1e-6,
+                           normalize='first',
+                           retain_intermediates=False,
+                           retain_final=False,
+                           display_intermediates=False):
         """Propagate a monochromatic wavefront through the optical system using matrix FTs. Called from
         within `calc_psf`. Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s
         (empty if `retain_intermediates=False`).
@@ -2081,6 +2119,12 @@ class MatrixFTCoronagraph(OpticalSystem):
             Should intermediate steps in the calculation be retained? Default: False.
             If True, the second return value of the method will be a list of `poppy.Wavefront` objects
             representing intermediate optical planes from the calculation.
+        retain_final : bool
+            Should the final complex wavefront be retained? Default: False.
+            If True, the second return value of the method will be a single element list
+            (for consistency with retain intermediates) containing a `poppy.Wavefront` object
+            representing the final optical plane from the calculation.
+            Overridden by retain_intermediates.
 
         Returns
         -------
@@ -2141,7 +2185,7 @@ class MatrixFTCoronagraph(OpticalSystem):
 
             if retain_intermediates: # save intermediate wavefront, summed for polychromatic if needed
                 intermediate_wfs.append(wavefront.copy())
-
+ 
             if display_intermediates:
                 if conf.enable_speed_tests:
                     t0 = time.time()
@@ -2171,6 +2215,8 @@ class MatrixFTCoronagraph(OpticalSystem):
             t_stop = time.time()
             _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop-t_start))
 
+        if (not retain_intermediates) & (retain_final): #return the full complex wavefront of the last plane.
+                intermediate_wfs = [wavefront]
         return wavefront.as_fits(), intermediate_wfs
 
 
