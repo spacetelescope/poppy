@@ -106,4 +106,3 @@ after_success:
 notifications:
   email:
     - mperrin@stsci.edu
-    - jlong@stsci.edu
