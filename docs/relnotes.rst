@@ -8,7 +8,17 @@ For a list of contributors, see :ref:`about`.
 0.6.2
 -----
 
-*Unreleased*
+.. _rel0.6.2:
+
+*2018 January 9*
+
+ * `calc_psf` gains a new parameter to request returning the complex wavefront (`#234 <https://github.com/mperrin/poppy/pull/234>`_,@douglase)
+ * Bug fix for integer vs floating point division when padding array sizes in some circumstances (`#235 <https://github.com/mperrin/poppy/issues/235>`_, @exowanderer, @mperrin)
+ * Bug fix for aperture clipping in `zernike.arbitrary_basis` (`#241 <https://github.com/mperrin/poppy/pull/241>`_, @kvangorkom)
+ * Bug fix / documentation fix for divergence angle in the Fresnel code (`#237 <https://github.com/mperrin/poppy/pull/237>`_, @douglase). Note, the `divergence` function now returns the *half angle* rather than the *full angle*.
+ * For FITSOpticalElements with both shift and rotation set, apply the rotation first and then the shift for more intuitive UI (@mperrin)
+ * Increment minimal required astropy version to 1.3, and various related Travis CI setup updates (@mperrin)
+ * Misc minor doc and logging fixes  (@mperrin)
 
 .. _rel0.6.1:
 
