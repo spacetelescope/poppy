@@ -46,10 +46,8 @@ matrix:
           env: SETUP_CMD='test --coverage'
 
         # Check for Sphinx doc build errors
-        # This fails on 3.6 for some reason?? Not critical enough to
-        # debug now so leave at 2.7
-        - python: 2.7
-          env: SETUP_CMD='build_sphinx' PIP_DEPENDENCIES='enum34>=1.0.4'
+        - python: 3.6
+          env: SETUP_CMD='build_sphinx' 
 
         # Try Astropy development version
         - python: 3.6

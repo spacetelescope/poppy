@@ -19,6 +19,7 @@ For a list of contributors, see :ref:`about`.
  * For FITSOpticalElements with both shift and rotation set, apply the rotation first and then the shift for more intuitive UI (@mperrin)
  * Increment minimal required astropy version to 1.3, and various related Travis CI setup updates (@mperrin)
  * Misc minor doc and logging fixes  (@mperrin)
+ * Update `astropy-helpers` submodule to version 2.0.2; necessary for compatibility with recent Sphinx releases. (@mperrin)
 
 .. _rel0.6.1:
 
