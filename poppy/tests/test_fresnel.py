@@ -300,7 +300,7 @@ def test_fresnel_optical_system_Hubble(display=False):
     psf, waves = hst.calc_psf(wavelength=0.5e-6, display_intermediates=display, return_intermediates=True)
 
     if len(waves)>1:
-        
+
         ### check the beam size is as expected at primary and secondary mirror
         assert(np.allclose(waves[1].spot_radius().value, 1.2))
         # can't find a definitive reference for the beam diam at the SM, but
@@ -311,12 +311,12 @@ def test_fresnel_optical_system_Hubble(display=False):
 
         ### check the focal length of the overall system is as expected
         expected_system_focal_length = 1./(1./fl_pri + 1./fl_sec - (d_pri_sec)/(fl_pri*fl_sec))
-        # n.b. the value calculated here, 57.48 m, is a bit less than the 
+        # n.b. the value calculated here, 57.48 m, is a bit less than the
         # generally stated focal length of Hubble, 57.6 meters. Adjusting the
         # primary-to-secondary spacing by about 100 microns can resolve this
         # discrepancy. We here opt to stick with the values used in the PROPER
-        # example, to facilitate cross-checking the two codes. 
-    
+        # example, to facilitate cross-checking the two codes.
+
         assert(not np.isfinite(waves[0].focal_length))  # plane wave after circular aperture
         assert(waves[1].focal_length==fl_pri)           # focal len after primary
         # NB. using astropy.Quantities with np.allclose() doesn't work that well
@@ -330,7 +330,7 @@ def test_fresnel_optical_system_Hubble(display=False):
         # we only require this to have < 5% accuracy with respect to the theoretical value
         # given discrete pixelization etc.
         assert(np.abs((measured_fwhm-expected_fwhm)/expected_fwhm) < 0.05)
-        
+
         ### check the various plane types are as expected, including toggling into angular coordinates
         assert_message = ("Expected FresnelWavefront at plane #{} to have {} == {}, but got {}")
         system_planetypes = [PlaneType.pupil, PlaneType.pupil, PlaneType.intermediate, PlaneType.image]
@@ -454,9 +454,9 @@ def test_fresnel_propagate_direct_2forward_and_back():
     wf.propagate_direct(-z)
     np.testing.assert_almost_equal(wf.wavefront, start)
 
-def test_fresnel_return_complex(): 
+def test_fresnel_return_complex():
     # physical radius values
-    M1_radius = 3. * u.m 
+    M1_radius = 3. * u.m
     fl_M1 = M1_radius/2.0
     # intermediary distances
 
@@ -466,8 +466,8 @@ def test_fresnel_return_complex():
     tel.add_optic(gl)
     tel.add_optic(optics.CircularAperture(radius=M1_radius,name="M1 aperture"))
     tel.add_optic(optics.ScalarTransmission( name="primary mirror focal plane"), distance=fl_M1)
-    
+
     psf=tel.calcPSF(return_final=True)
-    
+
     assert len(psf[1])==1
     assert np.allclose(psf[1][0].intensity,psf[0][0].data)
