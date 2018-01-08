@@ -29,6 +29,7 @@ __all__ = ['Wavefront',  'OpticalSystem', 'SemiAnalyticCoronagraph', 'MatrixFTCo
 # Setup infrastructure for FFTW
 _FFTW_INIT = {}  # dict of array sizes for which we have already performed the required FFTW planning step
 _FFTW_FLAGS = ['measure']
+
 try:
     # try to import FFTW to see if it is available
     import pyfftw
@@ -37,6 +38,25 @@ except ImportError:
     pyfftw = None
     _FFTW_AVAILABLE = False
 
+try:
+    # try to import accelerate package to see if it is available
+    import accelerate
+    _ACCELERATE_AVAILABLE = True
+except ImportError:
+    accelerate = None
+    _ACCELERATE_AVAILABLE = False
+    
+try:
+    # try to import numexpr package to see if it is available
+    import numexpr as ne
+    _NUMEXPR_AVAILABLE = True
+
+except ImportError:
+    ne = None
+    _NUMEXPR_AVAILABLE = False
+    
+_USE_CUDA = (conf.use_cuda and _ACCELERATE_AVAILABLE)
+_USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
 
 # internal constants for types of plane
 class PlaneType(enum.Enum):
@@ -55,8 +75,6 @@ _ROTATION = PlaneType.rotation  # not a real optic, just a coordinate transform
 _INTERMED = PlaneType.intermediate  # for Fresnel propagation
 
 _RADIANStoARCSEC = 180.*60*60 / np.pi
-
-
 
 def _wrap_propagate_for_multiprocessing(args):
     """ This is an internal helper routine for parallelizing computations across multiple processors.
@@ -135,7 +153,10 @@ class Wavefront(object):
 
         self.wavelength = wavelength
         """Wavelength in meters (or other unit if specified)"""
-
+        if isinstance(self.wavelength, u.quantity.Quantity):
+            self._wavelength_m = self.wavelength.to(u.m).value
+        else:
+            self._wavelength_m = self.wavelength
         self.diam = diam          # pupil plane size in meters
         """Diameter in meters. Applies to a pupil plane only."""
         self.fov = None                                     # image plane size in arcsec
@@ -251,7 +272,6 @@ class Wavefront(object):
                 return utils.removePadding(attribute_array.copy(), self.oversample)
             else:
                 return attribute_array.copy()
-
         if what.lower() == 'all':
             intens = get_unpadded(self.intensity)
             outarr = np.zeros((3, intens.shape[0], intens.shape[1]))
@@ -520,6 +540,7 @@ class Wavefront(object):
 
             plot_axes = [ax]
             to_return = ax
+
         elif what == 'both':
             ax1 = plt.subplot(nrows, 2, (row * 2) - 1)
             plt.imshow(amp, extent=extent, cmap=cmap_inten, norm=norm_inten, origin='lower')
@@ -3039,5 +3060,4 @@ class Detector(OpticalElement):
 
     def __str__(self):
         return "Detector plane: {} ({}x{} pixels, {})".format(self.name, self.shape[1], self.shape[0], self.pixelscale)
-
 
