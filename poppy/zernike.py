@@ -577,7 +577,8 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
 
 def hexike_basis_wss(nterms=9, npix=512, rho=None, theta=None,
                 x=None,y=None,
-                 vertical=False, outside=np.nan):
+                 vertical=False, outside=np.nan,
+                 aperture=None):
     """Return a list of hexike polynomials 1-N based on analytic
     expressions. Note, this is strictly consistent with the
     JWST WSS hexikes in both ordering and normalization.
@@ -659,7 +660,8 @@ def hexike_basis_wss(nterms=9, npix=512, rho=None, theta=None,
         theta = np.arctan2(y,x)
 
 
-    aperture = hex_aperture(npix=npix, rho=rho, theta=theta, vertical=vertical)
+    if aperture is None:
+        aperture = hex_aperture(npix=npix, rho=rho, theta=theta, vertical=vertical)
     #print(rho[aperture==1].max())
 
     A = aperture.sum()

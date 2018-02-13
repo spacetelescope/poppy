@@ -23,12 +23,12 @@ Requirements
 * Either Python 2.7 or Python 3.4.  (Under :ref:`certain circumstances on Mac
   OS <accelerated_multiprocessing>`, Python 3.4 is required if you want
   parallelized calculations, but otherwise POPPY functionality is identical on
-  both versions.) 
+  both versions.)
 * The standard Python scientific stack: :py:mod:`numpy`, :py:mod:`scipy`,
-  :py:mod:`matplotlib` 
+  :py:mod:`matplotlib`
 * POPPY relies upon the `astropy
   <http://www.astropy.org>`__ community-developed core library for astronomy.
-  astropy, version 1.0.1 or more recent, is needed. 
+  astropy, version 1.0.1 or more recent, is needed.
 
 The following are *optional*.  The first, :py:mod:`pysynphot`, is recommended
 for most users. The other optional installs are only worth adding for speed
@@ -37,7 +37,7 @@ improvements if you are spending substantial time running calculations.
 * `pysynphot <http://pysynphot.readthedocs.org/en/latest/>`_ enables the simulation
   of PSFs with proper spectral response to realistic source spectra.  Without
   this, PSF fidelity is reduced. See below for :ref:`installation instructions
-  for pysynphot <pysynphot_install>`. 
+  for pysynphot <pysynphot_install>`.
 * `psutil <https://pypi.python.org/pypi/psutil>`__ enables slightly better
   automatic selection of numbers of processes for multiprocess calculations.
 * `pyFFTW <https://pypi.python.org/pypi/pyFFTW>`__. The FFTW library can speed
@@ -51,6 +51,10 @@ improvements if you are spending substantial time running calculations.
   intermittent stability issues with pyFFTW for reasons that are not yet
   clear.) *At this time we recommend most users should skip installing pyFFTW
   while getting started with poppy*.
+* Anaconda `accelerate <https://docs.anaconda.com/accelerate/>`_ and
+  `numexpr <http://numexpr.readthedocs.io/en/latest/user_guide.html>`_.
+  These optionally can provide improved performance particularly in the
+  Fresnel code.
 
 .. _pysynphot_install:
 
@@ -58,7 +62,7 @@ Installing or updating pysynphot
 ----------------------------------
 
 `Pysynphot <http://pysynphot.readthedocs.org/en/latest/>`_ is an optional dependency, but is highly recommended.
-See the `pysynphot installation docs here <http://pysynphot.readthedocs.org/en/latest/#installation-and-setup>`_ 
+See the `pysynphot installation docs here <http://pysynphot.readthedocs.org/en/latest/#installation-and-setup>`_
 to install ``pysynphot`` and (at least some of) its CDBS data files.
 
 *The minimum needed to have stellar spectral models available for use when
@@ -84,7 +88,7 @@ that your installation is working properly::
    ================= 66 passed, 1 skipped, 1 xfailed in 124.68 seconds ==================
 
 Some tests may be automatically skipped depending on whether certain optional packaged are
-installed, and other tests in development may be marked "expected to fail" (``xfail``), but 
-as long as no tests actually fail then your installation is working as expected. 
+installed, and other tests in development may be marked "expected to fail" (``xfail``), but
+as long as no tests actually fail then your installation is working as expected.
 (Note that you will need to run the test suite using a plain python interpreter, not
 inside an IPython or Jupyter session.)
