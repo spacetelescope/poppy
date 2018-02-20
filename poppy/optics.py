@@ -47,7 +47,8 @@ class AnalyticOpticalElement(OpticalElement):
             error if you try to set one.
         shift_x, shift_y : Optional floats
             Translations of this optic, given in meters relative to the optical
-            axis.
+            axis for pupil plane elements, or arcseconds relative to the optical axis
+            for image plane elements.
         rotation : Optional float
             Rotation of the optic around its center, given in degrees
             counterclockwise.  Note that if you apply both shift and rotation,
@@ -610,14 +611,8 @@ class IdealFQPM(AnalyticImagePlaneElement):
             raise ValueError("4QPM get_opd must be called with a Wavefront to define the spacing")
         assert (wave.planetype == _IMAGE)
 
-        # TODO this computation could be sped up a lot w/ optimzations
-        phase = np.empty(wave.shape)
-        n0 = wave.shape[0] / 2
-        n0 = int(round(n0))
-        phase[:n0, :n0] = 0.5
-        phase[n0:, n0:] = 0.5
-        phase[n0:, :n0] = 0
-        phase[:n0, n0:] = 0
+        y, x = self.get_coordinates(wave)
+        phase = (1- np.sign(x)*np.sign(y))*0.25
 
         return phase * self.central_wavelength.to(u.meter).value
 
