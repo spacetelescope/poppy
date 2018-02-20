@@ -25,7 +25,7 @@ env:
         # overridden underneath. They are defined here in order to save having
         # to repeat them for all configurations.
         - NUMPY_VERSION=stable
-        - ASTROPY_VERSION=stable
+        - ASTROPY_VERSION=2.0
         - SETUP_CMD='test'
         - PIP_DEPENDENCIES=''
         - CONDA_DEPENDENCIES='scipy matplotlib six'
