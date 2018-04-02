@@ -509,7 +509,7 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
     Parameters
     ----------
     HDUlist_or_filename : string
-        FITS HDUList object or path to a FITS file. 
+        FITS HDUList object or path to a FITS file.
         NaN values in the FITS data array are treated as masked and ignored in computing bin statistics.
     ext : int
         Extension in FITS file
@@ -720,8 +720,114 @@ def measure_radial(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     return radial_fn
 
 
-def measure_fwhm(HDUlist_or_filename=None, ext=0, center=None, level=0.5):
-    """ Measure FWHM by interpolation of the radial profile
+def measure_fwhm(HDUlist_or_filename,ext=0, center=None, plot=False, threshold=0.1):
+    """ Improved version of measuring FWHM, without any binning of image data.
+
+    Method: Pick out the image pixels which are above some threshold relative to the
+    peak intensity, then fit a Gaussian to those. Infer the FWHM based on the width of
+    the Gaussian.
+
+
+    Parameters
+    ----------
+    HDUlist_or_filename : string
+        what it sounds like.
+    ext : int
+        Extension in FITS file
+    center : tuple of floats
+        Coordinates (x,y) of PSF center, in pixel units. Default is image center.
+    threshold : float
+        Fraction relative to the peak pixel that is used to select the bright peak pixels
+        used in fitting the Gaussian. Default is 0.1, i.e. pixels brighter that 0.1 of
+        the maximum will be included. This is chosen semi-arbitrarily to include most of
+        the peak but exclude the first Airy ring for typical cases.
+    plot : bool
+        Display a diagnostic plot.
+
+    Returns
+    -------
+    fwhm : float
+        FWHM in arcseconds
+
+    """
+    from astropy.modeling import models, fitting
+
+    if isinstance(HDUlist_or_filename, six.string_types):
+        HDUlist = fits.open(HDUlist_or_filename)
+    elif isinstance(HDUlist_or_filename, fits.HDUList):
+        HDUlist = HDUlist_or_filename
+    else:
+        raise ValueError("input must be a filename or HDUlist")
+
+    image = HDUlist[ext].data.copy()  # don't change normalization of actual input array; work with a copy
+    image /= image.max()              # Normalize the copy to peak=1
+
+    pixelscale = HDUlist[ext].header['PIXELSCL']
+
+    _log.debug("Pixelscale is {} arcsec/pix.".format(pixelscale, ))
+
+    # Prepare array r with radius in arcseconds
+    y, x = np.indices(image.shape, dtype=float)
+    if center is None:
+        # get exact center of image
+        center = tuple((a - 1) / 2.0 for a in image.shape[::-1])
+    _log.debug("Using PSF center = {}".format(center))
+    x-=center[0]
+    y-=center[1]
+    r = np.sqrt(x** 2 + y** 2) * pixelscale   # radius in arcseconds
+
+    # Select pixels above that threshold
+    wpeak = np.where(image>threshold)  # note, image is normalized to peak=1 above
+    _log.debug("Using {} pixels above {} of peak".format(len(wpeak[0]), threshold))
+
+    rpeak =r[wpeak]
+    impeak = image[wpeak]
+
+    # Determine initial guess for Gaussian parameters
+    if 'DIFFLMT' in HDUlist[ext].header:
+        std_guess = HDUlist[ext].header['DIFFLMT']/2.354
+    else:
+        std_guess=measure_fwhm_radprof(HDUlist, ext=ext, center=center, nowarn=True)/2.354
+    _log.debug("Initial guess Gaussian sigma= {} arcsec".format(std_guess))
+
+    # Determine best fit Gaussian parameters
+    g_init = models.Gaussian1D(amplitude=1., mean=0, stddev=std_guess)
+    g_init.mean.fixed=True
+
+    fit_g = fitting.LevMarLSQFitter()
+    g = fit_g(g_init, rpeak, impeak)
+    _log.debug("Fit results for Gaussian: {}, {}".format(g.amplitude, g.stddev))
+
+    # Convert from the fit result sigma parameter to FWHM.
+    # note, astropy fitting doesn't constrain the stddev to be positive for some reason.
+    # so take abs value here.
+    fwhm = 2*np.sqrt(2*np.log(2)) * np.abs(g.stddev)
+
+    if plot:
+        plt.loglog(rpeak, impeak, linestyle='none', marker='o', alpha=0.5)
+        rmin = rpeak[rpeak !=0].min()
+        plotr = np.linspace(rmin, rpeak.max(), 30)
+
+        plt.plot(plotr, g(plotr))
+        plt.xlabel("Radius [arcsec]")
+        plt.ylabel("Intensity relative to peak")
+
+        plt.axhline(0.5,ls=":")
+        plt.axvline(fwhm/2, ls=':')
+        plt.text(0.1, 0.2,  'FWHM={:.4f} arcsec'.format(fwhm), transform=plt.gca().transAxes,)
+
+        plt.gca().set_ylim(threshold*.5, 2)
+
+    return fwhm
+
+
+def measure_fwhm_radprof(HDUlist_or_filename=None, ext=0, center=None, level=0.5, nowarn=False):
+    """ Measure FWHM by interpolation of the radial profile.
+    This version is old/deprecated; see the new measure_fwhm instead.
+
+    However, this function is kept, for now, to provide a robust, simple backup
+    method which can be used to determine the initial guess for the model-fitting
+    approach in the newer measure_fwhm function.
 
     This measures the full width at half maximum for the supplied PSF,
     or optionally the full width at some other fraction of max.
@@ -737,8 +843,16 @@ def measure_fwhm(HDUlist_or_filename=None, ext=0, center=None, level=0.5):
         You can also measure widths at other levels e.g. FW at 10% max
         by setting level=0.1
 
+    Returns
+    -------
+    fwhm : float
+        FWHM in arcseconds
 
     """
+
+    if not nowarn:
+        import warnings
+        warnings.warn("measure_fwhm_radprof uses a deprecated, older algorithm. measure_fwhm is preferred in most cases.", DeprecationWarning)
 
     rr, radialprofile, EE = radial_profile(HDUlist_or_filename, ext, EE=True, center=center)
     rpmax = radialprofile.max()

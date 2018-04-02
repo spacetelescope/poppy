@@ -131,7 +131,7 @@ def test_radial_profile(plot=False):
     assert np.allclose(prof2, prof3)
     # TODO compare those to be near a sinc profile as expected?
 
-def test_measure_FWHM(display=False):
+def test_measure_FWHM(display=False, verbose=False):
     """ Test the utils.measure_FWHM function
 
     Current implementation can be off by a
@@ -142,10 +142,11 @@ def test_measure_FWHM(display=False):
 
     """
 
+    # Test the basic output on simple Gaussian arrays
     desired = (3, 4.5, 5, 8, 12)
-    tolerance= (0.07, 0.03, 0.02, 0.02, 0.02)
+    tolerance= 0.01
 
-    for des, tol in zip(desired, tolerance):
+    for des in desired:
 
 
         desired_fwhm = des #4.0 # pixels
@@ -158,11 +159,39 @@ def test_measure_FWHM(display=False):
         testfits[0].header['PIXELSCL'] = pxscl
 
         meas_fwhm = utils.measure_fwhm(testfits, center=center)
-        print("Measured FWHM: {0:.4f} arcsec, {1:.4f} pixels ".format(meas_fwhm, meas_fwhm/pxscl))
+        if verbose:
+            print("Measured FWHM: {0:.4f} arcsec, {1:.4f} pixels ".format(meas_fwhm, meas_fwhm/pxscl))
 
         reldiff =  np.abs((meas_fwhm/pxscl) - desired_fwhm ) / desired_fwhm
-        print("Desired: {0:.4f}. Relative difference: {1:.4f}    Tolerance: {2:.4f}".format(desired_fwhm, reldiff, tol))
-        assert( reldiff < tol )
+        result = "Measured: {3:.4f} pixels; Desired: {0:.4f} pixels. Relative difference: {1:.4f}    Tolerance: {2:.4f}".format(desired_fwhm, reldiff, tolerance, meas_fwhm/pxscl)
+        if verbose:
+            print(result)
+        assert reldiff < tolerance, result 
+
+    # Test on Poppy outputs too
+    # We test both well sampled and barely sampled cases.
+    # In this test case the FWHM is 0.206265 arcsec, so pixel scale up to 0.2 arcsec.
+    pixscales = [0.01, 0.1, 0.2]
+    # We allow slightly worse accurance for less well sampled data
+    tolerances= [0.01, 0.015, 0.04]
+
+    for pixscale, tolerance in zip(pixscales, tolerances):
+
+        import astropy.units as u
+        o = poppy.OpticalSystem()
+        o.add_pupil(poppy.CircularAperture(radius=0.5*u.m))
+        o.add_detector(pixscale, fov_pixels=128)
+        psf = o.calc_psf(wavelength=1*u.micron)
+
+        meas_fwhm = poppy.measure_fwhm(psf)
+        expected_fwhm = ((1*u.micron/(1*u.m)).decompose().value*u.radian).to(u.arcsec).value
+
+        reldiff =  np.abs((meas_fwhm - expected_fwhm ) / expected_fwhm)
+
+        result = "Measured: {3:.4f} arcsec; Desired: {0:.4f} arcsec. Relative difference: {1:.4f}    Tolerance: {2:.4f}".format(expected_fwhm, reldiff, tolerance, meas_fwhm)
+
+        assert reldiff < tolerance, result
+
 
 @pytest.mark.skipif(pyfftw is None, reason="pyFFTW not found")
 def test_load_save_fftw_wisdom(tmpdir):

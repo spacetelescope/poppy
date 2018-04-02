@@ -124,7 +124,7 @@ def test_instrument_gaussian_jitter():
     inst.pixelscale=0.010
     inst.options['jitter'] = None
     oversample = 1 # oversample
-    psf_no_jitter = inst.calc_psf(monochromatic=1e-6, fov_arcsec=2, oversample=oversample)
+    psf_no_jitter = inst.calc_psf(monochromatic=1e-6, fov_arcsec=3, oversample=oversample)
 
 
     jitter_sigmas = [ 0.005,  0.020,  0.080, 0.16, 0.5]  # arcseconds
@@ -141,7 +141,7 @@ def test_instrument_gaussian_jitter():
 
         inst.options['jitter'] = 'gaussian'
         inst.options['jitter_sigma'] = JITTER_SIGMA
-        psf_jitter = inst.calc_psf(monochromatic=1e-6, fov_arcsec=2, oversample=oversample)
+        psf_jitter = inst.calc_psf(monochromatic=1e-6, fov_arcsec=3, oversample=oversample)
 
         fwhm_no_jitter = utils.measure_fwhm(psf_no_jitter)
         fwhm_with_jitter = utils.measure_fwhm(psf_jitter)
@@ -159,7 +159,7 @@ def test_instrument_gaussian_jitter():
         poppy_core._log.info("TEST: Jitter sigma={0:.4f}.   PSF sigma pre: {1:.4f}    post: {2:.4f}    expected: {3:.4f}".format(JITTER_SIGMA, pre_sigma, post_sigma, expected_post_sigma))
 
         reldiff = np.abs(post_sigma-expected_post_sigma)/post_sigma
-        assert reldiff < tolerance, "Post-jitter PSF width is too different from expected width"
+        assert reldiff < tolerance, "Post-jitter PSF width is too different from expected width: {:.4f}, {:.4f} arcsec".format(post_sigma, expected_post_sigma)
 
 
 def test_instrument_calc_datacube():
