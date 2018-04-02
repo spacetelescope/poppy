@@ -251,7 +251,7 @@ def test_spherical_lens(display=False):
     assert  1e-11 > abs(np.mean(wavefront.phase)-proper_wavefront_mean)
     assert  1e-11 > abs(np.max(wavefront.phase)-proper_phase_max)
 
-def test_fresnel_optical_system_Hubble(display=False):
+def test_fresnel_optical_system_Hubble(display=False, sampling=2):
     """ Test the FresnelOpticalSystem infrastructure
     This is a fairly comprehensive test case using as its
     example a simplified version of the Hubble Space Telescope.
@@ -285,9 +285,7 @@ def test_fresnel_optical_system_Hubble(display=False):
     fl_sec = -0.6790325 * u.m
     d_sec_to_focus = 6.3916645 * u.m # place focal plane right at the beam waist after the SM
 
-    osamp = 2 #oversampling factor
-
-    hst = fresnel.FresnelOpticalSystem(pupil_diameter=2.4*u.m, beam_ratio=0.25)
+    hst = fresnel.FresnelOpticalSystem(pupil_diameter=2.4*u.m, beam_ratio=1./sampling)
     g1 = fresnel.QuadraticLens(fl_pri, name='Primary', planetype=poppy_core.PlaneType.pupil)
     g2 = fresnel.QuadraticLens(fl_sec, name='Secondary')
 
@@ -325,7 +323,8 @@ def test_fresnel_optical_system_Hubble(display=False):
             expected_system_focal_length.to(u.m).value)) # focal len after secondary
 
         ### check the FWHM of the PSF is as expected
-        measured_fwhm = utils.measure_fwhm(psf)
+        cen = utils.measure_centroid(psf)
+        measured_fwhm = utils.measure_fwhm(psf, center=cen)
         expected_fwhm = 1.028*0.5e-6/2.4*206265
         # we only require this to have < 5% accuracy with respect to the theoretical value
         # given discrete pixelization etc.
@@ -360,6 +359,11 @@ def test_fresnel_optical_system_Hubble(display=False):
     centerpix = int(hst.npix / hst.beam_ratio / 2)
     cutout = psf[0].data[centerpix-64:centerpix+64, centerpix-64:centerpix+64] / psf[0].data[centerpix,centerpix]
     assert( np.abs(cutout-airy).max() < 1e-4 )
+
+    if display:
+        plt.figure()
+        utils.display_psf(psf, imagecrop=1)
+
 
 def test_fresnel_FITS_Optical_element(tmpdir, display=False):
     """ Test that Fresnel works with FITS optical elements.
