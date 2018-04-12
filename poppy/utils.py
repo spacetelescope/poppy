@@ -38,7 +38,7 @@ class FFTWWisdomWarning(RuntimeWarning):
     pass
 
 __all__ = ['display_PSF', 'display_PSF_difference', 'display_EE', 'measure_EE', #TODO:mperrin: back compatibility aliases - remove in 0.6
-           'display_psf', 'display_psf_difference', 'display_ee', 'measure_ee',
+           'display_psf', 'display_psf_difference', 'display_ee', 'measure_ee', 'measure_radius_at_ee',
            'display_profiles', 'radial_profile',
            'measure_radial', 'measure_fwhm', 'measure_sharpness', 'measure_centroid', 'measure_strehl',
            'measure_anisotropy', 'specFromSpectralType']
@@ -710,7 +710,7 @@ def measure_radius_at_ee(HDUlist_or_filename=None, ext=0, center=None, binsize=N
     print "The EE is 50% at {} arcsec".format(EE(0.5))
     """
 
-    rr, radialprofile2, EE = webbpsf.radial_profile(HDUlist_or_filename, ext, EE=True, center=center, binsize=binsize)
+    rr, radialprofile2, EE = radial_profile(HDUlist_or_filename, ext, EE=True, center=center, binsize=binsize)
 
     # append the zero at the center
     rr_EE = rr + (rr[1] - rr[0]) / 2.0  # add half a binsize to this, because the EE is measured inside the
