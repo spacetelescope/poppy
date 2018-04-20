@@ -46,6 +46,9 @@ from __future__ import (absolute_import, division, print_function,
 __all__ = ['MatrixFourierTransform']
 
 import numpy as np
+from . import accel_math
+if accel_math._USE_NUMEXPR:
+    import numexpr as ne
 
 import logging
 _log = logging.getLogger('poppy')
@@ -55,7 +58,6 @@ FFTRECT = 'FFTRECT'
 SYMMETRIC = 'SYMMETRIC'
 ADJUSTABLE = 'ADJUSTABLE'
 CENTERING_CHOICES = (FFTSTYLE, SYMMETRIC, ADJUSTABLE, FFTRECT)
-
 
 def matrix_dft(plane, nlamD, npix,
                offset=None, inverse=False, centering=FFTSTYLE):
@@ -109,10 +111,14 @@ def matrix_dft(plane, nlamD, npix,
         (offsetY, offsetX).
     """
 
+    if accel_math._USE_NUMEXPR:
+        return matrix_dft_numexpr(plane, nlamD, npix,
+               offset=offset, inverse=inverse, centering=centering)
+
     npupY, npupX = plane.shape
 
     try:
-        if np.isscalar(npix): 
+        if np.isscalar(npix):
             npixY, npixX = float(npix), float(npix)
         else:
             npixY, npixX = tuple(np.asarray(npix, dtype=float))
@@ -153,6 +159,7 @@ def matrix_dft(plane, nlamD, npix,
         dV = nlamDY / float(npixY)
         dX = 1.0 / float(npupX)
         dY = 1.0 / float(npupY)
+
 
     if centering == FFTSTYLE:
         Xs = (np.arange(npupX) - (npupX / 2)) * dX
@@ -196,6 +203,162 @@ def matrix_dft(plane, nlamD, npix,
     else:
         expXU = np.exp(-2.0 * np.pi * 1j * XU)
         expYV = np.exp(-2.0 * np.pi * 1j * YV).T
+        t1 = np.dot(expYV, plane)
+        t2 = np.dot(t1, expXU)
+
+    norm_coeff = np.sqrt((nlamDY * nlamDX) / (npupY * npupX * npixY * npixX))
+    return norm_coeff * t2
+
+
+def matrix_dft_numexpr(plane, nlamD, npix,
+               offset=None, inverse=False, centering=FFTSTYLE):
+    """Perform a matrix discrete Fourier transform with selectable
+    output sampling and centering. This version accelerated with numexpr.
+
+    Where parameters can be supplied as either scalars or 2-tuples, the first
+    element of the 2-tuple is used for the Y dimension and the second for the
+    X dimension. This ordering matches that of numpy.ndarray.shape attributes
+    and that of Python indexing.
+
+    To achieve exact correspondence to the FFT set nlamD and npix to the size
+    of the input array in pixels and use 'FFTSTYLE' centering. (n.b. When
+    using `numpy.fft.fft2` you must `numpy.fft.fftshift` the input pupil both
+    before and after applying fft2 or else it will introduce a checkerboard
+    pattern in the signs of alternating pixels!)
+
+    Parameters
+    ----------
+    plane : 2D ndarray
+        2D array (either real or complex) representing the input image plane or
+        pupil plane to transform.
+    nlamD : float or 2-tuple of floats (nlamDY, nlamDX)
+        Size of desired output region in lambda / D units, assuming that the
+        pupil fills the input array (corresponds to 'm' in
+        Soummer et al. 2007 4.2). This is in units of the spatial frequency that
+        is just Nyquist sampled by the input array.) If given as a tuple,
+        interpreted as (nlamDY, nlamDX).
+    npix : int or 2-tuple of ints (npixY, npixX)
+        Number of pixels per side side of destination plane array (corresponds
+        to 'N_B' in Soummer et al. 2007 4.2). This will be the # of pixels in
+        the image plane for a forward transformation, in the pupil plane for an
+        inverse. If given as a tuple, interpreted as (npixY, npixX).
+    inverse : bool, optional
+        Is this a forward or inverse transformation? (Default is False,
+        implying a forward transformation.)
+    centering : {'FFTSTYLE', 'SYMMETRIC', 'ADJUSTABLE'}, optional
+        What type of centering convention should be used for this FFT? 
+
+        * ADJUSTABLE (the default) For an output array with ODD size n,
+          the PSF center will be at the center of pixel (n-1)/2. For an output
+          array with EVEN size n, the PSF center will be in the corner between
+          pixel (n/2-1, n/2-1) and (n/2, n/2)
+        * FFTSTYLE puts the zero-order term in a single pixel.
+        * SYMMETRIC spreads the zero-order term evenly between the center
+          four pixels
+
+    offset : 2-tuple of floats (offsetY, offsetX)
+        For ADJUSTABLE-style transforms, an offset in pixels by which the PSF
+        will be displaced from the central pixel (or cross). Given as
+        (offsetY, offsetX).
+    """
+
+    npupY, npupX = plane.shape
+
+    try:
+        if np.isscalar(npix):
+            npixY, npixX = float(npix), float(npix)
+        else:
+            npixY, npixX = tuple(np.asarray(npix, dtype=float))
+    except ValueError:
+        raise ValueError(
+            "'npix' must be supplied as a scalar (for square arrays) or as "
+            "a 2-tuple of ints (npixY, npixX)"
+        )
+
+    # make sure these are integer values
+    if npixX != int(npixX) or npixY != int(npixY):
+        raise TypeError("'npix' must be supplied as integer value(s)")
+
+    try:
+        if np.isscalar(nlamD):
+            nlamDY, nlamDX = float(nlamD), float(nlamD)
+        else:
+            nlamDY, nlamDX = tuple(np.asarray(nlamD, dtype=float))
+    except ValueError:
+        raise ValueError(
+            "'nlamD' must be supplied as a scalar (for square arrays) or as"
+            " a 2-tuple of floats (nlamDY, nlamDX)"
+        )
+
+    centering = centering.upper()
+
+
+    # In the following: X and Y are coordinates in the input plane 
+    #                   U and V are coordinates in the output plane 
+
+    if inverse:
+        dX = nlamDX / float(npupX)
+        dY = nlamDY / float(npupY)
+        dU = 1.0 / float(npixX)
+        dV = 1.0 / float(npixY)
+    else:
+        dU = nlamDX / float(npixX)
+        dV = nlamDY / float(npixY)
+        dX = 1.0 / float(npupX)
+        dY = 1.0 / float(npupY)
+
+
+    # Setup arrays since numexpr can't call arange directly
+    ar_npupX = np.arange(npupX)
+    ar_npupY = np.arange(npupY)
+    ar_npixX = np.arange(npixX)
+    ar_npixY = np.arange(npixY)
+
+    if centering == FFTSTYLE:
+        Xs = ne.evaluate("(ar_npupX - (npupX / 2)) * dX")
+        Ys = ne.evaluate("(ar_npupY - (npupY / 2)) * dY")
+
+        Us = ne.evaluate("(ar_npixX - npixX / 2) * dU")
+        Vs = ne.evaluate("(ar_npixY - npixY / 2) * dV")
+
+    elif centering == ADJUSTABLE:
+        if offset is None:
+            offsetY, offsetX = 0.0, 0.0
+        else:
+            try:
+                offsetY, offsetX = tuple(np.asarray(offset, dtype=float))
+            except ValueError:
+                raise ValueError(
+                    "'offset' must be supplied as a 2-tuple with "
+                    "(y_offset, x_offset) as floating point values"
+                )
+        Xs = ne.evaluate("(ar_npupX - (npupX) / 2.0 - offsetX + 0.5) * dX")
+        Ys = ne.evaluate("(ar_npupY - (npupY) / 2.0 - offsetY + 0.5) * dY")
+
+        Us = ne.evaluate("(ar_npixX - (npixX) / 2.0 - offsetX + 0.5) * dU")
+        Vs = ne.evaluate("(ar_npixY - (npixY) / 2.0 - offsetY + 0.5) * dV")
+
+    elif centering == SYMMETRIC:
+        Xs = ne.evaluate("(ar_npupX - (npupX) / 2.0 + 0.5) * dX")
+        Ys = ne.evaluate("(ar_npupY - (npupY) / 2.0 + 0.5) * dY")
+
+        Us = ne.evaluate("(ar_npixX - (npixX) / 2.0 + 0.5) * dU")
+        Vs = ne.evaluate("(ar_npixY - (npixY) / 2.0 + 0.5) * dV")
+    else:
+        raise ValueError("Invalid centering style")
+
+    XU = np.outer(Xs, Us)
+    YV = np.outer(Ys, Vs)
+
+    pi = np.pi
+    if inverse:
+        expYV = ne.evaluate("exp(-2.0 * pi * -1j * YV)").T
+        expXU = ne.evaluate("exp(-2.0 * pi * -1j * XU)")
+        t1 = np.dot(expYV, plane)
+        t2 = np.dot(t1, expXU)
+    else:
+        expYV = ne.evaluate("exp(-2.0 * pi * 1j * YV)").T
+        expXU = ne.evaluate("exp(-2.0 * pi * 1j * XU)")
         t1 = np.dot(expYV, plane)
         t2 = np.dot(t1, expXU)
 

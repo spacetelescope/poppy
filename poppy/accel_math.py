@@ -1,12 +1,56 @@
-import poppy
-from poppy.poppy_core import PlaneType, _USE_CUDA, _USE_NUMEXPR
+# accel_math.py
+# 
+# Various functions related to accelerated computations using FFTW, CUDA, numexpr, and related. 
+#
 import numpy as np
+from . import conf
+
+
+# Setup infrastructure for FFTW
+_FFTW_INIT = {}  # dict of array sizes for which we have already performed the required FFTW planning step
+_FFTW_FLAGS = ['measure']
+
+try:
+    # try to import FFTW to see if it is available
+    import pyfftw
+    _FFTW_AVAILABLE = True
+except ImportError:
+    pyfftw = None
+    _FFTW_AVAILABLE = False
+
+try:
+    # try to import accelerate package to see if it is available
+    import accelerate
+    _ACCELERATE_AVAILABLE = True
+except ImportError:
+    accelerate = None
+    _ACCELERATE_AVAILABLE = False
+
+try:
+    # try to import numexpr package to see if it is available
+    import numexpr as ne
+    _NUMEXPR_AVAILABLE = True
+except ImportError:
+    ne = None
+    _NUMEXPR_AVAILABLE = False
+
+_USE_CUDA = (conf.use_cuda and _ACCELERATE_AVAILABLE)
+_USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
+
 
 if _USE_NUMEXPR:
     import numexpr as ne
 
 if _USE_CUDA:
     from numba import cuda
+
+
+def _r(x,y):
+    """ Function to return the radius given x and y """
+    if _USE_NUMEXPR:
+        return ne.evaluate("sqrt(x**2+y**2)")
+    else:
+        return np.sqrt(x ** 2 + y ** 2)
 
 def _exp(x):
     """

@@ -8,6 +8,9 @@ import astropy.units as u
 import warnings
 
 from . import utils
+from . import accel_math
+if accel_math._USE_NUMEXPR:
+    import numexpr as ne
 
 from .version import version
 
@@ -16,7 +19,7 @@ import logging
 _log = logging.getLogger('poppy')
 
 from .poppy_core import OpticalElement, Wavefront, PlaneType, _PUPIL, _IMAGE, _RADIANStoARCSEC
-from .accel_math import _exp
+from .accel_math import _exp, _r
 
 __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'InverseTransmission',
            'BandLimitedCoron', 'IdealFQPM', 'RectangularFieldStop', 'SquareFieldStop',
@@ -108,7 +111,13 @@ class AnalyticOpticalElement(OpticalElement):
             wavelength=wave
         scale = 2. * np.pi / wavelength.to(u.meter).value
 
-        return self.get_transmission(wave) * _exp (1.j * self.get_opd(wave) * scale)
+        if accel_math._USE_NUMEXPR:
+            trans = self.get_transmission(wave)
+            opd = self.get_opd(wave)
+            return ne.evaluate("trans * exp(1.j * opd * scale)")
+        else:
+            return self.get_transmission(wave) * np.exp (1.j * self.get_opd(wave)* scale)
+
 
     def getPhasor(self,wave):
         warnings.warn("getPhasor is deprecated; use get_phasor instead", DeprecationWarning)
@@ -465,7 +474,7 @@ class BandLimitedCoron(AnalyticImagePlaneElement):
         if self.kind == 'circular':
             # larger sigma implies narrower peak? TBD verify if this is correct
             #
-            r = np.sqrt(x ** 2 + y ** 2)
+            r = _r(x,y)
             sigmar = self.sigma * r
             sigmar.clip(np.finfo(sigmar.dtype).tiny, out=sigmar)  # avoid divide by zero -> NaNs
 
@@ -474,7 +483,7 @@ class BandLimitedCoron(AnalyticImagePlaneElement):
         elif self.kind == 'nircamcircular':
             # larger sigma implies narrower peak? TBD verify if this is correct
             #
-            r = np.sqrt(x ** 2 + y ** 2)
+            r = _r(x,y)
             sigmar = self.sigma * r
             sigmar.clip(np.finfo(sigmar.dtype).tiny, out=sigmar)  # avoid divide by zero -> NaNs
             self.transmission = (1 - (2 * scipy.special.jn(1, sigmar) / sigmar) ** 2)
@@ -788,7 +797,7 @@ class AnnularFieldStop(AnalyticImagePlaneElement):
         assert (wave.planetype == _IMAGE)
 
         y, x = self.get_coordinates(wave)
-        r = np.sqrt(x ** 2 + y ** 2)
+        r = _r(x,y)
 
         self.transmission = np.ones(wave.shape)
 
@@ -943,7 +952,7 @@ class ParityTestAperture(AnalyticOpticalElement):
 
         radius = self.radius.to(u.meter).value
         y, x = self.get_coordinates(wave)
-        r = np.sqrt(x ** 2 + y ** 2)
+        r = _r(x,y)
 
         w_outside = np.where(r > radius)
         self.transmission = np.ones(wave.shape)
@@ -1002,7 +1011,7 @@ class CircularAperture(AnalyticOpticalElement):
 
         y, x = self.get_coordinates(wave)
         radius = self.radius.to(u.meter).value
-        r = np.sqrt(x ** 2 + y ** 2)
+        r = _r(x,y)
         del x
         del y
 

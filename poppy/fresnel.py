@@ -7,8 +7,8 @@ import logging
 import time
 
 import poppy
-from poppy.poppy_core import PlaneType, _USE_CUDA, _FFTW_AVAILABLE, _USE_NUMEXPR, OpticalSystem, Wavefront
-from poppy.accel_math import _exp, _fftshift
+from poppy.poppy_core import PlaneType, OpticalSystem, Wavefront
+from poppy.accel_math import _exp, _fftshift, _USE_CUDA, _FFTW_AVAILABLE, _USE_NUMEXPR
 from . import utils
 
 _log = logging.getLogger('poppy')

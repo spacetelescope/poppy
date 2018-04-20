@@ -19,44 +19,17 @@ import astropy.units as u
 from .matrixDFT import MatrixFourierTransform
 from . import utils
 from . import conf
+from . import accel_math
+
+if accel_math._USE_NUMEXPR:
+    import numexpr as ne
+
 
 import logging
 _log = logging.getLogger('poppy')
 
 __all__ = ['Wavefront',  'OpticalSystem', 'SemiAnalyticCoronagraph', 'MatrixFTCoronagraph',
            'OpticalElement', 'FITSOpticalElement', 'Rotation', 'Detector']
-
-# Setup infrastructure for FFTW
-_FFTW_INIT = {}  # dict of array sizes for which we have already performed the required FFTW planning step
-_FFTW_FLAGS = ['measure']
-
-try:
-    # try to import FFTW to see if it is available
-    import pyfftw
-    _FFTW_AVAILABLE = True
-except ImportError:
-    pyfftw = None
-    _FFTW_AVAILABLE = False
-
-try:
-    # try to import accelerate package to see if it is available
-    import accelerate
-    _ACCELERATE_AVAILABLE = True
-except ImportError:
-    accelerate = None
-    _ACCELERATE_AVAILABLE = False
-    
-try:
-    # try to import numexpr package to see if it is available
-    import numexpr as ne
-    _NUMEXPR_AVAILABLE = True
-
-except ImportError:
-    ne = None
-    _NUMEXPR_AVAILABLE = False
-    
-_USE_CUDA = (conf.use_cuda and _ACCELERATE_AVAILABLE)
-_USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
 
 # internal constants for types of plane
 class PlaneType(enum.Enum):
@@ -616,7 +589,11 @@ class Wavefront(object):
     @property
     def intensity(self):
         """Electric field intensity of the wavefront (i.e. field amplitude squared)"""
-        return np.abs(self.wavefront)**2
+        if accel_math._USE_NUMEXPR:
+            w = self.wavefront
+            return ne.evaluate("real(abs(w))**2") 
+        else:
+            return np.abs(self.wavefront)**2
 
     @property
     def phase(self):
@@ -687,7 +664,9 @@ class Wavefront(object):
 
         """
         # To use FFTW, it must both be enabled and the library itself has to be present
-        _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
+        _USE_FFTW = (conf.use_fftw and accel_math._FFTW_AVAILABLE)
+        if _USE_FFTW:
+            import pyfftw
 
         if self.oversample > 1 and not self.ispadded:  # add padding for oversampling, if necessary
             assert self.oversample == optic.oversample
@@ -730,7 +709,7 @@ class Wavefront(object):
 
         _log.debug("using {2} FFT of {0} array, direction={1}".format(str(self.wavefront.shape), FFT_direction, method))
         if _USE_FFTW:
-            if (self.wavefront.shape, FFT_direction) not in _FFTW_INIT:
+            if (self.wavefront.shape, FFT_direction) not in accel_math._FFTW_INIT:
                 # The first time you run FFTW to transform a given size, it does a speed test to
                 # determine optimal algorithm that is destructive to your chosen array.
                 # So only do that test on a copy, not the real array:
@@ -744,7 +723,7 @@ class Wavefront(object):
                 test_array = do_fft(test_array, overwrite_input=True, planner_effort='FFTW_MEASURE',
                                     threads=multiprocessing.cpu_count())
 
-                _FFTW_INIT[(self.wavefront.shape, FFT_direction)] = True
+                accel_math._FFTW_INIT[(self.wavefront.shape, FFT_direction)] = True
 
             self.wavefront = do_fft(self.wavefront, overwrite_input=True, planner_effort='FFTW_MEASURE',
                                     threads=multiprocessing.cpu_count())
@@ -1655,7 +1634,7 @@ class OpticalSystem(object):
         normwts =  np.asarray(weight, dtype=float)
         normwts /= normwts.sum()
 
-        _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
+        _USE_FFTW = (conf.use_fftw and accel_math._FFTW_AVAILABLE)
         if _USE_FFTW:
             utils.fftw_load_wisdom()
 
@@ -2389,7 +2368,12 @@ class OpticalElement(object):
 
         else:
             # compute the phasor directly, without any need to rescale.
-            self.phasor = self.get_transmission(wave) * np.exp (1.j * self.get_opd(wave)* scale)
+            if accel_math._USE_NUMEXPR:
+                trans = self.get_transmission(wave)
+                opd = self.get_opd(wave)
+                self.phasor = ne.evaluate("trans * exp(1.j * opd * scale)")
+            else:
+                self.phasor = self.get_transmission(wave) * np.exp (1.j * self.get_opd(wave)* scale)
 
 
 

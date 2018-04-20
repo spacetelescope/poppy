@@ -1587,7 +1587,7 @@ def fftw_save_wisdom(filename=None):
         Filename to use (instead of the default, poppy_fftw_wisdom.json)
     """
 
-    from .poppy_core import _FFTW_INIT
+    from .accel_math import _FFTW_INIT
     if filename is None:
         filename = os.path.join(config.get_config_dir(), "poppy_fftw_wisdom.json")
 
@@ -1620,7 +1620,7 @@ def fftw_load_wisdom(filename=None):
     filename : string, optional
         Filename to use (instead of the default, poppy_fftw_wisdom.json)
     """
-    from .poppy_core import _FFTW_INIT
+    from .accel_math import _FFTW_INIT
     global _loaded_fftw_wisdom
     if _loaded_fftw_wisdom:
         _log.debug("Already loaded wisdom prior to this calculation, not reloading.")
