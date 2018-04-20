@@ -76,6 +76,10 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
         _log.debug("Applying spherical lens phase ={0:0.2e}".format(1.0 / self.z))
         z= self._z_m #numexpr can't evaluate self.
         k = 2 * np.pi / wave._wavelength_m
+        if (z == np.inf) | (z == -np.inf):
+            lens_phasor = 1 + 0j
+            _log.debug("lens_phasor:"+str(lens_phasor))
+            return lens_phasor
         if _USE_NUMEXPR:
             rsqd = ne.evaluate("(x ** 2 + y ** 2)")
             #slight faster to evaluate in one line but advantage diminishes w/size
