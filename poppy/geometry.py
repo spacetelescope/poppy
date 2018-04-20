@@ -1,13 +1,14 @@
-
-import numpy as np
-
-
 #  Functions for reasonably exact geometry on discrete arrays
 #  These codes allow you to calculate circles and other such
 #  shapes discretized onto arrays with proper handling of areas
 #  at subpixel precision. (or at least reasonably proper; no
 #  guarantees for utter mathematical exactness at machine precision.)
 
+import numpy as np
+
+from . import accel_math
+if accel_math._USE_NUMEXPR:
+    import numexpr as ne
 
 # original code in pixwt.c by Marc Buie
 #    See http://www.boulder.swri.edu/~buie/idl/downloads/custom/32bit/pixwt.c
@@ -29,7 +30,10 @@ def _arc(x, y0, y1, r):
     is traversed clockwise then the area is negative, otherwise it is
     positive.
     """
-    return 0.5 * r**2 * (np.arctan(y1/x) - np.arctan(y0/x))
+    if accel_math._USE_NUMEXPR:
+        return ne.evaluate("0.5 * r**2 * (arctan(y1/x) - arctan(y0/x))")
+    else:
+        return 0.5 * r**2 * (np.arctan(y1/x) - np.arctan(y0/x))
 
 def _chord(x, y0, y1):
     """

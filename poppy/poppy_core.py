@@ -1151,10 +1151,14 @@ class Wavefront(BaseWavefront):
         else:
             pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
 
-        y -= (shape[0] - 1) / 2.0
-        x -= (shape[1] - 1) / 2.0
-
-        return pixel_scale_y * y, pixel_scale_x * x
+        if accel_math._USE_NUMEXPR:
+            ny, nx = shape
+            return (ne.evaluate("pixel_scale_y * (y - (ny-1)/2)"),
+                    ne.evaluate("pixel_scale_x * (x - (nx-1)/2)") )
+        else:
+            y -= (shape[0] - 1) / 2.0
+            x -= (shape[1] - 1) / 2.0
+            return pixel_scale_y * y, pixel_scale_x * x
 
     @staticmethod
     def image_coordinates(shape, pixelscale, last_transform_type, image_centered):
