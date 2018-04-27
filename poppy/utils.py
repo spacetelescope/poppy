@@ -202,6 +202,13 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
         interpolation=interpolation,
         origin='lower'
     )
+
+    if markcentroid:
+        _log.info("measuring centroid to mark on plot...")
+        ceny, cenx = measure_centroid(HDUlist, ext=ext, units='arcsec', relativeto='center', boxsize=20, threshold=0.1)
+        ax.plot(cenx, ceny, 'k+', markersize=15, markeredgewidth=1)
+        _log.info("centroid: (%f, %f) " % (cenx, ceny))
+
     if imagecrop is not None:
         halffov_x = min((imagecrop / 2.0, halffov_x))
         halffov_y = min((imagecrop / 2.0, halffov_y))
@@ -245,12 +252,6 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
         else:
             cb.set_label('Fractional intensity per pixel')
 
-    if markcentroid:
-        _log.info("measuring centroid to mark on plot...")
-        ceny, cenx = measure_centroid(HDUlist, ext=ext, units='arcsec', relativeto='center', boxsize=20, threshold=0.1)
-        ax.plot(cenx, ceny, 'k+', markersize=15, markeredgewidth=1)
-        _log.info("centroid: (%f, %f) " % (cenx, ceny))
-        plt.draw()
 
     if return_ax:
         if colorbar:

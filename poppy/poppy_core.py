@@ -2395,7 +2395,7 @@ class OpticalElement(object):
 
 
     @utils.quantity_input(opd_vmax=u.meter)
-    def display(self, nrows=1, row=1, what='intensity', crosshairs=True, ax=None, colorbar=True,
+    def display(self, nrows=1, row=1, what='intensity', crosshairs=False, ax=None, colorbar=True,
                 colorbar_orientation=None, title=None, opd_vmax=0.5e-6*u.meter):
         """Display plots showing an optic's transmission and OPD.
 
