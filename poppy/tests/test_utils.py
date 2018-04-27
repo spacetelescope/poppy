@@ -193,6 +193,25 @@ def test_measure_FWHM(display=False, verbose=False):
         assert reldiff < tolerance, result
 
 
+def test_measure_radius_at_ee():
+    """ Test the function measure_radius_at_ee in poppy/utils.py which measures the encircled
+    energy vs radius and return as an interpolator.
+    """
+
+    # Tests on a circular aperture
+    o = poppy.OpticalSystem()
+    o.add_pupil(poppy.CircularAperture())
+    o.add_detector(0.010, fov_pixels=512)
+    psf = o.calc_psf()
+
+    # Create outputs of the 2 inverse functions
+    rad = utils.measure_radius_at_ee(psf)
+    ee = utils.measure_ee(psf)
+
+    # The ee and rad functions should undo each other and yield the input value
+    for i in [0.1, 0.5, 0.8]:
+        np.testing.assert_almost_equal(i, ee(rad(i)), decimal=3, err_msg="Error: Values not equal")
+
 @pytest.mark.skipif(pyfftw is None, reason="pyFFTW not found")
 def test_load_save_fftw_wisdom(tmpdir):
     with tmpdir.as_cwd():
