@@ -1220,7 +1220,13 @@ class BackCompatibleQuantityInput(object):
 
     def __call__(self, wrapped_function):
         from astropy.utils.decorators import wraps
-        from astropy.utils.compat import funcsigs
+
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            from astropy.utils.compat import funcsigs
+            # TODO update this code to avoid the deprecated function, once
+            # we are running in only-python-3 mode
         from astropy.units import UnitsError, add_enabled_equivalencies, Quantity
 
         # Extract the function signature for the function we are wrapping.

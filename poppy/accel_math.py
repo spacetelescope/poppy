@@ -1,6 +1,6 @@
 # accel_math.py
-# 
-# Various functions related to accelerated computations using FFTW, CUDA, numexpr, and related. 
+#
+# Various functions related to accelerated computations using FFTW, CUDA, numexpr, and related.
 #
 import numpy as np
 from . import conf
@@ -64,7 +64,7 @@ def _exp(x):
         return np.exp(x)
 
 def _fftshift(x):
-    
+
     N=x.shape[0]
     if (_USE_CUDA) & (N==x.shape[1]):
         blockdim = (32, 32) # threads per block
@@ -73,8 +73,8 @@ def _fftshift(x):
         return x
     else:
         return np.fft.fftshift(x)
-    
-if  _USE_CUDA:  
+
+if  _USE_CUDA:
     @cuda.jit()
     def cufftShift_2D_kernel(data, N):
         '''
@@ -82,7 +82,7 @@ if  _USE_CUDA:
         https://github.com/marwan-abdellah/cufftShift
         (GNU Lesser Public License)
         '''
-        
+
         #// 2D Slice & 1D Line
         sLine = N
         sSlice = N * N
@@ -92,7 +92,7 @@ if  _USE_CUDA:
         x, y = cuda.grid(2)
         #// Thread Index Converted into 1D Index
         index = (y * N) + x
-            
+
         if (x < N / 2):
             if (y < N / 2):
                 #// First Quad
