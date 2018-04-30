@@ -50,7 +50,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         over the full N actuators, so we set the `pupil_diam` attribute to N*actuator_spacing.
         """
     @utils.quantity_input(actuator_spacing=u.meter,radius=u.meter)
-    def __init__(self, shape=(10,10), actuator_spacing=None, 
+    def __init__(self, shape=(10,10), actuator_spacing=None,
         influence_func=None, name='DM',
         include_actuator_print_through = False,
         actuator_print_through_file=None,
@@ -312,7 +312,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
             This version uses an influence function read from a file on disk
         """
-        # Determine the center indices of the actuators in wavefront space, 
+        # Determine the center indices of the actuators in wavefront space,
         # if not already established.
         if not hasattr(self, '_act_ind_flat') or True:
             self._setup_actuator_indices(wave)
@@ -334,9 +334,9 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
     def _setup_actuator_indices(self, wave):
         # This attribute will hold the 1D, flattened indices of each of the
-        # actuators, in the larger wave array. 
+        # actuators, in the larger wave array.
         # FIXME this will need to become smarter about when to regenerate these.
-        # for cases with different wave samplings. 
+        # for cases with different wave samplings.
         # For now will just regenerate this every time. Slower but strict.
         # TODO - also consider the case where actuators are not spaced integer pixels apart...
         # Eventually that may require more accurate handling here instead of rounding to integer pixels.
@@ -354,16 +354,16 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         self._surface_trace_flat = np.zeros(act_trace_flat.shape) # flattened representation of DM surface trace
 
     def _get_actuator_print_through(self,wave):
-        """ DM surface print through. This function currently hardcoded for Boston MEMS. 
+        """ DM surface print through. This function currently hardcoded for Boston MEMS.
         TODO - write something more generalized. """
 
-        # Determine the center indices of the actuators in wavefront space, 
+        # Determine the center indices of the actuators in wavefront space,
         # if not already established.
         if not hasattr(self, '_act_ind_flat') or True:
             self._setup_actuator_indices(wave)
 
-        # Set physical DM surface trace - 
-        # this is constant for the surface print through, for all actuators that are present. 
+        # Set physical DM surface trace -
+        # this is constant for the surface print through, for all actuators that are present.
         if self.include_actuator_mask:
             target_val = self.actuator_mask.ravel()
         else:
@@ -500,5 +500,102 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
             plt.title("Gaussian influence function with 15% crosstalk")
         else:
             raise NotImplementedError("Display of influence functions from files not yet written.")
+
+
+class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
+    """ Hexagonally segmented DM. Each actuator is controlalble in piston, tip, and tilt
+
+    """
+    def __init__(self, rings=3, flattoflat=1.0*u.m, gap=0.01*u.m,
+            name='DM', center=True):
+        optics.MultiHexagonAperture.__init__(self, rings=rings, flattoflat=flattoflat,
+                gap=gap, center=center)
+
+        self._surface = np.zeros(( len(self.segmentlist), 3) )
+
+        # see _setup_arrays for the following
+        self._last_npix = np.nan
+        self._last_pixelscale = np.nan*u.meter/u.pixel
+
+    @property
+    def shape(self):
+        """ DM actuator geometry - i.e. how many actuators per axis """
+        return len(self.segmentlist)
+
+    @property
+    def surface(self):
+        """ The surface shape of the deformable mirror, in
+        **meters** """
+        return self._surface
+
+    def flatten(self):
+        """Flatten the DM by setting all actuators to zero piston"""
+        self._surface[:] = 0
+
+
+    @utils.quantity_input(piston=u.meter, tip=u.radian, tilt=u.radian)
+    def set_actuator(self, segnum, piston, tip, tilt):
+        """ Set an individual actuator of the DM.
+        Parameters
+        -------------
+        segnum : integer
+            Index of the actuator you wish to control
+        piston, tip, tilt : floats or astropy Quantities
+            Piston (in meters or other length units) and tip and tilt
+            (in radians or other angular units)
+        """
+        self._surface[segnum] = [piston.to(u.meter).value,
+                                 tip.to(u.radian).value,
+                                 tilt.to(u.radian).value]
+
+    def _setup_arrays(self, npix, pixelscale, wave=None):
+        """ Set up the arrays to compute an OPD into.
+        This is relatively slow, but we only need to do this once for
+        each size of input array. A simple caching mechanism avoids
+        unnecessary recomputations.
+
+        """
+        # Don't recompute if values unchanged.
+        if (npix==self._last_npix) and (pixelscale==self._last_pixelscale):
+            return
+        else:
+            self._last_npix=npix
+            self._last_pixelscale=pixelscale
+
+        self._seg_mask = np.zeros( (npix,npix) )
+        self._seg_x = np.zeros( (npix,npix) )
+        self._seg_y = np.zeros( (npix,npix) )
+        self._seg_indices = dict()
+
+        tmp = self.transmission # save original
+        self.transmission = np.zeros( (npix, npix) )
+        for i in self.segmentlist:
+            self._one_hexagon(wave, i, value=i)
+        self._seg_mask = self.transmission
+        self.transmission = tmp # restore
+
+        y,x = poppy_core.Wavefront.pupil_coordinates((npix,npix), pixelscale)
+
+        for i in self.segmentlist:
+            wseg = np.where(self._seg_mask==i)
+            self._seg_indices[i] = wseg
+            ceny, cenx = self._hex_center(i)
+            self._seg_x[wseg] = x[wseg]-cenx
+            self._seg_y[wseg] = y[wseg]-ceny
+
+    def get_opd(self,wave):
+        self._setup_arrays(wave.shape[0], wave.pixelscale, wave=wave)
+
+        self.opd = np.zeros( wave.shape )
+        for i in self.segmentlist:
+            wseg = self._seg_indices[i]
+            self.opd[wseg] = (self._surface[i,0] +
+                              self._surface[i,1] * self._seg_x[wseg] +
+                              self._surface[i,2] * self._seg_y[wseg])
+        return self.opd
+
+
+    def get_transmission(self,wave):
+        return optics.MultiHexagonAperture.get_transmission(self,wave)
 
 

@@ -1280,7 +1280,7 @@ class MultiHexagonAperture(AnalyticOpticalElement):
 
         return self.transmission
 
-    def _one_hexagon(self, wave, index):
+    def _one_hexagon(self, wave, index, value=1):
         """ Draw one hexagon into the self.transmission array """
 
         y, x = self.get_coordinates(wave)
@@ -1307,10 +1307,9 @@ class MultiHexagonAperture(AnalyticOpticalElement):
             (absy <= (1 * side - x) * np.sqrt(3))
         )
 
-        val = 1
-        self.transmission[w_rect] = val
-        self.transmission[w_left_tri] = val
-        self.transmission[w_right_tri] = val
+        self.transmission[w_rect] = value
+        self.transmission[w_left_tri] = value
+        self.transmission[w_right_tri] = value
 
 
 class NgonAperture(AnalyticOpticalElement):
