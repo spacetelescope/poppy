@@ -66,7 +66,8 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         self.numacross = shape[0]           # number of actuators across diameter of
                                             # the optic's cleared aperture (may be
                                             # less than full diameter of array)
-        self.radius=radius
+        self._aperture = optics.CircularAperture(radius=radius)
+        self.radius=self._aperture.radius
         if actuator_spacing is None:
             self.actuator_spacing = 1.0*u.meter/(self.numacross - 1)  # distance between actuators,
                                                               # projected onto the primary
@@ -378,7 +379,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         return dm_surface
 
     def get_transmission(self,wave):
-        return optics.CircularAperture.get_transmission(self,wave)
+        return self._aperture.get_transmission(wave)
 
     def display(self, annotate=False, grid=False, what='opd', crosshairs=False, *args, **kwargs):
         """Display an Analytic optic by first computing it onto a grid.

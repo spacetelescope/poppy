@@ -1109,8 +1109,8 @@ class MultiHexagonAperture(AnalyticOpticalElement):
     name : string
         Descriptive name
     rings : integer
-        The number of rings of hexagons to include (
-        i.e. 2 for a JWST-like aperture, 3 for a Keck-like aperture, and so on)
+        The number of rings of hexagons to include, not counting the central segment
+        (i.e. 2 for a JWST-like aperture, 3 for a Keck-like aperture, and so on)
     side : float, optional
         side length (and/or radius) of hexagon, in meters. Overrides flattoflat if both are present.
     flattoflat : float, optional
