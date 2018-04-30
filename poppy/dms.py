@@ -28,7 +28,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
         Parameters
         ----------
-        shape : tuple with 2 elements
+        dm_shape : tuple with 2 elements
             Number of actuators across the clear aperture in each dimension
         actuator_spacing : float or astropy Quantity with dimension length
             Spacing between adjacent actuators as seen in that plane
@@ -50,7 +50,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         over the full N actuators, so we set the `pupil_diam` attribute to N*actuator_spacing.
         """
     @utils.quantity_input(actuator_spacing=u.meter,radius=u.meter)
-    def __init__(self, shape=(10,10), actuator_spacing=None,
+    def __init__(self, dm_shape=(10,10), actuator_spacing=None,
         influence_func=None, name='DM',
         include_actuator_print_through = False,
         actuator_print_through_file=None,
@@ -60,10 +60,10 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
 
         poppy_core.OpticalElement.__init__(self, planetype=poppy_core.PlaneType.pupil)
-        self._shape = shape                  # number of actuators
+        self._dm_shape = dm_shape                  # number of actuators
         self.name = name
-        self._surface = np.zeros(shape)      # array for the DM surface OPD, in meters
-        self.numacross = shape[0]           # number of actuators across diameter of
+        self._surface = np.zeros(dm_shape)      # array for the DM surface OPD, in meters
+        self.numacross = dm_shape[0]           # number of actuators across diameter of
                                             # the optic's cleared aperture (may be
                                             # less than full diameter of array)
         self._aperture = optics.CircularAperture(radius=radius)
@@ -73,9 +73,9 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
                                                               # projected onto the primary
         else:
             self.actuator_spacing = actuator_spacing
-        self.pupil_center = (shape[0]-1.)/2 # center of clear aperture in actuator units
+        self.pupil_center = (dm_shape[0]-1.)/2 # center of clear aperture in actuator units
                                             # (may be offset from center of DM)
-        self.pupil_diam = np.max(shape)*self.actuator_spacing # see note above.
+        self.pupil_diam = np.max(dm_shape)*self.actuator_spacing # see note above.
 
         self.include_actuator_print_through = include_actuator_print_through
 
@@ -173,14 +173,16 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         self.actuator_surface = fits.getdata(filename)
 
     @property
-    def shape(self):
+    def dm_shape(self):
         """ DM actuator geometry - i.e. how many actuators per axis """
-        return self._shape
+        return self._dm_shape
 
     @property
     def surface(self):
-        """ The surface shape of the deformable mirror, in
-        **meters** """
+        """ The commanded surface shape of the deformable mirror, in
+        **meters**.
+        This is the input to the DM. See the .opd property for the output.
+        """
         return self._surface
 
     @utils.quantity_input(new_surface=u.meter)
@@ -218,9 +220,9 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
             if not self.actuator_mask[acty,actx]:
                 raise RuntimeError("Actuator ({}, {}) is masked out for that DM.".format(actx, acty))
 
-        if actx < 0 or actx > self.shape[1]-1:
+        if actx < 0 or actx > self.dm_shape[1]-1:
             raise ValueError("X axis coordinate is out of range")
-        if acty < 0 or acty > self.shape[0]-1:
+        if acty < 0 or acty > self.dm_shape[0]-1:
             raise ValueError("Y axis coordinate is out of range")
 
         self._surface[acty, actx] = new_value.to(u.meter).value
@@ -240,15 +242,15 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         """
 
         act_space_m = self.actuator_spacing.to(u.meter).value
-        y_act = (np.arange(self.shape[0])-self.pupil_center)*act_space_m
-        x_act = (np.arange(self.shape[1])-self.pupil_center)*act_space_m
+        y_act = (np.arange(self.dm_shape[0])-self.pupil_center)*act_space_m
+        x_act = (np.arange(self.dm_shape[1])-self.pupil_center)*act_space_m
 
         if not one_d: # convert to 2D
-            y_act.shape = (self.shape[0],1)
-            y_act = y_act * np.ones( (1, self.shape[1]))
+            y_act.shape = (self.dm_shape[0],1)
+            y_act = y_act * np.ones( (1, self.dm_shape[1]))
 
-            x_act.shape = (1, self.shape[1])
-            x_act = x_act * np.ones( (self.shape[0], 1))
+            x_act.shape = (1, self.dm_shape[1])
+            x_act = x_act * np.ones( (self.dm_shape[0], 1))
 
         return y_act, x_act
 
@@ -408,15 +410,16 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
             Plot label
         """
 
-        if what=='both': raise NotImplementedError('still need to implement display both mode for display_actuators')
 
         kwargs['crosshairs']= crosshairs
         kwargs['what'] = what
         self.opd = self.surface
         returnvalue = optics.AnalyticOpticalElement.display(self, *args, **kwargs)
 
-        if annotate: self.annotate()
-        if grid: self.annotate_grid()
+        # Annotations not yet smart enough to deal with two panels
+        if what != 'both':
+            if annotate: self.annotate()
+            if grid: self.annotate_grid()
         return returnvalue
 
 
@@ -509,7 +512,7 @@ class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
     """
     def __init__(self, rings=3, flattoflat=1.0*u.m, gap=0.01*u.m,
             name='DM', center=True):
-        optics.MultiHexagonAperture.__init__(self, rings=rings, flattoflat=flattoflat,
+        optics.MultiHexagonAperture.__init__(self, name=name, rings=rings, flattoflat=flattoflat,
                 gap=gap, center=center)
 
         self._surface = np.zeros(( len(self.segmentlist), 3) )
@@ -519,14 +522,15 @@ class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
         self._last_pixelscale = np.nan*u.meter/u.pixel
 
     @property
-    def shape(self):
-        """ DM actuator geometry - i.e. how many actuators per axis """
+    def dm_shape(self):
+        """ DM actuator geometry - i.e. how many actuators """
         return len(self.segmentlist)
 
     @property
     def surface(self):
         """ The surface shape of the deformable mirror, in
-        **meters** """
+        **meters**. This is the commanded shape, input to the DM.
+        See the .opd property for the output. """
         return self._surface
 
     def flatten(self):
@@ -568,12 +572,11 @@ class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
         self._seg_y = np.zeros( (npix,npix) )
         self._seg_indices = dict()
 
-        tmp = self.transmission # save original
         self.transmission = np.zeros( (npix, npix) )
         for i in self.segmentlist:
             self._one_hexagon(wave, i, value=i)
         self._seg_mask = self.transmission
-        self.transmission = tmp # restore
+        self._transmission = np.asarray(self._seg_mask != 0, dtype=float)
 
         y,x = poppy_core.Wavefront.pupil_coordinates((npix,npix), pixelscale)
 
@@ -585,6 +588,7 @@ class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
             self._seg_y[wseg] = y[wseg]-ceny
 
     def get_opd(self,wave):
+        """ Return OPD  - Faster version with caching"""
         self._setup_arrays(wave.shape[0], wave.pixelscale, wave=wave)
 
         self.opd = np.zeros( wave.shape )
@@ -597,6 +601,9 @@ class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
 
 
     def get_transmission(self,wave):
-        return optics.MultiHexagonAperture.get_transmission(self,wave)
+        """ Return transmission - Faster version with caching"""
+        #return optics.MultiHexagonAperture.get_transmission(self,wave)
+        self._setup_arrays(wave.shape[0], wave.pixelscale, wave=wave)
+        return self._transmission
 
 

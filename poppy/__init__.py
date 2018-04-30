@@ -101,6 +101,7 @@ from .utils import *
 from .optics import *
 from .wfe import *
 from .fresnel import *
+from .special_prop import *
 
 from .instrument import Instrument
 
