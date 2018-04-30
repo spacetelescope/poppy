@@ -21,8 +21,6 @@ if conf.use_fftw:
         conf.use_fftw = False
 
 
-
-
 wavelen = 1e-6
 radius = 6.5/2
 
@@ -81,7 +79,6 @@ def test_fft_blc_coronagraph():
                                       # at some future point.
 
 
-
 def test_fft_fqpm(): #oversample=2, verbose=True, wavelength=2e-6):
     """ Test FQPM plus field mask together. The check is that there should be very low flux in the final image plane
     Perfect circular case  with FQPM with fieldMask
@@ -100,46 +97,6 @@ def test_fft_fqpm(): #oversample=2, verbose=True, wavelength=2e-6):
 
     psf = osys.calcPSF(wavelength=wavelen)
     assert psf[0].data.sum() < 0.002
-
-def test_SAMC(oversample=4):
-    """ Test semianalytic coronagraphic method
-
-    """
-    lyot_radius = 6.5/2.5
-    pixelscale = 0.010
-
-    osys = poppy_core.OpticalSystem("test", oversample=oversample)
-    osys.addPupil( optics.CircularAperture(radius=radius), name='Entrance Pupil')
-    osys.addImage( optics.CircularOcculter( radius = 0.1) )
-    osys.addPupil( optics.CircularAperture(radius=lyot_radius), name = "Lyot Pupil")
-    osys.addDetector(pixelscale=pixelscale, fov_arcsec=5.0)
-
-
-    sam_osys = poppy_core.SemiAnalyticCoronagraph(osys, oversample=oversample, occulter_box=0.15)
-
-    psf_sam = sam_osys.calcPSF()
-
-    psf_fft = osys.calcPSF()
-
-    # The pixel by pixel difference should be small:
-    maxdiff = np.abs(psf_fft[0].data - psf_sam[0].data).max()
-    #print "Max difference between results: ", maxdiff
-
-    assert( maxdiff < 1e-7)
-
-    # and the overall flux difference should be small also:
-    if oversample<=4:
-        thresh = 1e-4
-    elif oversample==6:
-        thresh=5e-5
-    elif oversample>=8:
-        thresh = 4e-6
-    else:
-        raise NotImplementedError("Don't know what threshold to use for oversample="+str(oversample))
-
-    totdiff = np.abs(psf_sam[0].data.sum() - psf_fft[0].data.sum())
-    assert totdiff < thresh, "Total pixel value absolute difference summed overimages ({}) exceeds threshold ({}).".format(totdiff, thresh)
-
 
 
 def test_parity_FFT_forward_inverse(display=False):
@@ -192,8 +149,6 @@ def test_parity_FFT_forward_inverse(display=False):
         print("Max abs(difference) = {}".format(maxabsdiff))
 
 
-
-
 if conf.use_fftw:
     # The following test is only applicable if fftw is present.
 
@@ -223,9 +178,6 @@ if conf.use_fftw:
             for i in [1,2]:
                 assert np.abs(intermediates[i].totalIntensity-intermediates_numpy[0].totalIntensity) < 1e-6
             assert np.abs(intermediates[3].totalIntensity-intermediates_numpy[0].totalIntensity) < 0.005
-
-
-
 
 
 
