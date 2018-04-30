@@ -29,7 +29,7 @@ import logging
 _log = logging.getLogger('poppy')
 
 __all__ = ['Wavefront',  'OpticalSystem', 'SemiAnalyticCoronagraph', 'MatrixFTCoronagraph',
-           'OpticalElement', 'FITSOpticalElement', 'Rotation', 'Detector']
+           'OpticalElement', 'ArrayOpticalElement', 'FITSOpticalElement', 'Rotation', 'Detector']
 
 # internal constants for types of plane
 class PlaneType(enum.Enum):
@@ -2551,6 +2551,25 @@ class OpticalElement(object):
         if hasattr(self, 'amplitude'):
             return self.amplitude.shape
         else: return None
+
+
+class ArrayOpticalElement(poppy.OpticalElement):
+    """ Defines an arbitrary optic, based on amplitude transmission and/or OPD given as numpy arrays.
+
+    This is a very lightweight wrapper for the base OpticalElement class, which just provides some
+    additional convenience features in the initializer..
+    """
+    def __init__(self, opd=None, transmission=None, pixelscale=None, **kwargs):
+        super().__init__(**kwargs)
+        if opd is not None:
+            self.opd = opd
+        if transmission is not None:
+            self.amplitude=transmission
+            if opd is None:
+                self.opd = np.zeros_like(transmission)
+
+        if pixelscale is not None:
+            self.pixelscale=pixelscale
 
 
 class FITSOpticalElement(OpticalElement):
