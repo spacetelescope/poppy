@@ -2553,7 +2553,7 @@ class OpticalElement(object):
         else: return None
 
 
-class ArrayOpticalElement(poppy.OpticalElement):
+class ArrayOpticalElement(OpticalElement):
     """ Defines an arbitrary optic, based on amplitude transmission and/or OPD given as numpy arrays.
 
     This is a very lightweight wrapper for the base OpticalElement class, which just provides some
