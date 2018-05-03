@@ -93,6 +93,7 @@ from . import utils
 from . import optics
 from . import misc
 from . import fresnel
+from . import wavefront
 from . import wfe
 
 from .poppy_core import *
@@ -100,6 +101,7 @@ from .utils import *
 from .optics import *
 from .wfe import *
 from .fresnel import *
+from .wavefront import *
 
 from .instrument import Instrument
 
