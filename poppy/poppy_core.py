@@ -170,7 +170,11 @@ class Wavefront(object):
 
     def normalize(self):
         """Set this wavefront's total intensity to 1 """
-        self.wavefront /= np.sqrt(self.total_intensity)
+        sqrt_ti = np.sqrt(self.total_intensity)
+        if sqrt_ti == 0:
+            _log.warning("Total intensity is zero when trying to normalize the wavefront. Cannot normalize.")
+        else:
+            self.wavefront /= sqrt_ti
 
     def __imul__(self, optic):
         """Multiply a Wavefront by an OpticalElement or scalar"""
