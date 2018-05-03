@@ -82,7 +82,7 @@ class AnalyticOpticalElement(OpticalElement):
         else:
             return "Optic: " + self.name
 
-    # The following two functions should be replaced by derived subclasses 
+    # The following two functions should be replaced by derived subclasses
     # but we provide a default of perfect transmission and zero OPD.
     # Each must return something which is a numpy ndarray.
     def get_opd(self, wave):
@@ -203,7 +203,8 @@ class AnalyticOpticalElement(OpticalElement):
             return output_array
 
     @utils.quantity_input(wavelength=u.meter)
-    def display(self, nrows=1, row=1, wavelength=2e-6*u.meter, npix=512, grid_size=None, **kwargs):
+    def display(self, nrows=1, row=1, wavelength=2e-6*u.meter, npix=512, grid_size=None,
+            what='intensity', **kwargs):
         """Display an Analytic optic by first computing it onto a grid...
 
         Parameters
@@ -235,25 +236,38 @@ class AnalyticOpticalElement(OpticalElement):
             Plot label
         """
 
-        _log.debug("Displaying " + self.name)
-        amplitude, pixelscale = self.sample(wavelength=wavelength, npix=npix, what='amplitude',
-                                         grid_size=grid_size, return_scale=True)
-        opd, pixelscale = self.sample(wavelength=wavelength, npix=npix, what='opd',
-                                         grid_size=grid_size, return_scale=True)
+        _log.debug("Displaying " + self.name+", "+what)
 
-        # temporarily set attributes appropriately as if this were a regular OpticalElement
-        self.amplitude = amplitude
-        self.opd = opd
-        self.pixelscale = pixelscale
+        # We need to sample the AnalyticOptic onto the desired sampling in order to display
+        # There is some complexity needed here because this function calls itself recursively
+        # to implement display='both' mode. We want to to be efficient and avoid unnecessary
+        # recomputations in that case, so we have to keep track of whether we're recursing or not.
+
+        if not hasattr(self, '_in_display') or self._in_display==False:
+            # temporarily set attributes appropriately as if this were a regular OpticalElement
+            _log.debug("Optic must be sampled to be displayed.")
+            amplitude, pixelscale = self.sample(wavelength=wavelength, npix=npix, what='amplitude',
+                                             grid_size=grid_size, return_scale=True)
+            self.amplitude = amplitude
+            self.pixelscale = pixelscale
+            opd, pixelscale = self.sample(wavelength=wavelength, npix=npix, what='opd',
+                                             grid_size=grid_size, return_scale=True)
+            self.opd = opd
+            self._in_display = True
+            need_to_unset = True
+        else:
+            need_to_unset = False
 
         # then call parent class display
-        returnvalue = OpticalElement.display(self, nrows=nrows, row=row, **kwargs)
+        returnvalue = OpticalElement.display(self, nrows=nrows, row=row, what=what, **kwargs)
 
-        # now un-set all the temporary attributes back, since this is analytic and
-        # these are unneeded
-        self.pixelscale = None
-        self.opd = None
-        self.amplitude = None
+        if need_to_unset:
+            # now un-set all the temporary attributes back, since this is analytic and
+            # these are now unneeded
+            self.pixelscale = None
+            self.opd = None
+            self.amplitude = None
+            self._in_display = False
         return returnvalue
 
     @utils.quantity_input(wavelength=u.meter)

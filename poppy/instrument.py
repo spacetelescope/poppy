@@ -89,9 +89,6 @@ class Instrument(object):
         Relative shift of a coronagraphic pupil in X and Y, expressed as a decimal between 0.0-1.0
         Note that shifting an array too much will wrap around to the other side unphysically, but
         for reasonable values of shift this is a non-issue.
-    rebin : bool
-        For output files, write an additional FITS extension including a version of the output array
-        rebinned down to the actual detector pixel scale?
     jitter : string "gaussian" or None
         Type of jitter model to apply. Currently only convolution with a Gaussian kernel of specified
         width `jitter_sigma` is implemented. (default: None)

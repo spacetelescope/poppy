@@ -413,7 +413,6 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
         kwargs['crosshairs']= crosshairs
         kwargs['what'] = what
-        self.opd = self.surface
         returnvalue = optics.AnalyticOpticalElement.display(self, *args, **kwargs)
 
         # Annotations not yet smart enough to deal with two panels
