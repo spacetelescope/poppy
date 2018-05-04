@@ -19,6 +19,9 @@ class PhysicalFresnelWavefront(FresnelWavefront):
     radius and beam quality factor. Additionally, a wavelength scaling has 
     been introduced to simulate a beam quality factor.
     
+    NOTE: This class expects a vacuum wavelength and a refractive index. It
+    internally scales the wavelength appropriately.
+    
     Parameters
     ----------
     M2 : float
@@ -32,7 +35,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
                  units=u.m,
                  rayleigh_factor=2.0,
                  oversample=2,
-                 wavelength=1064.0e-9,
+                 wavelength=1.0e-6,
                  npix=1024,
                  M2=1.0,
                  n0=1.00027398, # refractive index of air @ 15°C, lambda=1064nm
@@ -49,8 +52,6 @@ class PhysicalFresnelWavefront(FresnelWavefront):
         self.lam = wavelength/n0 # its unscaled value is needed to compute M2
         self.n0 = n0
         self.npix = npix*oversample
-        
-        return
     
     @property
     def x(self):
@@ -94,12 +95,9 @@ class PhysicalFresnelWavefront(FresnelWavefront):
     def power(self):
         """Power of the wavefront (W)."""
         
-        intensity = self.intensity
-        dx = self.dx
-        
-        return dx**2*np.sum(intensity)
+        return (self.dx**2) * self.total_intensity
     
-    def scale(self, P):
+    def scale_power(self, P):
         """
         Scales the wavefront to a desired power.
         
@@ -111,10 +109,13 @@ class PhysicalFresnelWavefront(FresnelWavefront):
         
         P0 = self.power
         self.wavefront *= np.sqrt(P/P0)
-        
-        return
     
-    def propagate(self, z, attenuation_coeff=0.0, **kwargs):
+    def normalize(self):
+        # for PhysicalFresnelWavefronts use scale_power instead of 
+        # normalizing total intensity to 1
+        pass
+    
+    def propagate_fresnel(self, z, attenuation_coeff=0.0, **kwargs):
         """
         Propagates the wavefront a specified distance while keeping its
         power in agreement with the Beer–Lambert law.
@@ -128,31 +129,8 @@ class PhysicalFresnelWavefront(FresnelWavefront):
         """
         
         P = self.power
-        self.propagate_fresnel(z, **kwargs)
-        self.scale(P*np.exp(-attenuation_coeff*z.to(u.m).value))
-        
-        return
-    
-    def plot(self, idx=100):
-        fig = plt.figure(idx)
-        fig.clf()
-        
-        ax = fig.add_subplot(211)
-        x = self.x
-        plt.contourf(x, x, self.amplitude)
-        plt.xlabel('x (m)')
-        plt.ylabel('y (m)')
-        plt.title('Amplitude (V/m) @z={0:0.2f}'.format(self.z))
-        plt.colorbar()
-        ax.set_aspect('equal')
-        
-        ax = fig.add_subplot(212)
-        plt.contourf(x, x, self.phase)
-        plt.xlabel('x (m)')
-        plt.ylabel('y (m)')
-        plt.title('Phase @z={0:0.2f}'.format(self.z))
-        plt.colorbar()
-        ax.set_aspect('equal')
+        super(PhysicalFresnelWavefront, self).propagate_fresnel(z, **kwargs)
+        self.scale_power(P*np.exp(-attenuation_coeff*z.to(u.m).value))
     
     def center(self, mask=1.0):
         """
@@ -352,7 +330,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
             M2_old = M2
             
             if idx == 29:
-                raise StopIteration('Maximal number of iterations reached \
+                raise RuntimeError('Maximal number of iterations reached \
                                     while calculating beam quality factor.')
         
         return M2, z, caustic, z_fine, w_fit, rayleigh_length
