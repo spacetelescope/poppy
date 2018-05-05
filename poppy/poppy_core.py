@@ -1350,6 +1350,9 @@ class OpticalSystem(object):
     def __getitem__(self, num):
         return self.planes[num]
 
+    def __len__(self):
+        return len(self.planes)
+
     # methods for dealing with wavefronts:
     @utils.quantity_input(wavelength=u.meter)
     def input_wavefront(self, wavelength=2e-6*u.meter):
