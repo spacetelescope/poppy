@@ -61,7 +61,7 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
                                                   **kwargs)
         self.z = z
         self._z_m = z.to(u.m).value
-        
+
     def get_phasor(self, wave):
         """ return complex phasor for the quadratic phase
 

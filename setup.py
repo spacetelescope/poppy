@@ -110,7 +110,7 @@ package_info['package_data'][PACKAGENAME].extend(c_files)
 
 install_requires_packages = [
       'six>=1.7.3',
-      'numpy>=1.8.0',
+      'numpy>=1.10.0',
       'scipy>=0.14.0',
       'matplotlib>=1.3.0',
       'astropy>=1.3',
