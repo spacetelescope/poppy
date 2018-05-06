@@ -283,7 +283,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
             wf_work = deepcopy(wf_ini)
             
             for idx_z in range(num_z):
-                wf_work.propagate(dz[idx_z]*u.m)
+                wf_work.propagate_fresnel(dz[idx_z]*u.m)
                 if direction == 'x':
                     w, _, _, _ = wf_work.radius
                 elif direction == 'y':
