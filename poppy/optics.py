@@ -1109,8 +1109,8 @@ class MultiHexagonAperture(AnalyticOpticalElement):
     name : string
         Descriptive name
     rings : integer
-        The number of rings of hexagons to include (
-        i.e. 2 for a JWST-like aperture, 3 for a Keck-like aperture, and so on)
+        The number of rings of hexagons to include, not counting the central segment
+        (i.e. 2 for a JWST-like aperture, 3 for a Keck-like aperture, and so on)
     side : float, optional
         side length (and/or radius) of hexagon, in meters. Overrides flattoflat if both are present.
     flattoflat : float, optional
@@ -1280,7 +1280,7 @@ class MultiHexagonAperture(AnalyticOpticalElement):
 
         return self.transmission
 
-    def _one_hexagon(self, wave, index):
+    def _one_hexagon(self, wave, index, value=1):
         """ Draw one hexagon into the self.transmission array """
 
         y, x = self.get_coordinates(wave)
@@ -1307,10 +1307,9 @@ class MultiHexagonAperture(AnalyticOpticalElement):
             (absy <= (1 * side - x) * np.sqrt(3))
         )
 
-        val = 1
-        self.transmission[w_rect] = val
-        self.transmission[w_left_tri] = val
-        self.transmission[w_right_tri] = val
+        self.transmission[w_rect] = value
+        self.transmission[w_left_tri] = value
+        self.transmission[w_right_tri] = value
 
 
 class NgonAperture(AnalyticOpticalElement):

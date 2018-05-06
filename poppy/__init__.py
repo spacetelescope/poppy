@@ -94,12 +94,14 @@ from . import optics
 from . import misc
 from . import fresnel
 from . import wfe
+from . import dms
 
 from .poppy_core import *
 from .utils import *
 from .optics import *
 from .wfe import *
 from .fresnel import *
+from .special_prop import *
 
 from .instrument import Instrument
 

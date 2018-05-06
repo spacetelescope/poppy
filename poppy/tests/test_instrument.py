@@ -101,7 +101,7 @@ def test_pysynphot_spectra_cache():
     source = pysynphot.BlackBody(5700)
     nlambda = 2
     ins = instrument.Instrument()
-    cache_key = ins._getSpecCacheKey(source, nlambda)
+    cache_key = ins._get_spec_cache_key(source, nlambda)
     assert cache_key not in ins._spectra_cache, "How is the cache populated already?"
     psf = ins.calc_psf(nlambda=2, source=source, fov_pixels=2)
     assert cache_key in ins._spectra_cache, "Cache was not populated"

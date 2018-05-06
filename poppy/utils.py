@@ -38,7 +38,7 @@ class FFTWWisdomWarning(RuntimeWarning):
     pass
 
 __all__ = ['display_PSF', 'display_PSF_difference', 'display_EE', 'measure_EE', #TODO:mperrin: back compatibility aliases - remove in 0.6
-           'display_psf', 'display_psf_difference', 'display_ee', 'measure_ee',
+           'display_psf', 'display_psf_difference', 'display_ee', 'measure_ee', 'measure_radius_at_ee',
            'display_profiles', 'radial_profile',
            'measure_radial', 'measure_fwhm', 'measure_sharpness', 'measure_centroid', 'measure_strehl',
            'measure_anisotropy', 'specFromSpectralType']
@@ -202,6 +202,13 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
         interpolation=interpolation,
         origin='lower'
     )
+
+    if markcentroid:
+        _log.info("measuring centroid to mark on plot...")
+        ceny, cenx = measure_centroid(HDUlist, ext=ext, units='arcsec', relativeto='center', boxsize=20, threshold=0.1)
+        ax.plot(cenx, ceny, 'k+', markersize=15, markeredgewidth=1)
+        _log.info("centroid: (%f, %f) " % (cenx, ceny))
+
     if imagecrop is not None:
         halffov_x = min((imagecrop / 2.0, halffov_x))
         halffov_y = min((imagecrop / 2.0, halffov_y))
@@ -245,12 +252,6 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
         else:
             cb.set_label('Fractional intensity per pixel')
 
-    if markcentroid:
-        _log.info("measuring centroid to mark on plot...")
-        ceny, cenx = measure_centroid(HDUlist, ext=ext, units='arcsec', relativeto='center', boxsize=20, threshold=0.1)
-        ax.plot(cenx, ceny, 'k+', markersize=15, markeredgewidth=1)
-        _log.info("centroid: (%f, %f) " % (cenx, ceny))
-        plt.draw()
 
     if return_ax:
         if colorbar:
@@ -681,6 +682,46 @@ def measure_ee(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     EE_fn = scipy.interpolate.interp1d(rr0, EE0, kind='cubic', bounds_error=False)
 
     return EE_fn
+
+
+def measure_radius_at_ee(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
+    """ measure encircled energy vs radius and return as an interpolator
+    Returns a function object which when called returns the radius for a given Encircled Energy. This is the
+    inverse function of measure_ee
+
+    Parameters
+    ----------
+    HDUlist_or_filename : string
+        Either a fits.HDUList object or a filename of a FITS file on disk
+    ext : int
+        Extension in that FITS file
+    center : tuple of floats
+        Coordinates (x,y) of PSF center. Default is image center.
+    binsize:
+        size of step for profile. Default is pixel size.
+
+    Returns
+    --------
+    radius: function
+        A function which will return the radius of a desired encircled energy.
+
+    Examples
+    --------
+    EE = measure_radius_at_ee("someimage.fits")
+    print "The EE is 50% at {} arcsec".format(EE(0.5))
+    """
+
+    rr, radialprofile2, EE = radial_profile(HDUlist_or_filename, ext, EE=True, center=center, binsize=binsize)
+
+    # append the zero at the center
+    rr_EE = rr + (rr[1] - rr[0]) / 2.0  # add half a binsize to this, because the EE is measured inside the
+    # outer edge of each annulus.
+    rr0 = np.concatenate(([0], rr_EE))
+    EE0 = np.concatenate(([0], EE))
+
+    radius_at_ee_fn = scipy.interpolate.interp1d(EE0, rr0, kind='cubic', bounds_error=False)
+
+    return radius_at_ee_fn
 
 
 def measure_radial(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
@@ -1220,7 +1261,13 @@ class BackCompatibleQuantityInput(object):
 
     def __call__(self, wrapped_function):
         from astropy.utils.decorators import wraps
-        from astropy.utils.compat import funcsigs
+
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            from astropy.utils.compat import funcsigs
+            # TODO update this code to avoid the deprecated function, once
+            # we are running in only-python-3 mode
         from astropy.units import UnitsError, add_enabled_equivalencies, Quantity
 
         # Extract the function signature for the function we are wrapping.

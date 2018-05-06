@@ -39,9 +39,6 @@ wavelength=2e-6
 
 ######### Core tests functions #########
 
-
-
-
 def test_basic_functionality():
     """ For one specific geometry, test that we get the expected value based on a prior reference
     calculation."""
@@ -53,7 +50,6 @@ def test_basic_functionality():
     psf = osys.calcPSF(wavelength=1.0e-6)
     # we need to be a little careful here due to floating point math comparision equality issues... Can't just do a strict equality
     assert abs(psf[0].data.max() - 0.201) < 0.001
-
 
 
 def test_input_wavefront_size():
@@ -98,10 +94,6 @@ def test_input_wavefront_size():
         expected_shape = (npix,npix)
         assert pupil_fits[0].data.shape == expected_shape, 'FITS array from optic element is not the expected size: is {} expects {}'.format(pupil_fits[0].data.shape,  expected_shape)
         assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
-
-
-
-
 
 
 
@@ -150,9 +142,6 @@ def test_CircularAperture_Airy(display=False):
         pl.subplot(144)
         ax2=pl.imshow(np.abs(numeric[0].data-analytic) < 3e-5)
         pl.title("Difference <1e-5")
-
-#fits.writeto("test.fits", numeric[0].data-analytic)
-#print a2.max()
 
 
 def test_multiwavelength_opticalsystem():

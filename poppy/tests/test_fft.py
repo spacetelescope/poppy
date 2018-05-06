@@ -10,36 +10,34 @@ from .test_core import check_wavefront
 # For some reason, the following block of code in poppy_core is not sufficient
 # to handle the "no pyfftw installed" case when running in test mode, even though it works
 # just fine when actually running poppy. Empirically this check has to be repeated
-# here in order to let the tests work when pyfftw is not present. 
+# here in order to let the tests work when pyfftw is not present.
 from .. import conf
 if conf.use_fftw:
     try:
         # try to import FFTW and use it
         import pyfftw
     except:
-        # we tried but failed to import it. 
+        # we tried but failed to import it.
         conf.use_fftw = False
 
 
-
-
-wavelen = 1e-6 
+wavelen = 1e-6
 radius = 6.5/2
 
 
 def test_fft_normalization():
     """ Test the PSF normalization for FFTs"""
 
-    poppy_core._log.info('TEST: test_fft_normalization') 
+    poppy_core._log.info('TEST: test_fft_normalization')
 
     osys = poppy_core.OpticalSystem("test", oversample=2)
     pupil = optics.CircularAperture(radius=radius)
     osys.addPupil(pupil)
     osys.addImage() # null plane to force FFT
     osys.addPupil() # null plane to force FFT
-    osys.addDetector(pixelscale=0.01, fov_arcsec=10.0) # use a large FOV so we grab essentially all the ligh        
+    osys.addDetector(pixelscale=0.01, fov_arcsec=10.0) # use a large FOV so we grab essentially all the ligh
 
-    poppy_core._log.info('TEST: wavelen = {0}, radius = {1}'.format(wavelen, radius)) 
+    poppy_core._log.info('TEST: wavelen = {0}, radius = {1}'.format(wavelen, radius))
 
 
     # Expected value here is 0.9977
@@ -81,9 +79,8 @@ def test_fft_blc_coronagraph():
                                       # at some future point.
 
 
-
 def test_fft_fqpm(): #oversample=2, verbose=True, wavelength=2e-6):
-    """ Test FQPM plus field mask together. The check is that there should be very low flux in the final image plane 
+    """ Test FQPM plus field mask together. The check is that there should be very low flux in the final image plane
     Perfect circular case  with FQPM with fieldMask
     Test  ideal FQPM, with field mask. Verify proper behavior in Lyot plane"""
 
@@ -101,70 +98,15 @@ def test_fft_fqpm(): #oversample=2, verbose=True, wavelength=2e-6):
     psf = osys.calcPSF(wavelength=wavelen)
     assert psf[0].data.sum() < 0.002
 
-def test_SAMC(oversample=4):
-    """ Test semianalytic coronagraphic method
-
-    """
-    lyot_radius = 6.5/2.5
-    pixelscale = 0.010
-
-    osys = poppy_core.OpticalSystem("test", oversample=oversample)
-    osys.addPupil( optics.CircularAperture(radius=radius), name='Entrance Pupil')
-    osys.addImage( optics.CircularOcculter( radius = 0.1) )
-    osys.addPupil( optics.CircularAperture(radius=lyot_radius), name = "Lyot Pupil")
-    osys.addDetector(pixelscale=pixelscale, fov_arcsec=5.0)
-
-
-    #plt.figure(1)
-    sam_osys = poppy_core.SemiAnalyticCoronagraph(osys, oversample=oversample, occulter_box=0.15)
-
-    #t0s = time.time()
-    psf_sam = sam_osys.calcPSF()
-    #t1s = time.time()
-
-    #plt.figure(2)
-    #t0f = time.time()
-    psf_fft = osys.calcPSF()
-    #t1f = time.time()
-
-    #plt.figure(3)
-    #plt.clf()
-    #plt.subplot(121)
-    #poppy_core.utils.display_PSF(psf_fft, title="FFT")
-    #plt.subplot(122)
-    #poppy.utils.display_PSF(psf_sam, title="SAM")
-
-
-    
-    # The pixel by pixel difference should be small:
-    maxdiff = np.abs(psf_fft[0].data - psf_sam[0].data).max()
-    #print "Max difference between results: ", maxdiff
-
-    assert( maxdiff < 1e-7)
-
-    # and the overall flux difference should be small also:
-    if oversample<=4:
-        thresh = 1e-4 
-    elif oversample==6:
-        thresh=5e-5
-    elif oversample>=8:
-        thresh = 4e-6
-    else:
-        raise NotImplementedError("Don't know what threshold to use for oversample="+str(oversample))
-
-
-    assert np.abs(psf_sam[0].data.sum() - psf_fft[0].data.sum()) < thresh
-
-
 
 def test_parity_FFT_forward_inverse(display=False):
     """ Test that transforming from a pupil, to an image, and back to the pupil
     leaves you with the same pupil as you had in the first place.
 
-    In other words it doesn't flip left/right or up/down etc. 
+    In other words it doesn't flip left/right or up/down etc.
 
     See https://github.com/mperrin/webbpsf/issues/35
-    That was for the MFT, but for thoroughness let's test both FFT and MFT 
+    That was for the MFT, but for thoroughness let's test both FFT and MFT
     to demonstrate proper behavior
 
     **  See also: test_matrixDFT.test_parity_MFT_forward_inverse() for a  **
@@ -187,8 +129,8 @@ def test_parity_FFT_forward_inverse(display=False):
     p2 = planes[2].asFITS(what='intensity', includepadding=False)
 
     # for checking the overall parity it's sufficient to check the intensity.
-    # we can have arbitrarily large differences in phase for regions with 
-    # intensity =0, so don't check the complex field or phase here. 
+    # we can have arbitrarily large differences in phase for regions with
+    # intensity =0, so don't check the complex field or phase here.
 
     absdiff = (np.abs(p0[0].data - p2[0].data))
     maxabsdiff = np.max(absdiff)
@@ -205,16 +147,13 @@ def test_parity_FFT_forward_inverse(display=False):
         plt.title("Abs(Pupil0-Pupil2)")
         plt.colorbar()
         print("Max abs(difference) = {}".format(maxabsdiff))
-        
-
-
 
 
 if conf.use_fftw:
-    # The following test is only applicable if fftw is present. 
+    # The following test is only applicable if fftw is present.
 
     def test_pyfftw_vs_numpyfft():
-        """ Create an optical system with 2 parity test apertures, 
+        """ Create an optical system with 2 parity test apertures,
         propagate light through it, and compare that we get the same results from both numpy and pyfftw"""
 
 
@@ -239,9 +178,6 @@ if conf.use_fftw:
             for i in [1,2]:
                 assert np.abs(intermediates[i].totalIntensity-intermediates_numpy[0].totalIntensity) < 1e-6
             assert np.abs(intermediates[3].totalIntensity-intermediates_numpy[0].totalIntensity) < 0.005
-
-
-
 
 
 
