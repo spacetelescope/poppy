@@ -41,7 +41,7 @@ def test_fft_normalization():
 
 
     # Expected value here is 0.9977
-    psf = osys.calcPSF(wavelength=2.0e-6, normalize='first')
+    psf = osys.calc_psf(wavelength=2.0e-6, normalize='first')
 
     poppy_core._log.info('TEST: Computed PSF of circular aperture')
     poppy_core._log.info('TEST: PSF total intensity sum is {0}'.format(psf[0].data.sum()))
