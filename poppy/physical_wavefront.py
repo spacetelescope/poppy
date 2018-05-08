@@ -1,6 +1,5 @@
 from __future__ import division
 import numpy as np
-import matplotlib.pyplot as plt
 import scipy.constants as const
 import astropy.units as u
 from copy import deepcopy
