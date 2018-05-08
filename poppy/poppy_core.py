@@ -2181,7 +2181,7 @@ class ArrayOpticalElement(OpticalElement):
     additional convenience features in the initializer..
     """
     def __init__(self, opd=None, transmission=None, pixelscale=None, **kwargs):
-        super().__init__(**kwargs)
+        super(ArrayOpticalElement,self).__init__(**kwargs)
         if opd is not None:
             self.opd = opd
         if transmission is not None:
