@@ -22,6 +22,8 @@ Gram-Schmidt orthonormalization process as applied to this case is
 """
 
 import os
+import six
+import inspect
 from math import factorial
 import numpy as np
 import matplotlib.pyplot as plt
@@ -177,7 +179,7 @@ def R(n, m, rho):
 
 
 def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
-            noll_normalize=True):
+            noll_normalize=True, **kwargs):
     """Return the Zernike polynomial Z[m,n] for a given pupil.
 
     For this function the desired Zernike is specified by 2 indices m and n.
@@ -837,6 +839,8 @@ def opd_expand(opd, aperture=None, nterms=15, basis=zernike_basis,
         Must be square.
     aperture : 2D numpy.ndarray, optional
         Aperture mask for which pixels are included within the aperture.
+        NOTE - this is handed through to the basis function (see basis parameter)
+        which is responsible for implementing this masking, if appropriate.
         All positive nonzero values are considered within the aperture;
         any pixels with zero, negative, or NaN values will be considered
         outside the aperture, and set equal to the 'outside' parameter value.
@@ -941,11 +945,19 @@ def opd_expand_nonorthonormal(opd, aperture=None, nterms=15, basis=zernike_basis
     # any pixels with zero or NaN in the aperture are outside the area
     apmask = (np.isfinite(aperture) & (aperture > 0))
 
+    # Determine if this basis function accepts an 'aperture' parameter or not
+    # If so, append that into the function's kwargs. This check is needed to
+    # handle e.g. both the zernike_basis function (which doesn't accept aperture)
+    # and hexike_basis or arbitrary_basis (which do). 
+    # How to do this check is annoyingly version-dependent.
+    if ((six.PY2 and 'aperture' in inspect.getargspec(basis).args) or
+        (six.PY3 and 'aperture' in inspect.signature(basis).parameters)) :
+        kwargs['aperture'] = aperture
+
     basis_set = basis(
         nterms=nterms,
         npix=opd.shape[0],
         outside=np.nan,
-        aperture=aperture,
         **kwargs
     )
 
@@ -994,10 +1006,19 @@ def opd_from_zernikes(coeffs, basis=zernike_basis_faster, aperture=None, outside
     opd = opd_from_zernikes([0,0,-5,1,0,4,0,8], npix=512)
 
     """
+
+    # Determine if this basis function accepts an 'aperture' parameter or not
+    # If so, append that into the function's kwargs. This check is needed to
+    # handle e.g. both the zernike_basis function (which doesn't accept aperture)
+    # and hexike_basis or arbitrary_basis (which do). 
+    # How to do this check is annoyingly version-dependent.
+    if ((six.PY2 and 'aperture' in inspect.getargspec(basis).args) or
+        (six.PY3 and 'aperture' in inspect.signature(basis).parameters)) :
+        kwargs['aperture'] = aperture
+
     basis_set = basis(
         nterms=len(coeffs),
         outside=outside,
-        aperture=aperture,
         **kwargs
     )
 
