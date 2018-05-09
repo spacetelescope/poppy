@@ -37,7 +37,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
                  wavelength=1.0e-6,
                  npix=1024,
                  M2=1.0,
-                 n0=1.00027398, # refractive index of air @ 15°C, lambda=1064nm
+                 n0=1.00027398, # refractive index of air @ 15 deg C, lambda=1064nm
                  **kwargs):
         super(PhysicalFresnelWavefront, self).__init__(
                 beam_radius=beam_radius,
