@@ -39,15 +39,19 @@ matrix:
         - python: 2.7
           env: SETUP_CMD='test' PIP_DEPENDENCIES='enum34>=1.0.4'
         - python: 3.6
-          env: SETUP_CMD='test'
+          env: SETUP_CMD='test --coverage'
 
         # Do a coverage test in Python 3.
+        #- python: 3.6
+        #  env: SETUP_CMD='test --coverage'
+
+        # Check accelerated math version too
         - python: 3.6
-          env: SETUP_CMD='test --coverage'
+          env: SETUP_CMD='test --coverage' PIP_DEPENDENCIES='numexpr'
 
         # Check for Sphinx doc build errors
         - python: 3.6
-          env: SETUP_CMD='build_sphinx' 
+          env: SETUP_CMD='build_sphinx'
 
         # Try Astropy development version
         - python: 3.6
