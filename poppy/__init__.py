@@ -61,6 +61,10 @@ class Conf(_config.ConfigNamespace):
             'is available)?')
     use_numexpr = _config.ConfigItem(True, 'Use NumExpr to accelarate array math (assuming it' +
             'is available)?')
+    double_precision = _config.ConfigItem(True, 'Floating point values use float64 and complex128 if True,' +
+            'otherwise float32 and complex64.')
+
+
     default_image_display_fov = _config.ConfigItem(5.0, 'Default image' +
             'display field of view, in arcseconds. Adjust this to display ' +
             'only a subregion of a larger output array.')

@@ -46,6 +46,7 @@ from __future__ import (absolute_import, division, print_function,
 __all__ = ['MatrixFourierTransform']
 
 import numpy as np
+from . import conf
 from . import accel_math
 if accel_math._USE_NUMEXPR:
     import numexpr as ne
@@ -114,6 +115,7 @@ def matrix_dft(plane, nlamD, npix,
     if accel_math._USE_NUMEXPR:
         return matrix_dft_numexpr(plane, nlamD, npix,
                offset=offset, inverse=inverse, centering=centering)
+    float = accel_math._float()
 
     npupY, npupX = plane.shape
 
@@ -162,11 +164,11 @@ def matrix_dft(plane, nlamD, npix,
 
 
     if centering == FFTSTYLE:
-        Xs = (np.arange(npupX) - (npupX / 2)) * dX
-        Ys = (np.arange(npupY) - (npupY / 2)) * dY
+        Xs = (np.arange(npupX, dtype=float) - (npupX / 2)) * dX
+        Ys = (np.arange(npupY, dtype=float) - (npupY / 2)) * dY
 
-        Us = (np.arange(npixX) - npixX / 2) * dU
-        Vs = (np.arange(npixY) - npixY / 2) * dV
+        Us = (np.arange(npixX, dtype=float) - npixX / 2) * dU
+        Vs = (np.arange(npixY, dtype=float) - npixY / 2) * dV
     elif centering == ADJUSTABLE:
         if offset is None:
             offsetY, offsetX = 0.0, 0.0
@@ -178,17 +180,17 @@ def matrix_dft(plane, nlamD, npix,
                     "'offset' must be supplied as a 2-tuple with "
                     "(y_offset, x_offset) as floating point values"
                 )
-        Xs = (np.arange(npupX) - float(npupX) / 2.0 - offsetX + 0.5) * dX
-        Ys = (np.arange(npupY) - float(npupY) / 2.0 - offsetY + 0.5) * dY
+        Xs = (np.arange(npupX, dtype=float) - float(npupX) / 2.0 - offsetX + 0.5) * dX
+        Ys = (np.arange(npupY, dtype=float) - float(npupY) / 2.0 - offsetY + 0.5) * dY
 
-        Us = (np.arange(npixX) - float(npixX) / 2.0 - offsetX + 0.5) * dU
-        Vs = (np.arange(npixY) - float(npixY) / 2.0 - offsetY + 0.5) * dV
+        Us = (np.arange(npixX, dtype=float) - float(npixX) / 2.0 - offsetX + 0.5) * dU
+        Vs = (np.arange(npixY, dtype=float) - float(npixY) / 2.0 - offsetY + 0.5) * dV
     elif centering == SYMMETRIC:
-        Xs = (np.arange(npupX) - float(npupX) / 2.0 + 0.5) * dX
-        Ys = (np.arange(npupY) - float(npupY) / 2.0 + 0.5) * dY
+        Xs = (np.arange(npupX, dtype=float) - float(npupX) / 2.0 + 0.5) * dX
+        Ys = (np.arange(npupY, dtype=float) - float(npupY) / 2.0 + 0.5) * dY
 
-        Us = (np.arange(npixX) - float(npixX) / 2.0 + 0.5) * dU
-        Vs = (np.arange(npixY) - float(npixY) / 2.0 + 0.5) * dV
+        Us = (np.arange(npixX, dtype=float) - float(npixX) / 2.0 + 0.5) * dU
+        Vs = (np.arange(npixY, dtype=float) - float(npixY) / 2.0 + 0.5) * dV
     else:
         raise ValueError("Invalid centering style")
 
@@ -263,6 +265,7 @@ def matrix_dft_numexpr(plane, nlamD, npix,
     """
 
     npupY, npupX = plane.shape
+    float = accel_math._float() # shadow builtin float with either np.float32 or np.float64, depending
 
     try:
         if np.isscalar(npix):
@@ -309,10 +312,11 @@ def matrix_dft_numexpr(plane, nlamD, npix,
 
 
     # Setup arrays since numexpr can't call arange directly
-    ar_npupX = np.arange(npupX)
-    ar_npupY = np.arange(npupY)
-    ar_npixX = np.arange(npixX)
-    ar_npixY = np.arange(npixY)
+    float = accel_math._float()
+    ar_npupX = np.arange(npupX, dtype=float)
+    ar_npupY = np.arange(npupY, dtype=float)
+    ar_npixX = np.arange(npixX, dtype=float)
+    ar_npixY = np.arange(npixY, dtype=float)
 
     if centering == FFTSTYLE:
         Xs = ne.evaluate("(ar_npupX - (npupX / 2)) * dX")
@@ -361,6 +365,10 @@ def matrix_dft_numexpr(plane, nlamD, npix,
         expXU = ne.evaluate("exp(-2.0 * pi * 1j * XU)")
         t1 = np.dot(expYV, plane)
         t2 = np.dot(t1, expXU)
+
+    if not conf.double_precision:
+        # Work around numexpr bug where exp results must be complex128
+        t2 = np.asarray(t2, dtype=np.complex64)
 
     norm_coeff = np.sqrt((nlamDY * nlamDX) / (npupY * npupX * npixY * npixX))
     return norm_coeff * t2

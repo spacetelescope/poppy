@@ -20,10 +20,10 @@ from .matrixDFT import MatrixFourierTransform
 from . import utils
 from . import conf
 from . import accel_math
+from .accel_math import _float, _complex
 
 if accel_math._USE_NUMEXPR:
     import numexpr as ne
-
 
 import logging
 _log = logging.getLogger('poppy')
@@ -118,7 +118,7 @@ class Wavefront(object):
     """
 
     @utils.quantity_input(wavelength=u.meter, diam=u.meter, pixelscale=u.arcsec/u.pixel)
-    def __init__(self, wavelength=2e-6*u.meter, npix=1024, dtype=np.complex128, diam=8.0*u.meter,
+    def __init__(self, wavelength=2e-6*u.meter, npix=1024, dtype=None, diam=8.0*u.meter,
                  oversample=2, pixelscale=None):
 
         self._last_transform_type = None  # later used to track MFT vs FFT pixel coord centering in coordinates()
@@ -145,9 +145,13 @@ class Wavefront(object):
             self.planetype = _IMAGE
         self._image_centered = 'array_center'                   # one of 'array_center', 'pixel', 'corner'
                                                                 # This records where the coordinate origin is
-                                                                # in image planes, and depends on how the imageg
+                                                                # in image planes, and depends on how the image
                                                                 # plane was produced (e.g. FFT implies pixel)
         "Are FT'ed image planes centered on a pixel or on a corner between pixels? "
+
+
+        if dtype is None:
+            dtype = _complex()
         self.wavefront = np.ones((npix, npix), dtype=dtype)   # the actual complex wavefront array
         self.ispadded = False                               # is the wavefront padded for oversampling?
         self.history = []
@@ -181,12 +185,11 @@ class Wavefront(object):
         if isinstance(optic, CoordinateTransform):
             return self     # a coord transform doesn't actually affect the wavefront via multiplication,
                             # but instead via forcing a call to rotate() or invert() in propagate_to...
-        elif (isinstance(optic, float)) or isinstance(optic, int):
+        elif np.isscalar(optic):
             self.wavefront *= optic  # it's just a scalar
             self.history.append("Multiplied WF by scalar value " + str(optic))
             return self
-
-        if not isinstance(optic, OpticalElement):
+        elif not isinstance(optic, OpticalElement):
             raise ValueError('Wavefronts can only be *= multiplied by OpticalElements or scalar values')
 
         if isinstance(optic, Detector):
@@ -595,7 +598,7 @@ class Wavefront(object):
         """Electric field intensity of the wavefront (i.e. field amplitude squared)"""
         if accel_math._USE_NUMEXPR:
             w = self.wavefront
-            return ne.evaluate("real(abs(w))**2") 
+            return ne.evaluate("real(abs(w))**2")
         else:
             return np.abs(self.wavefront)**2
 
@@ -608,6 +611,11 @@ class Wavefront(object):
     def shape(self):
         """ Shape of the wavefront array"""
         return self.wavefront.shape
+
+    @property
+    def dtype(self):
+        """ Numpy Data type """
+        return self.wavefront.dtype
 
     @property
     def total_intensity(self):
@@ -905,7 +913,7 @@ class Wavefront(object):
                 pixelscale = self.pixelscale
 
             npix = self.wavefront.shape[0]
-            V, U = np.indices(self.wavefront.shape, dtype=float)
+            V, U = np.indices(self.wavefront.shape, dtype=_float())
             V -= (npix - 1) / 2.0
             V *= pixelscale
             U -= (npix - 1) / 2.0
@@ -977,7 +985,7 @@ class Wavefront(object):
             the pixel scale in meters/pixel, optionally different in
             X and Y
         """
-        y, x = np.indices(shape, dtype=float)
+        y, x = np.indices(shape, dtype=_float())
         pixelscale_mpix = pixelscale.to(u.meter/u.pixel).value if isinstance(pixelscale, u.Quantity) else pixelscale
         if not np.isscalar(pixelscale_mpix):
             pixel_scale_x, pixel_scale_y = pixelscale_mpix
@@ -1009,7 +1017,7 @@ class Wavefront(object):
             Was POPPY trying to keeping the center of the image on
             a pixel, crosshairs ('array_center'), or corner?
         """
-        y, x = np.indices(shape, dtype=float)
+        y, x = np.indices(shape, dtype=_float())
         pixelscale_arcsecperpix = pixelscale.to(u.arcsec/u.pixel).value
         if not np.isscalar(pixelscale_arcsecperpix):
             pixel_scale_x, pixel_scale_y = pixelscale_arcsecperpix
@@ -1620,7 +1628,7 @@ class OpticalSystem(object):
         # ensure wavelength is a quantity which is iterable:
         # (the check for a quantity of type length is applied in the decorator)
         if np.isscalar(wavelength.value):
-            wavelength = np.asarray([wavelength.value], dtype=float)*wavelength.unit
+            wavelength = np.asarray([wavelength.value], dtype=_float())*wavelength.unit
 
         if weight is None:
             weight = [1.0] * len(wavelength)
@@ -1638,7 +1646,7 @@ class OpticalSystem(object):
         else:
             retain_intermediates = False
 
-        normwts =  np.asarray(weight, dtype=float)
+        normwts =  np.asarray(weight, dtype=_float())
         normwts /= normwts.sum()
 
         _USE_FFTW = (conf.use_fftw and accel_math._FFTW_AVAILABLE)
@@ -1877,9 +1885,6 @@ class OpticalElement(object):
     interp_order : int
         the order (0 to 5) of the spline interpolation used if the optic is resized.
     """
-    #pixelscale = None
-    #"float attribute. Pixelscale in arcsec or meters per pixel. Will be 'None' for null or analytic optics."
-
 
     def __init__(self, name="unnamed optic", verbose=True, planetype=PlaneType.unspecified, oversample=1, interp_order=3):
 

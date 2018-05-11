@@ -44,6 +44,16 @@ if _USE_NUMEXPR:
 if _USE_CUDA:
     from numba import cuda
 
+def _float():
+    """ Returns numpy data type for desired precision based on configuration """
+    # How many bits per float to use?
+    return np.float64 if conf.double_precision else np.float32
+
+def _complex():
+    """ Returns numpy data type for desired precision based on configuration """
+    # How many bits per complex float to use?
+    return np.complex128 if conf.double_precision else np.complex64
+
 
 def _r(x,y):
     """ Function to return the radius given x and y """
@@ -106,5 +116,5 @@ if  _USE_CUDA:
                 temp=data[index]
                 data[index] = data[index + sEq2]
                 data[index + sEq2] = temp
-                
-                
+
+

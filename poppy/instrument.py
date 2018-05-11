@@ -913,5 +913,6 @@ class Instrument(object):
             filter_fn = scipy.interpolate.interp1d(wavelengths * 1e-10, throughputs, kind='cubic',
                                                    bounds_error=False)
             weights = filter_fn(lambd)
+            filterfits.close()
             return lambd, weights
 
