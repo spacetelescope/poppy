@@ -11,25 +11,17 @@ _log = logging.getLogger('poppy')
 
 
 
-# Setup infrastructure for FFTW
-_FFTW_INIT = {}  # dict of array sizes for which we have already performed the required FFTW planning step
-_FFTW_FLAGS = ['measure']
 
 try:
     # try to import FFTW to see if it is available
     import pyfftw
+    # Setup infrastructure for FFTW
+    _FFTW_INIT = {}  # dict of array sizes for which we have already performed the required FFTW planning step
+    _FFTW_FLAGS = ['measure']
     _FFTW_AVAILABLE = True
 except ImportError:
     pyfftw = None
     _FFTW_AVAILABLE = False
-
-try:
-    # try to import accelerate package to see if it is available
-    import accelerate
-    _ACCELERATE_AVAILABLE = True
-except ImportError:
-    accelerate = None
-    _ACCELERATE_AVAILABLE = False
 
 try:
     # try to import numexpr package to see if it is available
@@ -39,6 +31,15 @@ except ImportError:
     ne = None
     _NUMEXPR_AVAILABLE = False
 
+try:
+    # try to import anaconda accelerate package to see if it is available
+    import pyculib
+    from numba import cuda
+    _CUDA_PLANS = {} # plans for various array sizes already prepared
+    _CUDA_AVAILABLE = True
+except ImportError:
+    pyculib = None
+    _CUDA_AVAILABLE = False
 
 try:
     # try to import pyopencl and gpyfft to see if OpenCL FFT is available
@@ -50,16 +51,11 @@ try:
 except ImportError:
     _OPENCL_AVAILABLE = False
 
-_USE_CUDA = (conf.use_cuda and _ACCELERATE_AVAILABLE)
+
+_USE_CUDA = (conf.use_cuda and _CUDA_AVAILABLE)
 _USE_OPENCL = (conf.use_numexpr and _OPENCL_AVAILABLE)
 _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
 
-
-if _USE_NUMEXPR:
-    import numexpr as ne
-
-if _USE_CUDA:
-    from numba import cuda
 
 def _float():
     """ Returns numpy data type for desired precision based on configuration """
@@ -109,56 +105,104 @@ def _fftshift(x):
 
 
 
-def _fft_2d(wavefront, FFT_direction, normalization):
-    """ main entry point for FFTs, used in Wavefront._propagate_fft
+def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
+    """ main entry point for FFTs, used in Wavefront._propagate_fft and
+    elsewhere. This will invoke one of the following, depending on availability:
+        - CUDA on NVidia GPU
+        - OpenCL on AMD GPU
+        - FFTW on CPU
+        - numpy on CPU
 
     This function handles ONLY the core numerics itself, as fast as possible,
     (and some minor related logging) .
     All the interaction with object state for Wavefront arrays should happen elsewhere.
 
-    """
-    # To use FFTW, it must both be enabled and the library itself has to be present
-    _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
-    _USE_OPENCL = (conf.use_numexpr and _OPENCL_AVAILABLE)
+    TODO: this should execute an IN PLACE FFT, so we don't have to pass around arrays to return
+    anything.
 
-    # OpenCL only can FFT certain array sizes. 
+    Parameters
+    -----------
+    forward : bool
+        set to True for forward FFT, False for inverse fft
+    normalization : float, optional
+        Normalization factor. Defaults to 1./wavefront.shape[0] for forward,
+        and wavefront.shape[0] for inverse. Use this only if you need a non-default
+        behavior.
+    fftshift : bool
+        apply FFT shift after forwards FFT or before inverse FFT?
+
+    """
+    # To use a fast FFT, it must both be enabled and the library itself has to be present
+    _USE_CUDA = (conf.use_cuda and _CUDA_AVAILABLE)
+    _USE_OPENCL = (conf.use_opencl and _OPENCL_AVAILABLE)
+    _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
+
+    # OpenCL cfFFT only can FFT certain array sizes.
     # This check is more stringent that necessary - opencl can handle powers of a few small integers
     # but this simple version helps during development
     if _USE_OPENCL and not ispowerof2(wavefront.shape[0]):
-        _log.debug("Wavefront size {} not supported by OpenCL, therefore disabling USE_OPENCL for this calculation.".format(wavefront.shape))
+        _log.debug(("Wavefront size {} not supported by OpenCL, therefore disabling "+
+            "USE_OPENCL for this calculation.").format(wavefront.shape))
         _USE_OPENCL = False
 
-    # Setup for FFT
-    if _USE_OPENCL:
-        method = 'pyopencl'
+    # This annoyingly complicated if/elif is just for the debug print statement
+    if _USE_CUDA:
+        method = 'pyculib (CUDA GPU)'
+    elif _USE_OPENCL:
+        method = 'pyopencl (OpenCL GPU)'
     elif _USE_FFTW:
         method = 'pyfftw'
-        do_fft = pyfftw.interfaces.numpy_fft.fft2 if FFT_direction=='forward' else pyfftw.interfaces.numpy_fft.ifft2
     else:
         method = 'numpy'
-        do_fft =  np.fft.fft2 if FFT_direction=='forward' else np.fft.ifft2
-    _log.debug("using {2} FFT of {0} array, FFT_direction={1}".format(str(wavefront.shape), FFT_direction, method))
 
-    if FFT_direction =='backward': wavefront = np.fft.ifftshift(wavefront)
+    _log.debug("using {2} FFT of {0} array, FFT_direction={1}".format(str(wavefront.shape), 'forward' if forward else 'backward', method))
+    print("using {2} FFT of {0} array, FFT_direction={1}".format(str(wavefront.shape), 'forward' if forward else 'backward', method))
 
-    if _USE_OPENCL:
+    if (not forward) and fftshift: #inverse shift before backwards FFTs
+        wavefront = np.fft.ifftshift(wavefront)
+
+    print("  Pre FFT", wavefront.dtype)
+    print("  Pre FFT: {}".format(np.abs(wavefront).sum()))
+
+    if _USE_CUDA:
+        if normalization is None:
+            normalization = 1./wavefront.shape[0]  # regardless of direction, for CUDA
+
+        # We need a CUDA FFT plan for each size and shape of FFT. These can be cached for reuse.
+        params = (wavefront.shape, wavefront.dtype, wavefront.dtype)
+        try:
+            cufftplan = _CUDA_PLANS[params]
+        except KeyError:
+            cufftplan = pyculib.fft.FFTPlan(*params)
+            _CUDA_PLANS[params] = cufftplan
+        #print(cufftplan)
+
+        # perform FFT on GPU, and return results in place to same array.
+        if forward:
+            cufftplan.forward(wavefront, out=wavefront)
+        else:
+            cufftplan.inverse(wavefront, out=wavefront)
+
+    elif _USE_OPENCL:
+        if normalization is None:
+            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
+
         context, queue = get_opencl_context()
         wf_on_gpu = pyopencl.array.to_device(queue, wavefront)
         transform = gpyfft.fft.FFT(context, queue, wf_on_gpu, axes=(0,1))
-        event, = transform.enqueue()
+        event, = transform.enqueue(forward=forward)
         event.wait()
-        wavefront = wf_on_gpu.get()
-
-        if FFT_direction =='backward':
-            # I can't figure out how to tell gpyfft to do a backward FFT.  ?!?!
-            # so instead we have to mess with the normalization manually here. 
-            normalization = 1./normalization #
-
-            # and we seem to need to swap in order to get the parity right? 
-            wavefront = wavefront[::-1, ::-1]
-        _log.debug("Normalization: {}".format(normalization))
+        wavefront[:] = wf_on_gpu.get()
+        wf_on_gpu.release() # not sure this is necessary, but seem to have a memory leak somewhere so let's try explicitly releasing
+        del wf_on_gpu
 
     elif _USE_FFTW:
+        FFT_direction = 'forward' if forward else 'backward' # back compatible for use in _FFTW_INIT
+        do_fft = pyfftw.interfaces.numpy_fft.fft2 if forward else pyfftw.interfaces.numpy_fft.ifft2
+        if normalization is None:
+            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
+
+
         if (wavefront.shape, FFT_direction) not in _FFTW_INIT:
             # The first time you run FFTW to transform a given size, it does a speed test to
             # determine optimal algorithm that is destructive to your chosen array.
@@ -177,13 +221,20 @@ def _fft_2d(wavefront, FFT_direction, normalization):
 
         wavefront = do_fft(wavefront, overwrite_input=True, planner_effort='FFTW_MEASURE',
                                 threads=multiprocessing.cpu_count())
-    else:
+    else: # Basic numpy FFT
+        do_fft =  np.fft.fft2 if forward else np.fft.ifft2
+        if normalization is None:
+            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
         wavefront = do_fft(wavefront)
 
-    if FFT_direction == 'forward':
+    if forward and fftshift:
         wavefront = np.fft.fftshift(wavefront)
+    print("  post FFT", wavefront.dtype)
+    _log.debug(" FFT Normalization: {}".format(normalization))
+    print("  Post FFT: {}".format(np.abs(wavefront).sum()))
 
     wavefront *= normalization
+    print("  Post normalization by {:.3g}: {}".format(normalization, np.abs(wavefront).sum()))
 
     return wavefront
 
@@ -208,7 +259,9 @@ if _OPENCL_AVAILABLE:
                 device = gpus[0]
                 _OPENCL_STATE['device'] = device
             else:
-                raise RuntimeError("OpenCL code could not uniquely identify which device to use as GPU")
+                #raise RuntimeError("OpenCL code could not uniquely identify which device to use as GPU")
+                device = gpus[1]
+                print('hard coded use of gpu #1 if > 1 present')
             context = pyopencl.Context(devices=[device])
             queue = pyopencl.CommandQueue(context)
 

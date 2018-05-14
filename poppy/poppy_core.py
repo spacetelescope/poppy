@@ -685,8 +685,7 @@ class Wavefront(object):
 
        # Set up for computation - figure out direction & normalization
         if self.planetype == _PUPIL and optic.planetype == _IMAGE:
-            FFT_direction = 'forward'
-            normalization_factor = 1./ self.wavefront.shape[0] # correct for numpy fft and pyfftw
+            fft_forward = True
 
             #(pre-)update state:
             self.planetype=_IMAGE
@@ -695,8 +694,7 @@ class Wavefront(object):
             self.history.append('   FFT {},  to _IMAGE  scale={}'.format(self.wavefront.shape, self.pixelscale))
 
         elif self.planetype == _IMAGE and optic.planetype ==_PUPIL:
-            FFT_direction = 'backward'
-            normalization_factor =  self.wavefront.shape[0]  # correct for numpy fft
+            fft_forward = False
 
             #(pre-)update state:
             self.planetype=_PUPIL
@@ -707,9 +705,9 @@ class Wavefront(object):
         if conf.enable_flux_tests: _log.debug("\tPre-FFT total intensity: "+str(self.total_intensity))
         if conf.enable_speed_tests: t0 = time.time()
 
-        self.wavefront = accel_math._fft_2d(self.wavefront, FFT_direction, normalization_factor)
+        self.wavefront = accel_math.fft_2d(self.wavefront, forward=fft_forward)
 
-        if FFT_direction == 'forward':
+        if fft_forward:
             # FFT produces pixel-centered images by default, unless the _image_centered param
             # has already been set by an FQPM_FFT_aligner class
             if self._image_centered != 'corner':
