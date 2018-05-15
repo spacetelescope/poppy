@@ -168,14 +168,22 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         if normalization is None:
             normalization = 1./wavefront.shape[0]  # regardless of direction, for CUDA
 
-        # We need a CUDA FFT plan for each size and shape of FFT. These can be cached for reuse.
-        params = (wavefront.shape, wavefront.dtype, wavefront.dtype)
-        try:
-            cufftplan = _CUDA_PLANS[params]
-        except KeyError:
-            cufftplan = pyculib.fft.FFTPlan(*params)
-            _CUDA_PLANS[params] = cufftplan
-        #print(cufftplan)
+        # We need a CUDA FFT plan for each size and shape of FFT.
+        cufftplan = pyculib.fft.FFTPlan( wavefront.shape, wavefront.dtype, wavefront.dtype)
+
+        # The plans could in principle be cached for reuse
+        # FIXME - there appears to be a memory leak with doing it this way. Something never gets released
+        # when we try to cache this, eventually leading to GPU runtime failure from inability to malloc
+        # new array buffers. . The plan creation takes < 0.5 ms so it's perhaps acceptable to not cache 
+        # the results. At least for now this is worth it for the much better reliability
+        #try:
+            #params = (wavefront.shape, wavefront.dtype, wavefront.dtype)
+            #cufftplan = _CUDA_PLANS[params]
+            #print("cache hit, {},  {}".format(params, cufftplan))
+        #except KeyError:
+            #cufftplan = pyculib.fft.FFTPlan(*params)
+            #_CUDA_PLANS[params] = cufftplan
+            #print("cache miss, {},  {}".format(params, cufftplan))
 
         # perform FFT on GPU, and return results in place to same array.
         if forward:
@@ -193,7 +201,6 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         event, = transform.enqueue(forward=forward)
         event.wait()
         wavefront[:] = wf_on_gpu.get()
-        wf_on_gpu.release() # not sure this is necessary, but seem to have a memory leak somewhere so let's try explicitly releasing
         del wf_on_gpu
 
     elif _USE_FFTW:
