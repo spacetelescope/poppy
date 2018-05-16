@@ -195,21 +195,14 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
             normalization = 1./wavefront.shape[0]  # regardless of direction, for CUDA
 
         # We need a CUDA FFT plan for each size and shape of FFT.
-        cufftplan = pyculib.fft.FFTPlan( wavefront.shape, wavefront.dtype, wavefront.dtype)
-
-        # The plans could in principle be cached for reuse
-        # FIXME - there appears to be a memory leak with doing it this way. Something never gets released
-        # when we try to cache this, eventually leading to GPU runtime failure from inability to malloc
-        # new array buffers. . The plan creation takes < 0.5 ms so it's perhaps acceptable to not cache 
-        # the results. At least for now this is worth it for the much better reliability
-        #try:
-            #params = (wavefront.shape, wavefront.dtype, wavefront.dtype)
-            #cufftplan = _CUDA_PLANS[params]
-            #print("cache hit, {},  {}".format(params, cufftplan))
-        #except KeyError:
-            #cufftplan = pyculib.fft.FFTPlan(*params)
-            #_CUDA_PLANS[params] = cufftplan
-            #print("cache miss, {},  {}".format(params, cufftplan))
+        # The plans can be cached for reuse, since they cost some 
+        # 10s of milliseconds to create
+        params = (wavefront.shape, wavefront.dtype, wavefront.dtype)
+        try:
+            cufftplan = _CUDA_PLANS[params]
+        except KeyError:
+            cufftplan = pyculib.fft.FFTPlan(*params)
+            _CUDA_PLANS[params] = cufftplan
 
         # perform FFT on GPU, and return results in place to same array.
         if forward:

@@ -1097,10 +1097,6 @@ class FresnelOpticalSystem(OpticalSystem):
             The 0th item is "before first optical plane", 1st is "after first plane and before second plane", and so on.
             (n.b. This will be empty if `retain_intermediates` is False and singular if retain_final is True.)
         """
-        #if _USE_CUDA:
-            #_log.debug("_USE_CUDA enabled, will not retain intermediates")
-            # MP: Why disable this here? Should still work
-            #retain_intermediates=False
         if poppy.conf.enable_speed_tests:
             t_start = time.time()
         if self.verbose:
