@@ -534,14 +534,14 @@ class FresnelWavefront(Wavefront):
 
         stage1 = self.wavefront * quadphase_1st  # eq.6.67
         if z_direct > 0:
-            result = np.fft.ifftshift(stage1)
+            result = accel_math._ifftshift(stage1)
             result = accel_math.fft_2d(result, forward=True, fftshift=False)
-            result = np.fft.fftshift(result)
+            result = accel_math._fftshift(result)
             result *= self.pixelscale.to(u.m / u.pix).value ** 2 # eq.6.69 and #6.80
         else:
-            result = np.fft.fftshift(stage1)
+            result = accel_math._fftshift(stage1)
             result = accel_math.fft_2d(result, forward=False, fftshift=False)
-            result = np.fft.ifftshift(result)
+            result = accel_math._ifftshift(result)
             result *= self.pixelscale.to(u.m / u.pix).value ** 2 * self.n ** 2
         result *= quadphase_2nd
 
@@ -634,7 +634,7 @@ class FresnelWavefront(Wavefront):
 
         x, y = self.coordinates()  # meters
         meter_per_pix = self.pixelscale.to(u.m / u.pix).value
-        rhosqr = np.fft.fftshift((x / ( meter_per_pix** 2 * self.n)) ** 2 + (
+        rhosqr = accel_math._fftshift((x / ( meter_per_pix** 2 * self.n)) ** 2 + (
                                   y / (meter_per_pix** 2 * self.n)) ** 2)
         # Transfer Function of diffraction propagation eq. 22, eq. 87
         wavelen_m = self._wavelength_m

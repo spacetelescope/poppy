@@ -669,17 +669,18 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(display=False):
 
     mftpsf, mftplanes = mftsys.calcPSF(display=False, return_intermediates=True)
 
-    assert( np.all(  np.abs(mftpsf[0].data-fftpsf[0].data) < 1e-10 ))
 
     if display:
-        plt.figure(figsize=(16,3))
+        import poppy
+        plt.figure(figsize=(15,4))
         plt.subplot(131)
         poppy.display_PSF(fftpsf, title="FFT PSF")
         plt.subplot(132)
         poppy.display_PSF(mftpsf, title='MFT PSF')
         plt.subplot(133)
-        poppy.display_PSF_di
+        poppy.display_PSF_difference(fftpsf, mftpsf, title='Diff FFT-MFT')
 
 
 
+    assert( np.all(  np.abs(mftpsf[0].data-fftpsf[0].data) < 1e-10 ))
 

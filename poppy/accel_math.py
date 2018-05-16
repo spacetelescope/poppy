@@ -92,16 +92,47 @@ def _fftshift(x):
     Otherwise defaults to numpy.
 
     Note - TODO write an OpenCL version
+
+    See also ifftshift
     """
 
     N=x.shape[0]
-    if (_USE_CUDA) & (N==x.shape[1]):
+    # the CUDA fftshift is set up to work on blocks of 32, so
+    # N must be a multiple of 32. We check this rapidly using a bit mask:
+    #    (x & 31)==0  is a ~20x faster equivalent of (np.mod(x,32)==0)
+    if (_USE_CUDA) & (N==x.shape[1]) & ((N & 31)==0):
         blockdim = (32, 32) # threads per block
         numBlocks = (int(N/blockdim[0]),int(N/blockdim[1]))
         cufftShift_2D_kernel[numBlocks, blockdim](x.ravel(),N)
         return x
     else:
         return np.fft.fftshift(x)
+
+def _ifftshift(x):
+    """ Inverse FFT shifts of array contents, using CUDA if available.
+    Otherwise defaults to numpy.
+    Note, ifftshift and fftshift are identical for even-length x,
+    the functions differ by one sample for odd-length x. This function
+    implictly assumes that if using CUDA, the array size must be even,
+    so we can use the same algorithm as fftshift.
+
+    Note - TODO write an OpenCL version
+
+    See also fftshift
+    """
+
+    N=x.shape[0]
+    # the CUDA fftshift is set up to work on blocks of 32, so
+    # N must be a multiple of 32. We check this rapidly using a bit mask:
+    #   not (x & 31)  is a ~20x faster equivalent of (np.mod(x,32)==0)
+    if (_USE_CUDA) & (N==x.shape[1]) & ((N & 31)==0):
+        blockdim = (32, 32) # threads per block
+        numBlocks = (int(N/blockdim[0]),int(N/blockdim[1]))
+        cufftShift_2D_kernel[numBlocks, blockdim](x.ravel(),N)
+        return x
+    else:
+        return np.fft.ifftshift(x)
+
 
 
 
@@ -154,15 +185,10 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         method = 'pyfftw'
     else:
         method = 'numpy'
-
     _log.debug("using {2} FFT of {0} array, FFT_direction={1}".format(str(wavefront.shape), 'forward' if forward else 'backward', method))
-    print("using {2} FFT of {0} array, FFT_direction={1}".format(str(wavefront.shape), 'forward' if forward else 'backward', method))
 
     if (not forward) and fftshift: #inverse shift before backwards FFTs
-        wavefront = np.fft.ifftshift(wavefront)
-
-    print("  Pre FFT", wavefront.dtype)
-    print("  Pre FFT: {}".format(np.abs(wavefront).sum()))
+        wavefront = _ifftshift(wavefront)
 
     if _USE_CUDA:
         if normalization is None:
@@ -235,13 +261,9 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         wavefront = do_fft(wavefront)
 
     if forward and fftshift:
-        wavefront = np.fft.fftshift(wavefront)
-    print("  post FFT", wavefront.dtype)
-    _log.debug(" FFT Normalization: {}".format(normalization))
-    print("  Post FFT: {}".format(np.abs(wavefront).sum()))
+        wavefront = _fftshift(wavefront)
 
     wavefront *= normalization
-    print("  Post normalization by {:.3g}: {}".format(normalization, np.abs(wavefront).sum()))
 
     return wavefront
 
@@ -268,7 +290,7 @@ if _OPENCL_AVAILABLE:
             else:
                 #raise RuntimeError("OpenCL code could not uniquely identify which device to use as GPU")
                 device = gpus[1]
-                print('hard coded use of gpu #1 if > 1 present')
+                _log.warning('Caution - hard coded use of gpu #1 if > 1 GPUs present')
             context = pyopencl.Context(devices=[device])
             queue = pyopencl.CommandQueue(context)
 
