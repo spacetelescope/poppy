@@ -21,14 +21,10 @@ Gram-Schmidt orthonormalization process as applied to this case is
     Mahajan and Dai, 2006. Optics Letters Vol 31, 16, p 2462:
 """
 
-import os
 import six
 import inspect
 from math import factorial
 import numpy as np
-import matplotlib.pyplot as plt
-
-from astropy.io import fits
 
 import sys
 if sys.version_info > (3, 2):

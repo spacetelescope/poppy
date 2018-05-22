@@ -3,11 +3,9 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import os
 import six
 import scipy.ndimage.interpolation
 import scipy.signal
-import matplotlib
 import astropy.io.fits as fits
 import astropy.units as u
 import warnings
