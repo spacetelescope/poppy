@@ -383,8 +383,8 @@ class FresnelWavefront(Wavefront):
         else:
             _log.debug("   Using numpy FFT")
             self.wavefront = np.fft.fft2(self.wavefront) / self.shape[0]
-            
-    def _inv_fft(self): 
+
+    def _inv_fft(self):
         """
         Apply normalized Inverse 2D Fast Fourier Transform to wavefront
         """
@@ -682,7 +682,7 @@ class FresnelWavefront(Wavefront):
         rhosqr = np.fft.fftshift((x / ( meter_per_pix** 2 * self.n)) ** 2 + (
                                   y / (meter_per_pix** 2 * self.n)) ** 2)
         # Transfer Function of diffraction propagation eq. 22, eq. 87
-        wavelen_m = self._wavelength_m 
+        wavelen_m = self._wavelength_m
 
         if _USE_NUMEXPR:
                 t= ne.evaluate("-1.0j * pi * wavelen_m * (z_direct) * rhosqr")
@@ -1206,7 +1206,7 @@ class FresnelOpticalSystem(OpticalSystem):
         if (not retain_intermediates) & (retain_final): #return the full complex wavefront of the last plane.
                 intermediate_wfs = [wavefront]
 
-        return wavefront.asFITS(), intermediate_wfs
+        return wavefront.as_fits(), intermediate_wfs
 
     def describe(self):
         """ Print out a string table describing all planes in an optical system"""
