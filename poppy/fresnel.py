@@ -1,7 +1,6 @@
 from __future__ import division
 import numpy as np
 import matplotlib.pyplot as plt
-import astropy.io.fits as fits
 import astropy.units as u
 import logging
 import time

@@ -3,13 +3,9 @@
 
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 import numpy as np
-import matplotlib.pyplot as plt
-import scipy.ndimage.interpolation
-import matplotlib
 import logging
 _log = logging.getLogger('poppy')
 
-import astropy.io.fits as fits
 import astropy.units as u
 
 from . import poppy_core
