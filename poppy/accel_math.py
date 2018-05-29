@@ -54,7 +54,7 @@ except ImportError:
 
 
 _USE_CUDA = (conf.use_cuda and _CUDA_AVAILABLE)
-_USE_OPENCL = (conf.use_numexpr and _OPENCL_AVAILABLE)
+_USE_OPENCL = (conf.use_opencl and _OPENCL_AVAILABLE)
 _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
 
 
