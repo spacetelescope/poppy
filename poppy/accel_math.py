@@ -6,9 +6,9 @@ import numpy as np
 import multiprocessing
 from . import conf
 
+import time
 import logging
 _log = logging.getLogger('poppy')
-
 
 
 try:
@@ -22,7 +22,6 @@ except ImportError:
     pyfftw = None
     _FFTW_AVAILABLE = False
 
-
 try:
     # try to import numexpr package to see if it is available
     import numexpr as ne
@@ -33,7 +32,7 @@ except ImportError:
     _NUMEXPR_AVAILABLE = False
 
 try:
-    # try to import anaconda accelerate package to see if it is available
+    # try to import CUDA packages to see if they are available
     import pyculib
     from numba import cuda
     _CUDA_PLANS = {} # plans for various array sizes already prepared
@@ -43,7 +42,7 @@ except ImportError:
     _CUDA_AVAILABLE = False
 
 try:
-    # try to import pyopencl and gpyfft to see if OpenCL FFT is available
+    # try to import OpenCL packages to see if they are is available
     import pyopencl
     import pyopencl.array
     import gpyfft
@@ -52,11 +51,19 @@ try:
 except ImportError:
     _OPENCL_AVAILABLE = False
 
-
 _USE_CUDA = (conf.use_cuda and _CUDA_AVAILABLE)
 _USE_OPENCL = (conf.use_opencl and _OPENCL_AVAILABLE)
 _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
 
+
+def update_math_settings():
+    """ Update the module-level math flags, based on user settings
+    """
+    global _USE_CUDA, _USE_OPENCL, _USE_NUMEXPR, _USE_FFTW
+    _USE_CUDA = (conf.use_cuda and _CUDA_AVAILABLE)
+    _USE_OPENCL = (conf.use_numexpr and _OPENCL_AVAILABLE)
+    _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
+    _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
 
 
 def _float():
@@ -167,15 +174,12 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         apply FFT shift after forwards FFT or before inverse FFT?
 
     """
-    # To use a fast FFT, it must both be enabled and the library itself has to be present
-    _USE_CUDA = (conf.use_cuda and _CUDA_AVAILABLE)
-    _USE_OPENCL = (conf.use_opencl and _OPENCL_AVAILABLE)
-    _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
+    ## To use a fast FFT, it must both be enabled and the library itself has to be present
+    global _USE_OPENCL, _USE_CUDA # need to declare global in case we need to change it, below
+    t0 = time.time()
 
     # OpenCL cfFFT only can FFT certain array sizes.
-    # This check is more stringent that necessary - opencl can handle powers of a few small integers
-    # but this simple version helps during development
-    if _USE_OPENCL and not ispowerof2(wavefront.shape[0]):
+    if _USE_OPENCL and not isproductofsmallprimes(wavefront.shape[0]):
         _log.debug(("Wavefront size {} not supported by OpenCL, therefore disabling "+
             "USE_OPENCL for this calculation.").format(wavefront.shape))
         _USE_OPENCL = False
@@ -194,12 +198,13 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
     if (not forward) and fftshift: #inverse shift before backwards FFTs
         wavefront = _ifftshift(wavefront)
 
+    t1 = time.time()
     if _USE_CUDA:
         if normalization is None:
             normalization = 1./wavefront.shape[0]  # regardless of direction, for CUDA
 
         # We need a CUDA FFT plan for each size and shape of FFT.
-        # The plans can be cached for reuse, since they cost some 
+        # The plans can be cached for reuse, since they cost some
         # 10s of milliseconds to create
         params = (wavefront.shape, wavefront.dtype, wavefront.dtype)
         try:
@@ -256,11 +261,14 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         if normalization is None:
             normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
         wavefront = do_fft(wavefront)
+    t2 = time.time()
 
     if forward and fftshift:
         wavefront = _fftshift(wavefront)
 
     wavefront *= normalization
+    t3 = time.time()
+    _log.debug("    FFT_2D: FFT in {:3f} s, full function  in {:.3f} s".format(t2-t1, t3-t0))
 
     return wavefront
 
@@ -270,6 +278,21 @@ def ispowerof2(num):
     """ Is this number a power of 2?"""
     # see http://code.activestate.com/recipes/577514-chek-if-a-number-is-a-power-of-two/
     return (num & (num-1) == 0)
+
+
+def isproductofsmallprimes(num):
+    """ CLFFT only supports array sizes which are products of primes <= 13;
+    Is this integer a product of primes no greater than that?
+    """
+    tmp = num*1 # make copy
+    small_primes = [2,3,5,7,9,11,13]
+    for p in small_primes:
+        quotient, remainder = divmod(tmp, p)
+        while not remainder:
+            tmp = quotient
+            quotient, remainder = divmod(tmp, p)
+        if tmp==1: return True # if we get to 1 we're done
+    return False # if we don't get to 1 then it's got higher factors
 
 if _OPENCL_AVAILABLE:
     def get_opencl_context():
@@ -299,7 +322,7 @@ if _OPENCL_AVAILABLE:
 
 
 
-if  _USE_CUDA:
+if  _CUDA_AVAILABLE:
     @cuda.jit()
     def cufftShift_2D_kernel(data, N):
         """
@@ -331,3 +354,70 @@ if  _USE_CUDA:
                 temp = data[index]
                 data[index] = data[index + sEq2]
                 data[index + sEq2] = temp
+
+# ##################################################################
+#
+#     Performance benchmarks
+
+
+def benchmark_fft(npix=2048, iterations=1):
+    """ Performance benchmark function for standard imaging """
+    #import poppy
+    import timeit
+
+    timer = timeit.Timer("psf = miri.calc_psf(nlambda=nlambda)",
+            setup="""tmp = np.asarray(np.random.rand({npix},{npix}), np.complex128)
+            """.format(npix=npixn))
+    print("Timing performance of FFT for {npix} x {npix}".format(npix=npix))
+
+    defaults = (poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda, poppy.conf.use_opencl)
+
+    # Time baseline performance in numpy
+    print("Timing performance in plain numpy:")
+    poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda, poppy.conf.use_opencl = (False, False, False, False)
+    time_numpy = timer.timeit(number=iterations)
+    print("  {:.2f} s".format(time_numpy))
+
+    if poppy.accel_math._FFTW_AVAILABLE:
+        print("Timing performance with FFTW:")
+        poppy.conf.use_fftw = True
+        time_fftw = timer.timeit(number=iterations)
+        print("  {:.2f} s".format(time_fftw))
+    else:
+        time_fftw = np.NaN
+
+    if poppy.accel_math._NUMEXPR_AVAILABLE:
+        print("Timing performance with Numexpr:")
+        poppy.conf.use_numexpr = True
+        time_numexpr = timer.timeit(number=iterations)
+        print("  {:.2f} s".format(time_numexpr))
+    else:
+        time_numexpr = np.NaN
+
+    if poppy.accel_math._CUDA_AVAILABLE:
+        print("Timing performance with CUDA:")
+        poppy.conf.use_cuda = True
+        poppy.conf.use_opencl = False
+        time_cuda = timer.timeit(number=iterations)
+        print("  {:.2f} s".format(time_cuda))
+    else:
+        time_cuda = np.NaN
+
+    if poppy.accel_math._OPENCL_AVAILABLE:
+        print("Timing performance with OpenCL:")
+        poppy.conf.use_opencl = True
+        poppy.conf.use_cuda = False
+        time_opencl = timer.timeit(number=iterations)
+        print("  {:.2f} s".format(time_opencl))
+    else:
+        time_opencl = np.NaN
+
+
+    poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda, poppy.conf.use_opencl = defaults
+
+    return {'numpy': time_numpy,
+            'fftw': time_fftw,
+            'numexpr': time_numexpr,
+            'cuda': time_cuda,
+            'opencl': time_opencl}
+

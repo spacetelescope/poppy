@@ -163,6 +163,7 @@ class Wavefront(object):
         self.history.append(" using array size %s" % (self.wavefront.shape,))
         self.location = 'Entrance Pupil'
         "Descriptive string for where a wavefront is instantaneously located. Used mostly for titling displayed plots."
+        accel_math.update_math_settings()                   # ensure optimal propagation based on user settings
 
     def __str__(self):
         # TODO add switches for image/pupil planes
@@ -686,7 +687,7 @@ class Wavefront(object):
             self.history.append("    Padded WF array for oversampling by %dx" % self.oversample)
 
        # Set up for computation - figure out direction & normalization
-        if self.planetype == _PUPIL and optic.planetype == _IMAGE:
+        if self.planetype == PlaneType.pupil and optic.planetype == PlaneType.image:
             fft_forward = True
 
             # (pre-)update state:
@@ -695,7 +696,7 @@ class Wavefront(object):
             self.fov = self.wavefront.shape[0] * u.pixel * self.pixelscale
             self.history.append('   FFT {},  to IMAGE plane  scale={}'.format(self.wavefront.shape, self.pixelscale))
 
-        elif self.planetype == _IMAGE and optic.planetype ==_PUPIL:
+        elif self.planetype == PlaneType.image and optic.planetype == PlaneType.pupil:
             fft_forward = False
 
             # (pre-)update state:
