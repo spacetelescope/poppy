@@ -248,7 +248,7 @@ class Instrument(object):
 
         # ----- compute weights for each wavelength based on source spectrum
         wavelens, weights = self._get_weights(source=source, nlambda=local_options['nlambda'],
-                                             monochromatic=local_options['monochromatic'])
+                                              monochromatic=local_options['monochromatic'])
 
         # Validate that the calculation we're about to do makes sense with this instrument config
         self._validate_config(wavelengths=wavelens)
@@ -273,7 +273,7 @@ class Instrument(object):
             result, intermediates = result
 
         self._apply_jitter(result,
-                          local_options)  # will immediately return if there is no jitter parameter in local_options
+                           local_options)  # will immediately return if there is no jitter parameter in local_options
 
         self._get_fits_header(result, local_options)
 
@@ -373,7 +373,7 @@ class Instrument(object):
                 poppy_core._log.info(" Result already at detector pixel scale; no downsampling needed.")
             result[0].header['OVERSAMP'] = (1, 'These data are rebinned to detector pixels')
             result[0].header['CALCSAMP'] = (detector_oversample, 'This much oversampling used in calculation')
-            result[0].header['EXTNAME'] = ('DET_SAMP')
+            result[0].header['EXTNAME'] = ('DET_SAMP', "This extension is at detector sampling")
             result[0].header['PIXELSCL'] *= detector_oversample
             return
         elif (output_mode == 'Both as FITS extensions') or ('both' in output_mode.lower()):
@@ -436,7 +436,7 @@ class Instrument(object):
 
         result[0].header['INSTRUME'] = (self.name, 'Instrument')
         result[0].header['FILTER'] = (self.filter, 'Filter name')
-        result[0].header['EXTNAME'] = ('OVERSAMP')
+        result[0].header['EXTNAME'] = ('OVERSAMP', 'This extension is oversampled.')
         result[0].header.add_history('Created by POPPY version ' + __version__)
 
         if 'fft_oversample' in options:
@@ -623,9 +623,9 @@ class Instrument(object):
             if (critical_angle_arcsec < det_fov_arcsec[0] / 2) or (critical_angle_arcsec < det_fov_arcsec[1] / 2):
                 import warnings
                 warnings.warn((
-                            "For wavelength {:.3f} microns, a FOV of {:.3f} * {:.3f} arcsec exceeds the maximum "+
-                            " spatial frequency well sampled by the input pupil. Your computed PSF will suffer from "+
-                            "aliasing for angles beyond {:.3f} arcsec radius.").format(
+                        "For wavelength {:.3f} microns, a FOV of {:.3f} * {:.3f} arcsec exceeds the maximum " +
+                        " spatial frequency well sampled by the input pupil. Your computed PSF will suffer from " +
+                        "aliasing for angles beyond {:.3f} arcsec radius.").format(
                     wl * 1e6, det_fov_arcsec[0], det_fov_arcsec[1], critical_angle_arcsec))
 
     def _get_aberrations(self):
@@ -725,7 +725,7 @@ class Instrument(object):
         """ return key for the cache of precomputed spectral weightings.
         This is a separate function so the TFI subclass can override it.
         """
-        return (self.filter, source.name, nlambda)
+        return self.filter, source.name, nlambda
 
     def _get_synphot_bandpass(self, filtername):
         """ Return a pysynphot.ObsBandpass object for the given desired band.
@@ -747,7 +747,7 @@ class Instrument(object):
 
         if filtername.lower().startswith('f'):
             # attempt to treat it as an HST filter name?
-            bpname = ('wfc3,uvis1,%s' % (filtername)).lower()
+            bpname = ('wfc3,uvis1,{}'.format(filtername)).lower()
         else:
             bpname = self._synphot_bandpasses[filtername]
 
@@ -871,7 +871,7 @@ class Instrument(object):
             return newsource
         elif isinstance(source, dict) and ('wavelengths' in source) and ('weights' in source):
             # Allow providing directly a set of specific weights and wavelengths, as in poppy.calcPSF source option #2
-            return (source['wavelengths'], source['weights'])
+            return source['wavelengths'], source['weights']
         elif isinstance(source, tuple) and len(source) == 2:
             # Allow user to provide directly a tuple, as in poppy.calcPSF source option #3
             return source
@@ -901,7 +901,7 @@ class Instrument(object):
                 waveunit = 'Angstrom'
                 poppy_core._log.warn(
                     "CAUTION: no WAVEUNIT keyword found in filter file {0}. Assuming = {1} by default".format(
-                        filterfile,waveunit))
+                        filterfile, waveunit))
 
             poppy_core._log.warn(
                 "CAUTION: Just interpolating rather than integrating filter profile, over {0} steps".format(nlambda))
@@ -909,10 +909,9 @@ class Instrument(object):
             lrange = wavelengths[wtrans] * 1e-10  # convert from Angstroms to Meters
             # get evenly spaced points within the range of allowed lambdas, centered on each bin
             lambd = np.linspace(np.min(lrange), np.max(lrange), nlambda, endpoint=False) + (
-                        np.max(lrange) - np.min(lrange)) / (2 * nlambda)
+                    np.max(lrange) - np.min(lrange)) / (2 * nlambda)
             filter_fn = scipy.interpolate.interp1d(wavelengths * 1e-10, throughputs, kind='cubic',
                                                    bounds_error=False)
             weights = filter_fn(lambd)
             filterfits.close()
             return lambd, weights
-

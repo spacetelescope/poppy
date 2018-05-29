@@ -19,11 +19,12 @@ import numpy as np
 import astropy.units as u
 
 from .optics import AnalyticOpticalElement, CircularAperture
-from .poppy_core import Wavefront, _PUPIL
+from .poppy_core import Wavefront, PlaneType
 from . import zernike
 from . import utils
 
 __all__ = ['WavefrontError', 'ParameterizedWFE', 'ZernikeWFE', 'SineWaveWFE']
+
 
 def _accept_wavefront_or_meters(f):
     """Decorator that ensures the first positional method argument
@@ -39,7 +40,9 @@ def _accept_wavefront_or_meters(f):
             return f(*new_args, **kwargs)
         else:
             return f(*args, **kwargs)
+
     return wrapper
+
 
 class WavefrontError(AnalyticOpticalElement):
     """A base class for different sources of wavefront error
@@ -48,12 +51,13 @@ class WavefrontError(AnalyticOpticalElement):
     derive from this class and override methods appropriately.
     Defined to be a pupil-plane optic.
     """
+
     def __init__(self, **kwargs):
         if 'planetype' not in kwargs:
-            kwargs['planetype'] = _PUPIL
+            kwargs['planetype'] = PlaneType.pupil
         super(WavefrontError, self).__init__(**kwargs)
         # in general we will want to see phase rather than intensity at this plane
-        self.wavefront_display_hint='phase'
+        self.wavefront_display_hint = 'phase'
 
     @_accept_wavefront_or_meters
     def get_opd(self, wave, units='meters'):
@@ -68,8 +72,7 @@ class WavefrontError(AnalyticOpticalElement):
         units : 'meters' or 'waves'
             The units of optical path difference (Default: meters)
         """
-        if not isinstance(wave, Wavefront):
-            wave = Wavefront(wavelength=wave)
+        raise NotImplementedError('Not implemented yet')
 
     def rms(self):
         """RMS wavefront error induced by this surface"""
@@ -78,6 +81,7 @@ class WavefrontError(AnalyticOpticalElement):
     def peaktovalley(self):
         """Peak-to-valley wavefront error induced by this surface"""
         raise NotImplementedError('Not implemented yet')
+
 
 def _wave_y_x_to_rho_theta(y, x, pupil_radius):
     """
@@ -98,6 +102,7 @@ def _wave_y_x_to_rho_theta(y, x, pupil_radius):
     theta = np.arctan2(y / pupil_radius, x / pupil_radius)
 
     return rho, theta
+
 
 class ParameterizedWFE(WavefrontError):
     """
@@ -137,6 +142,7 @@ class ParameterizedWFE(WavefrontError):
         compatibility with `zernike.zernike_basis` and
         `zernike.hexike_basis`.)
     """
+
     @utils.quantity_input(coefficients=u.meter, radius=u.meter)
     def __init__(self, name="Parameterized Distortion", coefficients=None, radius=None,
                  basis_factory=None, **kwargs):
@@ -170,6 +176,7 @@ class ParameterizedWFE(WavefrontError):
         else:
             raise ValueError("'units' argument must be 'meters' or 'waves'")
 
+
 class ZernikeWFE(WavefrontError):
     """
     Define an optical element in terms of its Zernike components by
@@ -186,6 +193,7 @@ class ZernikeWFE(WavefrontError):
         Pupil radius, in meters, over which the Zernike terms should be
         computed such that rho = 1 at r = `radius`.
     """
+
     @utils.quantity_input(coefficients=u.meter, radius=u.meter)
     def __init__(self, name="Zernike WFE", coefficients=None, radius=None, **kwargs):
         self.radius = radius
@@ -215,12 +223,12 @@ class ZernikeWFE(WavefrontError):
         # implicitly also a circular aperture:
         aperture_intensity = self.circular_aperture.get_transmission(wave)
 
-        pixelscale_m = wave.pixelscale.to(u.meter/u.pixel).value
+        pixelscale_m = wave.pixelscale.to(u.meter / u.pixel).value
 
         # whether we can use pre-cached zernikes for speed depends on whether
         # there are any coord offsets. See #229
         has_offset_coords = (hasattr(self, "shift_x") or hasattr(self, "shift_y")
-                or hasattr(self, "rotation"))
+                             or hasattr(self, "rotation"))
         if has_offset_coords:
             y, x = self.get_coordinates(wave)
             rho, theta = _wave_y_x_to_rho_theta(y, x, self.radius.to(u.meter).value)
@@ -252,6 +260,7 @@ class ZernikeWFE(WavefrontError):
             combined_zernikes /= wave.wavelength.to(u.meter).value
         return combined_zernikes
 
+
 class SineWaveWFE(WavefrontError):
     """ A single sine wave ripple across the optic
 
@@ -266,8 +275,9 @@ class SineWaveWFE(WavefrontError):
     (N.b. we intentionally avoid letting users specify this in terms of a spatial wavelength
     because that would risk potential ambiguity with the wavelength of light.)
     """
-    @utils.quantity_input(spatialfreq=1./u.meter, amplitude=u.meter)
-    def  __init__(self,  name='Sine WFE', spatialfreq=1.0, amplitude=1e-6, phaseoffset=0, **kwargs):
+
+    @utils.quantity_input(spatialfreq=1. / u.meter, amplitude=u.meter)
+    def __init__(self, name='Sine WFE', spatialfreq=1.0, amplitude=1e-6, phaseoffset=0, **kwargs):
         super(WavefrontError, self).__init__(name=name, **kwargs)
 
         self.sine_spatial_freq = spatialfreq
@@ -294,7 +304,7 @@ class SineWaveWFE(WavefrontError):
         y, x = self.get_coordinates(wave)  # in meters
 
         opd = self.sine_amplitude.to(u.meter).value * \
-                np.sin( 2*np.pi * (x * self.sine_spatial_freq.to(1/u.meter).value + self.sine_phase_offset))
+              np.sin(2 * np.pi * (x * self.sine_spatial_freq.to(1 / u.meter).value + self.sine_phase_offset))
 
         if units == 'waves':
             opd /= wave.wavelength.to(u.meter).value

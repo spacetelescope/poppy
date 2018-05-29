@@ -11,7 +11,6 @@ _log = logging.getLogger('poppy')
 
 
 
-
 try:
     # try to import FFTW to see if it is available
     import pyfftw
@@ -23,9 +22,11 @@ except ImportError:
     pyfftw = None
     _FFTW_AVAILABLE = False
 
+
 try:
     # try to import numexpr package to see if it is available
     import numexpr as ne
+
     _NUMEXPR_AVAILABLE = True
 except ImportError:
     ne = None
@@ -57,10 +58,12 @@ _USE_OPENCL = (conf.use_numexpr and _OPENCL_AVAILABLE)
 _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
 
 
+
 def _float():
     """ Returns numpy data type for desired precision based on configuration """
     # How many bits per float to use?
     return np.float64 if conf.double_precision else np.float32
+
 
 def _complex():
     """ Returns numpy data type for desired precision based on configuration """
@@ -68,13 +71,14 @@ def _complex():
     return np.complex128 if conf.double_precision else np.complex64
 
 
-def _r(x,y):
+def _r(x, y):
     """ Function to speed up computing the radius given x and y, using Numexpr if available
     Otherwise defaults to numpy. """
     if _USE_NUMEXPR:
         return ne.evaluate("sqrt(x**2+y**2)")
     else:
         return np.sqrt(x ** 2 + y ** 2)
+
 
 def _exp(x):
     """
@@ -83,7 +87,7 @@ def _exp(x):
 
     """
     if _USE_NUMEXPR:
-        return  ne.evaluate("exp(x)", optimization='moderate',)
+        return ne.evaluate("exp(x)", optimization='moderate', )
     else:
         return np.exp(x)
 
@@ -298,34 +302,32 @@ if _OPENCL_AVAILABLE:
 if  _USE_CUDA:
     @cuda.jit()
     def cufftShift_2D_kernel(data, N):
-        '''
+        """
         adopted CUDA FFT shift code from:
         https://github.com/marwan-abdellah/cufftShift
         (GNU Lesser Public License)
-        '''
+        """
 
-        #// 2D Slice & 1D Line
+        # // 2D Slice & 1D Line
         sLine = N
         sSlice = N * N
-        #// Transformations Equations
+        # // Transformations Equations
         sEq1 = int((sSlice + sLine) / 2)
         sEq2 = int((sSlice - sLine) / 2)
         x, y = cuda.grid(2)
-        #// Thread Index Converted into 1D Index
+        # // Thread Index Converted into 1D Index
         index = (y * N) + x
 
-        if (x < N / 2):
-            if (y < N / 2):
-                #// First Quad
+        if x < N / 2:
+            if y < N / 2:
+                # // First Quad
                 temp = data[index]
                 data[index] = data[index + sEq1]
-            #// Third Quad
+                # // Third Quad
                 data[index + sEq1] = temp
         else:
-            if (y < N / 2):
-                #// Second Quad
-                temp=data[index]
+            if y < N / 2:
+                # // Second Quad
+                temp = data[index]
                 data[index] = data[index + sEq2]
                 data[index + sEq2] = temp
-
-

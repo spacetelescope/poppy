@@ -1,7 +1,6 @@
 from __future__ import division
 import numpy as np
 import matplotlib.pyplot as plt
-import astropy.io.fits as fits
 import astropy.units as u
 import logging
 import time
@@ -1158,7 +1157,7 @@ class FresnelOpticalSystem(OpticalSystem):
         if (not retain_intermediates) & (retain_final): #return the full complex wavefront of the last plane.
                 intermediate_wfs = [wavefront]
 
-        return wavefront.asFITS(), intermediate_wfs
+        return wavefront.as_fits(), intermediate_wfs
 
     def describe(self):
         """ Print out a string table describing all planes in an optical system"""

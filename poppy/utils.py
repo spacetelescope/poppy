@@ -17,31 +17,35 @@ import numpy as np
 import scipy.interpolate
 import scipy.ndimage
 import six
-
-import poppy
-
-_log = logging.getLogger('poppy')
+import warnings
 
 from astropy import config
+
 import astropy.io.fits as fits
+
+import poppy
 
 try:
     import pyfftw
 except ImportError:
     pyfftw = None
 
+_log = logging.getLogger('poppy')
+
 _loaded_fftw_wisdom = False
 
-import warnings
 
 class FFTWWisdomWarning(RuntimeWarning):
     pass
 
-__all__ = ['display_PSF', 'display_PSF_difference', 'display_EE', 'measure_EE', #TODO:mperrin: back compatibility aliases - remove in 0.6
+
+__all__ = ['display_PSF', 'display_PSF_difference', 'display_EE', 'measure_EE',
+           # TODO:mperrin: back compatibility aliases - remove in 0.8
            'display_psf', 'display_psf_difference', 'display_ee', 'measure_ee', 'measure_radius_at_ee',
            'display_profiles', 'radial_profile',
            'measure_radial', 'measure_fwhm', 'measure_sharpness', 'measure_centroid', 'measure_strehl',
            'measure_anisotropy', 'specFromSpectralType']
+
 
 ###########################################################################
 #
@@ -90,7 +94,7 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
                 crosshairs=False, markcentroid=False, colorbar=True,
                 colorbar_orientation='vertical', pixelscale='PIXELSCL',
                 ax=None, return_ax=False, interpolation=None):
-    """Display nicely a PSF from a given HDUlist or filename
+    """Display nicely a PSF from a given hdulist or filename
 
     This is extensively configurable. In addition to making an attractive display, for
     interactive usage this function provides a live display of the pixel value at a
@@ -98,7 +102,7 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
 
     Parameters
     ----------
-    HDUlist_or_filename : fits.HDUlist or string
+    HDUlist_or_filename : fits.hdulist or string
         FITS file containing image to display.
     ext : int
         FITS extension. default = 0
@@ -147,23 +151,23 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
         rcParam.
     """
     if isinstance(HDUlist_or_filename, six.string_types):
-        HDUlist = fits.open(HDUlist_or_filename)
+        hdulist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
-        HDUlist = HDUlist_or_filename
+        hdulist = HDUlist_or_filename
     else:
-        raise ValueError("input must be a filename or HDUlist")
+        raise ValueError("input must be a filename or FITS HDUList object")
 
     if adjust_for_oversampling:
         try:
-            scalefactor = HDUlist[ext].header['OVERSAMP'] ** 2
+            scalefactor = hdulist[ext].header['OVERSAMP'] ** 2
         except KeyError:
             _log.error("Could not determine oversampling scale factor; "
                        "therefore NOT rescaling fluxes.")
             scalefactor = 1
-        im = HDUlist[ext].data * scalefactor
+        im = hdulist[ext].data * scalefactor
     else:
         # don't change normalization of actual input array, work with a copy!
-        im = HDUlist[ext].data.copy()
+        im = hdulist[ext].data.copy()
 
     if normalize.lower() == 'peak':
         _log.debug("Displaying image normalized to peak = 1")
@@ -177,9 +181,9 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
     else:
         norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
-    psf_array_shape = HDUlist[ext].data.shape
+    psf_array_shape = hdulist[ext].data.shape
     if isinstance(pixelscale, six.string_types):
-        pixelscale = HDUlist[ext].header[pixelscale]
+        pixelscale = hdulist[ext].header[pixelscale]
         halffov_x = pixelscale * psf_array_shape[1] / 2.0
         halffov_y = pixelscale * psf_array_shape[0] / 2.0
     else:
@@ -205,7 +209,7 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
 
     if markcentroid:
         _log.info("measuring centroid to mark on plot...")
-        ceny, cenx = measure_centroid(HDUlist, ext=ext, units='arcsec', relativeto='center', boxsize=20, threshold=0.1)
+        ceny, cenx = measure_centroid(hdulist, ext=ext, units='arcsec', relativeto='center', boxsize=20, threshold=0.1)
         ax.plot(cenx, ceny, 'k+', markersize=15, markeredgewidth=1)
         _log.info("centroid: (%f, %f) " % (cenx, ceny))
 
@@ -219,7 +223,7 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
         ax.axvline(0, ls=':', color='k')
     if title is None:
         try:
-            fspec = "%s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER'])
+            fspec = "%s, %s" % (hdulist[ext].header['INSTRUME'], hdulist[ext].header['FILTER'])
         except KeyError:
             fspec = str(HDUlist_or_filename)
         title = "PSF sim for " + fspec
@@ -252,7 +256,6 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
         else:
             cb.set_label('Fractional intensity per pixel')
 
-
     if return_ax:
         if colorbar:
             return ax, cb
@@ -260,7 +263,7 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
             return ax
 
 
-def display_psf_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
+def display_psf_difference(hdulist_or_filename1=None, HDUlist_or_filename2=None,
                            ext1=0, ext2=0, vmin=None, vmax=1e-4, title=None,
                            imagecrop=None, adjust_for_oversampling=False,
                            crosshairs=False, cmap=None, colorbar=True,
@@ -274,7 +277,7 @@ def display_psf_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
 
     Parameters
     ----------
-    HDUlist_or_filename1, HDUlist_or_filename2 : fits.HDUlist or string
+    hdulist_or_filename1, HDUlist_or_filename2 : fits.HDUlist or string
         FITS files containing images to difference
     ext1, ext2 : int
         FITS extension. default = 0
@@ -315,27 +318,27 @@ def display_psf_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
         the difference image. Mutually exclusive to `normalize`.
         (Default: False)
     """
-    if isinstance(HDUlist_or_filename1, six.string_types):
-        HDUlist1 = fits.open(HDUlist_or_filename1)
-    elif isinstance(HDUlist_or_filename1, fits.HDUList):
-        HDUlist1 = HDUlist_or_filename1
+    if isinstance(hdulist_or_filename1, six.string_types):
+        hdulist1 = fits.open(hdulist_or_filename1)
+    elif isinstance(hdulist_or_filename1, fits.HDUList):
+        hdulist1 = hdulist_or_filename1
     else:
         raise ValueError("input must be a filename or HDUlist")
     if isinstance(HDUlist_or_filename2, six.string_types):
-        HDUlist2 = fits.open(HDUlist_or_filename2)
+        hdulist2 = fits.open(HDUlist_or_filename2)
     elif isinstance(HDUlist_or_filename2, fits.HDUList):
-        HDUlist2 = HDUlist_or_filename2
+        hdulist2 = HDUlist_or_filename2
     else:
         raise ValueError("input must be a filename or HDUlist")
 
     if adjust_for_oversampling:
-        scalefactor = HDUlist1[ext1].header['OVERSAMP'] ** 2
-        im1 = HDUlist1[ext1].data * scalefactor
-        scalefactor = HDUlist2[ext2].header['OVERSAMP'] ** 2
-        im2 = HDUlist1[ext2].data * scalefactor
+        scalefactor = hdulist1[ext1].header['OVERSAMP'] ** 2
+        im1 = hdulist1[ext1].data * scalefactor
+        scalefactor = hdulist2[ext2].header['OVERSAMP'] ** 2
+        im2 = hdulist1[ext2].data * scalefactor
     else:
-        im1 = HDUlist1[ext1].data
-        im2 = HDUlist2[ext2].data
+        im1 = hdulist1[ext1].data
+        im2 = hdulist2[ext2].data
 
     diff_im = im1 - im2
 
@@ -359,8 +362,8 @@ def display_psf_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
     norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
     if cmap is None:
         cmap = matplotlib.cm.gray
-    halffov_x = HDUlist1[ext1].header['PIXELSCL'] * HDUlist1[ext1].data.shape[1] / 2
-    halffov_y = HDUlist1[ext1].header['PIXELSCL'] * HDUlist1[ext1].data.shape[0] / 2
+    halffov_x = hdulist1[ext1].header['PIXELSCL'] * hdulist1[ext1].data.shape[1] / 2
+    halffov_y = hdulist1[ext1].header['PIXELSCL'] * hdulist1[ext1].data.shape[0] / 2
     unit = "arcsec"
     extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
 
@@ -376,7 +379,7 @@ def display_psf_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
         ax.axvline(0, ls=":", color='k')
 
     if title is None:
-        title = "Difference of " + str(HDUlist_or_filename1) + "-" + str(HDUlist_or_filename2)
+        title = "Difference of " + str(hdulist_or_filename1) + "-" + str(HDUlist_or_filename2)
     ax.set_title(title)
 
     if colorbar:
@@ -422,29 +425,29 @@ def display_ee(HDUlist_or_filename=None, ext=0, overplot=False, ax=None, mark_le
     else:
         raise ValueError("input must be a filename or HDUlist")
 
-    radius, profile, EE = radial_profile(hdu_list, EE=True, ext=ext, **kwargs)
+    radius, profile, ee = radial_profile(hdu_list, ee=True, ext=ext, **kwargs)
 
     if not overplot:
         if ax is None:
             plt.clf()
             ax = plt.subplot(111)
 
-    ax.plot(radius, EE)  # , nonposy='clip')
+    ax.plot(radius, ee)  # , nonposy='clip')
     if not overplot:
         ax.set_xlabel("Radius [arcsec]")
         ax.set_ylabel("Encircled Energy")
 
     if mark_levels:
         for level in [0.5, 0.8, 0.95]:
-            EElev = radius[np.where(EE > level)[0][0]]
+            ee_lev = radius[np.where(ee > level)[0][0]]
             yoffset = 0 if level < 0.9 else -0.05
-            plt.text(EElev + 0.1, level + yoffset, 'EE=%2d%% at r=%.3f"' % (level * 100, EElev))
+            plt.text(ee_lev + 0.1, level + yoffset, 'EE=%2d%% at r=%.3f"' % (level * 100, ee_lev))
 
 
 def display_profiles(HDUlist_or_filename=None, ext=0, overplot=False, title=None, **kwargs):
     """ Produce two plots of PSF radial profile and encircled energy
 
-    See also the display_EE function.
+    See also the display_ee function.
 
     Parameters
     ----------
@@ -465,7 +468,7 @@ def display_profiles(HDUlist_or_filename=None, ext=0, overplot=False, title=None
     else:
         raise ValueError("input must be a filename or HDUlist")
 
-    radius, profile, EE = radial_profile(hdu_list, EE=True, ext=ext, **kwargs)
+    radius, profile, ee = radial_profile(hdu_list, ee=True, ext=ext, **kwargs)
 
     if title is None:
         try:
@@ -485,20 +488,20 @@ def display_profiles(HDUlist_or_filename=None, ext=0, overplot=False, title=None
     plt.text(fwhm, profile[0] * 0.5, 'FWHM = %.3f"' % fwhm)
 
     plt.subplot(2, 1, 2)
-    # plt.semilogy(radius, EE, nonposy='clip')
-    plt.plot(radius, EE, color='r')  # , nonposy='clip')
+    # plt.semilogy(radius, ee, nonposy='clip')
+    plt.plot(radius, ee, color='r')  # , nonposy='clip')
     if not overplot:
         plt.xlabel("Radius [arcsec]")
         plt.ylabel("Encircled Energy")
 
     for level in [0.5, 0.8, 0.95]:
-        if (EE > level).any():
-            EElev = radius[np.where(EE > level)[0][0]]
+        if (ee > level).any():
+            ee_lev = radius[np.where(ee > level)[0][0]]
             yoffset = 0 if level < 0.9 else -0.05
-            plt.text(EElev + 0.1, level + yoffset, 'EE=%2d%% at r=%.3f"' % (level * 100, EElev))
+            plt.text(ee_lev + 0.1, level + yoffset, 'EE=%2d%% at r=%.3f"' % (level * 100, ee_lev))
 
 
-def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stddev=False, binsize=None, maxradius=None,
+def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stddev=False, binsize=None, maxradius=None,
                    normalize='None', pa_range=None):
     """ Compute a radial profile of the image.
 
@@ -509,12 +512,12 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
 
     Parameters
     ----------
-    HDUlist_or_filename : string
+    hdulist_or_filename : string
         FITS HDUList object or path to a FITS file.
         NaN values in the FITS data array are treated as masked and ignored in computing bin statistics.
     ext : int
         Extension in FITS file
-    EE : bool
+    ee : bool
         Also return encircled energy (EE) curve in addition to radial profile?
     center : tuple of floats
         Coordinates (x,y) of PSF center, in pixel units. Default is image center.
@@ -539,10 +542,10 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
         so you should use (radius+binsize/2) for the radius of the EE curve if you want to be
         as precise as possible.
     """
-    if isinstance(HDUlist_or_filename, six.string_types):
-        hdu_list = fits.open(HDUlist_or_filename)
-    elif isinstance(HDUlist_or_filename, fits.HDUList):
-        hdu_list = HDUlist_or_filename
+    if isinstance(hdulist_or_filename, six.string_types):
+        hdu_list = fits.open(hdulist_or_filename)
+    elif isinstance(hdulist_or_filename, fits.HDUList):
+        hdu_list = hdulist_or_filename
     else:
         raise ValueError("input must be a filename or HDUlist")
 
@@ -569,32 +572,31 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
         # center = (image.shape[1]/2, image.shape[0]/2)
         center = tuple((a - 1) / 2.0 for a in image.shape[::-1])
 
-    x-=center[0]
-    y-=center[1]
+    x -= center[0]
+    y -= center[1]
 
-    r = np.sqrt(x** 2 + y** 2) * pixelscale / binsize  # radius in bin size steps
+    r = np.sqrt(x ** 2 + y ** 2) * pixelscale / binsize  # radius in bin size steps
 
     if pa_range is None:
         # Use full image
         ind = np.argsort(r.flat)
-        sr = r.flat[ind]            # sorted r
-        sim = image.flat[ind]       # sorted image
+        sr = r.flat[ind]  # sorted r
+        sim = image.flat[ind]  # sorted image
 
     else:
         # Apply the PA range restriction
-        pa = np.rad2deg(np.arctan2(-x,y)) # Note the (-x,y) convention is needed for astronomical PA convention
+        pa = np.rad2deg(np.arctan2(-x, y))  # Note the (-x,y) convention is needed for astronomical PA convention
         mask = (pa >= pa_range[0]) & (pa <= pa_range[1])
         ind = np.argsort(r[mask].flat)
         sr = r[mask].flat[ind]
         sim = image[mask].flat[ind]
 
-
-    ri = sr.astype(int)         # sorted r as int
+    ri = sr.astype(int)  # sorted r as int
     deltar = ri[1:] - ri[:-1]  # assume all radii represented (more work if not)
     rind = np.where(deltar)[0]
     nr = rind[1:] - rind[:-1]  # number in radius bin
-    csim = np.nan_to_num(sim).cumsum(dtype=float)   # cumulative sum to figure out sums for each bin
-    #np.nancumsum is implemented in >1.12
+    csim = np.nan_to_num(sim).cumsum(dtype=float)  # cumulative sum to figure out sums for each bin
+    # np.nancumsum is implemented in >1.12
     tbin = csim[rind[1:]] - csim[rind[:-1]]  # sum for image values in radius bins
     radialprofile = tbin / nr
 
@@ -602,7 +604,7 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
     radialprofile2 = np.empty(len(radialprofile) + 1)
     if rind[0] != 0:
         radialprofile2[0] = csim[rind[0]] / (
-            rind[0] + 1)  # if there are multiple elements in the center bin, average them
+                rind[0] + 1)  # if there are multiple elements in the center bin, average them
     else:
         radialprofile2[0] = csim[0]  # otherwise if there's just one then just take it.
     radialprofile2[1:] = radialprofile
@@ -625,13 +627,11 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
             stddevs[i] = np.nanstd(image[wg])
         return rr, stddevs
 
-    if not EE:
+    if not ee:
         return rr, radialprofile2
     else:
-        # weighted_profile = radialprofile2*2*np.pi*(rr/rr[1])
-        # EE = np.cumsum(weighted_profile)
-        EE = csim[rind]
-        return rr, radialprofile2, EE
+        ee = csim[rind]
+        return rr, radialprofile2, ee
 
 
 ###########################################################################
@@ -666,22 +666,22 @@ def measure_ee(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
 
     Examples
     --------
-    >>> EE = measure_EE("someimage.fits")
-    >>> print "The EE at 0.5 arcsec is ", EE(0.5)
+    >>> ee = measure_ee("someimage.fits")
+    >>> print "The EE at 0.5 arcsec is ", ee(0.5)
 
     """
 
-    rr, radialprofile2, EE = radial_profile(HDUlist_or_filename, ext, EE=True, center=center, binsize=binsize)
+    rr, radialprofile2, ee = radial_profile(HDUlist_or_filename, ext, ee=True, center=center, binsize=binsize)
 
     # append the zero at the center
-    rr_EE = rr + (rr[1] - rr[0]) / 2.0  # add half a binsize to this, because the EE is measured inside the
+    rr_ee = rr + (rr[1] - rr[0]) / 2.0  # add half a binsize to this, because the ee is measured inside the
     # outer edge of each annulus.
-    rr0 = np.concatenate(([0], rr_EE))
-    EE0 = np.concatenate(([0], EE))
+    rr0 = np.concatenate(([0], rr_ee))
+    ee0 = np.concatenate(([0], ee))
 
-    EE_fn = scipy.interpolate.interp1d(rr0, EE0, kind='cubic', bounds_error=False)
+    ee_fn = scipy.interpolate.interp1d(rr0, ee0, kind='cubic', bounds_error=False)
 
-    return EE_fn
+    return ee_fn
 
 
 def measure_radius_at_ee(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
@@ -707,19 +707,19 @@ def measure_radius_at_ee(HDUlist_or_filename=None, ext=0, center=None, binsize=N
 
     Examples
     --------
-    EE = measure_radius_at_ee("someimage.fits")
-    print "The EE is 50% at {} arcsec".format(EE(0.5))
+    >>> ee = measure_radius_at_ee("someimage.fits")
+    >>> print "The EE is 50% at {} arcsec".format(ee(0.5))
     """
 
-    rr, radialprofile2, EE = radial_profile(HDUlist_or_filename, ext, EE=True, center=center, binsize=binsize)
+    rr, radialprofile2, ee = radial_profile(HDUlist_or_filename, ext, ee=True, center=center, binsize=binsize)
 
     # append the zero at the center
-    rr_EE = rr + (rr[1] - rr[0]) / 2.0  # add half a binsize to this, because the EE is measured inside the
+    rr_ee = rr + (rr[1] - rr[0]) / 2.0  # add half a binsize to this, because the EE is measured inside the
     # outer edge of each annulus.
-    rr0 = np.concatenate(([0], rr_EE))
-    EE0 = np.concatenate(([0], EE))
+    rr0 = np.concatenate(([0], rr_ee))
+    ee0 = np.concatenate(([0], ee))
 
-    radius_at_ee_fn = scipy.interpolate.interp1d(EE0, rr0, kind='cubic', bounds_error=False)
+    radius_at_ee_fn = scipy.interpolate.interp1d(ee0, rr0, kind='cubic', bounds_error=False)
 
     return radius_at_ee_fn
 
@@ -754,14 +754,14 @@ def measure_radial(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
 
     """
 
-    rr, radialprofile, EE = radial_profile(HDUlist_or_filename, ext, EE=True, center=center, binsize=binsize)
+    rr, radialprofile, ee = radial_profile(HDUlist_or_filename, ext, ee=True, center=center, binsize=binsize)
 
     radial_fn = scipy.interpolate.interp1d(rr, radialprofile, kind='cubic', bounds_error=False)
 
     return radial_fn
 
 
-def measure_fwhm(HDUlist_or_filename,ext=0, center=None, plot=False, threshold=0.1):
+def measure_fwhm(HDUlist_or_filename, ext=0, center=None, plot=False, threshold=0.1):
     """ Improved version of measuring FWHM, without any binning of image data.
 
     Method: Pick out the image pixels which are above some threshold relative to the
@@ -801,7 +801,7 @@ def measure_fwhm(HDUlist_or_filename,ext=0, center=None, plot=False, threshold=0
         raise ValueError("input must be a filename or HDUlist")
 
     image = HDUlist[ext].data.copy()  # don't change normalization of actual input array; work with a copy
-    image /= image.max()              # Normalize the copy to peak=1
+    image /= image.max()  # Normalize the copy to peak=1
 
     pixelscale = HDUlist[ext].header['PIXELSCL']
 
@@ -813,27 +813,27 @@ def measure_fwhm(HDUlist_or_filename,ext=0, center=None, plot=False, threshold=0
         # get exact center of image
         center = tuple((a - 1) / 2.0 for a in image.shape[::-1])
     _log.debug("Using PSF center = {}".format(center))
-    x-=center[0]
-    y-=center[1]
-    r = np.sqrt(x** 2 + y** 2) * pixelscale   # radius in arcseconds
+    x -= center[0]
+    y -= center[1]
+    r = np.sqrt(x ** 2 + y ** 2) * pixelscale  # radius in arcseconds
 
     # Select pixels above that threshold
-    wpeak = np.where(image>threshold)  # note, image is normalized to peak=1 above
+    wpeak = np.where(image > threshold)  # note, image is normalized to peak=1 above
     _log.debug("Using {} pixels above {} of peak".format(len(wpeak[0]), threshold))
 
-    rpeak =r[wpeak]
+    rpeak = r[wpeak]
     impeak = image[wpeak]
 
     # Determine initial guess for Gaussian parameters
     if 'DIFFLMT' in HDUlist[ext].header:
-        std_guess = HDUlist[ext].header['DIFFLMT']/2.354
+        std_guess = HDUlist[ext].header['DIFFLMT'] / 2.354
     else:
-        std_guess=measure_fwhm_radprof(HDUlist, ext=ext, center=center, nowarn=True)/2.354
+        std_guess = measure_fwhm_radprof(HDUlist, ext=ext, center=center, nowarn=True) / 2.354
     _log.debug("Initial guess Gaussian sigma= {} arcsec".format(std_guess))
 
     # Determine best fit Gaussian parameters
     g_init = models.Gaussian1D(amplitude=1., mean=0, stddev=std_guess)
-    g_init.mean.fixed=True
+    g_init.mean.fixed = True
 
     fit_g = fitting.LevMarLSQFitter()
     g = fit_g(g_init, rpeak, impeak)
@@ -842,22 +842,22 @@ def measure_fwhm(HDUlist_or_filename,ext=0, center=None, plot=False, threshold=0
     # Convert from the fit result sigma parameter to FWHM.
     # note, astropy fitting doesn't constrain the stddev to be positive for some reason.
     # so take abs value here.
-    fwhm = 2*np.sqrt(2*np.log(2)) * np.abs(g.stddev)
+    fwhm = 2 * np.sqrt(2 * np.log(2)) * np.abs(g.stddev)
 
     if plot:
         plt.loglog(rpeak, impeak, linestyle='none', marker='o', alpha=0.5)
-        rmin = rpeak[rpeak !=0].min()
+        rmin = rpeak[rpeak != 0].min()
         plotr = np.linspace(rmin, rpeak.max(), 30)
 
         plt.plot(plotr, g(plotr))
         plt.xlabel("Radius [arcsec]")
         plt.ylabel("Intensity relative to peak")
 
-        plt.axhline(0.5,ls=":")
-        plt.axvline(fwhm/2, ls=':')
-        plt.text(0.1, 0.2,  'FWHM={:.4f} arcsec'.format(fwhm), transform=plt.gca().transAxes,)
+        plt.axhline(0.5, ls=":")
+        plt.axvline(fwhm / 2, ls=':')
+        plt.text(0.1, 0.2, 'FWHM={:.4f} arcsec'.format(fwhm), transform=plt.gca().transAxes, )
 
-        plt.gca().set_ylim(threshold*.5, 2)
+        plt.gca().set_ylim(threshold * .5, 2)
 
     return fwhm
 
@@ -893,9 +893,11 @@ def measure_fwhm_radprof(HDUlist_or_filename=None, ext=0, center=None, level=0.5
 
     if not nowarn:
         import warnings
-        warnings.warn("measure_fwhm_radprof uses a deprecated, older algorithm. measure_fwhm is preferred in most cases.", DeprecationWarning)
+        warnings.warn("measure_fwhm_radprof uses a deprecated, older algorithm. "
+                      "measure_fwhm is preferred in most cases.",
+                      DeprecationWarning)
 
-    rr, radialprofile, EE = radial_profile(HDUlist_or_filename, ext, EE=True, center=center)
+    rr, radialprofile, ee = radial_profile(HDUlist_or_filename, ext, ee=True, center=center)
     rpmax = radialprofile.max()
 
     wlower = np.where(radialprofile < rpmax * level)
@@ -1309,7 +1311,7 @@ class BackCompatibleQuantityInput(object):
                         # be compatible with float ndarray
                         try:
                             tmp = np.asarray(arg, dtype=float)
-                        except:
+                        except (ValueError, TypeError):
                             raise ValueError("Argument '{0}' to function '{1}'"
                                              " must be a number (not '{3}'), and convertable to"
                                              " units='{2}'.".format(param.name,
@@ -1683,7 +1685,8 @@ def fftw_load_wisdom(filename=None):
         try:
             wisdom = json.load(wisdom_file)
         except ValueError:  # catches json.JSONDecodeError on Python 3.x too
-            warnings.warn("Unable to parse FFTW wisdom in {}. The file may be corrupt.".format(filename), FFTWWisdomWarning)
+            warnings.warn("Unable to parse FFTW wisdom in {}. "
+                          "The file may be corrupt.".format(filename), FFTWWisdomWarning)
             return
 
     # Python 3.x+ doesn't let us use ascii implicitly, but PyFFTW only accepts bytestrings
