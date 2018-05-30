@@ -10,7 +10,7 @@ For a list of contributors, see :ref:`about`.
 
 .. _rel0.7.0:
 
-*2018 June 1*
+*2018 May 30*
 
 .. admonition:: Python version support: Future releases will require Python 3.
 
