@@ -28,8 +28,8 @@ def test_cached_zernike1(nterms=10):
     radius = 1.1
 
     osys = poppy_core.OpticalSystem()
-    osys.addPupil(optics.CircularAperture(radius=radius))
-    wave = osys.inputWavefront()
+    osys.add_pupil(optics.CircularAperture(radius=radius))
+    wave = osys.input_wavefront()
 
     y, x = wave.coordinates()
     rho = np.sqrt(y ** 2 + x ** 2) / radius

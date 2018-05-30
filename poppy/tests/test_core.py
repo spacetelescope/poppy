@@ -44,10 +44,10 @@ def test_basic_functionality():
     calculation."""
     osys = poppy_core.OpticalSystem("test", oversample=1)
     pupil = optics.CircularAperture(radius=1)
-    osys.addPupil(pupil) #function='Circle', radius=1)
-    osys.addDetector(pixelscale=0.1, fov_arcsec=5.0) # use a large FOV so we grab essentially all the light and conserve flux
+    osys.add_pupil(pupil) #function='Circle', radius=1)
+    osys.add_detector(pixelscale=0.1, fov_arcsec=5.0) # use a large FOV so we grab essentially all the light and conserve flux
 
-    psf = osys.calcPSF(wavelength=1.0e-6)
+    psf = osys.calc_psf(wavelength=1.0e-6)
     # we need to be a little careful here due to floating point math comparision equality issues... Can't just do a strict equality
     assert abs(psf[0].data.max() - 0.201) < 0.001
 
@@ -61,7 +61,7 @@ def test_input_wavefront_size():
     for oversamp in (1,2,4):
         osys = poppy_core.OpticalSystem("test", oversample=oversamp)
         #pupil = optics.CircularAperture(radius=1)
-        wf = osys.inputWavefront()
+        wf = osys.input_wavefront()
         expected_shape = (1024,1024) if (wf.ispadded == False) else (1024*oversamp, 1024*oversamp)
         assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
 
@@ -70,7 +70,7 @@ def test_input_wavefront_size():
     for size in [512, 1024, 2001]:
         osys = poppy_core.OpticalSystem("test", oversample=1, npix=size)
         #pupil = optics.CircularAperture(radius=1)
-        wf = osys.inputWavefront()
+        wf = osys.input_wavefront()
         expected_shape = (size,size)
         assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
 
@@ -78,7 +78,7 @@ def test_input_wavefront_size():
     for size in [512, 1024, 2001]:
         osys = poppy_core.OpticalSystem("test", oversample=1, npix=size)
         osys.add_pupil(optics.CircularAperture(radius=1))
-        wf = osys.inputWavefront()
+        wf = osys.input_wavefront()
         expected_shape = (size,size)
         assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
 
@@ -87,10 +87,10 @@ def test_input_wavefront_size():
     for npix in [512, 1024, 2001]:
         osys = poppy_core.OpticalSystem("test", oversample=1)
         pupil = optics.CircularAperture(radius=1)
-        pupil_fits = pupil.toFITS(npix=npix)
+        pupil_fits = pupil.to_fits(npix=npix)
         osys.add_pupil(transmission=pupil_fits)
 
-        wf = osys.inputWavefront()
+        wf = osys.input_wavefront()
         expected_shape = (npix,npix)
         assert pupil_fits[0].data.shape == expected_shape, 'FITS array from optic element is not the expected size: is {} expects {}'.format(pupil_fits[0].data.shape,  expected_shape)
         assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
@@ -114,9 +114,9 @@ def test_CircularAperture_Airy(display=False):
     # Numeric PSF for 1 meter diameter aperture
     osys = poppy_core.OpticalSystem()
     pupil = optics.CircularAperture(radius=0.5)
-    osys.addPupil(pupil)
-    osys.addDetector(pixelscale=0.010,fov_pixels=512, oversample=1)
-    numeric = osys.calcPSF(wavelength=1.0e-6, display=False)
+    osys.add_pupil(pupil)
+    osys.add_detector(pixelscale=0.010,fov_pixels=512, oversample=1)
+    numeric = osys.calc_psf(wavelength=1.0e-6, display=False)
 
     # Comparison
     difference = numeric[0].data-analytic
@@ -153,18 +153,18 @@ def test_multiwavelength_opticalsystem():
 
     osys = poppy_core.OpticalSystem("test")
     pupil = optics.CircularAperture(radius=1)
-    osys.addPupil(pupil) #function='Circle', radius=1)
-    osys.addDetector(pixelscale=0.1, fov_arcsec=5.0) # use a large FOV so we grab essentially all the light and conserve flux
+    osys.add_pupil(pupil) #function='Circle', radius=1)
+    osys.add_detector(pixelscale=0.1, fov_arcsec=5.0) # use a large FOV so we grab essentially all the light and conserve flux
 
 
-    psf = osys.calcPSF(wavelength=wavelengths, weight=weights)
+    psf = osys.calc_psf(wavelength=wavelengths, weight=weights)
     assert psf[0].header['NWAVES'] == len(wavelengths), \
         "Number of wavelengths in PSF header does not match number requested"
 
     # Check weighted sum
     output = np.zeros_like(psf[0].data)
     for wavelength, weight in zip(wavelengths, weights):
-        output += weight * osys.calcPSF(wavelength=wavelength)[0].data
+        output += weight * osys.calc_psf(wavelength=wavelength)[0].data
 
     assert np.allclose(psf[0].data, output), \
         "Multi-wavelength PSF does not match weighted sum of individual wavelength PSFs"
@@ -177,8 +177,8 @@ def test_normalization():
     depending on the normalization """
     osys = poppy_core.OpticalSystem("test", oversample=2)
     pupil = optics.CircularAperture(radius=6.5/2)
-    osys.addPupil(pupil) #function='Circle', radius=6.5/2)
-    osys.addDetector(pixelscale=0.01, fov_arcsec=5.0) # use a large FOV so we grab essentially all the light and conserve flux
+    osys.add_pupil(pupil) #function='Circle', radius=6.5/2)
+    osys.add_detector(pixelscale=0.01, fov_arcsec=5.0) # use a large FOV so we grab essentially all the light and conserve flux
 
     from .. import conf
     conf.enable_flux_tests  = True
@@ -186,16 +186,16 @@ def test_normalization():
     # we need to be a little careful here due to floating point math comparision equality issues... Can't just do a strict equality
 
     # this should be very very close to one
-    psf_last = osys.calcPSF(wavelength=1.0e-6, normalize='last')
+    psf_last = osys.calc_psf(wavelength=1.0e-6, normalize='last')
     assert abs(psf_last[0].data.sum() - 1) < 0.01
 
     # this should be a little further but still pretty close
-    psf_first = osys.calcPSF(wavelength=1.0e-6, normalize='first')
+    psf_first = osys.calc_psf(wavelength=1.0e-6, normalize='first')
     assert abs(psf_first[0].data.sum() - 1) < 0.01
     assert abs(psf_first[0].data.sum() - 1) > 0.0001
 
     # for the simple optical system above, the 'first' and 'exit_pupil' options should be equivalent:
-    psf_exit_pupil = osys.calcPSF(wavelength=1.0e-6, normalize='exit_pupil')
+    psf_exit_pupil = osys.calc_psf(wavelength=1.0e-6, normalize='exit_pupil')
     assert (psf_exit_pupil[0].data.sum() - 1) < 1e-9
     assert np.abs( psf_exit_pupil[0].data - psf_first[0].data).max()  < 1e-10
 
@@ -203,13 +203,13 @@ def test_normalization():
     # and if we make an pupil stop with half the radius we should get 1/4 the light if normalized to 'first'
     # but normalized to 1 if normalized to last_pupil
     osys2 = poppy_core.OpticalSystem("test", oversample=2)
-    osys2.addPupil(  optics.CircularAperture(radius=6.5/2) )
-    osys2.addPupil(  optics.CircularAperture(radius=6.5/2/2) )
-    osys2.addDetector(pixelscale=0.01, fov_arcsec=5.0) # use a large FOV so we grab essentially all the light and conserve flux
+    osys2.add_pupil(  optics.CircularAperture(radius=6.5/2) )
+    osys2.add_pupil(  optics.CircularAperture(radius=6.5/2/2) )
+    osys2.add_detector(pixelscale=0.01, fov_arcsec=5.0) # use a large FOV so we grab essentially all the light and conserve flux
 
-    psf_small_pupil_first = osys2.calcPSF(wavelength=1.0e-6, normalize='first')
-    psf_small_pupil_exit  = osys2.calcPSF(wavelength=1.0e-6, normalize='exit_pupil')
-    psf_small_pupil_last  = osys2.calcPSF(wavelength=1.0e-6, normalize='last')
+    psf_small_pupil_first = osys2.calc_psf(wavelength=1.0e-6, normalize='first')
+    psf_small_pupil_exit  = osys2.calc_psf(wavelength=1.0e-6, normalize='exit_pupil')
+    psf_small_pupil_last  = osys2.calc_psf(wavelength=1.0e-6, normalize='last')
     # normalized for the output to 1 we should of course get 1
     assert abs(psf_small_pupil_last[0].data.sum() - 1) < 1e-9
     # normalized to the exit pupil we should get near but not exactly 1 (due to finite FOV)
@@ -228,10 +228,10 @@ def test_fov_size_pixels():
     for size in (100, 137, 256):
         osys = poppy_core.OpticalSystem("test", oversample=2)
         pupil = optics.CircularAperture(radius=6.5/2)
-        osys.addPupil(pupil)
-        osys.addDetector(pixelscale=0.1, fov_pixels=size, oversample=1)
+        osys.add_pupil(pupil)
+        osys.add_detector(pixelscale=0.1, fov_pixels=size, oversample=1)
 
-        psf = osys.calcPSF(wavelength=1e-6)
+        psf = osys.calc_psf(wavelength=1e-6)
 
         assert psf[0].data.shape[0] == size
         assert psf[0].data.shape[1] == size
@@ -240,10 +240,10 @@ def test_fov_size_pixels():
     # rectangular FOV
     osys = poppy_core.OpticalSystem("test", oversample=2)
     pupil = optics.CircularAperture(radius=6.5/2)
-    osys.addPupil(pupil)
-    osys.addDetector(pixelscale=0.1, fov_pixels=(100,200) , oversample=1)
+    osys.add_pupil(pupil)
+    osys.add_detector(pixelscale=0.1, fov_pixels=(100,200) , oversample=1)
 
-    psf = osys.calcPSF(wavelength=1e-6)
+    psf = osys.calc_psf(wavelength=1e-6)
 
     assert psf[0].data.shape[0] == 100
     assert psf[0].data.shape[1] == 200
@@ -265,9 +265,9 @@ def test_fov_offset(scale=1.0):
     # A PSF created on-axis with no offset
     osys = poppy_core.OpticalSystem("test", oversample=2)
     pupil = optics.CircularAperture(radius=6.5/2)
-    osys.addPupil(pupil)
-    osys.addDetector(pixelscale=pixscale, fov_pixels=size, oversample=1)
-    psf1 = osys.calcPSF()
+    osys.add_pupil(pupil)
+    osys.add_detector(pixelscale=pixscale, fov_pixels=size, oversample=1)
+    psf1 = osys.calc_psf()
     # The measured centroid should put it in the center of the array
     cent1 = measure_centroid(psf1, relativeto='center')
     poppy_core._log.info("On-axis PSF (no offset) centroid is:" + str(cent1))
@@ -276,9 +276,9 @@ def test_fov_offset(scale=1.0):
 
     # Now create an equivalent PSF but offset the axes by 1 pixel in the first axis
     osys2 = poppy_core.OpticalSystem("test", oversample=2)
-    osys2.addPupil(pupil)
-    osys2.addDetector(pixelscale=pixscale, fov_pixels=size, oversample=1, offset=(pixscale*scale,0))
-    psf2 = osys2.calcPSF()
+    osys2.add_pupil(pupil)
+    osys2.add_detector(pixelscale=pixscale, fov_pixels=size, oversample=1, offset=(pixscale*scale,0))
+    psf2 = osys2.calc_psf()
     # Its centroid shouldbe offset by a pixel
     poppy_core._log.info("Offset PSF (by ({0},0) pixels ) centroid is: {1}".format(str(scale), str(cent1)))
     cent2 = measure_centroid(psf2, relativeto='center')
@@ -300,15 +300,15 @@ def test_inverse_MFT():
     test_ap = optics.ParityTestAperture(radius=6.5/2, pad_factor=1.5)
 
     osys = poppy_core.OpticalSystem("test", oversample=4)
-    osys.addPupil(test_ap)
-    osys.addDetector(pixelscale=0.010, fov_arcsec=fov_arcsec) # use a large FOV so we grab essentially all the light and conserve flux
-    psf1 = osys.calcPSF(wavelength=wavelength, normalize='first', display_intermediates=False)
+    osys.add_pupil(test_ap)
+    osys.add_detector(pixelscale=0.010, fov_arcsec=fov_arcsec) # use a large FOV so we grab essentially all the light and conserve flux
+    psf1 = osys.calc_psf(wavelength=wavelength, normalize='first', display_intermediates=False)
 
-    #osys.addPupil(test_ap)
-    osys.addPupil() # this will force an inverse MFT
-    osys.addDetector(pixelscale=0.010, fov_arcsec=fov_arcsec) # use a large FOV so we grab essentially all the light and conserve flux
+    #osys.add_pupil(test_ap)
+    osys.add_pupil() # this will force an inverse MFT
+    osys.add_detector(pixelscale=0.010, fov_arcsec=fov_arcsec) # use a large FOV so we grab essentially all the light and conserve flux
     #plt.clf()
-    psf = osys.calcPSF(wavelength=wavelength, normalize='first', display_intermediates=False)
+    psf = osys.calc_psf(wavelength=wavelength, normalize='first', display_intermediates=False)
 
     # the intermediate PSF (after one MFT) should be essentially identical to the
     # final PSF (after an MFT, inverse MFT, and another MFT):
@@ -371,12 +371,12 @@ def test_unit_conversions():
     # Numeric PSF for 1 meter diameter aperture
     osys = poppy_core.OpticalSystem()
     pupil = optics.CircularAperture(radius=0.5)
-    osys.addPupil(pupil)
-    osys.addDetector(pixelscale=0.010,fov_pixels=512, oversample=1)
+    osys.add_pupil(pupil)
+    osys.add_detector(pixelscale=0.010,fov_pixels=512, oversample=1)
 
     # test versions with 3 different ways of saying the wavelength:
     for wavelen in [1e-6, 1e-6*u.m, 1*u.micron]:
-        numeric_psf = osys.calcPSF(wavelength=wavelen, display=False)
+        numeric_psf = osys.calc_psf(wavelength=wavelen, display=False)
 
         # Comparison
         difference = numeric_psf[0].data-analytic

@@ -286,11 +286,11 @@ def test_ObscuredCircularAperture_Airy(display=False):
 
     # Numeric PSF for 1 meter diameter aperture
     osys = poppy_core.OpticalSystem()
-    osys.addPupil(
+    osys.add_pupil(
             optics.CompoundAnalyticOptic( [optics.CircularAperture(radius=pri_diam/2) ,
                                            optics.SecondaryObscuration(secondary_radius=sec_diam/2, n_supports=0) ]) )
-    osys.addDetector(pixelscale=0.010,fov_pixels=512, oversample=1)
-    numeric = osys.calcPSF(wavelength=1.0e-6, display=False)
+    osys.add_detector(pixelscale=0.010,fov_pixels=512, oversample=1)
+    numeric = osys.calc_psf(wavelength=1.0e-6, display=False)
 
     # Comparison
     difference = numeric[0].data-analytic
@@ -327,7 +327,7 @@ def test_CompoundAnalyticOptic(display=False):
     # First test the "and" mergemode
 
     osys_compound = poppy_core.OpticalSystem()
-    osys_compound.addPupil(
+    osys_compound.add_pupil(
         optics.CompoundAnalyticOptic([
             optics.CircularAperture(radius=r),
             optics.ThinLens(nwaves=nwaves, reference_wavelength=wavelen,
@@ -335,15 +335,15 @@ def test_CompoundAnalyticOptic(display=False):
         ]
         , mergemode='and')
     )
-    osys_compound.addDetector(pixelscale=0.010, fov_pixels=512, oversample=1)
-    psf_compound = osys_compound.calcPSF(wavelength=wavelen, display=False)
+    osys_compound.add_detector(pixelscale=0.010, fov_pixels=512, oversample=1)
+    psf_compound = osys_compound.calc_psf(wavelength=wavelen, display=False)
 
     osys_separate = poppy_core.OpticalSystem()
-    osys_separate.addPupil(optics.CircularAperture(radius=r))    # pupil radius in meters
-    osys_separate.addPupil(optics.ThinLens(nwaves=nwaves, reference_wavelength=wavelen,
+    osys_separate.add_pupil(optics.CircularAperture(radius=r))    # pupil radius in meters
+    osys_separate.add_pupil(optics.ThinLens(nwaves=nwaves, reference_wavelength=wavelen,
                                            radius=r))
-    osys_separate.addDetector(pixelscale=0.010, fov_pixels=512, oversample=1)
-    psf_separate = osys_separate.calcPSF(wavelength=wavelen, display=False)
+    osys_separate.add_detector(pixelscale=0.010, fov_pixels=512, oversample=1)
+    psf_separate = osys_separate.calc_psf(wavelength=wavelen, display=False)
 
     if display:
         from matplotlib import pyplot as plt
@@ -362,7 +362,7 @@ def test_CompoundAnalyticOptic(display=False):
     # This creates two overlapping RectangleAperture with different
     # heights and check that the result equals the larger
 
-    #TODO this fails.  Looks like the resulting aperture is too small when doing calcPSF.
+    #TODO this fails.  Looks like the resulting aperture is too small when doing calc_psf.
 
     w = 1.0
     h1=2.0 
@@ -374,17 +374,17 @@ def test_CompoundAnalyticOptic(display=False):
             optics.RectangleAperture(width=w, height=h2)
         ]
         , mergemode='or')
-    osys_compound.addPupil(
+    osys_compound.add_pupil(
         osys_c_pupil
     )
-    osys_compound.addDetector(pixelscale=0.010, fov_pixels=512, oversample=1)
-    psf_compound, ints_compound = osys_compound.calcPSF(wavelength=wavelen, display=False, return_intermediates=True)
+    osys_compound.add_detector(pixelscale=0.010, fov_pixels=512, oversample=1)
+    psf_compound, ints_compound = osys_compound.calc_psf(wavelength=wavelen, display=False, return_intermediates=True)
 
     osys_separate = poppy_core.OpticalSystem()
     osys_s_pupil = optics.RectangleAperture(width=w, height=max(h1, h2))
-    osys_separate.addPupil(osys_s_pupil)
-    osys_separate.addDetector(pixelscale=0.010, fov_pixels=512, oversample=1)
-    psf_separate, ints_separate = osys_separate.calcPSF(wavelength=wavelen, display=False, return_intermediates=True)
+    osys_separate.add_pupil(osys_s_pupil)
+    osys_separate.add_detector(pixelscale=0.010, fov_pixels=512, oversample=1)
+    psf_separate, ints_separate = osys_separate.calc_psf(wavelength=wavelen, display=False, return_intermediates=True)
     if display: 
         #from matplotlib import pyplot as plt
         #from poppy import utils
@@ -435,12 +435,12 @@ def test_AsymmetricObscuredAperture(display=False):
 
     # Numeric PSF for 1 meter diameter aperture
     osys = poppy_core.OpticalSystem()
-    osys.addPupil(
+    osys.add_pupil(
             optics.CompoundAnalyticOptic( [optics.CircularAperture(radius=pri_diam/2) ,
                                            optics.AsymmetricSecondaryObscuration(secondary_radius=sec_diam/2, support_angle=[0,150,210], support_width=0.1) ]) )
-    osys.addDetector(pixelscale=0.030,fov_pixels=512, oversample=1)
+    osys.add_detector(pixelscale=0.030,fov_pixels=512, oversample=1)
     if display: osys.display()
-    numeric = osys.calcPSF(wavelength=1.0e-6, display=False)
+    numeric = osys.calc_psf(wavelength=1.0e-6, display=False)
 
     # Comparison
     difference = numeric[0].data-analytic
@@ -510,22 +510,22 @@ def test_ThinLens(display=False):
     # regression test to ensure null optical elements don't change ThinLens behavior
     # see https://github.com/mperrin/poppy/issues/14
     osys = poppy_core.OpticalSystem()
-    osys.addPupil(optics.CircularAperture(radius=1))
+    osys.add_pupil(optics.CircularAperture(radius=1))
     for i in range(3):
-        osys.addImage()
-        osys.addPupil()
+        osys.add_image()
+        osys.add_pupil()
 
-    osys.addPupil(optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6,
+    osys.add_pupil(optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6,
                                   radius=pupil_radius))
-    osys.addDetector(pixelscale=0.01, fov_arcsec=3.0)
-    psf = osys.calcPSF(wavelength=1e-6)
+    osys.add_detector(pixelscale=0.01, fov_arcsec=3.0)
+    psf = osys.calc_psf(wavelength=1e-6)
 
     osys2 = poppy_core.OpticalSystem()
-    osys2.addPupil(optics.CircularAperture(radius=1))
-    osys2.addPupil(optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6,
+    osys2.add_pupil(optics.CircularAperture(radius=1))
+    osys2.add_pupil(optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6,
                                    radius=pupil_radius))
-    osys2.addDetector(pixelscale=0.01, fov_arcsec=3.0)
-    psf2 = osys2.calcPSF()
+    osys2.add_detector(pixelscale=0.01, fov_arcsec=3.0)
+    psf2 = osys2.calc_psf()
 
 
     if display:

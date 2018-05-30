@@ -378,9 +378,6 @@ class AnalyticOpticalElement(OpticalElement):
 
         return y, x
 
-    # back compatibility compliant aliases; the old names will later be deprecated
-    toFITS = to_fits
-
 
 class ScalarTransmission(AnalyticOpticalElement):
     """ Uniform transmission between 0 and 1.0 in intensity.

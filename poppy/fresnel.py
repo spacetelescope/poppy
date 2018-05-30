@@ -1020,12 +1020,12 @@ class FresnelOpticalSystem(OpticalSystem):
 
     @u.quantity_input(distance=u.m)
     def add_detector(self, pixelscale, distance=0.0 * u.m, **kwargs):
-        super(FresnelOpticalSystem, self).addDetector(pixelscale, **kwargs)
+        super(FresnelOpticalSystem, self).add_detector(pixelscale, **kwargs)
         self.distances.append(distance)
         if self.verbose:
             _log.info("Added detector: {0} after separation: {1:.2e} ".format(self.planes[-1].name, distance))
 
-    addDetector = add_detector  # for compatibility with pre-pep8 names
+    add_detector = add_detector  # for compatibility with pre-pep8 names
 
     @utils.quantity_input(wavelength=u.meter)
     def input_wavefront(self, wavelength=1e-6 * u.meter):
@@ -1133,7 +1133,7 @@ class FresnelOpticalSystem(OpticalSystem):
 
             # Optional outputs:
             if poppy.conf.enable_flux_tests:
-                _log.debug("  Flux === " + str(wavefront.totalIntensity))
+                _log.debug("  Flux === " + str(wavefront.total_intensity))
 
             if retain_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
                 intermediate_wfs.append(wavefront.copy())

@@ -377,7 +377,7 @@ class MatrixFTCoronagraph(poppy_core.OpticalSystem):
         if self.verbose:
             _log.info(" Propagating wavelength = {0:g} meters using "
                       "Matrix FTs".format(wavelength))
-        wavefront = self.inputWavefront(wavelength)
+        wavefront = self.input_wavefront(wavelength)
 
         intermediate_wfs = []
 

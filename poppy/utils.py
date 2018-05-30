@@ -39,9 +39,7 @@ class FFTWWisdomWarning(RuntimeWarning):
     pass
 
 
-__all__ = ['display_PSF', 'display_PSF_difference', 'display_EE', 'measure_EE',
-           # TODO:mperrin: back compatibility aliases - remove in 0.8
-           'display_psf', 'display_psf_difference', 'display_ee', 'measure_ee', 'measure_radius_at_ee',
+__all__ = ['display_psf', 'display_psf_difference', 'display_ee', 'measure_ee', 'measure_radius_at_ee',
            'display_profiles', 'radial_profile',
            'measure_radial', 'measure_fwhm', 'measure_sharpness', 'measure_centroid', 'measure_strehl',
            'measure_anisotropy', 'specFromSpectralType']
@@ -1184,11 +1182,6 @@ def krebin(a, shape):
     return a.reshape(sh).sum(-1).sum(1)
 
 
-display_PSF = display_psf
-display_PSF_difference = display_psf_difference  # back compatible alias for older non pep8 name
-display_EE = display_ee
-measure_EE = measure_ee
-
 
 ###########################################################################
 #
@@ -1588,7 +1581,7 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
         _log.debug("No psutil package available, cannot estimate optimal nprocesses.")
         return 4
 
-    wfshape = osys.inputWavefront().shape
+    wfshape = osys.input_wavefront().shape
     # will we do an FFT or not?
     propinfo = osys._propagation_info()
     if 'FFT' in propinfo['steps']:

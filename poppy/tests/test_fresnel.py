@@ -401,9 +401,9 @@ def test_fresnel_FITS_Optical_element(tmpdir, display=False):
 
     osys = poppy_core.OpticalSystem()
     circular_aperture = optics.CircularAperture(radius=1.2)
-    osys.addPupil(circular_aperture)
-    osys.addPupil(astig_surf)
-    osys.addDetector(pixelscale=.01, fov_arcsec=5)
+    osys.add_pupil(circular_aperture)
+    osys.add_pupil(astig_surf)
+    osys.add_detector(pixelscale=.01, fov_arcsec=5)
 
     psf_with_astigmatism, wfronts = osys.calc_psf( display_intermediates=display,return_intermediates=True)
 
@@ -471,7 +471,7 @@ def test_fresnel_return_complex():
     tel.add_optic(optics.CircularAperture(radius=M1_radius,name="M1 aperture"))
     tel.add_optic(optics.ScalarTransmission( name="primary mirror focal plane"), distance=fl_M1)
 
-    psf=tel.calcPSF(return_final=True)
+    psf=tel.calc_psf(return_final=True)
 
     assert len(psf[1])==1
     assert np.allclose(psf[1][0].intensity,psf[0][0].data)

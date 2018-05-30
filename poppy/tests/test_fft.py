@@ -36,10 +36,10 @@ def test_fft_normalization():
 
     osys = poppy_core.OpticalSystem("test", oversample=2)
     pupil = optics.CircularAperture(radius=radius)
-    osys.addPupil(pupil)
-    osys.addImage() # null plane to force FFT
-    osys.addPupil() # null plane to force FFT
-    osys.addDetector(pixelscale=0.01, fov_arcsec=10.0) # use a large FOV so we grab essentially all the ligh
+    osys.add_pupil(pupil)
+    osys.add_image() # null plane to force FFT
+    osys.add_pupil() # null plane to force FFT
+    osys.add_detector(pixelscale=0.01, fov_arcsec=10.0) # use a large FOV so we grab essentially all the ligh
 
     poppy_core._log.info('TEST: wavelen = {0}, radius = {1}'.format(wavelen, radius))
 
@@ -59,19 +59,19 @@ def test_fft_blc_coronagraph():
 
     lyot_radius = 6.5/2.5
     osys = poppy_core.OpticalSystem("test", oversample=2)
-    osys.addPupil( optics.CircularAperture(radius=radius, pad_factor=1.5) )
-    osys.addImage()
-    osys.addImage( optics.BandLimitedCoron( kind='circular', sigma=5.0))
-    osys.addPupil()
-    osys.addPupil( optics.CircularAperture(radius=lyot_radius) )
-    osys.addDetector(pixelscale=0.010, fov_arcsec=5.0)
+    osys.add_pupil( optics.CircularAperture(radius=radius, pad_factor=1.5) )
+    osys.add_image()
+    osys.add_image( optics.BandLimitedCoron( kind='circular', sigma=5.0))
+    osys.add_pupil()
+    osys.add_pupil( optics.CircularAperture(radius=lyot_radius) )
+    osys.add_detector(pixelscale=0.010, fov_arcsec=5.0)
 
     psf, int_wfs = osys.calc_psf(wavelength=wavelen, display_intermediates=False, return_intermediates=True)
 
 
     # after the Lyot plane, the wavefront should be all real.
     lyot_wf = int_wfs[-2]
-    lyot_wf_fits = lyot_wf.asFITS(what='all') # need to save this for the multiwave comparison in test_3_multiwave()
+    lyot_wf_fits = lyot_wf.as_fits(what='all') # need to save this for the multiwave comparison in test_3_multiwave()
     assert check_wavefront(lyot_wf_fits, test='is_real', comment='(Lyot Plane)')
 
     # and the flux should be low.
@@ -91,13 +91,13 @@ def test_fft_fqpm(): #oversample=2, verbose=True, wavelength=2e-6):
 
     oversamp=2
     osys = poppy_core.OpticalSystem("test", oversample=oversamp)
-    osys.addPupil(optics.CircularAperture(radius=radius))
-    osys.addPupil(optics.FQPM_FFT_aligner())
-    osys.addImage(optics.IdealFQPM(wavelength=wavelen))  # perfect FQPM for this wavelength
-    osys.addImage(optics.RectangularFieldStop(width=6.0))
-    osys.addPupil(optics.FQPM_FFT_aligner(direction='backward'))
-    osys.addPupil(optics.CircularAperture(radius=radius))
-    osys.addDetector(pixelscale=0.01, fov_arcsec=10.0)
+    osys.add_pupil(optics.CircularAperture(radius=radius))
+    osys.add_pupil(optics.FQPM_FFT_aligner())
+    osys.add_image(optics.IdealFQPM(wavelength=wavelen))  # perfect FQPM for this wavelength
+    osys.add_image(optics.RectangularFieldStop(width=6.0))
+    osys.add_pupil(optics.FQPM_FFT_aligner(direction='backward'))
+    osys.add_pupil(optics.CircularAperture(radius=radius))
+    osys.add_detector(pixelscale=0.01, fov_arcsec=10.0)
 
     psf = osys.calc_psf(wavelength=wavelen)
     assert psf[0].data.sum() < 0.002
@@ -120,17 +120,17 @@ def test_parity_FFT_forward_inverse(display=False):
 
     # set up optical system with 2 pupil planes and 2 image planes
     sys = poppy_core.OpticalSystem(oversample=1)
-    sys.addPupil(optics.ParityTestAperture())
-    sys.addImage()
-    sys.addPupil()
-    sys.addDetector(pixelscale=0.010, fov_arcsec=1)
+    sys.add_pupil(optics.ParityTestAperture())
+    sys.add_image()
+    sys.add_pupil()
+    sys.add_detector(pixelscale=0.010, fov_arcsec=1)
 
     psf, planes = sys.calc_psf(display=display, return_intermediates=True)
 
     # the wavefronts are padded by 0s. With the current API the most convenient
-    # way to ensure we get unpadded versions is via the asFITS function.
-    p0 = planes[0].asFITS(what='intensity', includepadding=False)
-    p2 = planes[2].asFITS(what='intensity', includepadding=False)
+    # way to ensure we get unpadded versions is via the as_fits function.
+    p0 = planes[0].as_fits(what='intensity', includepadding=False)
+    p2 = planes[2].as_fits(what='intensity', includepadding=False)
 
     # To confirm the parity is consistent,
     # Let's check the difference is smaller than if it were flipped around
@@ -184,10 +184,10 @@ def setup_test_osys():
     used in the below tests."""
     ap = optics.ParityTestAperture()
     sys = poppy_core.OpticalSystem()
-    sys.addPupil(ap)
-    sys.addImage()
-    sys.addPupil(ap)
-    sys.addDetector(0.02, fov_pixels=512)  # fairly arbitrary, but big enough to get most of the flux
+    sys.add_pupil(ap)
+    sys.add_image()
+    sys.add_pupil(ap)
+    sys.add_detector(0.02, fov_pixels=512)  # fairly arbitrary, but big enough to get most of the flux
     return sys
 
 
@@ -215,19 +215,19 @@ def test_pyfftw_vs_numpyfft(verbose=False):
     # Check flux conservation for the intermediate arrays behaves the same for both
     intermediates = intermediates_fftw
     epsilon = np.finfo(intermediates[0].wavefront.dtype).eps
-    total_int_input = intermediates_numpy[0].totalIntensity
+    total_int_input = intermediates_numpy[0].total_intensity
     for i in [1,2]:
-        assert np.abs(intermediates[i].totalIntensity - total_int_input) < 5*epsilon
+        assert np.abs(intermediates[i].total_intensity - total_int_input) < 5*epsilon
 
     # Check flux in output array is about 0.5% less than input array (due to finite FOV)
     expected = 0.004949550538272617927759
-    assert np.abs(intermediates[3].totalIntensity - total_int_input) - expected < 5*epsilon
+    assert np.abs(intermediates[3].total_intensity - total_int_input) - expected < 5*epsilon
 
     if verbose:
         print ("PSF difference: ", np.abs(psf_fftw[0].data-psf_numpy[0].data).max())
         for i in [1,2]:
-            print(" Int. WF {} intensity diff: {}".format(i, np.abs(intermediates[i].totalIntensity-total_int_input)) )
-        print(" Final PSF intensity diff:", np.abs(intermediates[3].totalIntensity-total_int_input) - expected)
+            print(" Int. WF {} intensity diff: {}".format(i, np.abs(intermediates[i].total_intensity-total_int_input)) )
+        print(" Final PSF intensity diff:", np.abs(intermediates[3].total_intensity-total_int_input) - expected)
 
     conf.use_fftw, conf.use_cuda, conf.use_opencl = defaults
 
@@ -256,19 +256,19 @@ def test_cuda_vs_numpyfft(verbose=False):
     # Check flux conservation for the intermediate arrays behaves properly
     intermediates = intermediates_cuda
     epsilon = np.finfo(intermediates[0].wavefront.dtype).eps
-    total_int_input = intermediates_numpy[0].totalIntensity
+    total_int_input = intermediates_numpy[0].total_intensity
     for i in [1,2]:
-        assert np.abs(intermediates[i].totalIntensity - total_int_input) < 5*epsilon
+        assert np.abs(intermediates[i].total_intensity - total_int_input) < 5*epsilon
 
     # Check flux in output array is about 0.5% less than input array (due to finite FOV)
     expected = 0.004949550538272617927759
-    assert np.abs(intermediates[3].totalIntensity - total_int_input) - expected < 5*epsilon
+    assert np.abs(intermediates[3].total_intensity - total_int_input) - expected < 5*epsilon
 
     if verbose:
         print ("PSF difference: ", np.abs(psf_cuda[0].data-psf_numpy[0].data).max())
         for i in [1,2]:
-            print(" Int. WF {} intensity diff: {}".format(i, np.abs(intermediates[i].totalIntensity-total_int_input)) )
-        print(" Final PSF intensity diff:", np.abs(intermediates[3].totalIntensity-total_int_input) - expected)
+            print(" Int. WF {} intensity diff: {}".format(i, np.abs(intermediates[i].total_intensity-total_int_input)) )
+        print(" Final PSF intensity diff:", np.abs(intermediates[3].total_intensity-total_int_input) - expected)
 
     conf.use_fftw, conf.use_cuda, conf.use_opencl = defaults
 
@@ -296,19 +296,19 @@ def test_opencl_vs_numpyfft(verbose=False):
     # Check flux conservation for the intermediate arrays behaves the same for both
     intermediates = intermediates_opencl
     epsilon = np.finfo(intermediates[0].wavefront.dtype).eps
-    total_int_input = intermediates_numpy[0].totalIntensity
+    total_int_input = intermediates_numpy[0].total_intensity
     for i in [1,2]:
-        assert np.abs(intermediates[i].totalIntensity - total_int_input) < 5*epsilon
+        assert np.abs(intermediates[i].total_intensity - total_int_input) < 5*epsilon
 
     # Check flux in output array is about 0.5% less than input array (due to finite FOV)
     expected = 0.004949550538272617927759
-    assert np.abs(intermediates[3].totalIntensity - total_int_input) - expected < 5*epsilon
+    assert np.abs(intermediates[3].total_intensity - total_int_input) - expected < 5*epsilon
 
     if verbose:
         print ("PSF difference: ", np.abs(psf_opencl[0].data-psf_numpy[0].data).max())
         for i in [1,2]:
-            print(" Int. WF {} intensity diff: {}".format(i, np.abs(intermediates[i].totalIntensity-total_int_input)) )
-        print(" Final PSF intensity diff:", np.abs(intermediates[3].totalIntensity-total_int_input) - expected)
+            print(" Int. WF {} intensity diff: {}".format(i, np.abs(intermediates[i].total_intensity-total_int_input)) )
+        print(" Final PSF intensity diff:", np.abs(intermediates[3].total_intensity-total_int_input) - expected)
 
     conf.use_fftw, conf.use_cuda, conf.use_opencl = defaults
 

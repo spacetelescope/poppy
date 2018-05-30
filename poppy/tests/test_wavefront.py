@@ -81,22 +81,22 @@ def test_wavefront_inversion():
     assert np.allclose(wave0.wavefront[:, npix//2], wave_inv.wavefront[::-1, npix//2])
 
 
-def test_wavefront_asFITS():
+def test_wavefront_as_fits():
     """ Test casting wavefronts to FITS arrays, in all possible combinations
     """
     wave = poppy_core.Wavefront(npix=100, wavelength=1e-6)
 
-    intens = wave.asFITS(what='intensity')
+    intens = wave.as_fits(what='intensity')
     assert isinstance(intens,fits.HDUList)
     assert intens[0].data.shape == wave.shape
-    phase = wave.asFITS(what='phase')
+    phase = wave.as_fits(what='phase')
     assert phase[0].data.shape == wave.shape
     assert np.all(np.isreal(phase[0].data))
-    allparts = wave.asFITS(what='all')
+    allparts = wave.as_fits(what='all')
     assert allparts[0].data.shape == (3, wave.shape[0],wave.shape[1])
-    parts = wave.asFITS(what='parts')
+    parts = wave.as_fits(what='parts')
     assert parts[0].data.shape == (2, wave.shape[0],wave.shape[1])
-    #complexwave = wave.asFITS(what='complex')
+    #complexwave = wave.as_fits(what='complex')
     #assert complexwave[0].data.shape == wave.shape
     #assert np.all(np.iscomplex(phase[0].data))
 

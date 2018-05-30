@@ -393,9 +393,6 @@ class Instrument(object):
             result.append(rebinned_result)
             return
 
-    calcPSF = calc_psf  # back compatibility alias
-    _calcPSF_format_output = _calc_psf_format_output
-
     def _get_fits_header(self, result, options):
         """ Set instrument-specific FITS header keywords
 
@@ -558,13 +555,13 @@ class Instrument(object):
             raise TypeError("Not sure what to do with a pupilopd of that type:" + str(type(self.pupilopd)))
 
         # ---- apply pupil intensity and OPD to the optical model
-        optsys.addPupil(name='Entrance Pupil', optic=pupil_optic, transmission=full_pupil_path, opd=full_opd_path,
+        optsys.add_pupil(name='Entrance Pupil', optic=pupil_optic, transmission=full_pupil_path, opd=full_opd_path,
                         rotation=self._rotation)
 
         # Allow instrument subclass to add field-dependent aberrations
         aberration_optic = self._get_aberrations()
         if aberration_optic is not None:
-            optsys.addPupil(aberration_optic)
+            optsys.add_pupil(aberration_optic)
 
         # --- add the detector element.
         if fov_pixels is None:
@@ -575,7 +572,7 @@ class Instrument(object):
                 if self.options['parity'].lower() == 'even' and np.remainder(fov_pixels, 2) == 1:
                     fov_pixels += 1
 
-        optsys.addDetector(self.pixelscale, fov_pixels=fov_pixels, oversample=detector_oversample,
+        optsys.add_detector(self.pixelscale, fov_pixels=fov_pixels, oversample=detector_oversample,
                            name=self.name + " detector")
 
         return optsys

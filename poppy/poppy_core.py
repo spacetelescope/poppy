@@ -1036,14 +1036,6 @@ class Wavefront(object):
         else:
             raise RuntimeError("Unknown plane type (should be pupil or image!)")
 
-    asFITS = as_fits  # pep8 compliant alias; will be fully renamed in a future version.
-    totalIntensity = total_intensity  # pep8 compliant synonym; will be fully renamed in future version
-    propagateTo = propagate_to  # pep8 compliant synonym
-
-    _propagateFFT = _propagate_fft  # back compatibility alias for older non-pep8 name. REMOVE IN 0.6 RELEASE
-    _propagateMFT = _propagate_mft  # likewise   REMOVE IN 0.6 RELEASE
-    _propagateMFTinverse = _propagate_mft_inverse  # likewise   REMOVE IN 0.6 RELEASE
-
 
 # ------ core Optical System class -------
 class OpticalSystem(object):
@@ -1142,7 +1134,7 @@ class OpticalSystem(object):
         """
         if function is not None:
             import warnings
-            warnings.warn("The function argument to addPupil is deprecated. Please provide an Optic object instead.",
+            warnings.warn("The function argument to add_pupil is deprecated. Please provide an Optic object instead.",
                           DeprecationWarning)
         if optic is None and function is not None:
             # ease of use: 'function' input and providing 'optic' parameter as a string are synonymous.
@@ -1816,15 +1808,6 @@ class OpticalSystem(object):
         output_size = output_shape[0] * output_shape[1]
 
         return {'steps': steps, 'output_shape': output_shape, 'output_size': output_size}
-
-    # back compatible aliases for PEP8 compliant names;
-    # these old versions will be deprecated in a future release.
-    addPupil = add_pupil
-    addImage = add_image
-    addRotation = add_rotation
-    addDetector = add_detector
-    inputWavefront = input_wavefront
-    calcPSF = calc_psf
 
 
 # ------ core Optical Element Classes ------

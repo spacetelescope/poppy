@@ -34,17 +34,17 @@ if _HAVE_PYTEST:
         multiprocess calculation give the same results"""
         osys = poppy_core.OpticalSystem("test")
         pupil = optics.CircularAperture(radius=1)
-        osys.addPupil(pupil)
-        osys.addDetector(pixelscale=0.1, fov_arcsec=5.0)
+        osys.add_pupil(pupil)
+        osys.add_detector(pixelscale=0.1, fov_arcsec=5.0)
 
         source={'wavelengths': [1.0e-6, 1.1e-6, 1.2e-6, 1.3e-6], 'weights':[0.25, 0.25, 0.25, 0.25]}
         conf.use_fftw=False
 
         conf.use_multiprocessing=False
-        psf_single = osys.calcPSF(source=source)
+        psf_single = osys.calc_psf(source=source)
 
         conf.use_multiprocessing=True
-        psf_multi = osys.calcPSF(source=source)
+        psf_multi = osys.calc_psf(source=source)
 
         assert np.allclose(psf_single[0].data, psf_multi[0].data), \
             "PSF from multiprocessing does not match PSF from single process"
@@ -61,18 +61,18 @@ if _HAVE_PYTEST:
         and they are consistent with the intermediate planes from a
         single process calculation"""
         osys = poppy_core.OpticalSystem("test")
-        osys.addPupil(optics.CircularAperture(radius=1))
-        osys.addPupil(optics.CircularAperture(radius=0.5))
-        osys.addDetector(pixelscale=0.1, fov_arcsec=2.0)
+        osys.add_pupil(optics.CircularAperture(radius=1))
+        osys.add_pupil(optics.CircularAperture(radius=0.5))
+        osys.add_detector(pixelscale=0.1, fov_arcsec=2.0)
 
         source={'wavelengths': [1.0e-6, 1.1e-6, 1.2e-6, 1.3e-6], 'weights':[0.25, 0.25, 0.25, 0.25]}
         conf.use_fftw=False
 
         conf.use_multiprocessing=False
-        psf_single, planes_single = osys.calcPSF(source=source, return_intermediates=True)
+        psf_single, planes_single = osys.calc_psf(source=source, return_intermediates=True)
 
         conf.use_multiprocessing=True
-        psf_multi, planes_multi = osys.calcPSF(source=source, return_intermediates=True)
+        psf_multi, planes_multi = osys.calc_psf(source=source, return_intermediates=True)
 
         assert np.allclose(psf_single[0].data, psf_multi[0].data), \
             "PSF from multiprocessing does not match PSF from single process"
@@ -93,9 +93,9 @@ def test_estimate_nprocesses():
     estimate nprocesses function.
     """
     osys = poppy_core.OpticalSystem("test")
-    osys.addPupil(optics.CircularAperture(radius=1))
-    osys.addPupil(optics.CircularAperture(radius=0.5))
-    osys.addDetector(pixelscale=0.1, fov_arcsec=2.0)
+    osys.add_pupil(optics.CircularAperture(radius=1))
+    osys.add_pupil(optics.CircularAperture(radius=0.5))
+    osys.add_detector(pixelscale=0.1, fov_arcsec=2.0)
 
     answer = utils.estimate_optimal_nprocesses(osys)
 

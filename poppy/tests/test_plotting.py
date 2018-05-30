@@ -28,11 +28,11 @@ pass
 #    calculation."""
 #
 #    osys = poppy_core.OpticalSystem("test", oversample=1)
-#    osys.addPupil(function='Circle', radius=1)
-#    osys.addDetector(pixelscale=0.1, fov_arcsec=5.0)
+#    osys.add_pupil(function='Circle', radius=1)
+#    osys.add_detector(pixelscale=0.1, fov_arcsec=5.0)
 #      # use a large FOV so we grab essentially all the light and conserve flux
 #
-#    psf = osys.calcPSF(wavelength=1.0e-6)
+#    psf = osys.calc_psf(wavelength=1.0e-6)
 #
 #    utils.display_PSF(psf)
 #

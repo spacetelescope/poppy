@@ -329,13 +329,13 @@ def test_DFT_rect_fov_sampling(fov_npix = (500,1000), pixelscale=0.03, display=F
     """
 
     osys = poppy_core.OpticalSystem(oversample=1)
-    osys.addPupil(optics.CircularAperture())
-    osys.addDetector(pixelscale=0.02, fov_pixels=fov_npix)
-    osys.addPupil(optics.CircularAperture())
-    osys.addDetector(pixelscale=0.02, fov_pixels=fov_npix)
+    osys.add_pupil(optics.CircularAperture())
+    osys.add_detector(pixelscale=0.02, fov_pixels=fov_npix)
+    osys.add_pupil(optics.CircularAperture())
+    osys.add_detector(pixelscale=0.02, fov_pixels=fov_npix)
 
 
-    psf, intermediates = osys.calcPSF(wavelength=1e-6, return_intermediates=True)
+    psf, intermediates = osys.calc_psf(wavelength=1e-6, return_intermediates=True)
 
     delta = 100
 
@@ -535,18 +535,18 @@ def test_parity_MFT_forward_inverse(display = False):
     pixscale = 0.03437746770784939
     npix=2048
     sys = poppy_core.OpticalSystem()
-    sys.addPupil(optics.ParityTestAperture())
-    sys.addDetector(pixelscale=pixscale, fov_pixels=npix)
-    sys.addPupil()
-    sys.addDetector(pixelscale=pixscale, fov_pixels=npix)
+    sys.add_pupil(optics.ParityTestAperture())
+    sys.add_detector(pixelscale=pixscale, fov_pixels=npix)
+    sys.add_pupil()
+    sys.add_detector(pixelscale=pixscale, fov_pixels=npix)
 
-    psf, planes = sys.calcPSF(display=display, return_intermediates=True)
+    psf, planes = sys.calc_psf(display=display, return_intermediates=True)
 
     # the wavefronts are padded by 0s. With the current API the most convenient
-    # way to ensure we get unpadded versions is via the asFITS function.
-    p0 = planes[0].asFITS(what='intensity', includepadding=False)
-    p1 = planes[1].asFITS(what='intensity', includepadding=False)
-    p2 = planes[2].asFITS(what='intensity', includepadding=False)
+    # way to ensure we get unpadded versions is via the as_fits function.
+    p0 = planes[0].as_fits(what='intensity', includepadding=False)
+    p1 = planes[1].as_fits(what='intensity', includepadding=False)
+    p2 = planes[2].as_fits(what='intensity', includepadding=False)
 
     # for checking the overall parity it's sufficient to check the intensity.
     # we can have arbitrarily large differences in phase for regions with
@@ -650,24 +650,24 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(display=False):
     # its input wavefront. The easiest way to do this is to discretize
     # an AnalyticOpticalElement onto a specific grid.
 
-    fits511 = optics.ParityTestAperture().toFITS('test.fits', wavelength=1e-6, npix=511)
+    fits511 = optics.ParityTestAperture().to_fits('test.fits', wavelength=1e-6, npix=511)
     pup511 = poppy_core.FITSOpticalElement(transmission=fits511)
 
 
     # set up simple optical system that will just FFT
     fftsys = poppy_core.OpticalSystem(oversample=1)
-    fftsys.addPupil(pup511)
-    fftsys.addImage()
+    fftsys.add_pupil(pup511)
+    fftsys.add_image()
 
-    fftpsf, fftplanes = fftsys.calcPSF(display=False, return_intermediates=True)
+    fftpsf, fftplanes = fftsys.calc_psf(display=False, return_intermediates=True)
 
     # set up equivalent using an MFT, tuned to get the exact same scale
     # for the image plane
     mftsys = poppy_core.OpticalSystem(oversample=1)
-    mftsys.addPupil(pup511)
-    mftsys.addDetector(pixelscale=fftplanes[1].pixelscale , fov_pixels=fftplanes[1].shape, oversample=1) #, offset=(pixscale/2, pixscale/2))
+    mftsys.add_pupil(pup511)
+    mftsys.add_detector(pixelscale=fftplanes[1].pixelscale , fov_pixels=fftplanes[1].shape, oversample=1) #, offset=(pixscale/2, pixscale/2))
 
-    mftpsf, mftplanes = mftsys.calcPSF(display=False, return_intermediates=True)
+    mftpsf, mftplanes = mftsys.calc_psf(display=False, return_intermediates=True)
 
 
     if display:

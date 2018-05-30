@@ -13,10 +13,10 @@ def test_nonsquare_detector_axes_lengths():
         for fov_pixels in ( [100,100], [100,200], [200,100], [137, 511] ):
             osys = poppy.OpticalSystem()
             circ = optics.CircularAperture(radius=6.5/2)
-            osys.addPupil(circ)
-            osys.addDetector(pixelscale=0.1, oversample=1, fov_pixels=fov_pixels )
+            osys.add_pupil(circ)
+            osys.add_detector(pixelscale=0.1, oversample=1, fov_pixels=fov_pixels )
 
-            psf = osys.calcPSF(wavelength=1e-6)
+            psf = osys.calc_psf(wavelength=1e-6)
 
             assert(psf[0].data.shape[0] == fov_pixels[0])
             assert(psf[0].data.shape[1] == fov_pixels[1])
@@ -43,9 +43,9 @@ def test_nonsquare_detector_values(oversample=1, pixelscale=0.010, wavelength=1e
 
             osys = poppy.OpticalSystem("test", oversample=oversample)
             circ = optics.CircularAperture(radius=6.5/2)
-            osys.addPupil(circ)
-            osys.addDetector(pixelscale=pixelscale, fov_arcsec=fov_arcsec) 
-            psf = osys.calcPSF(wavelength=wavelength)
+            osys.add_pupil(circ)
+            osys.add_detector(pixelscale=pixelscale, fov_arcsec=fov_arcsec) 
+            psf = osys.calc_psf(wavelength=wavelength)
             #poppy.utils.display_PSF(psf)
 
             results.append(psf[0].data)

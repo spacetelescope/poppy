@@ -29,8 +29,8 @@ if _HAVE_PYTEST:
 
         osys = poppy_core.OpticalSystem("test")
         pupil = optics.CircularAperture(radius=1)
-        osys.addPupil(pupil) #function='Circle', radius=1)
-        osys.addDetector(pixelscale=0.1, fov_arcsec=5.0) # use a large FOV so we grab essentially all the light and conserve flu
+        osys.add_pupil(pupil) #function='Circle', radius=1)
+        osys.add_detector(pixelscale=0.1, fov_arcsec=5.0) # use a large FOV so we grab essentially all the light and conserve flu
 
         with pytest.raises(ValueError) as excinfo:
             psf = osys.calc_psf('cat')
