@@ -5,22 +5,94 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
-0.6.2
+0.7.0
 -----
 
-.. _rel0.6.2:
+.. _rel0.7.0:
 
-*2018 January 9*
+*2018 June 1*
 
- * `calc_psf` gains a new parameter to request returning the complex wavefront (`#234 <https://github.com/mperrin/poppy/pull/234>`_,@douglase)
- * Bug fix for integer vs floating point division when padding array sizes in some circumstances (`#235 <https://github.com/mperrin/poppy/issues/235>`_, @exowanderer, @mperrin)
- * Bug fix for aperture clipping in `zernike.arbitrary_basis` (`#241 <https://github.com/mperrin/poppy/pull/241>`_, @kvangorkom)
- * Bug fix / documentation fix for divergence angle in the Fresnel code (`#237 <https://github.com/mperrin/poppy/pull/237>`_, @douglase). Note, the `divergence` function now returns the *half angle* rather than the *full angle*.
- * Performance improvements in Fresnel code using optional `accelerate` and `cuda` packages (`#239 <https://github.com/mperrin/poppy/pull/239>`_, @douglase).
- * For FITSOpticalElements with both shift and rotation set, apply the rotation first and then the shift for more intuitive UI (@mperrin)
- * Increment minimal required astropy version to 1.3, and various related Travis CI setup updates (@mperrin)
+.. admonition:: Python version support: Future releases will require Python 3.
+
+    Please note, this is the *final* release to support Python 2.7. All
+    future releases will require Python 3.5+. See `here <https://python3statement.org>`_ for more information on migrating to Python 3.
+
+.. admonition:: Deprecated function names will go away in next release.
+
+    This is also the *final* release to support the older, deprecated
+    function names with mixed case that are not compatible with the Python PEP8
+    style guide (e.g. ``calcPSF`` instead of ``calc_psf``, etc). Future versions will
+    require the use of the newer syntax.
+
+
+**Performance Improvements:**
+
+ * Major addition of GPU-accelerated calculations for FFTs and related operations in many
+   propagation calculations. GPU support is provided for both CUDA (NVidia GPUs) and OpenCL (AMD
+   GPUs); the CUDA implementation currently accelerates a slightly wider range of operations.
+   Obtaining optimal performance, and understanding tradeoffs between numpy, FFTW, and CUDA/OpenCL,
+   will in general require tests on your particular hardware. As part of this, much of the FFT
+   infrastructure has been refactored out of the Wavefront classes and into utility functions in
+   `accel_math.py`.  This functionality and the resulting gains in performance are described more in
+   Douglas & Perrin, Proc. SPIE 2018.  (`#239 <https://github.com/mperrin/poppy/pull/239>`_,
+   @douglase), (`#250 <https://github.com/mperrin/poppy/pull/250>`_, @mperrin and @douglase).
+ * Additional performance improvements to other aspects of calculations using the `numexpr` package.
+   Numexpr is now a *highly recommended* optional installation. It may well become a requirement in
+   a future release.  (`#239 <https://github.com/mperrin/poppy/pull/239>`_, `#245
+   <https://github.com/mperrin/poppy/pull/245>`_, @douglase)
+ * More efficient display of AnalyticOptics, avoiding unnecessary repetition of optics sampling.
+   (@mperrin)
+ * Single-precision floating point mode added, for cases that do not require the default double
+   precision floating point and can benefit from the increased speed. (Experimental / beta; some
+   intermediate calculations may still be done in double precision, thus reducing speed gains).
+   
+**New Functionality:**
+
+ * New `PhysicalFresnelWavefront` class that uses physical units for the wavefront (e.g.
+   volts/meter) and intensity (watts). See `this notebook
+   <https://github.com/mperrin/poppy/blob/master/notebooks/Physical%20Units%20Demo.ipynb>`_ for
+   examples and further discussion.  (`#248 <https://github.com/mperrin/poppy/pull/248>`, @daphil).
+ * `calc_psf` gains a new parameter to request returning the complex wavefront (`#234
+   <https://github.com/mperrin/poppy/pull/234>`_,@douglase).
+ * Improved handling of irregular apertures in WFE basis functions (`zernike_basis`, `hexike_basis`,
+   etc.) and the `opd_expand`/`opd_expand_nonorthonormal` fitting functions (@mperrin).
+ * Added new function `measure_radius_at_ee` which finds the radius at which a PSF achieves some
+   given amount of encircled energy; in some sense an inverse to `measure_ee`. (`#244
+   <https://github.com/mperrin/poppy/pull/244>`_, @shanosborne)
+ * Much improved algorithm for `measure_fwhm`: the function now works by fitting a Gaussian rather
+   than interpolating between a radial profile on fixed sampling. This yields much better results on
+   low-sampled or under-sampled PSFs. (@mperrin)
+ * Add `ArrayOpticalElement` class, providing a cleaner interface for creating arbitrary optics at
+   runtime by generating numpy ndarrays on the fly and packing them into an ArrayOpticalElement.
+   (@mperrin)
+ * Added new classes for deformable mirrors, including both `ContinuousDeformableMirror` and
+   `HexSegmentedDeformableMirror` (@mperrin).
+
+**Bug Fixes and Software Infrastructure Updates:**
+
+ * The Instrument class methods and related API were updated to PEP8-compliant names. Old names
+   remain for back compatibility, but are deprecated and will be removed in the next release.
+   Related code cleanup for better PEP8 compliance. (@mperrin)
+ * Substantial update to semi-analytic fast coronagraph propagation to make it more flexible about
+   optical plane setup. Fixes #169 (`#169 <https://github.com/mperrin/poppy/issues/169>`_, @mperrin)
+ * Fix for integer vs floating point division when padding array sizes in some circumstances (`#235
+   <https://github.com/mperrin/poppy/issues/235>`_, @exowanderer, @mperrin)
+ * Fix for aperture clipping in `zernike.arbitrary_basis` (`#241
+   <https://github.com/mperrin/poppy/pull/241>`_, @kvangorkom)
+ * Fix / documentation fix for divergence angle in the Fresnel code (`#237
+   <https://github.com/mperrin/poppy/pull/237>`_, @douglase). Note, the `divergence` function now
+   returns the *half angle* rather than the *full angle*.
+ * Fix for `markcentroid` and `imagecrop` parameters conflicting in some cases in `display_psf`
+   (`#231 <https://github.com/mperrin/poppy/pull/231>`_, @mperrin)
+ * For FITSOpticalElements with both shift and rotation set, apply the rotation first and then the
+   shift for more intuitive UI (@mperrin)
  * Misc minor doc and logging fixes  (@mperrin)
- * Update `astropy-helpers` submodule to version 2.0.2; necessary for compatibility with recent Sphinx releases. (@mperrin)
+ * Increment minimal required astropy version to 1.3, and minimal required numpy version to 1.10;
+   and various related Travis CI setup updates. Also added numexpr test case to Travis. (@mperrin)
+ * Improved unit test for Fresnel model of Hubble Space Telescope, to reduce memory usage and avoid
+   CI hangs on Travis. 
+ * Update `astropy-helpers` submodule to current version; necessary for compatibility with recent
+   Sphinx releases. (@mperrin)
 
 .. _rel0.6.1:
 

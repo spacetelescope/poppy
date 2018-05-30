@@ -25,7 +25,7 @@ POPPY was developed as part of a simulation package for the James Webb Space Tel
 
 For documentation, see http://poppy-optics.readthedocs.io/
 
-Code by Marshall Perrin, Joseph Long, Ewan Douglas, Neil Zimmerman, Anand Sivaramakrishnan, Kyle Douglass, Maciek Grochowicz & Ted Corcovilos, with additional contributions from Remi Soummer, Kyle Van Gorkom, Christine Slocum, Roman Yurchak, and others on the Astropy team.
+Code by Marshall Perrin, Joseph Long, Ewan Douglas, Neil Zimmerman, Anand Sivaramakrishnan, Shannon Osborne, Kyle Douglass, Maciek Grochowicz, Phillip Springer, & Ted Corcovilos, with additional contributions from Remi Soummer, Kyle Van Gorkom, Christine Slocum, Roman Yurchak, and others on the Astropy team.
 
 Projects using POPPY
 --------------------

@@ -36,6 +36,7 @@ Direct contributors to POPPY code
  * Neil Zimmerman (@neilzim)
  * Anand Sivaramakrishnan (@anand0xff)
  * Maciek Grochowicz (@maciekgroch)
+ * Phillip Springer (@daphil)
  * Ted Corcovilos (@corcoted)
  * Kyle Douglass (@kmdouglas)
  * Christine Slocum (@cslocum)
