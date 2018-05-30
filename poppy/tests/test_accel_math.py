@@ -79,3 +79,6 @@ def test_exp():
 
     accel_math._USE_NUMEXPR = default_use_numexpr
 
+def test_benchmark_fft():
+    # minimalist case for speed, but at least it tests the function:
+    accel_math.benchmark_fft(npix=512, iterations=2)
