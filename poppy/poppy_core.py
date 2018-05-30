@@ -163,6 +163,7 @@ class Wavefront(object):
         self.history.append(" using array size %s" % (self.wavefront.shape,))
         self.location = 'Entrance Pupil'
         "Descriptive string for where a wavefront is instantaneously located. Used mostly for titling displayed plots."
+        accel_math.update_math_settings()                   # ensure optimal propagation based on user settings
 
     def __str__(self):
         # TODO add switches for image/pupil planes
@@ -645,7 +646,6 @@ class Wavefront(object):
             msg = "  Propagating wavefront to %s. " % str(optic)
             _log.debug(msg)
             self.history.append(msg)
-        _log.debug("conf.use_fftw is " + str(conf.use_fftw))
 
         if optic.planetype == PlaneType.rotation:  # rotate
             self.rotate(optic.angle)
@@ -678,11 +678,6 @@ class Wavefront(object):
             The optic to propagate to. Used for determining the appropriate optical plane.
 
         """
-        # To use FFTW, it must both be enabled and the library itself has to be present
-        _USE_FFTW = (conf.use_fftw and accel_math._FFTW_AVAILABLE)
-        if _USE_FFTW:
-            import pyfftw
-
         if self.oversample > 1 and not self.ispadded:  # add padding for oversampling, if necessary
             assert self.oversample == optic.oversample
             self.wavefront = utils.pad_to_oversample(self.wavefront, self.oversample)
@@ -691,14 +686,9 @@ class Wavefront(object):
                 _log.debug("    Padded WF array for oversampling by %dx" % self.oversample)
             self.history.append("    Padded WF array for oversampling by %dx" % self.oversample)
 
-        method = 'pyfftw' if _USE_FFTW else 'numpy'  # for logging
-        _log.info("using {1} FFT of {0} array".format(str(self.wavefront.shape), method))
-        # Set up for computation - figure out direction & normalization
+       # Set up for computation - figure out direction & normalization
         if self.planetype == PlaneType.pupil and optic.planetype == PlaneType.image:
-            FFT_direction = 'forward'
-            normalization_factor = 1. / self.wavefront.shape[0]  # correct for numpy fft
-
-            do_fft = pyfftw.interfaces.numpy_fft.fft2 if _USE_FFTW else np.fft.fft2
+            fft_forward = True
 
             # (pre-)update state:
             self.planetype = PlaneType.image
@@ -707,9 +697,7 @@ class Wavefront(object):
             self.history.append('   FFT {},  to IMAGE plane  scale={}'.format(self.wavefront.shape, self.pixelscale))
 
         elif self.planetype == PlaneType.image and optic.planetype == PlaneType.pupil:
-            FFT_direction = 'backward'
-            normalization_factor = self.wavefront.shape[0]  # correct for numpy fft
-            do_fft = pyfftw.interfaces.numpy_fft.ifft2 if _USE_FFTW else np.fft.ifft2
+            fft_forward = False
 
             # (pre-)update state:
             self.planetype = PlaneType.pupil
@@ -720,38 +708,14 @@ class Wavefront(object):
         if conf.enable_flux_tests: _log.debug("\tPre-FFT total intensity: " + str(self.total_intensity))
         if conf.enable_speed_tests: t0 = time.time()
 
-        if FFT_direction == 'backward': self.wavefront = np.fft.ifftshift(self.wavefront)
+        self.wavefront = accel_math.fft_2d(self.wavefront, forward=fft_forward)
 
-        _log.debug("using {2} FFT of {0} array, direction={1}".format(str(self.wavefront.shape), FFT_direction, method))
-        if _USE_FFTW:
-            if (self.wavefront.shape, FFT_direction) not in accel_math._FFTW_INIT:
-                # The first time you run FFTW to transform a given size, it does a speed test to
-                # determine optimal algorithm that is destructive to your chosen array.
-                # So only do that test on a copy, not the real array:
-                _log.info("Evaluating PyFFT optimal algorithm for %s, direction=%s" % (
-                    str(self.wavefront.shape), FFT_direction))
-
-                pyfftw.interfaces.cache.enable()
-                pyfftw.interfaces.cache.set_keepalive_time(30)
-
-                test_array = np.zeros(self.wavefront.shape)
-                test_array = do_fft(test_array, overwrite_input=True, planner_effort='FFTW_MEASURE',
-                                    threads=multiprocessing.cpu_count())
-
-                accel_math._FFTW_INIT[(self.wavefront.shape, FFT_direction)] = True
-
-            self.wavefront = do_fft(self.wavefront, overwrite_input=True, planner_effort='FFTW_MEASURE',
-                                    threads=multiprocessing.cpu_count())
-        else:
-            self.wavefront = do_fft(self.wavefront)
-
-        if FFT_direction == 'forward':
-            self.wavefront = np.fft.fftshift(self.wavefront)
+        if fft_forward:
             # FFT produces pixel-centered images by default, unless the _image_centered param
             # has already been set by an FQPM_FFT_aligner class
             if self._image_centered != 'corner':
                 self._image_centered = 'pixel'
-        self.wavefront = self.wavefront * normalization_factor
+
         self._last_transform_type = 'FFT'
 
         if conf.enable_speed_tests:

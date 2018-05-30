@@ -58,12 +58,15 @@ class Conf(_config.ConfigNamespace):
                                               'automatically save and reload FFTW ' +
                                               '"wisdom" for improved speed?')
 
-    use_cuda = _config.ConfigItem(True, 'Use cuda via accelerate for FFTs (assuming it' +
-                                  'is available)?')
-    use_numexpr = _config.ConfigItem(True, 'Use NumExpr to accelerate array math (assuming it' +
-                                     'is available)?')
+    use_cuda = _config.ConfigItem(True, 'Use cuda for FFTs on GPU (assuming it' +
+            'is available)?')
+    use_opencl = _config.ConfigItem(True, 'Use OpenCL for FFTs on GPU (assuming it' +
+            'is available)?')
+    use_numexpr = _config.ConfigItem(True, 'Use NumExpr to accelarate array math (assuming it' +
+            'is available)?')
+
     double_precision = _config.ConfigItem(True, 'Floating point values use float64 and complex128 if True,' +
-                                          'otherwise float32 and complex64.')
+            'otherwise float32 and complex64.')
 
     default_image_display_fov = _config.ConfigItem(5.0, 'Default image' +
                                                    'display field of view, in arcseconds. Adjust this to display ' +
