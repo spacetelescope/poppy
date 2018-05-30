@@ -12,6 +12,7 @@ telescopes.  POPPY was developed as part of a simulation package for `JWST
 imaging simulations. 
 
 
+.. image:: figures/readme_fig.png
 
 Summary
 ------------

@@ -8,7 +8,7 @@ Particular credit is due to `Ewan Douglas <http://blogs.bu.edu/douglase/>`_ for
 initially developing this code.  This substantial upgrade to ``poppy`` enables
 calculation of wavefronts propagated arbitrary distances in free space, for applications
 such as Gaussian beam propagation and modeling of Talbot effect mixing between phase and
-amplitude aberrations. 
+amplitude aberrations.
 
 
 .. caution::
@@ -16,9 +16,9 @@ amplitude aberrations.
         been cross-checked against the `PROPER library by John Krist
         <http://proper-library.sourceforge.net>` to verify accuracy and correctness of
         output. A test suite is provided along with ``poppy`` in the tests subdirectory
-        and users are encouraged to run these tests themselves. However this is still 
+        and users are encouraged to run these tests themselves. However this is still
         a relatively new addition to ``poppy``, and it is possible there may still be
-        some bugs. 
+        some bugs.
 
 
 
@@ -28,11 +28,11 @@ Usage of the Fresnel code
 
 The API has been kept as similar as possible to the original Fraunhofer mode of
 poppy. There are FresnelWavefront and FresnelOpticalSystem classes, which can
-be used for the most part similar to the Wavefront and OpticalSystem classes. 
+be used for the most part similar to the Wavefront and OpticalSystem classes.
 
 Users are encouraged to consult the Jupyter notebook `Fresnel_Propagation_Demo
 <https://github.com/mperrin/poppy/blob/master/notebooks/Fresnel_Propagation_Demo.ipynb>`_
-for examples of how to use the Fresnel code. 
+for examples of how to use the Fresnel code.
 
 Key Differences from Fraunhofer mode
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -76,26 +76,39 @@ For more details and examples of code usage, consult the Jupyter notebook
 <https://github.com/mperrin/poppy/blob/master/notebooks/Fresnel_Propagation_Demo.ipynb>`_.
 
 A worked example of a compound microscope in POPPY is available
-`here <https://github.com/douglase/poppy_example_notebooks/blob/master/Fresnel/Microscope_Example.ipynb>`_, 
+`here <https://github.com/douglase/poppy_example_notebooks/blob/master/Fresnel/Microscope_Example.ipynb>`_,
 reproducing the microscope example case provided in the PROPER manual.
+
+Fresnel calculations with Physical units
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A subclass, `PhysicalFresnelWavefront`, enables calculations using wavefronts
+scaled to physical units, i.e. volts/meter for electric field and watts for
+total intensity (power).  This code was developed and contributed by `Phillip
+Springer <https://github.com/DaPhil>`_.
+
+See `this notebook
+<https://github.com/mperrin/poppy/blob/master/notebooks/Physical%20Units%20Demo.ipynb>`_
+for examples and further discussion.
+
 
 References
 -------------
 
-The following references were helpful in the development of this code. 
+The following references were helpful in the development of this code.
 
     - Goodman, `Fourier Optics <http://www.amazon.com/Introduction-Fourier-Optics-Joseph-Goodman/dp/0974707724>`_
 
     - Lawrence, G. N. (1992), Optical Modeling, in Applied Optics and Optical Engineering., vol. XI,
         edited by R. R. Shannon and J. C. Wyant., Academic Press, New York.
 
-    - IDEX Optics and Photonics(n.d.), 
+    - IDEX Optics and Photonics(n.d.),
       `Gaussian Beam Optics <https://marketplace.idexop.com/store/SupportDocuments/All_About_Gaussian_Beam_OpticsWEB.pdf>`_
 
     - Krist, J. E. (2007), `PROPER: an optical propagation library for IDL <http://dx.doi.org/10.1117/12.731179>`_
        vol. 6675, p. 66750P-66750P-9.
 
-    - Andersen, T., and A. Enmark (2011), 
+    - Andersen, T., and A. Enmark (2011),
       `Integrated Modeling of Telescopes <http://www.amazon.com/Integrated-Modeling-Telescopes-Astrophysics-Science/dp/1461401488>`_,
       Springer Science & Business Media.
 
