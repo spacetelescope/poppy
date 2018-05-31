@@ -675,7 +675,7 @@ class FresnelWavefront(Wavefront):
         # FIXME MP: check for planar input wavefront
         if self.spherical:
             raise RuntimeError(
-                '_propagate_ptp can only start from a planar wavefront, but was called with a spherical one.')
+                '_propagate_wts can only start from a planar wavefront, but was called with a spherical one.')
 
         if dz == 0:
             _log.error("Waist to Spherical propagation stopped, no change in distance.")
@@ -714,7 +714,7 @@ class FresnelWavefront(Wavefront):
 
         if not self.spherical:
             raise RuntimeError(
-                '_propagate_ptp can only start from a spherical wavefront, but was called with a planar one.')
+                '_propagate_stw can only start from a spherical wavefront, but was called with a planar one.')
 
         # dz = z2 - self.z
         _log.debug("Spherical to Waist propagation, dz=" + str(dz))
