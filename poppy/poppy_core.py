@@ -2358,8 +2358,8 @@ class FITSOpticalElement(OpticalElement):
                 if opd_index is None:
                     _log.info("The supplied pupil OPD is a datacube but no slice was specified. "
                               "Defaulting to use slice 0.")
-                    transmission_index = 0
-                self.opd_slice_index = transmission_index
+                    opd_index = 0
+                self.opd_slice_index = opd_index
                 self.opd = self.opd[self.opd_slice_index, :, :]
                 _log.debug(" Datacube detected, using slice ={0}".format(self.opd_slice_index))
 
