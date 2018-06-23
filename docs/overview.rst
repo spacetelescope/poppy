@@ -34,7 +34,7 @@ Given a specified instrument configuration, an appropriate `~poppy.OpticalSystem
 .. _fraunhofer:
 
 Fraunhofer domain calculations
-================================
+--------------------------------
 
 ``poppy``'s default mode assumes that optical propagation can be modeled using
 Fraunhofer diffraction (the "far field" approximation), such that the
@@ -72,7 +72,7 @@ onto a common pixel scale) more than makes up for this and the MFT is faster.
 
 
 Working with OpticalElements
-===================================
+----------------------------
 
 OpticalElements can be instantiated from FITS files, or created by one of a large number of analytic function definitions implemented as `~poppy.AnalyticOpticalElement` subclasses. 
 Typically these classes take some number of arguments to set their properties. 

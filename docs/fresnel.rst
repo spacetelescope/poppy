@@ -14,11 +14,9 @@ amplitude aberrations.
 .. caution::
         The Fresnel code has
         been cross-checked against the `PROPER library by John Krist
-        <http://proper-library.sourceforge.net>` to verify accuracy and correctness of
+        <http://proper-library.sourceforge.net>`_ to verify accuracy and correctness of
         output. A test suite is provided along with ``poppy`` in the tests subdirectory
-        and users are encouraged to run these tests themselves. However this is still
-        a relatively new addition to ``poppy``, and it is possible there may still be
-        some bugs.
+        and users are encouraged to run these tests themselves.
 
 
 
@@ -67,7 +65,7 @@ serves the same purpose in Fresnel propagation.  Note that when adding
 function and must specify a physical distance separating that optic from the
 previous optic, again as an `astropy.Quantity
 <http://docs.astropy.org/en/stable/units/>`_ of dimension length. This replaces
-the ``addImage`` and ``addPupil`` methods used in Fraunhofer propagation.
+the ``add_image`` and ``add_pupil`` methods used in Fraunhofer propagation.
 
 
 

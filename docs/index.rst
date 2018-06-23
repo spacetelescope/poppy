@@ -56,6 +56,7 @@ Contents
   relnotes.rst
   overview.rst
   examples.rst
+  available_optics.ipynb
   wfe.rst
   coronagraphs.rst
   fresnel.rst
