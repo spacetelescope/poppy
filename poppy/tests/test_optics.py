@@ -116,6 +116,7 @@ def test_AnnularFieldStop():
     assert wave.intensity[95,50] == 0
     # and check the area is approximately right
     expected_area = np.pi*(optic.radius_outer**2 - optic.radius_inner**2) * 100
+    expected_area = expected_area.to(u.arcsec**2).value
     area = wave.intensity.sum()
     assert np.abs(expected_area-area) < 0.01*expected_area
 

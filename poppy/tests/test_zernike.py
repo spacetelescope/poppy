@@ -247,8 +247,9 @@ def test_hex_aperture():
     npix_to_try = [10, 11, 12, 13, 100, 101, 512, 513]
 
     for npix in npix_to_try:
-        assert np.all(optics.HexagonAperture(side=1).sample(npix=npix) - zernike.hex_aperture(
-            npix=npix) == 0), "hex_aperture and HexagonAperture outputs differ for npix={}".format(npix)
+        assert np.all(optics.HexagonAperture(side=1).sample(npix=npix, grid_size=2) -
+                      zernike.hex_aperture( npix=npix) == 0), \
+                      "hex_aperture and HexagonAperture outputs differ for npix={}".format(npix)
 
 
 def test_zern_name():

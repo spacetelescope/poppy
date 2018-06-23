@@ -676,12 +676,13 @@ class RectangularFieldStop(AnalyticImagePlaneElement):
         Size of the field stop, in arcseconds. Default 0.5 width, height 5.
     """
 
-    def __init__(self, name="unnamed field stop", width=0.5, height=5.0, **kwargs):
+    @utils.quantity_input(width=u.arcsec, height=u.arcsec)
+    def __init__(self, name="unnamed field stop", width=0.5*u.arcsec, height=5.0*u.arcsec, **kwargs):
         AnalyticImagePlaneElement.__init__(self, **kwargs)
         self.name = name
-        self.width = float(width)  # width of square stop in arcseconds.
-        self.height = float(height)  # height of square stop in arcseconds.
-        self._default_display_size = max(height, width) * 1.2 * u.arcsec
+        self.width = width    # width of square stop in arcseconds.
+        self.height = height  # height of square stop in arcseconds.
+        self._default_display_size = max(height, width) * 1.2
 
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the field stop.
@@ -698,8 +699,8 @@ class RectangularFieldStop(AnalyticImagePlaneElement):
         y, x = self.get_coordinates(wave)
 
         w_outside = np.where(
-            (abs(y) > (self.height / 2)) |
-            (abs(x) > (self.width / 2))
+            (abs(y) > (self.height.to(u.arcsec).value / 2)) |
+            (abs(x) > (self.width.to(u.arcsec).value / 2))
         )
         del x  # for large arrays, cleanup very promptly, before allocating self.transmission
         del y
@@ -720,11 +721,12 @@ class SquareFieldStop(RectangularFieldStop):
         Size of the field stop, in arcseconds. Default 20.
     """
 
-    def __init__(self, name="unnamed field stop", size=20., **kwargs):
+    @utils.quantity_input(size=u.arcsec)
+    def __init__(self, name="unnamed field stop", size=20.*u.arcsec, **kwargs):
         RectangularFieldStop.__init__(self, width=size, height=size, **kwargs)
         self.name = name
         self.height = self.width
-        self._default_display_size = size * 1.2 * u.arcsec
+        self._default_display_size = size * 1.2
 
 
 class HexagonFieldStop(AnalyticImagePlaneElement):
@@ -822,12 +824,13 @@ class AnnularFieldStop(AnalyticImagePlaneElement):
         Radius of the circular field stop outer edge. Default is 10. Set to 0.0 for no outer edge.
     """
 
+    @utils.quantity_input(radius_inner=u.arcsec, radius_outer=u.arcsec)
     def __init__(self, name="unnamed annular field stop", radius_inner=0.0, radius_outer=1.0, **kwargs):
         AnalyticImagePlaneElement.__init__(self, **kwargs)
         self.name = name
-        self.radius_inner = radius_inner  # radius of circular occulter in arcseconds.
-        self.radius_outer = radius_outer  # radius of circular field stop in arcseconds.
-        self._default_display_size = 10 * u.arcsec  # radius_outer
+        self.radius_inner = radius_inner
+        self.radius_outer = radius_outer
+        self._default_display_size = 2* max(radius_outer, radius_inner)
 
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the field stop.
@@ -841,12 +844,13 @@ class AnnularFieldStop(AnalyticImagePlaneElement):
 
         self.transmission = np.ones(wave.shape, dtype=_float())
 
-        if self.radius_inner > 0:
-            w_inside = np.where(r <= self.radius_inner)
-            self.transmission[w_inside] = 0
+        radius_inner = self.radius_inner.to(u.arcsec).value
+        radius_outer = self.radius_outer.to(u.arcsec).value
+
+        if radius_inner > 0:
+            self.transmission[r <= radius_inner] = 0
         if self.radius_outer > 0:
-            w_outside = np.where(r >= self.radius_outer)
-            self.transmission[w_outside] = 0
+            self.transmission[r >= radius_outer] = 0
 
         return self.transmission
 
@@ -863,6 +867,7 @@ class CircularOcculter(AnnularFieldStop):
 
     """
 
+    @utils.quantity_input(radius=u.arcsec)
     def __init__(self, name="unnamed occulter", radius=1.0, **kwargs):
         super(CircularOcculter, self).__init__(name=name, radius_inner=radius, radius_outer=0.0, **kwargs)
         self._default_display_size = 10 * u.arcsec
@@ -877,14 +882,18 @@ class BarOcculter(AnalyticImagePlaneElement):
         Descriptive name
     width : float
         width of the bar stop, in arcseconds. Default is 1.0
+    height: float
+        heightof the bar stop, in arcseconds. Default is 10.0
 
     """
 
-    def __init__(self, name="bar occulter", width=1.0, **kwargs):
+    @utils.quantity_input(width=u.arcsec, height=u.arcsec)
+    def __init__(self, name="bar occulter", width=1.0*u.arcsec, height=10.0*u.arcsec, **kwargs):
         AnalyticImagePlaneElement.__init__(self, **kwargs)
         self.name = name
         self.width = width
-        self._default_display_size = 10 * u.arcsec
+        self.height= height
+        self._default_display_size = max(height, width) * 1.2
 
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the occulter.
@@ -895,7 +904,9 @@ class BarOcculter(AnalyticImagePlaneElement):
 
         y, x = self.get_coordinates(wave)
 
-        w_inside = np.where(np.abs(x) <= self.width / 2)
+        w_inside = np.where( (np.abs(x) <= self.width.to(u.arcsec).value / 2) &
+                             (np.abs(y) <= self.height.to(u.arcsec).value / 2) )
+
         self.transmission = np.ones(wave.shape, dtype=_float())
         self.transmission[w_inside] = 0
 
