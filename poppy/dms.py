@@ -511,7 +511,7 @@ class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
     """
 
     def __init__(self, rings=3, flattoflat=1.0 * u.m, gap=0.01 * u.m,
-                 name='DM', center=True):
+                 name='HexDM', center=True):
         optics.MultiHexagonAperture.__init__(self, name=name, rings=rings, flattoflat=flattoflat,
                                              gap=gap, center=center)
 
@@ -573,14 +573,14 @@ class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
 
         self.transmission = np.zeros((npix, npix))
         for i in self.segmentlist:
-            self._one_hexagon(wave, i, value=i)
+            self._one_hexagon(wave, i, value=i+1)
         self._seg_mask = self.transmission
         self._transmission = np.asarray(self._seg_mask != 0, dtype=float)
 
         y, x = poppy_core.Wavefront.pupil_coordinates((npix, npix), pixelscale)
 
         for i in self.segmentlist:
-            wseg = np.where(self._seg_mask == i)
+            wseg = np.where(self._seg_mask == i+1)
             self._seg_indices[i] = wseg
             ceny, cenx = self._hex_center(i)
             self._seg_x[wseg] = x[wseg] - cenx
