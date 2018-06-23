@@ -400,7 +400,7 @@ class ScalarTransmission(AnalyticOpticalElement):
         return res
 
 
-class InverseTransmission(OpticalElement):
+class InverseTransmission(AnalyticOpticalElement):
     """ Given any arbitrary OpticalElement with transmission T(x,y)
     return the inverse transmission 1 - T(x,y)
 
@@ -428,6 +428,12 @@ class InverseTransmission(OpticalElement):
 
     def get_opd(self, wave):
         return self.uninverted_optic.get_opd(wave)
+
+    def display(self, **kwargs):
+        if isinstance(self.uninverted_optic, AnalyticOpticalElement):
+            AnalyticOpticalElement.display(self, **kwargs)
+        else:
+            OpticalElement.display(self, **kwargs)
 
 
 # ------ Analytic Image Plane elements (coordinates in arcsec) -----
@@ -1734,6 +1740,29 @@ class GaussianAperture(AnalyticOpticalElement):
 
 
 # ------ generic analytic optics ------
+
+class KnifeEdge(AnalyticOpticalElement):
+    """ A half-infinite opaque plane, with a perfectly sharp edge
+    through the origin.
+
+    Use the 'rotation', 'shift_x', and 'shift_y' parameters to adjust
+    location and orientation.
+
+    Rotation=0 yields a knife edge oriented vertically (edge parallel to +y)
+    with the opaque side to the right.
+
+    """
+    def __init__(self, name=None, rotation=0, **kwargs):
+        if name is None:
+            name = "Knife edge at {} deg".format(rotation)
+        AnalyticOpticalElement.__init__(self, name=name, rotation=rotation, **kwargs)
+
+    def get_transmission(self,wave):
+        if not isinstance(wave, Wavefront):  # pragma: no cover
+            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
+        y, x = self.get_coordinates(wave)
+        return x < 0
+
 
 class CompoundAnalyticOptic(AnalyticOpticalElement):
     """ Define a compound analytic optical element made up of the combination
