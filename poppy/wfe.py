@@ -22,6 +22,7 @@ from .optics import AnalyticOpticalElement, CircularAperture
 from .poppy_core import Wavefront, PlaneType
 from . import zernike
 from . import utils
+from . import accel_math
 
 __all__ = ['WavefrontError', 'ParameterizedWFE', 'ZernikeWFE', 'SineWaveWFE']
 
@@ -96,11 +97,13 @@ def _wave_y_x_to_rho_theta(y, x, pupil_radius):
     pupil_radius : float
         Radius (in meters) of a circle circumscribing the pupil.
     """
-    r = np.sqrt(x ** 2 + y ** 2)
 
-    rho = r / pupil_radius
-    theta = np.arctan2(y / pupil_radius, x / pupil_radius)
-
+    if accel_math._USE_NUMEXPR:
+        rho = ne.evaluate("sqrt(x**2+y**2)/pupil_radius")
+        theta = ne.evaluate("arctan2(y / pupil_radius, x / pupil_radius)")
+    else:
+        rho = np.sqrt(x ** 2 + y ** 2) / pupil_radius
+        theta = np.arctan2(y / pupil_radius, x / pupil_radius)
     return rho, theta
 
 
@@ -144,7 +147,7 @@ class ParameterizedWFE(WavefrontError):
     """
 
     @utils.quantity_input(coefficients=u.meter, radius=u.meter)
-    def __init__(self, name="Parameterized Distortion", coefficients=None, radius=None,
+    def __init__(self, name="Parameterized Distortion", coefficients=None, radius=1*u.meter,
                  basis_factory=None, **kwargs):
         if not isinstance(basis_factory, collections.Callable):
             raise ValueError("'basis_factory' must be a callable that can "
@@ -152,6 +155,7 @@ class ParameterizedWFE(WavefrontError):
         self.radius = radius
         self.coefficients = coefficients
         self.basis_factory = basis_factory
+        self._default_display_size = radius * 3
         super(ParameterizedWFE, self).__init__(name=name, **kwargs)
 
     @_accept_wavefront_or_meters
@@ -195,11 +199,13 @@ class ZernikeWFE(WavefrontError):
     """
 
     @utils.quantity_input(coefficients=u.meter, radius=u.meter)
-    def __init__(self, name="Zernike WFE", coefficients=None, radius=None, **kwargs):
+    def __init__(self, name="Zernike WFE", coefficients=None, radius=None,
+            aperture_stop=False, **kwargs):
         self.radius = radius
-
+        self.aperture_stop=aperture_stop
         self.coefficients = coefficients
         self.circular_aperture = CircularAperture(radius=self.radius, **kwargs)
+        self._default_display_size = radius * 3
         kwargs.update({'name': name})
         super(ZernikeWFE, self).__init__(**kwargs)
 
@@ -260,6 +266,12 @@ class ZernikeWFE(WavefrontError):
             combined_zernikes /= wave.wavelength.to(u.meter).value
         return combined_zernikes
 
+
+    def get_transmission(self, wave):
+        if self.aperture_stop:
+            return self.circular_aperture.get_transmission(wave)
+        else:
+            return np.ones(wave.shape)
 
 class SineWaveWFE(WavefrontError):
     """ A single sine wave ripple across the optic

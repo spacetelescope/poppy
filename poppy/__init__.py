@@ -116,12 +116,7 @@ from .special_prop import *
 from .instrument import Instrument
 
 # if we might have autosaved, then auto reload as well
-if conf.use_fftw and conf.autosave_fftw_wisdom:
-    try:
-        import pyfftw
-
-        utils.fftw_load_wisdom()
-    except ImportError:
-        pyfftw = None
+#if accel_math._FFTW_AVAILABLE:
+#    utils.fftw_load_wisdom()
 
 __all__ = ['conf', 'Instrument'] + utils.__all__ + poppy_core.__all__ + optics.__all__ + fresnel.__all__ + wfe.__all__

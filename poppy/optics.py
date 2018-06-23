@@ -21,8 +21,8 @@ if accel_math._USE_NUMEXPR:
 _log = logging.getLogger('poppy')
 
 __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'InverseTransmission',
-           'BandLimitedCoron', 'IdealFQPM', 'RectangularFieldStop', 'SquareFieldStop',
-           'AnnularFieldStop',
+           'BandLimitedCoron', 'BandLimitedCoronagraph', 'IdealFQPM', 'RectangularFieldStop', 'SquareFieldStop',
+           'AnnularFieldStop', 'HexagonFieldStop',
            'CircularOcculter', 'BarOcculter', 'FQPM_FFT_aligner', 'CircularAperture',
            'HexagonAperture', 'MultiHexagonAperture', 'NgonAperture', 'RectangleAperture',
            'SquareAperture', 'SecondaryObscuration', 'AsymmetricSecondaryObscuration',
@@ -139,7 +139,7 @@ class AnalyticOpticalElement(OpticalElement):
         return self.get_phasor(wave)
 
     @utils.quantity_input(wavelength=u.meter)
-    def sample(self, wavelength=2e-6 * u.meter, npix=512, grid_size=None, what='amplitude',
+    def sample(self, wavelength=1e-6 * u.meter, npix=512, grid_size=None, what='amplitude',
                return_scale=False, phase_unit='waves'):
         """ Sample the Analytic Optic onto a grid and return the array
 
@@ -167,15 +167,16 @@ class AnalyticOpticalElement(OpticalElement):
         if self.planetype != PlaneType.image:
             if grid_size is not None:
                 diam = grid_size if isinstance(grid_size, u.Quantity) else grid_size * u.meter
+            elif hasattr(self, '_default_display_size'):
+                diam = self._default_display_size
             elif hasattr(self, 'pupil_diam'):
                 diam = self.pupil_diam * 1
             else:
-                diam = 6.5 * u.meter
+                diam = 1.0 * u.meter
             w = Wavefront(wavelength=wavelength, npix=npix, diam=diam)
             pixel_scale = diam / (npix * u.pixel)
 
         else:
-
             if grid_size is not None:
                 fov = grid_size if isinstance(grid_size, u.Quantity) else grid_size * u.arcsec
             elif hasattr(self, '_default_display_size'):
@@ -415,6 +416,8 @@ class InverseTransmission(OpticalElement):
         self.planetype = optic.planetype
         self.pixelscale = optic.pixelscale
         self.oversample = optic.oversample
+        if hasattr(self.uninverted_optic, '_default_display_size'):
+            self._default_display_size = self.uninverted_optic._default_display_size
 
     @property
     def shape(self):  # override parent class shape function
@@ -440,7 +443,7 @@ class AnalyticImagePlaneElement(AnalyticOpticalElement):
         self.wavefront_display_hint = 'intensity'  # preferred display for wavefronts at this plane
 
 
-class BandLimitedCoron(AnalyticImagePlaneElement):
+class BandLimitedCoronagraph(AnalyticImagePlaneElement):
     """ Defines an ideal band limited coronagraph occulting mask.
 
 
@@ -614,6 +617,8 @@ class BandLimitedCoron(AnalyticImagePlaneElement):
             _log.warning("There are NaNs in the BLC mask - correcting to zero. (DEBUG LATER?)")
             self.transmission[np.where(np.isfinite(self.transmission) == False)] = 0
         return self.transmission
+
+BandLimitedCoron=BandLimitedCoronagraph # Back compatibility for old name.
 
 
 class IdealFQPM(AnalyticImagePlaneElement):
@@ -1030,6 +1035,7 @@ class CircularAperture(AnalyticOpticalElement):
         self.radius = radius
         # for creating input wavefronts - let's pad a bit:
         self.pupil_diam = pad_factor * 2 * self.radius
+        self._default_display_size = 3 * self.radius
 
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the aperture.
@@ -1083,6 +1089,7 @@ class HexagonAperture(AnalyticOpticalElement):
             self.side = flattoflat / np.sqrt(3.)
 
         self.pupil_diam = 2 * self.side  # for creating input wavefronts
+        self._default_display_size = 3 * self.side
         if name is None:
             name = "Hexagon, side length= {}".format(self.side)
 
@@ -1640,7 +1647,7 @@ class ThinLens(CircularAperture):
 
     @utils.quantity_input(reference_wavelength=u.meter)
     def __init__(self, name='Thin lens', nwaves=4.0, reference_wavelength=2e-6 * u.meter,
-                 radius=None, **kwargs):
+                 radius=1.0*u.meter, **kwargs):
         self.reference_wavelength = reference_wavelength
         self.nwaves = nwaves
         self.max_phase_delay = reference_wavelength * nwaves
@@ -1705,7 +1712,7 @@ class GaussianAperture(AnalyticOpticalElement):
             pupil_diam = 3 * self.fwhm  # for creating input wavefronts
         self.pupil_diam = pupil_diam
         if name is None:
-            name = "Gaussian aperture with fwhm ={0}".format(self.fwhm)
+            name = "Gaussian aperture with fwhm ={0:.2f}".format(self.fwhm)
         AnalyticOpticalElement.__init__(self, name=name, planetype=PlaneType.pupil, **kwargs)
 
     @property
@@ -1773,7 +1780,6 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
         AnalyticOpticalElement.__init__(self, name=name, verbose=verbose, **kwargs)
 
         self.opticslist = []
-        self._default_display_size = 3 * u.arcsec
         self.planetype = None
 
         # check for valid mergemode
@@ -1801,8 +1807,11 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
 
                 self.opticslist.append(optic)
                 if hasattr(optic, '_default_display_size'):
-                    self._default_display_size = max(self._default_display_size,
-                                                     optic._default_display_size)
+                    if hasattr(self, '_default_display_size'):
+                        self._default_display_size = max(self._default_display_size,
+                                                         optic._default_display_size)
+                    else:
+                        self._default_display_size = optic._default_display_size
                 if hasattr(optic, 'pupil_diam'):
                     if not hasattr(self, 'pupil_diam'):
                         self.pupil_diam = optic.pupil_diam
