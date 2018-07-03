@@ -354,6 +354,7 @@ class Instrument(object):
         Modifies the 'result' HDUList object.
 
         """
+
         output_mode = options.get('output_mode', 'Both as FITS extensions')
         detector_oversample = options.get('detector_oversample', 1)
 
@@ -362,35 +363,51 @@ class Instrument(object):
             # the primary HDU. Nothing special needs to be done.
             poppy_core._log.info(" Returning only the oversampled data. Oversampled by {}".format(detector_oversample))
             return
+
         elif (output_mode == 'Detector sampled image') or ('detector' in output_mode.lower()):
             # output only the detector sampled image as primary HDU.
             # need to downsample it and replace the existing primary HDU
             if options['detector_oversample'] > 1:
                 poppy_core._log.info(" Downsampling to detector pixel scale, by {}".format(detector_oversample))
-                result[0].data = utils.rebin_array(result[0].data,
-                                                   rc=(detector_oversample, detector_oversample))
+                for ext in range(len(result)):
+                    result[ext].data = utils.rebin_array(result[ext].data,
+                                                         rc=(detector_oversample, detector_oversample))
             else:
                 poppy_core._log.info(" Result already at detector pixel scale; no downsampling needed.")
-            result[0].header['OVERSAMP'] = (1, 'These data are rebinned to detector pixels')
-            result[0].header['CALCSAMP'] = (detector_oversample, 'This much oversampling used in calculation')
-            result[0].header['EXTNAME'] = ('DET_SAMP', "This extension is at detector sampling")
-            result[0].header['PIXELSCL'] *= detector_oversample
+
+            for ext in np.arange(len(result)):
+                result[ext].header['OVERSAMP'] = (1, 'These data are rebinned to detector pixels')
+                result[ext].header['CALCSAMP'] = (detector_oversample, 'This much oversampling used in calculation')
+                result[ext].header['PIXELSCL'] *= detector_oversample
+                result[ext].header['EXTNAME'] = result[ext].header['EXTNAME'].replace("OVER", "DET_")
             return
+
         elif (output_mode == 'Both as FITS extensions') or ('both' in output_mode.lower()):
             # return the downsampled image in the first image extension
             # keep the oversampled image in the primary HDU.
             # create the image extension even if we're already at 1x sampling, for consistency
             poppy_core._log.info(" Adding extension with image downsampled to detector pixel scale.")
-            rebinned_result = result[0].copy()
-            if options['detector_oversample'] > 1:
-                poppy_core._log.info(" Downsampling to detector pixel scale, by {}".format(detector_oversample))
-                rebinned_result.data = utils.rebin_array(rebinned_result.data,
-                                                         rc=(detector_oversample, detector_oversample))
-            rebinned_result.header['OVERSAMP'] = (1, 'These data are rebinned to detector pixels')
-            rebinned_result.header['CALCSAMP'] = (detector_oversample, 'This much oversampling used in calculation')
-            rebinned_result.header['EXTNAME'] = 'DET_SAMP'
-            rebinned_result.header['PIXELSCL'] *= detector_oversample
-            result.append(rebinned_result)
+
+            hdu = fits.HDUList()  # append to new hdulist object to preserve the order
+            for ext in np.arange(len(result)):
+                rebinned_result = result[ext].copy()
+                if options['detector_oversample'] > 1:
+                    poppy_core._log.info(" Downsampling to detector pixel scale, by {}".format(detector_oversample))
+                    rebinned_result.data = utils.rebin_array(rebinned_result.data,
+                                                             rc=(detector_oversample, detector_oversample))
+
+                rebinned_result.header['OVERSAMP'] = (1, 'These data are rebinned to detector pixels')
+                rebinned_result.header['CALCSAMP'] = (detector_oversample, 'This much oversampling used in calculation')
+                rebinned_result.header['PIXELSCL'] *= detector_oversample
+                rebinned_result.header['EXTNAME'] = rebinned_result.header['EXTNAME'].replace("OVER", "DET_")
+
+                hdu.append(result[ext])
+                hdu.append(rebinned_result)
+
+            # Create enough new extensions to append all psfs to them
+            [result.append(fits.ImageHDU()) for i in np.arange(len(hdu) - len(result))]
+            for ext in np.arange(len(hdu)): result[ext] = hdu[ext]
+
             return
 
     def _get_fits_header(self, result, options):
