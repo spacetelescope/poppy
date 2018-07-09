@@ -975,7 +975,7 @@ class FresnelOpticalSystem(OpticalSystem):
         Diameter of entrance pupil
     npix : int
         Number of pixels across the entrance pupil by default 1024
-    beam_ratio : int
+    beam_ratio : float
         Padding factor for the entrance pupil; what fraction of the array should
         correspond to the entrance pupil. Default is 0.5, which corresponds to
         Nyquist sampling (2 pixels per resolution element)
