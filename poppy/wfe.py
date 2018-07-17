@@ -99,8 +99,8 @@ def _wave_y_x_to_rho_theta(y, x, pupil_radius):
     """
 
     if accel_math._USE_NUMEXPR:
-        rho = ne.evaluate("sqrt(x**2+y**2)/pupil_radius")
-        theta = ne.evaluate("arctan2(y / pupil_radius, x / pupil_radius)")
+        rho = accel_math.ne.evaluate("sqrt(x**2+y**2)/pupil_radius")
+        theta = accel_math.ne.evaluate("arctan2(y / pupil_radius, x / pupil_radius)")
     else:
         rho = np.sqrt(x ** 2 + y ** 2) / pupil_radius
         theta = np.arctan2(y / pupil_radius, x / pupil_radius)
