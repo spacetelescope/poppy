@@ -688,7 +688,7 @@ class Instrument(object):
 
             sigma = local_options.get('jitter_sigma')
             if sigma is None:
-                poppy_core._log.warn(
+                poppy_core._log.warning(
                     "Gaussian jitter model requested, but no width for jitter distribution specified. " +
                     "Assuming jitter_sigma = 0.007 arcsec by default")
                 sigma = 0.007
@@ -913,11 +913,11 @@ class Instrument(object):
                         "when Pysynphot is not installed.".format(filterfile, waveunit))
             else:
                 waveunit = 'Angstrom'
-                poppy_core._log.warn(
+                poppy_core._log.warning(
                     "CAUTION: no WAVEUNIT keyword found in filter file {0}. Assuming = {1} by default".format(
                         filterfile, waveunit))
 
-            poppy_core._log.warn(
+            poppy_core._log.warning(
                 "CAUTION: Just interpolating rather than integrating filter profile, over {0} steps".format(nlambda))
             wtrans = np.where(throughputs > 0.4)
             lrange = wavelengths[wtrans] * 1e-10  # convert from Angstroms to Meters

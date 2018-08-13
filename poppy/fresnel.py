@@ -268,7 +268,7 @@ class FresnelWavefront(Wavefront):
             _log.debug("Skipping oversampling, oversample < 1 or already padded ")
 
         if self.oversample < 2:
-            _log.warn("Oversampling > 2x suggested for reliable results.")
+            _log.warning("Oversampling > 2x suggested for reliable results.")
 
         self._y, self._x = np.indices(self.shape, dtype=float)
         self._y -= (self.wavefront.shape[0]) / 2.0
@@ -622,7 +622,7 @@ class FresnelWavefront(Wavefront):
         if isinstance(dz, u.quantity.Quantity):
             z_direct = dz.to(u.m).value  # convert to meters.
         else:
-            _log.warn("z= {0:0.2e}, has no units, assuming meters ".format(dz))
+            _log.warning("z= {0:0.2e}, has no units, assuming meters ".format(dz))
             z_direct = dz
 
         if np.abs(dz) < 1 * u.Angstrom:

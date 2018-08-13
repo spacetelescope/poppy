@@ -221,7 +221,7 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
     if not n >= m:
         raise ValueError("Zernike index m must be >= index n")
     if (n - m) % 2 != 0:
-        _log.warn("Radial polynomial is zero for these inputs: m={}, n={} "
+        _log.warning("Radial polynomial is zero for these inputs: m={}, n={} "
                   "(are you sure you wanted this Zernike?)".format(m, n))
     _log.debug("Zernike(n=%d, m=%d)" % (n, m))
 
@@ -863,7 +863,7 @@ def opd_expand(opd, aperture=None, nterms=15, basis=zernike_basis,
     """
 
     if aperture is None:
-        _log.warn("No aperture supplied - "
+        _log.warning("No aperture supplied - "
                   "using the finite (non-NaN) part of the OPD map as a guess.")
         aperture = np.isfinite(opd)  # . astype(np.float)
 
@@ -928,7 +928,7 @@ def opd_expand_nonorthonormal(opd, aperture=None, nterms=15, basis=zernike_basis
     """
 
     if aperture is None:
-        _log.warn("No aperture supplied - "
+        _log.warning("No aperture supplied - "
                   "using the finite (non-NaN) part of the OPD map as a guess.")
         aperture = np.isfinite(opd)
 
