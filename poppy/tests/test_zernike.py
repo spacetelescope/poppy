@@ -270,3 +270,83 @@ def test_zernike_basis_faster():
     assert np.allclose(bf,bs), "Fast zernike basis calculation doesn't match the slow calculation"
 
 
+def test_piston_basis(verbose=False):
+    """ Test that we can create randomly-pistoned segments, and then
+    re-determine the amounts of those pistons.
+
+    This tests both the segment
+    """
+
+    segment_piston_basis = zernike.Segment_Piston_Basis(rings=2)
+
+    random_pistons = np.random.randn(18)
+
+    pistoned_opd = zernike.opd_from_zernikes(basis=segment_piston_basis, coeffs=random_pistons, outside=0)
+    aperture = segment_piston_basis.aperture()
+    #aperture = np.asarray(pistoned_opd != 0, dtype=int)
+
+    results = zernike.opd_expand_segments(pistoned_opd, basis=segment_piston_basis, aperture=aperture, nterms=18, verbose=verbose)
+
+    if verbose:
+        print(random_pistons)
+        print(results)
+
+    assert np.allclose(random_pistons, results)
+
+    return random_pistons, results, pistoned_opd
+
+
+def test_ptt_basis(verbose=False, plot=False,
+                   tiptiltonly=True, pistononly=False,
+                  rings=2):
+    """ Test that we can create randomly-pistoned, tipped, and tilted segments, and then
+    re-determine the amounts of those deviations. """
+
+    segment_ptt_basis = zernike.Segment_PTT_Basis(rings=rings)
+
+    # Make some random aberrations
+    random_ptt = np.random.randn(segment_ptt_basis.nsegments*3)
+    if tiptiltonly:
+        for i in range(segment_ptt_basis.nsegments):
+            random_ptt[i*3] = 0
+    elif pistononly:
+        for i in range(segment_ptt_basis.nsegments):
+            random_ptt[i*3+1] = 0
+            random_ptt[i*3+2] = 0
+    else:
+        # make the pistons small compared to the tips & tilts
+        for i in range(segment_ptt_basis.nsegments):
+            random_ptt[i*3] *= 1e-3
+
+    # Generate an OPD with those aberrations
+    ptted_opd = zernike.opd_from_zernikes(basis=segment_ptt_basis, coeffs=random_ptt, outside=0)
+
+    # Perform a fit to measure them
+    results = zernike.opd_expand_segments(ptted_opd,
+                                  basis=segment_ptt_basis,
+                                  aperture=segment_ptt_basis.aperture(),
+                                  nterms=segment_ptt_basis.nsegments*3,
+                                  verbose=verbose)
+
+    # Generate another OPD to show the measurements
+    ptted_v2 = zernike.opd_from_zernikes(basis=segment_ptt_basis, coeffs=results, outside=0)
+
+    if verbose:
+        print(random_ptt)
+        print(results)
+    if plot:
+        plt.subplot(121)
+        ax = plt.imshow(ptted_opd)
+        plt.title("Randomly generated OPD")
+        plt.subplot(122)
+        ax2 = plt.imshow(ptted_v2, norm=ax.norm)
+        plt.title("Reproduced from fit coefficients")
+
+    # adjust tolerances for the ones that are precisely zero - allow larger atol since rtol doesn't help there.
+    wz = np.where(random_ptt ==0)
+    wnz = np.where(random_ptt !=0)
+
+    assert np.allclose(random_ptt[wnz], results[wnz])
+    assert np.allclose(random_ptt[wz], results[wz], atol=1e-6)
+
+    return random_ptt, results, ptted_opd, ptted_v2

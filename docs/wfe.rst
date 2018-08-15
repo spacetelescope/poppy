@@ -1,7 +1,12 @@
+.. _wfe:
+
 Representing sources of wavefront error
 =======================================
 
-POPPY allows you to introduce wavefront error at any plane in an optical system through use of a wavefront error optical element. For Fraunhofer-domain propagation, the optical element types discussed here will act as pupil-conjugate planes. Currently, there is the `~poppy.ZernikeWFE` optical element to represent wavefront error as a combination of Zernike terms, and the `~poppy.ParameterizedWFE` optical element that offers the ability to specify basis sets other than Zernikes.
+POPPY allows you to introduce wavefront error at any plane in an optical system through use of a wavefront error optical element. For Fraunhofer-domain propagation, the optical element types discussed here will act as pupil-conjugate planes. Currently, there is the `~poppy.ZernikeWFE` optical element to represent wavefront error as a combination of Zernike terms, and the `~poppy.ParameterizedWFE` optical element that offers the ability to specify basis sets other than Zernikes. Several such :ref:`basis functions <basis_functions>` are provided, along with tools for composing and decomposing wavefront errors using these bases. There is also a `~poppy.SineWaveWFE` element that lets you represent a simple sinusoidal phase ripple.
+
+
+
 
 ZernikeWFE
 ----------
@@ -212,6 +217,51 @@ If we plot the new PSF, we will get a hexagonal PSF with a central minimum typic
    :scale: 50%
 
    A defocused PSF from a hexagonal aperture and a "Hexike" polynomial term to express the defocus.
+
+.. _basis_functions:
+
+Basis functions for modeling wavefront error
+---------------------------------------------
+
+
+Zernike polynomials are most generally referred to via a tuple of indices :math:`(n,m)`. The following functions
+compute Zernikes given :math:`(n,m)`.
+
+ * :func:`poppy.zernike.zernike` computes a 2D array for a specified Zernike
+ * :func:`poppy.zernike.str_zernike` returns the analytic Zernike polynomial in LaTeX formatting.
+
+But in many cases it is more practical to reference Zernikes via a 1-dimensional index.
+`poppy` does this using the so-called Noll indexing convention (Noll et al. JOSA 1976). Conversion from 1-D to
+2-D indices is via the :func:`poppy.zernike.noll_indices` function.
+
+ * :func:`poppy.zernike.zernike1` returns the Zernike polynomial :math:`Z_j`.
+ * :func:`poppy.zernike.cached_zernike1` is a faster but somewhat less flexible computation of :math:`Z_j`.
+ * :func:`poppy.zernike.zern_name` returns a descriptive name such as "spherical" or "coma" for a given :math:`Z_j`.
+
+Frequently we want to work with an entire basis set of Zernike polynomials at once. `poppy` implements this
+via "basis functions", which each return 3-d ndarray datacubes including the first :math:`n` terms
+of a given basis set. Several such bases are available. Each of these functions takes as arguments the number of terms
+desired in the basis, as well as the desired sampling (how many pixels across each side of the output arrays).
+
+ * :func:`poppy.zernike.zernike_basis` is the standard Zernike polynomials over a unit circle
+ * :func:`poppy.zernike.hexike_basis` is the Hexikes over a unit hexagon
+ * :func:`poppy.zernike.arbitrary_basis` uses the Gram-Schmidt orthonormalization algorthm to generate an
+   orthonormal basis for any supplied arbitrary aperture shape.
+ * :class:`poppy.zernike.Segment_Piston_Basis` implements bases defined by hexagonal segments controlled in piston only. Unlike the prior basis functions, this one is a function class: first you must instantiate it to specify the desired number of hexagons and other pupil geometry information, and then you can use the resulting object as a basis function to compute the hexikes.
+ * :class:`poppy.zernike.Segment_PTT_Basis` is similar, but each segment can be controlled in piston, tip, and tilt.
+
+.. comment:
+ * :func:`poppy.zernike.hexike_basis_wss` is an alternate ordering of the first 9 hexikes, rearranged for consistency with the order used by the JWST Wavefront Control Subsystem software.
+
+Using any of the above basis functions, OPD arrays can be decomposed into coefficients per each term, or conversely
+OPD arrays can be generated from provided coefficients. There are several functions provided for OPD decomposition, tuned for different usage scenarios.
+
+ * :func:`poppy.zernike.opd_from_zernikes` generates an OPD from providend coefficients. Despite the name this function can actually be used with any of the above basis sets.
+ * :func:`poppy.zernike.opd_expand` projects a given OPD into a Zernike or Hexike basis, and returns the resulting coefficients. This works best when dealing with cases closer to ideal, i.e. Zernikes over an actually-circular aperture.
+ * :func:`poppy.zernike.opd_expand_nonorthonormal` does the same, but uses an alternate iterative algorithm that works better when dealing with basis sets that are not strictly orthonormal over the given aperture.
+ * :func:`poppy.zernike.opd_expand_segments` uses the same iterative algorithm but with some adjustments to better handle spatially disjoint basis elements such as different segments. Use this for best results if you're dealing with a segmented aperture.
+
+
 
 .. rubric:: Footnotes
 

@@ -8,15 +8,16 @@ measuring and modeling wavefronts:
 
     * the classical Zernike polynomials, which are orthonormal over the unit circle.
     * 'Hexikes', orthonormal over the unit hexagon
-    * 'jwexikes', a custom set orthonormal over a numerically supplied JWST pupil.
-        (or other generalized pupil)
+    * tools for creating a custom set orthonormal over a numerically supplied JWST pupil,
+        or other generalized pupil
+    * Segmented bases with piston, tip, & tilt of independent hexagonal segments.
 
 For definitions of Zernikes and a basic introduction to why they are a useful way to
 parametrize data, see e.g.
     Hardy's 'Adaptive Optics for Astronomical Telescopes' section 3.5.1
     or even just the Wikipedia page is pretty decent.
 
-For definition of the hexagon and JW pupil polynomials, a good reference to the
+For definition of the hexagon and arbitrary pupil polynomials, a good reference to the
 Gram-Schmidt orthonormalization process as applied to this case is
     Mahajan and Dai, 2006. Optics Letters Vol 31, 16, p 2462:
 """
@@ -29,6 +30,8 @@ import numpy as np
 import sys
 import logging
 
+import astropy.units as u
+
 from poppy.poppy_core import Wavefront
 
 if sys.version_info > (3, 2):
@@ -38,7 +41,9 @@ else:
 
 __all__ = [
     'R', 'cached_zernike1', 'hex_aperture', 'hexike_basis', 'noll_indices',
-    'opd_expand', 'str_zernike', 'zern_name', 'zernike', 'zernike1', 'zernike_basis'
+    'opd_expand', 'opd_expand_nonorthonormal', 'opd_expand_segments', 'opd_from_zernikes',
+    'str_zernike', 'zern_name', 'zernike', 'zernike1', 'zernike_basis',
+    'Segment_Piston_Basis','Segment_PTT_Basis', 'arbitrary_basis'
 ]
 
 _log = logging.getLogger(__name__)
@@ -196,7 +201,7 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
     ----------
     n, m : int
         Zernike function degree
-    npix: int
+    npix : int
         Desired diameter for circular pupil. Only used if `rho` and
         `theta` are not provided.
     rho, theta : array_like
@@ -318,7 +323,7 @@ def zernike_basis(nterms=15, npix=512, rho=None, theta=None, **kwargs):
         Number of Zernike terms to return, starting from piston.
         (e.g. ``nterms=1`` would return only the Zernike piston term.)
         Default is 15.
-    npix: int
+    npix : int
         Desired pixel diameter for circular pupil. Only used if `rho`
         and `theta` are not provided.
     rho, theta : array_like
@@ -812,6 +817,125 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
 
     return basis
 
+class Segment_PTT_Basis(object):
+    def __init__(self, rings=2, flattoflat=1*u.m, gap=1*u.cm, center=False,
+                pupil_diam=None):
+        """
+        Eigenbasis of segment pistons, tips, tilts.
+        (Or of pistons only using the Segment_Piston_Basis subclass.)
+
+        The aperture geometry is specified identically to
+        the MultiHexagonAperture class. Set that when creating
+        an instance of this class, then you can call the resulting function object
+        to generate a basis set with the desired sampling, or pass it to
+        the opd_from_zernikes or opd_expand_segments functions.
+
+        The basis is generated over a square array that exactly circumscribes
+        the hexagonal aperture.
+
+        Parameters
+        ----------
+        rings : int
+            Number of rings of segments
+        flattoflat : float or astropy.Quantity length
+            Size of a single segment
+        gap : float or astropy.Quantity length
+            Gap between adjacent segments
+        center : bool
+            Include the center segment?
+        pupil_diam : float oar astropy.Quantity length
+            Diameter of the array on which to generate the basis; by default
+            this is chosen to circumscribe the multihex aperture given the
+            specified segment and gap sizes and number of segments.
+
+        """
+        # Internally this is implemented as a wrapper on HexDM which in turn is
+        # a wrapper on MultiHexagonAperture
+        import poppy.dms
+        self.hexdm = poppy.dms.HexSegmentedDeformableMirror(rings=rings,
+                                              flattoflat=flattoflat,
+                                              gap=gap,
+                                              center=center)
+        if pupil_diam is not None:
+            self.hexdm.pupil_diam = pupil_diam
+        self.segmentlist = self.hexdm.segmentlist
+        self.nsegments = len(self.hexdm.segmentlist)
+
+    def aperture(self, npix=512):
+        """ Return the overall aperture across all segments """
+        return self.hexdm.sample(npix=npix)
+
+    def __call__(self, nterms=None, npix=512, outside=np.nan):
+        """ Generate PTT basis ndarray for the specified aperture
+
+        Parameters
+        ----------
+        nterms : int
+            Number of terms. Set to 3x the number of segments.
+        npix : int
+            Size, in pixels, of the aperture array.
+        outside : float
+            Value for pixels outside the specified aperture.
+            Default is `np.nan`, but you may also find it useful for this to
+            be 0.0 sometimes.
+
+        """
+
+        if nterms is None:
+            nterms = 3*self.nsegments
+        elif nterms > 3*self.nsegments:
+            raise ValueError("nterms must be <= {} for the specified segment aperture.".format(3*self.nsegments))
+
+        # Re-use the machinery inside the HexSegmentedDM class to set up the
+        # arrays defining the segment and zernike geometry.
+        self.hexdm.sample(npix=npix)
+
+        # For simplicity we always generate the basis for all the segments
+        # even if for some reason the user has set a smaller nterms.
+        basis = np.zeros((self.nsegments*3, npix, npix))
+        basis[:] = outside
+        for i, segi in enumerate(self.hexdm.segmentlist):
+            wseg = self.hexdm._seg_indices[segi]
+            basis[i*3][wseg] = 1   #Piston
+            basis[i*3+1][wseg] = self.hexdm._seg_x[wseg] # Tip
+            basis[i*3+2][wseg] = self.hexdm._seg_y[wseg] # Tilt
+
+        return basis[0:nterms]
+
+class Segment_Piston_Basis(Segment_PTT_Basis):
+    def __call__(self, nterms=None, npix=512, outside=np.nan):
+        """ Generate piston-only basis ndarray for the specified aperture
+
+        Parameters
+        ----------
+        nterms : int
+            Number of terms. Set to 3x the number of segments.
+        npix : int
+            Size, in pixels, of the aperture array.
+        outside : float
+            Value for pixels outside the specified aperture.
+            Default is `np.nan`, but you may also find it useful for this to
+            be 0.0 sometimes.
+
+        """
+
+        if nterms is None:
+            nterms = self.nsegments
+        elif nterms > self.nsegments:
+            raise ValueError("nterms must be <= {} for the specified segment aperture.".format(self.nsegments))
+
+        aperture = self.hexdm.sample(npix=npix)
+
+        # For simplicity we always generate the basis for all the segments
+        # even if for some reason the user has set a smaller nterms.
+        basis = np.zeros((self.nsegments, npix, npix))
+        basis[:] = outside
+        for i, segi in enumerate(self.hexdm.segmentlist):
+            wseg = self.hexdm._seg_indices[segi]
+            basis[i][wseg] = 1   #Piston
+
+        return basis[0:nterms]
+
 
 def opd_expand(opd, aperture=None, nterms=15, basis=zernike_basis,
                **kwargs):
@@ -820,7 +944,9 @@ def opd_expand(opd, aperture=None, nterms=15, basis=zernike_basis,
 
     Note that this implementation of the function treats the Zernikes as
     an orthonormal basis, which is only true on the unobscured unit circle.
-    See also `opd_expand_nonorthonormal` for an alternative approach.
+    See also `opd_expand_nonorthonormal` for an alternative approach for
+    basis vectors that are not orthonormal, or `opd_expand_segments` for
+    basis vectors defined over physically disjoint segments.
 
     Parameters
     ----------
@@ -888,7 +1014,7 @@ def opd_expand(opd, aperture=None, nterms=15, basis=zernike_basis,
 
 
 def opd_expand_nonorthonormal(opd, aperture=None, nterms=15, basis=zernike_basis_faster,
-                              iterations=5, **kwargs):
+                              iterations=5, verbose=False, **kwargs):
     """ Modified version of opd_expand, for cases where the basis function is
     *not* orthonormal, for instance using the regular Zernike functions on
     obscured apertures.
@@ -962,6 +1088,8 @@ def opd_expand_nonorthonormal(opd, aperture=None, nterms=15, basis=zernike_basis
             this_coeff = (opd_copy * b)[wgood].sum() / ngood
             opd_copy -= this_coeff * b
             coeffs[i] += this_coeff
+        if verbose:
+            print("Iteration {}/{}: {}".format(count, iterations, coeffs))
 
     return coeffs
 
@@ -1014,10 +1142,124 @@ def opd_from_zernikes(coeffs, basis=zernike_basis_faster, aperture=None, outside
 
     output = np.zeros_like(basis_set[0])
 
-    for i, b in enumerate(basis_set):
-        if coeffs[i] != 0:
-            output += coeffs[i] * b
+    # Check if basis area is the same for all elements (like zernike)
+    # or varies (like segment PTT bases).
+    # Use a simple proxy for this, by checking if first and last are the same
+
+    constant_support =  np.allclose(np.isfinite(basis_set[0]), np.isfinite(basis_set[-1]))
+
+    if constant_support:
+        # we can just sum the whole arrays
+        for i, b in enumerate(basis_set):
+            if coeffs[i] != 0:
+                output += coeffs[i] * b
+    else:
+        # we have to use different good pixel areas per each basis element
+        for i, b in enumerate(basis_set):
+            if coeffs[i] != 0:
+                wgood = np.isfinite(b)
+                output[wgood] += coeffs[i] * b[wgood]
+
     if aperture is not None:
         apmask = (np.isfinite(aperture) & (aperture > 0))
         output[~apmask] = outside
+    elif aperture is None and not constant_support:
+        apmask = np.isfinite(basis_set).sum(axis=0) > 0
+        output[~apmask] = outside
+
     return output
+
+
+def opd_expand_segments(opd, aperture=None, nterms=15, basis=None,
+                              iterations=2, verbose=False, **kwargs):
+    """
+    Expand OPD into a basis defined by segments, typically with piston, tip, & tilt of each.
+
+    Similar algorithm as opd_expand_nonorthonormal, but adjusted slightly for
+    spatially disjoint basis vectors, and also for different expected normalization
+    of the piston and tip/tilt basis terms.
+
+    The segment_piston_basis and segment_ptt_basis functions are intended for use with this,
+    but it should be generally applicable to higher order hexikes or zernikes defined per segment as well.
+
+    Rather than supplying directly e.g. the segment_ptt_basis function with its default
+    parameters, you will likely want to provide a custom basis wrapper function that sets the
+    number of segments, segment size, etc. as appropriate for your chosen segmented aperture.
+
+
+    Parameters
+    ----------
+    opd : 2D numpy.ndarray
+        The wavefront OPD map to expand in terms of the requested basis.
+        Must be square.
+    aperture : 2D numpy.ndarray, optional
+        Aperture mask for which pixels are included within the aperture.
+        NOTE - this is handed through to the basis function (see basis parameter)
+        which is responsible for implementing this masking, if appropriate.
+        All positive nonzero values are considered within the aperture;
+        any pixels with zero, negative, or NaN values will be considered
+        outside the aperture, and set equal to the 'outside' parameter value.
+        If this parameter is not set, the aperture will be inferred from
+        the finite (i.e. non-NaN) pixels in the OPD array.
+    nterms : int
+        Number of terms to use. (Default: 15)
+    basis : callable, optional
+        Callable (e.g. a function) that generates a sequence
+        of basis arrays given arguments `nterms`, `npix`, and `outside`.
+        This should be an instance of Segment_Piston_Basis() or
+        Segment_PTT_Basis(), or an equivalent.
+
+    """
+    if basis is None:
+        raise ValueError("Must supply a basis function defining the desired segment set")
+
+    if aperture is None:
+        _log.warning("No aperture supplied - "
+                  "using the finite (non-NaN) part of the OPD map as a guess.")
+        aperture = np.isfinite(opd)
+
+    # any pixels with zero or NaN in the aperture are outside the area
+    apmask = (np.isfinite(aperture) & (aperture > 0))
+
+    # Determine if this basis function accepts an 'aperture' parameter or not
+    # If so, append that into the function's kwargs. This check is needed to
+    # handle e.g. both the zernike_basis function (which doesn't accept aperture)
+    # and hexike_basis or arbitrary_basis (which do).
+    # How to do this check is annoyingly version-dependent.
+    if ((six.PY2 and 'aperture' in inspect.getargspec(basis).args) or
+            (six.PY3 and 'aperture' in inspect.signature(basis).parameters)):
+        kwargs['aperture'] = aperture
+
+    basis_set = basis(
+        nterms=nterms,
+        npix=opd.shape[0],
+        outside=np.nan,
+        **kwargs
+    )
+
+    coeffs = np.zeros(nterms)
+    opd_copy = np.copy(opd)
+
+    for count in range(iterations):
+        for i, b in enumerate(basis_set):
+            # The number of good pixels can vary per each segment
+            # So we must determine an appropriate mask per each basis element
+            this_seg_mask = apmask & np.isfinite(basis_set[i])
+            wgood = np.where(this_seg_mask)
+            ngood = this_seg_mask.sum()
+
+            # The piston and tip/tilt terms are likely not normalized
+            # with respect to each other (in the sense of an orthonormal basis)
+            # So we also have to determine some appropriate scaling coefficient
+            # for our dot product here.
+            normcoeff = (basis_set[i]**2)[wgood].sum() / ngood
+
+            # Now we can perform the dot product
+            this_coeff = (opd_copy * b)[wgood].sum() / ngood / normcoeff
+            opd_copy[wgood] -= this_coeff * b[wgood]
+            coeffs[i] += this_coeff
+
+        if verbose:
+            print("Iteration {}/{}: {}".format(count, iterations, coeffs))
+    return coeffs
+
