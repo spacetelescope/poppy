@@ -35,7 +35,7 @@ env:
 matrix:
     include:
         # do the actual tests.
-        - python: 3.7
+        - python: 3.6
           env: SETUP_CMD='test --coverage'
 
         # Do a coverage test in Python 3.
@@ -43,7 +43,7 @@ matrix:
         #  env: SETUP_CMD='test --coverage'
 
         # Check accelerated math version too
-        - python: 3.7
+        - python: 3.6
           env: SETUP_CMD='test --coverage' PIP_DEPENDENCIES='numexpr'
 
         # Check for Sphinx doc build errors
@@ -51,7 +51,7 @@ matrix:
           env: SETUP_CMD='build_sphinx' CONDA_DEPENDENCIES='scipy matplotlib six nbsphinx pandoc'
 
         # Try Astropy development version
-        - python: 3.7
+        - python: 3.6
           env: ASTROPY_VERSION=development SETUP_CMD='test'
 
         # Try Astropy & numpy minimum supported versions
