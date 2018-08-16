@@ -1,5 +1,3 @@
-from __future__ import division
-
 """
 Zernike & Related Polynomials
 
@@ -22,7 +20,6 @@ Gram-Schmidt orthonormalization process as applied to this case is
     Mahajan and Dai, 2006. Optics Letters Vol 31, 16, p 2462:
 """
 
-import six
 import inspect
 from math import factorial
 import numpy as np
@@ -34,10 +31,7 @@ import astropy.units as u
 
 from poppy.poppy_core import Wavefront
 
-if sys.version_info > (3, 2):
-    from functools import lru_cache
-else:
-    from poppy.vendor.lru_cache import lru_cache
+from functools import lru_cache
 
 __all__ = [
     'R', 'cached_zernike1', 'hex_aperture', 'hexike_basis', 'noll_indices',
@@ -1065,9 +1059,7 @@ def opd_expand_nonorthonormal(opd, aperture=None, nterms=15, basis=zernike_basis
     # If so, append that into the function's kwargs. This check is needed to
     # handle e.g. both the zernike_basis function (which doesn't accept aperture)
     # and hexike_basis or arbitrary_basis (which do).
-    # How to do this check is annoyingly version-dependent.
-    if ((six.PY2 and 'aperture' in inspect.getargspec(basis).args) or
-            (six.PY3 and 'aperture' in inspect.signature(basis).parameters)):
+    if 'aperture' in inspect.signature(basis).parameters:
         kwargs['aperture'] = aperture
 
     basis_set = basis(
@@ -1129,9 +1121,7 @@ def opd_from_zernikes(coeffs, basis=zernike_basis_faster, aperture=None, outside
     # If so, append that into the function's kwargs. This check is needed to
     # handle e.g. both the zernike_basis function (which doesn't accept aperture)
     # and hexike_basis or arbitrary_basis (which do).
-    # How to do this check is annoyingly version-dependent.
-    if ((six.PY2 and 'aperture' in inspect.getargspec(basis).args) or
-            (six.PY3 and 'aperture' in inspect.signature(basis).parameters)):
+    if 'aperture' in inspect.signature(basis).parameters:
         kwargs['aperture'] = aperture
 
     basis_set = basis(
@@ -1225,9 +1215,7 @@ def opd_expand_segments(opd, aperture=None, nterms=15, basis=None,
     # If so, append that into the function's kwargs. This check is needed to
     # handle e.g. both the zernike_basis function (which doesn't accept aperture)
     # and hexike_basis or arbitrary_basis (which do).
-    # How to do this check is annoyingly version-dependent.
-    if ((six.PY2 and 'aperture' in inspect.getargspec(basis).args) or
-            (six.PY3 and 'aperture' in inspect.signature(basis).parameters)):
+    if 'aperture' in inspect.signature(basis).parameters:
         kwargs['aperture'] = aperture
 
     basis_set = basis(

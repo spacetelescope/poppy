@@ -1,4 +1,3 @@
-from __future__ import (absolute_import, division, print_function, unicode_literals)
 import getpass
 import os
 import platform
@@ -10,7 +9,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.interpolate
 import scipy.ndimage
-import six
 import warnings
 
 try:
@@ -428,7 +426,7 @@ class Instrument(object):
             __version__ = ''
 
         # ---  update FITS header, display, and output.
-        if isinstance(self.pupil, six.string_types):
+        if isinstance(self.pupil, str):
             pupilstr = os.path.basename(self.pupil)
         elif isinstance(self.pupil, fits.HDUList):
             pupilstr = 'pupil from supplied FITS HDUList object'
@@ -438,7 +436,7 @@ class Instrument(object):
 
         if self.pupilopd is None:
             opdstring = "NONE - perfect telescope! "
-        elif isinstance(self.pupilopd, six.string_types):
+        elif isinstance(self.pupilopd, str):
             opdstring = os.path.basename(self.pupilopd)
         elif isinstance(self.pupilopd, fits.HDUList):
             opdstring = 'OPD from supplied FITS HDUlist object'
@@ -559,7 +557,7 @@ class Instrument(object):
             full_opd_path = self.pupilopd if os.path.exists(self.pupilopd) else os.path.join(self._datapath, "OPD",
                                                                                              self.pupilopd)
         elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0],
-                                                                  six.string_types):  # tuple with filename and slice
+                                                                  str):  # tuple with filename and slice
             full_opd_path = (
                 self.pupilopd[0] if os.path.exists(self.pupilopd[0]) else os.path.join(self._datapath, "OPD",
                                                                                        self.pupilopd[0]),

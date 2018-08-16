@@ -22,8 +22,6 @@ See JWST technical reports JWST-STScI-001117 and JWST-STScI-001134 for details.
 M. Perrin, 2011-02-17, based on IDL code by Jeff Valenti et al.
 
 """
-from __future__ import (absolute_import, division, print_function, unicode_literals)
-
 import numpy as np
 
 

@@ -4,8 +4,6 @@
 # These provide various utilities to measure the PSF's properties in certain ways, display it on screen etc.
 #
 
-from __future__ import (absolute_import, division, print_function, unicode_literals)
-
 import json
 import logging
 import os.path
@@ -16,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.interpolate
 import scipy.ndimage
-import six
 import warnings
 
 from astropy import config
@@ -148,7 +145,7 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
         meaning it is taken from matplotlib's `image.interpolation`
         rcParam.
     """
-    if isinstance(HDUlist_or_filename, six.string_types):
+    if isinstance(HDUlist_or_filename, str):
         hdulist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         hdulist = HDUlist_or_filename
@@ -180,7 +177,7 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
         norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
     psf_array_shape = hdulist[ext].data.shape
-    if isinstance(pixelscale, six.string_types):
+    if isinstance(pixelscale, str):
         pixelscale = hdulist[ext].header[pixelscale]
         halffov_x = pixelscale * psf_array_shape[1] / 2.0
         halffov_y = pixelscale * psf_array_shape[0] / 2.0
@@ -316,13 +313,13 @@ def display_psf_difference(hdulist_or_filename1=None, HDUlist_or_filename2=None,
         the difference image. Mutually exclusive to `normalize`.
         (Default: False)
     """
-    if isinstance(hdulist_or_filename1, six.string_types):
+    if isinstance(hdulist_or_filename1, str):
         hdulist1 = fits.open(hdulist_or_filename1)
     elif isinstance(hdulist_or_filename1, fits.HDUList):
         hdulist1 = hdulist_or_filename1
     else:
         raise ValueError("input must be a filename or HDUlist")
-    if isinstance(HDUlist_or_filename2, six.string_types):
+    if isinstance(HDUlist_or_filename2, str):
         hdulist2 = fits.open(HDUlist_or_filename2)
     elif isinstance(HDUlist_or_filename2, fits.HDUList):
         hdulist2 = HDUlist_or_filename2
@@ -416,7 +413,7 @@ def display_ee(HDUlist_or_filename=None, ext=0, overplot=False, ax=None, mark_le
         Default is True
 
     """
-    if isinstance(HDUlist_or_filename, six.string_types):
+    if isinstance(HDUlist_or_filename, str):
         hdu_list = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         hdu_list = HDUlist_or_filename
@@ -459,7 +456,7 @@ def display_profiles(HDUlist_or_filename=None, ext=0, overplot=False, title=None
         Title for plot
 
     """
-    if isinstance(HDUlist_or_filename, six.string_types):
+    if isinstance(HDUlist_or_filename, str):
         hdu_list = fits.open(HDUlist_or_filename, ext=ext)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         hdu_list = HDUlist_or_filename
@@ -540,7 +537,7 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
         so you should use (radius+binsize/2) for the radius of the EE curve if you want to be
         as precise as possible.
     """
-    if isinstance(hdulist_or_filename, six.string_types):
+    if isinstance(hdulist_or_filename, str):
         hdu_list = fits.open(hdulist_or_filename)
     elif isinstance(hdulist_or_filename, fits.HDUList):
         hdu_list = hdulist_or_filename
@@ -791,7 +788,7 @@ def measure_fwhm(HDUlist_or_filename, ext=0, center=None, plot=False, threshold=
     """
     from astropy.modeling import models, fitting
 
-    if isinstance(HDUlist_or_filename, six.string_types):
+    if isinstance(HDUlist_or_filename, str):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -928,7 +925,7 @@ def measure_sharpness(HDUlist_or_filename=None, ext=0):
         Same as above
 
     """
-    if isinstance(HDUlist_or_filename, six.string_types):
+    if isinstance(HDUlist_or_filename, str):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -981,7 +978,7 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, verbo
     """
     from .fwcentroid import fwcentroid
 
-    if isinstance(HDUlist_or_filename, six.string_types):
+    if isinstance(HDUlist_or_filename, str):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename

@@ -1,12 +1,9 @@
-from __future__ import (absolute_import, division, print_function, unicode_literals)
 import multiprocessing
 import copy
 import time
 import enum
 import warnings
 import textwrap
-
-import six
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -1144,7 +1141,7 @@ class OpticalSystem(object):
             # OpticalElement object provided.
             # We can use it directly, but make sure the plane type is set.
             optic.planetype = PlaneType.pupil
-        elif isinstance(optic, six.string_types):
+        elif isinstance(optic, str):
             # convenience code to instantiate objects from a string name.
             raise NotImplementedError('Setting optics based on strings is now deprecated.')
         elif optic is None and len(kwargs) > 0:  # create image from files specified in kwargs
@@ -1204,7 +1201,7 @@ class OpticalSystem(object):
 
         """
 
-        if isinstance(optic, six.string_types):
+        if isinstance(optic, str):
             function = optic
             optic = None
 
@@ -2286,7 +2283,7 @@ class FITSOpticalElement(OpticalElement):
         else:
             # load transmission file.
             if transmission is not None:
-                if isinstance(transmission, six.string_types):
+                if isinstance(transmission, str):
                     self.amplitude_file = transmission
                     self.amplitude, self.amplitude_header = fits.getdata(self.amplitude_file, header=True)
                     self.amplitude = self.amplitude.astype('=f8')  # ensure native byte order, see #213
@@ -2331,7 +2328,7 @@ class FITSOpticalElement(OpticalElement):
                 if self.name == 'unnamed optic':
                     self.name = 'OPD from supplied fits.HDUList object'
                 _log.info(self.name + ": Loaded OPD from supplied fits.HDUList object")
-            elif isinstance(opd, six.string_types):
+            elif isinstance(opd, str):
                 # load from regular FITS filename
                 self.opd_file = opd
                 self.opd, self.opd_header = fits.getdata(self.opd_file, header=True)
@@ -2339,7 +2336,7 @@ class FITSOpticalElement(OpticalElement):
                 if self.name == 'unnamed optic': self.name = 'OPD from ' + self.opd_file
                 _log.info(self.name + ": Loaded OPD from " + self.opd_file)
 
-            elif len(opd) == 2 and isinstance(opd[0], six.string_types):
+            elif len(opd) == 2 and isinstance(opd[0], str):
                 # if OPD is specified as a 2-element iterable, treat the first element as the filename
                 # and 2nd as the slice of a cube.
                 self.opd_file = opd[0]
@@ -2490,7 +2487,7 @@ class FITSOpticalElement(OpticalElement):
                     ('PIXELSCL', 'PUPLSCAL',),
                     (self.amplitude_header, self.opd_header)
                 )
-            elif isinstance(pixelscale, six.string_types):
+            elif isinstance(pixelscale, str):
                 # If provided as a keyword string, check for it using the same helper function
                 _log.debug("  Getting pixel scale from FITS keyword:" + pixelscale)
                 _, self.pixelscale = _find_pixelscale_in_headers(

@@ -3,7 +3,6 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import six
 import scipy.ndimage.interpolation
 import scipy.signal
 import astropy.io.fits as fits
@@ -87,7 +86,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         if self.include_actuator_print_through:
             self._load_actuator_surface_file(actuator_print_through_file)
 
-        if isinstance(influence_func, six.string_types):
+        if isinstance(influence_func, str):
             self.influence_type = "from file"
             self._load_influence_fn(filename=influence_func)
         elif isinstance(influence_func, fits.HDUList):
