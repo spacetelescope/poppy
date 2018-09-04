@@ -1618,13 +1618,6 @@ class OpticalSystem(object):
             # see issues #23 and #176
             import sys
             import platform
-            if ((sys.version_info < (3, 4, 0)) and platform.system() == 'Darwin' and
-                    (('extra_link_args' in np.__config__.blas_opt_info) and
-                     '-Wl,Accelerate' in np.__config__.blas_opt_info['extra_link_args'])):
-                _log.error("Multiprocessing not compatible with Apple Accelerate library on Python < 3.4")
-                _log.error(" See https://github.com/mperrin/poppy/issues/23 ")
-                _log.error(" Either disable multiprocessing, or recompile your numpy without Accelerate.")
-                raise NotImplementedError("Multiprocessing not compatible with Apple Accelerate framework.")
 
             if _USE_FFTW:
                 _log.warning('IMPORTANT WARNING: Python multiprocessing and fftw3 do not appear to play well together. '
@@ -1650,13 +1643,10 @@ class OpticalSystem(object):
             nproc = min(nproc, len(wavelength))  # never try more processes than wavelengths.
             # be sure to cast nproc to int below; will fail if given a float even if of integer value
 
-            if sys.version_info < (3, 4, 0):
-                pool = multiprocessing.Pool(int(nproc))
-            else:
-                # Use new forkserver for more robustness;
-                # Resolves https://github.com/mperrin/poppy/issues/23
-                ctx = multiprocessing.get_context('forkserver')
-                pool = ctx.Pool(int(nproc))
+            # Use forkserver method (requires Python >= 3.4) for more robustness, instead of just Pool
+            # Resolves https://github.com/mperrin/poppy/issues/23
+            ctx = multiprocessing.get_context('forkserver')
+            pool = ctx.Pool(int(nproc))
 
             # build a single iterable containing the required function arguments
             _log.info("Beginning multiprocessor job using {0} processes".format(nproc))
