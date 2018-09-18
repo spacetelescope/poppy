@@ -1,5 +1,4 @@
 # Tests for individual Optic classes
-from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import matplotlib.pyplot as pl
 import numpy as np
