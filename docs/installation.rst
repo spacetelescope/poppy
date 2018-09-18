@@ -20,15 +20,12 @@ latest development version from git::
 Requirements
 --------------
 
-* Either Python 2.7 or Python 3.4.  (Under :ref:`certain circumstances on Mac
-  OS <accelerated_multiprocessing>`, Python 3.4 is required if you want
-  parallelized calculations, but otherwise POPPY functionality is identical on
-  both versions.)
+* Python 3.5, or more recent. Earlier versions of Python are no longer supported.
 * The standard Python scientific stack: :py:mod:`numpy`, :py:mod:`scipy`,
   :py:mod:`matplotlib`
 * POPPY relies upon the `astropy
   <http://www.astropy.org>`__ community-developed core library for astronomy.
-  astropy, version 1.0.1 or more recent, is needed.
+  astropy, version 1.3 or more recent, is needed.
 
 The following are *optional*.  The first, :py:mod:`pysynphot`, is recommended
 for most users. The other optional installs are only worth adding for speed
@@ -82,13 +79,11 @@ that your installation is working properly::
    >>> import poppy
    >>> poppy.test()
    ============================ test session starts =====================================
-   platform darwin -- Python 2.7.8 -- pytest-2.5.1
-   Running tests with Astropy version 0.4.1.
+   Python 3.6.5, pytest-3.6.1, py-1.5.3, pluggy-0.6.0
+   Running tests with Astropy version 3.0.3.
    ... [etc] ...
-   ================= 66 passed, 1 skipped, 1 xfailed in 124.68 seconds ==================
+   ================= 126 passed, 1 skipped, 1 xfailed in 524.68 seconds ==================
 
 Some tests may be automatically skipped depending on whether certain optional packaged are
 installed, and other tests in development may be marked "expected to fail" (``xfail``), but
 as long as no tests actually fail then your installation is working as expected.
-(Note that you will need to run the test suite using a plain python interpreter, not
-inside an IPython or Jupyter session.)

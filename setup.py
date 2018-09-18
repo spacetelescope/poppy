@@ -9,6 +9,15 @@ import sys
 import imp
 import ast
 
+
+__minimum_python_version__ = "3.5"
+
+# Enforce Python version check - this is the same check as in __init__.py but
+# this one has to happen before importing ah_bootstrap.
+if sys.version_info < tuple((int(val) for val in __minimum_python_version__.split('.'))):
+    sys.stderr.write("ERROR: poppy requires Python {} or later\n".format(__minimum_python_version__))
+    sys.exit(1)
+
 try:
     import numpy
 except ImportError:
@@ -116,14 +125,12 @@ install_requires_packages = [
       'astropy>=1.3',
 ]
 
-# Python 3.4.x backports
-if sys.version_info[:2] < (3, 4):
-    install_requires_packages.append('enum34>=1.0.4')
 
 setup(name=PACKAGENAME,
       version=VERSION,
       description=DESCRIPTION,
       scripts=scripts,
+      python_requires='>=' + __minimum_python_version__,
       install_requires=install_requires_packages,
       provides=[PACKAGENAME],
       author=AUTHOR,

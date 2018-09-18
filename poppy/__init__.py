@@ -21,11 +21,18 @@ Documentation can be found online at https://poppy-optics.readthedocs.io/
 from ._astropy_init import *
 # ----------------------------------------------------------------------------
 
+# Enforce Python version check during package import.
+# This is the same check as the one at the top of setup.py
+import sys
 
-import astropy as _astropy
+__minimum_python_version__ = "3.5"
 
-if _astropy.version.major + _astropy.version.minor * 0.1 < 0.4:  # pragma: no cover
-    raise ImportError("astropy >= 0.4 is required for this version of poppy.")
+class UnsupportedPythonError(Exception):
+    pass
+
+if sys.version_info < tuple((int(val) for val in __minimum_python_version__.split('.'))):
+    raise UnsupportedPythonError("poppy does not support Python < {}".format(__minimum_python_version__))
+
 
 from astropy import config as _config
 
