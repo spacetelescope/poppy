@@ -24,7 +24,7 @@ The Team
 POPPY is developed primarily by a team of astronomers at the `Space Telescope
 Science Insitute <http://www.stsci.edu/>`_, but is open to contributions from
 scientists and software developers around the world. Development takes place
-on Github at http://github.com/mperrin/poppy . See that page for the most up-to-date
+on Github at http://github.com/spacetelescope/poppy . See that page for the most up-to-date
 list of contributors. 
 
 Direct contributors to POPPY code
@@ -33,6 +33,7 @@ Direct contributors to POPPY code
  * Marshall Perrin (@mperrin)
  * Joseph Long (@josephoenix)
  * Ewan Douglas (@douglase)
+ * Shannon Osborne (@shanosborne)
  * Neil Zimmerman (@neilzim)
  * Anand Sivaramakrishnan (@anand0xff)
  * Maciek Grochowicz (@maciekgroch)
