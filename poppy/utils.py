@@ -1222,15 +1222,15 @@ class BackCompatibleQuantityInput(object):
 
         Examples
         --------
-
-        Python 2 and 3::
+        The desired type of the input parameter can be specified as an argument to
+        the decorator, or via an annotation on the function argument itself:
+        .. code-block:: python3
 
             import poppy.utils
             @poppy.utils.back_compatible_quantity_input(mylength=u.meter)
             def myfunction(mylength):
                 return mylength**2
 
-        Python 3 only:
 
         .. code-block:: python3
 
