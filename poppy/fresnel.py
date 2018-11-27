@@ -1024,8 +1024,6 @@ class FresnelOpticalSystem(OpticalSystem):
         if self.verbose:
             _log.info("Added detector: {0} after separation: {1:.2e} ".format(self.planes[-1].name, distance))
 
-    add_detector = add_detector  # for compatibility with pre-pep8 names
-
     @utils.quantity_input(wavelength=u.meter)
     def input_wavefront(self, wavelength=1e-6 * u.meter):
         """Create a Wavefront object suitable for sending through a given optical system.
@@ -1049,8 +1047,8 @@ class FresnelOpticalSystem(OpticalSystem):
                                   npix=self.npix, oversample=oversample)
         _log.debug(
             "Creating input wavefront with wavelength={0} microns,"
-            "npix={1}, pixel scale={2}".format(
-                wavelength.to(u.micron).value, self.npix, self.pupil_diameter / (self.npix * u.pixel)
+            "npix={1}, diam={3}, pixel scale={2}".format(
+                wavelength.to(u.micron).value, self.npix, self.pupil_diameter / (self.npix * u.pixel), self.pupil_diameter
             ))
         return inwave
 

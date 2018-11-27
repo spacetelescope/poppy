@@ -200,8 +200,7 @@ class Wavefront(object):
         phasor = optic.get_phasor(self)
 
         if not np.isscalar(phasor) and phasor.size > 1:
-            # actually isscalar() does not handle the case of a 1-element array properly
-            assert self.wavefront.shape == phasor.shape
+            assert self.wavefront.shape == phasor.shape, "Phasor shape {} does not match wavefront shape {}".format(phasor.shape, self.wavefront.shape)
 
         self.wavefront *= phasor
         msg = "  Multiplied WF by phasor for " + str(optic)
@@ -1370,8 +1369,8 @@ class OpticalSystem(object):
 
         inwave = Wavefront(wavelength=wavelength, npix=npix,
                            diam=diam, oversample=self.oversample)
-        _log.debug("Creating input wavefront with wavelength={}, npix={:d}, pixel scale={:.3g} meters/pixel".format(
-            wavelength, npix, diam / npix))
+        _log.debug("Creating input wavefront with wavelength={}, npix={:d}, diam={:.3g}, pixel scale={:.3g} meters/pixel".format(
+            wavelength, npix, diam, diam / npix))
 
         if np.abs(self.source_offset_r) > 0:
             # Add a tilt to the input wavefront.
@@ -1907,8 +1906,7 @@ class OpticalElement(object):
         float_tolerance = 0.001  # how big of a relative scale mismatch before resampling?
         if self.pixelscale is not None and hasattr(wave, 'pixelscale') and abs(
                 wave.pixelscale - self.pixelscale) / self.pixelscale >= float_tolerance:
-            _log.debug("Pixelscales: wave {}, optic {}".format(wave.pixelscale, self.pixelscale))
-            # raise ValueError("Non-matching pixel scale for wavefront and optic! Need to add interpolation / ing ")
+            _log.debug("Non-matching pixel scales for wavefront and optic. Need to interpolate. Pixelscales: wave {}, optic {}".format(wave.pixelscale, self.pixelscale))
             if hasattr(self, '_resampled_scale') and abs(
                     self._resampled_scale - wave.pixelscale) / self._resampled_scale >= float_tolerance:
                 # we already did this same resampling, so just re-use it!
@@ -1934,9 +1932,8 @@ class OpticalElement(object):
                 border_y = np.abs(ly - ly_w) // 2
                 if (self.pixelscale * self.amplitude.shape[0] < wave.pixelscale * wave.amplitude.shape[0]) or (
                         self.pixelscale * self.amplitude.shape[1] < wave.pixelscale * wave.amplitude.shape[0]):
-                    # raise ValueError("Optic is smaller than input wavefront")
-                    _log.warning("Optic" + str(np.shape(resampled_opd)) + " is smaller than input wavefront" + str(
-                        [lx_w, ly_w]) + ", will attempt to zero-pad the rescaled array")
+                    _log.warning("After resampling, optic phasor shape " + str(np.shape(resampled_opd)) + " is smaller than input wavefront " + str(
+                        (lx_w, ly_w)) + "; will zero-pad the rescaled array.")
                     self._resampled_opd = np.zeros([lx_w, ly_w])
                     self._resampled_amplitude = np.zeros([lx_w, ly_w])
 
