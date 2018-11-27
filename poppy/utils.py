@@ -1081,12 +1081,12 @@ def pad_to_size(array, padded_shape):
 
     See Also
     ---------
-    padToOversample
+    pad_to_oversample, pad_or_crop_to_shape
     """
 
     if len(padded_shape) < 2:
         outsize0 = padded_shape
-        outside1 = padded_shape
+        outsize1 = padded_shape
     else:
         outsize0 = padded_shape[0]
         outsize1 = padded_shape[1]
@@ -1102,6 +1102,51 @@ def pad_to_size(array, padded_shape):
     m1 = int(round(m1))
     padded[n0:n1, m0:m1] = array
     return padded
+
+def pad_or_crop_to_shape(array, target_shape):
+    """ Adapt an array to match a desired shape, by
+    adding zero pixels to pad, or cropping out pixels as needed.
+    (Implicitly assumes the arrays have comparable pixel scale and units)
+
+    Parameters
+    ----------
+    array : complex ndarray
+        The phasor, produced by some call to get_phasor of an OpticalElement
+    wavefront : Wavefront object
+        The wavefront we are trying to apply the phasor to.
+
+    Returns
+    -------
+    new_phasor : complex ndarray
+        A copy of the phasor modified to have the desired array size
+
+    See Also
+    ---------
+    pad_to_oversample, pad_to_size
+
+    """
+
+    lx, ly = array.shape
+    lx_w, ly_w = target_shape
+    border_x = np.abs(lx - lx_w) // 2
+    border_y = np.abs(ly - ly_w) // 2
+
+    if (lx < lx_w) or (ly < ly_w):
+        _log.debug("Array shape " + str(array.shape) + " is smaller than desired shape " + str(
+            [lx_w, ly_w]) + "; will attempt to zero-pad the array")
+
+        resampled_array = np.zeros(shape=(lx_w, ly_w), dtype=array.dtype)
+        resampled_array[border_x:border_x + lx, border_y:border_y + ly] = array
+        _log.debug("  Padded with a {:d} x {:d} border to "
+                   " match the desired shape".format(border_x, border_y))
+
+    else:
+        _log.debug("Array shape " + str(array.shape) + " is larger than desired shape " + str(
+            [lx_w, ly_w]) + "; will crop out just the center part.")
+        resampled_array = array[border_x:border_x + lx_w, border_y:border_y + ly_w]
+        _log.debug("  Trimmed a border of {:d} x {:d} pixels "
+                   "to match the desired shape".format(border_x, border_y))
+    return resampled_array
 
 
 def removePadding(array, oversample):

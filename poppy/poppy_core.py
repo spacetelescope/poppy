@@ -1961,22 +1961,15 @@ class OpticalElement(object):
             else:
                 self.phasor = self.get_transmission(wave) * np.exp(1.j * self.get_opd(wave) * scale)
 
-        # check whether we need to pad before returning or not.
+        # check whether we need to pad or crop the array before returning or not.
         # note: do not pad the phasor if it's just a scalar!
-        if self.planetype == PlaneType.pupil and wave.ispadded and self.phasor.size != 1:
-            # old version: pad to a fixed oversampling. All FITS arrays in an OpticalSystem must be the same size
-            # return padToOversample(self.phasor, wave.oversample)
-
-            # new version: pad to match the wavefront sampling, from whatever sized array we started with.
+        if self.phasor.size != 1 and self.phasor.shape != wave.shape:
+            # pad to match the wavefront sampling, from whatever sized array we started with.
             # Allows more flexibility for differently sized FITS arrays, so long as they all have the
             # same pixel scale as checked above!
-            return utils.pad_to_size(self.phasor, wave.shape)
+            return utils.pad_or_crop_to_shape(self.phasor, wave.shape)
         else:
             return self.phasor
-
-    def getPhasor(self, wave):
-        warnings.warn("getPhasor is deprecated; use get_phasor instead", DeprecationWarning)
-        return self.get_phasor(wave)
 
     @utils.quantity_input(opd_vmax=u.meter)
     def display(self, nrows=1, row=1, what='intensity', crosshairs=False, ax=None, colorbar=True,
