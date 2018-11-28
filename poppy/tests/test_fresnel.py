@@ -8,8 +8,6 @@ from poppy.poppy_core import _log, PlaneType
 import astropy.units as u
 import matplotlib.pyplot as plt
 import numpy as np
-import astropy.units as u
-import numpy as np
 from .. import fwcentroid
 from scipy.ndimage import zoom,shift
 
@@ -510,3 +508,28 @@ def test_fresnel_return_complex():
 
     assert len(psf[1])==1
     assert np.allclose(psf[1][0].intensity,psf[0][0].data)
+
+
+def test_detector_in_fresnel_system(npix=256):
+    """ Show that we can put a detector in a FresnelOpticalSystem
+    and it will resample the wavefront to the desired sampling and size"""
+
+    # Setup Fresnel system, with a detector that changes the sampling
+    osys = fresnel.FresnelOpticalSystem(pupil_diameter=0.05*u.m, npix=npix, beam_ratio=0.25)
+    osys.add_optic(optics.CircularAperture(radius=0.025))
+    osys.add_optic(optics.ScalarTransmission(), distance=10*u.m)
+    osys.add_detector(pixelscale=200*u.micron/u.pixel, fov_pixels=300)
+
+    # Calculate a PSF
+    psf, waves = osys.calc_psf(wavelength=1e-6, return_intermediates=True)
+
+    # Check the output pixel scale is as desired
+    np.testing.assert_almost_equal(psf[0].header['PIXELSCL'],  0.0002)
+
+    # Check the wavefront gets cropped to the right size of pixels, from something different
+    assert waves[0].shape == (1024, 1024)
+    assert waves[1].shape == (1024, 1024)
+    assert waves[2].shape == (300, 300)
+    assert psf[0].data.shape == (300, 300)
+
+    assert psf[0].header['NAXIS1'] == 300

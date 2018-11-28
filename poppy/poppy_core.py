@@ -1298,7 +1298,9 @@ class OpticalSystem(object):
         """
 
         if oversample is None:
-            oversample = self.oversample
+            oversample = getattr(self, 'oversample', 1)
+            # assume oversample is 1 if not present as an attribute; needed for
+            # compatibility use in subclass FresnelOpticalSystem.
         optic = Detector(pixelscale, oversample=oversample, **kwargs)
 
         return self._add_plane(optic, index=index,
@@ -2615,15 +2617,23 @@ class Detector(OpticalElement):
     name : string
         Descriptive name
     pixelscale : float or astropy.units.Quantity
-        Pixel scale in arcsec/pixel, or other angular unit if specified as a Quantity.
+        Pixel scale, either in angular units such as arcsec/pixel, or
+        (for Fresnel optical systems only) in physical units such as micron/pixel.
+        Units should be specified as astropy Quantities. If pixelscale is given as
+        a float without an explicit unit, it will be interpreted as in arcsec/pixel.
+        Note, this value may be further subdivided by specifying the oversample
+        parameter > 1.
     fov_pixels, fov_arcsec : float or astropy.units.Quantity
         The field of view may be specified either in arcseconds or by a number
         of pixels. Either is acceptable and the pixel scale is used to convert
         as needed. You may specify a non-square FOV by providing two elements in
         an iterable.  Note that this follows the usual Python convention of
         ordering axes (Y,X), so put your desired Y axis size first.
+        For Fresnel optical systems, if specifying pixelscale in microns/pixel then
+        you must specify fov_pixels rather than fov_arcsec.
     oversample : int
-        Oversampling factor beyond the detector pixel scale
+        Oversampling factor beyond the detector pixel scale. The returned array will
+        have sampling that much finer than the specified pixelscale.
     offset : tuple (X,Y)
         Offset for the detector center relative to a hypothetical off-axis PSF.
         Specifying this lets you pick a different sub-region for the detector
@@ -2632,12 +2642,14 @@ class Detector(OpticalElement):
 
     """
 
-    @utils.quantity_input(pixelscale=u.arcsec / u.pixel, fov_pixels=u.pixel, fov_arcsec=u.arcsec)
+    # Note, pixelscale argument is intentionally not included in the quantity_input decorator; that is
+    # specially handled. See the _handle_pixelscale_units_flexibly method
+    @utils.quantity_input(fov_pixels=u.pixel, fov_arcsec=u.arcsec)
     def __init__(self, pixelscale=1 * (u.arcsec / u.pixel), fov_pixels=None, fov_arcsec=None, oversample=1,
                  name="Detector", offset=None,
                  **kwargs):
         OpticalElement.__init__(self, name=name, planetype=PlaneType.detector, **kwargs)
-        self.pixelscale = pixelscale
+        self.pixelscale = self._handle_pixelscale_units_flexibly(pixelscale, fov_pixels)
         self.oversample = oversample
 
         if fov_pixels is None and fov_arcsec is None:
@@ -2670,3 +2682,48 @@ class Detector(OpticalElement):
 
     def __str__(self):
         return "Detector plane: {} ({}x{} pixels, {})".format(self.name, self.shape[1], self.shape[0], self.pixelscale)
+
+    @staticmethod
+    def _handle_pixelscale_units_flexibly(pixelscale, fov_pixels):
+        """ The unit conventions for pixelscale are tricky; deal with that.
+        For historical reasons and API simplicity, the Detector class can be
+        used with pixels in angular units (arcsec/pixel) or physical units (micron/pixel).
+        The regular @utils.quantity_input decorator won't support that, so we handle it here.
+        """
+        # This code is adapted from utils.BackCompatibleQuantityInput
+
+        arcsec_per_pixel = u.arcsec/u.pixel
+        micron_per_pixel = u.micron/u.pixel
+
+        # Case 1: pixelscale given without units. Treat it as angular units in arcsec/pixel
+        if not isinstance(pixelscale, u.Quantity):
+            try:
+                new_pixelscale = pixelscale * arcsec_per_pixel
+            except (ValueError, TypeError):
+                raise ValueError("Argument '{0}' to function '{1}'"
+                                 " must be a number (not '{3}'), and convertable to"
+                                 " units='{2}'.".format('pixelscale', 'Detector.__init__',
+                                                        arcsec_per_pixel, pixelscale))
+
+        # Case 2: pixelscale compatible with angular units. Treat it as such.
+        elif pixelscale.unit.is_equivalent(arcsec_per_pixel):
+            new_pixelscale = pixelscale
+
+        # Case 3: pixelscale compatible with physical units. Treat it as such. Also, in
+        # this case, the user *must* specify a value for fov_pixels.
+        elif pixelscale.unit.is_equivalent(micron_per_pixel):
+            new_pixelscale = pixelscale
+            if fov_pixels is None:
+                raise ValueError("If you specify the detector pixelscale in microns/pixel or "
+                                 "other linear units (not angular), then you must specify the "
+                                 "field of view via fov_pixels=<some integer>.")
+
+        # Case 4: some other units. Raise an error.
+        else:
+            raise ValueError("Argument '{0}' to function '{1}'"
+                             " must be a number (not '{2}'), and convertable to"
+                             " units=arcsec/pixel or micron/pixel.".format('pixelscale',
+                                                                           'Detector.__init__',
+                                                                           pixelscale))
+
+        return new_pixelscale

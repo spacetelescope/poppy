@@ -6,10 +6,6 @@ from .. import optics
 from .. import matrixDFT
 from .. import zernike
 import sys
-if sys.version_info.major < 3:
-    _PYTHON_2 = True
-else:
-    _PYTHON_2 = False
 
 try:
     import pytest
@@ -18,10 +14,7 @@ except:
     _HAVE_PYTEST = False
 
 def _exception_message_starts_with(excinfo, message_body):
-    if _PYTHON_2:
-        return excinfo.value.message.startswith(message_body)
-    else:
-        return excinfo.value.args[0].startswith(message_body)
+    return excinfo.value.args[0].startswith(message_body)
 
 if _HAVE_PYTEST:
     def test_calc_psf_catch_invalid_wavelength():
