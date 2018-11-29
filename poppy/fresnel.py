@@ -962,6 +962,10 @@ class FresnelWavefront(Wavefront):
     def _resample_wavefront_pixelscale(self, detector):
         """ Resample a Fresnel wavefront to a desired detector sampling.
 
+        The interpolation is done via the scipy.ndimage.zoom function, by default
+        using cubic interpolation.  If you wish a different order of interpolation,
+        set the `.interp_order` attribute of the detector instance.
+
         Parameters
         ----------
         detector : Detector class instance
@@ -993,8 +997,8 @@ class FresnelWavefront(Wavefront):
         # We should consider cropping out an appropriate subregion prior to performing the zoom.
         # That makes a difference if the detector is only sampling a small part of a much larger wavefront
 
-        new_wf_real = scipy.ndimage.zoom(self.wavefront.real, pixscale_ratio)
-        new_wf_imag = scipy.ndimage.zoom(self.wavefront.imag, pixscale_ratio)
+        new_wf_real = scipy.ndimage.zoom(self.wavefront.real, pixscale_ratio, order=detector.interp_order)
+        new_wf_imag = scipy.ndimage.zoom(self.wavefront.imag, pixscale_ratio, order=detector.interp_order)
         new_wf = new_wf_real + 1.j*new_wf_imag
 
         _log.debug("Cropping/padding resampled wavefront to detector shape")
