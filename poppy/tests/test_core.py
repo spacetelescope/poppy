@@ -321,7 +321,7 @@ def test_inverse_MFT():
 )
 def test_optic_resizing():
     '''
-    Tests the rescaling functionality of OpticalElement.getPhasor(),
+    Tests the rescaling functionality of OpticalElement.get_phasor(),
     by first creating an optic with a small pixel scale and then
     creating an optic with a large pixel scale, and checking the returned
     phasor of each has the dimensions of the input wavefront.
@@ -334,27 +334,27 @@ def test_optic_resizing():
     test_optic_small=fits.HDUList([fits.PrimaryHDU(np.zeros([1000,1000]))])
     test_optic_small[0].header["PUPLSCAL"]=.001
     test_optic_small_element=poppy_core.FITSOpticalElement(transmission=test_optic_small)
-    assert(test_optic_small_element.getPhasor(inputwf).shape ==inputwf.shape )
+    assert(test_optic_small_element.get_phasor(inputwf).shape ==inputwf.shape )
 
     # Test rescaling from coarser scales: diameter 1 meter, pixel scale 10 mm
     test_optic_large=fits.HDUList([fits.PrimaryHDU(np.zeros([100,100]))])
     test_optic_large[0].header["PUPLSCAL"]=.01
     test_optic_large_element=poppy_core.FITSOpticalElement(transmission=test_optic_large)
-    assert(test_optic_large_element.getPhasor(inputwf).shape ==inputwf.shape )
+    assert(test_optic_large_element.get_phasor(inputwf).shape ==inputwf.shape )
 
     # Test rescaling where we have to pad with extra zeros: 
     # diameter 0.8 mm, pixel scale 1 mm
     test_optic_pad=fits.HDUList([fits.PrimaryHDU(np.zeros([800,800]))])
     test_optic_pad[0].header["PUPLSCAL"]=.001
     test_optic_pad_element=poppy_core.FITSOpticalElement(transmission=test_optic_pad)
-    assert(test_optic_pad_element.getPhasor(inputwf).shape ==inputwf.shape )
+    assert(test_optic_pad_element.get_phasor(inputwf).shape ==inputwf.shape )
 
     # Test rescaling where we have to trim to a smaller size:
     # diameter 1.2 mm, pixel scale 1 mm
     test_optic_crop=fits.HDUList([fits.PrimaryHDU(np.zeros([1200,1200]))])
     test_optic_crop[0].header["PUPLSCAL"]=.001
     test_optic_crop_element=poppy_core.FITSOpticalElement(transmission=test_optic_crop)
-    assert(test_optic_crop_element.getPhasor(inputwf).shape ==inputwf.shape )
+    assert(test_optic_crop_element.get_phasor(inputwf).shape ==inputwf.shape )
 
 
 def test_unit_conversions():
@@ -390,3 +390,66 @@ def test_return_complex():
     assert len(psf[1])==1 #make sure only one element was returned
     #test that the wavefront returned is the final wavefront:
     assert np.allclose(psf[1][0].intensity,psf[0][0].data)
+
+### Detector class unit test ###
+
+try:
+    import pytest
+    _HAVE_PYTEST = True
+except:
+    _HAVE_PYTEST = False
+
+def _exception_message_starts_with(excinfo, message_body):
+    return excinfo.value.args[0].startswith(message_body)
+
+def test_Detector_pixelscale_units():
+    """ Detectors can take various kinds of units for pixel scales.
+    Check that these work as expected."""
+
+    import astropy.units as u
+
+    # We can specify units in arcsec, and fov in pixels:
+    test_det = poppy_core.Detector(pixelscale=0.01 * u.arcsec / u.pixel, fov_pixels=100)
+    assert test_det.pixelscale == 0.01 * u.arcsec / u.pixel
+    assert test_det.shape == (100, 100)
+
+    # Or scale in arcsec, and fov in arcsec:
+    test_det = poppy_core.Detector(pixelscale=0.01 * u.arcsec / u.pixel, fov_arcsec=10)
+    assert test_det.pixelscale == 0.01 * u.arcsec / u.pixel
+    assert test_det.shape == (1000, 1000)
+
+    # It also works to leave the scale unspecified in unit, which is interpreted as arcsec
+    test_det = poppy_core.Detector(pixelscale=0.01, fov_arcsec=10)
+    assert test_det.pixelscale == 0.01 * u.arcsec / u.pixel
+    assert test_det.shape == (1000, 1000)
+
+    # We can make the pixelscale in microns/pixel, and fov in pixels
+    test_det = poppy_core.Detector(pixelscale=0.02 * u.meter / u.pixel, fov_pixels=200)
+    assert test_det.pixelscale == 0.02 * u.meter / u.pixel
+    assert test_det.shape == (200, 200)
+
+    if _HAVE_PYTEST:
+        with pytest.raises(ValueError) as excinfo:
+            # But this will fail: pixelscale in microns/pixel and fov in arcsec
+            test_det = poppy_core.Detector(pixelscale=20 * u.micron / u.pixel, fov_arcsec=10)
+        assert _exception_message_starts_with(excinfo, "If you specify the detector pixelscale in microns/pixel "
+                                                       "or other linear unit"), "Error message not as expected"
+
+        with pytest.raises(ValueError) as excinfo:
+            # This will also fail: pixelscale in microns/pixel and no fov spec
+            test_det = poppy_core.Detector(pixelscale=20 * u.micron / u.pixel)
+        assert _exception_message_starts_with(excinfo, "If you specify the detector pixelscale in microns/pixel "
+                                                       "or other linear unit"), "Error message not as expected"
+
+        with pytest.raises(ValueError) as excinfo:
+            # This will also fail: pixelscale has garbage units
+            test_det = poppy_core.Detector(pixelscale=1 * u.kiloparsec / u.week)
+        assert _exception_message_starts_with(excinfo, "Argument 'pixelscale' to function"), \
+            "Error message not as expected"
+
+        with pytest.raises(u.UnitsError) as excinfo:
+            # This will also fail: fov_pixels has garbage units
+            test_det = poppy_core.Detector(pixelscale=20, fov_pixels=1 * u.kiloparsec / u.week)
+        assert _exception_message_starts_with(excinfo, "Argument 'fov_pixels' to function"), \
+            "Error message not as expected"
+
