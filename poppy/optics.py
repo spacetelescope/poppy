@@ -133,9 +133,6 @@ class AnalyticOpticalElement(OpticalElement):
         else:
             return self.get_transmission(wave) * np.exp(1.j * self.get_opd(wave) * scale)
 
-    def getPhasor(self, wave):
-        warnings.warn("getPhasor is deprecated; use get_phasor instead", DeprecationWarning)
-        return self.get_phasor(wave)
 
     @utils.quantity_input(wavelength=u.meter)
     def sample(self, wavelength=1e-6 * u.meter, npix=512, grid_size=None, what='amplitude',
@@ -185,7 +182,7 @@ class AnalyticOpticalElement(OpticalElement):
             pixel_scale = fov / (npix * u.pixel)
             w = Wavefront(wavelength=wavelength, npix=npix, pixelscale=pixel_scale)
 
-        _log.info("Computing {0} for {1} sampled onto {2} pixel grid".format(what, self.name, npix))
+        _log.info("Computing {0} for {1} sampled onto {2} pixel grid with pixelscale {3}".format(what, self.name, npix, pixel_scale))
         if what == 'amplitude':
             output_array = self.get_transmission(w)
         elif what == 'intensity':
@@ -1739,7 +1736,7 @@ class GaussianAperture(AnalyticOpticalElement):
         """ Compute the transmission inside/outside of the aperture.
         """
         if not isinstance(wave, Wavefront):  # pragma: no cover
-            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
+            raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         y, x = self.get_coordinates(wave)
 
         r = np.sqrt(x ** 2 + y ** 2)
@@ -1767,9 +1764,9 @@ class KnifeEdge(AnalyticOpticalElement):
             name = "Knife edge at {} deg".format(rotation)
         AnalyticOpticalElement.__init__(self, name=name, rotation=rotation, **kwargs)
 
-    def get_transmission(self,wave):
+    def get_transmission(self, wave):
         if not isinstance(wave, Wavefront):  # pragma: no cover
-            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
+            raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         y, x = self.get_coordinates(wave)
         return x < 0
 

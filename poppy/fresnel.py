@@ -588,7 +588,8 @@ class FresnelWavefront(Wavefront):
             self.angular_coordinates = True  # image planes want angular coordinates
             self.planetype = PlaneType.image  # needed for back compatibility when using image plane optics
         elif optic.planetype == PlaneType.detector:
-            raise NotImplemented('image plane to detector propagation (resampling) not implemented yet')
+            self._resample_wavefront_pixelscale(optic)
+            self.location = 'at detector '+optic.name
         else:
             self.location = 'before ' + optic.name
 
@@ -958,6 +959,56 @@ class FresnelWavefront(Wavefront):
         _log.debug("------ Optic: " + str(optic.name) + " applied ------")
 
 
+    def _resample_wavefront_pixelscale(self, detector):
+        """ Resample a Fresnel wavefront to a desired detector sampling.
+
+        The interpolation is done via the scipy.ndimage.zoom function, by default
+        using cubic interpolation.  If you wish a different order of interpolation,
+        set the `.interp_order` attribute of the detector instance.
+
+        Parameters
+        ----------
+        detector : Detector class instance
+            Detector that defines the desired pixel scale
+
+        Returns
+        -------
+        The wavefront object is modified to have the appropriate pixel scale and spatial extent.
+
+        """
+        import scipy.ndimage
+
+        if self.angular_coordinates:
+            raise NotImplementedError("Resampling to detector doesn't yet work in angular coordinates for Fresnel.")
+
+        pixscale_ratio = (self.pixelscale / detector.pixelscale).decompose().value
+        _log.info("Resampling wavefront to detector with {} pixels and {}. Zoom factor is {}".format(
+            detector.shape, detector.pixelscale, pixscale_ratio ))
+
+        _log.debug("Wavefront pixel scale: {}".format(self.pixelscale))
+        _log.debug("Wavefront FOV: {} pixels, {}".format(self.shape, self.shape[0]*u.pixel*self.pixelscale))
+
+        _log.debug("Desired detector pixel scale: {}".format(detector.pixelscale))
+        _log.debug("Desired detector FOV: {} pixels, {}".format(detector.shape,
+                                                                      detector.shape[0]*u.pixel*detector.pixelscale,
+                                                                      ))
+
+        # TODO the following works but is not optimal for performance
+        # We should consider cropping out an appropriate subregion prior to performing the zoom.
+        # That makes a difference if the detector is only sampling a small part of a much larger wavefront
+
+        new_wf_real = scipy.ndimage.zoom(self.wavefront.real, pixscale_ratio, order=detector.interp_order)
+        new_wf_imag = scipy.ndimage.zoom(self.wavefront.imag, pixscale_ratio, order=detector.interp_order)
+        new_wf = new_wf_real + 1.j*new_wf_imag
+
+        _log.debug("Cropping/padding resampled wavefront to detector shape")
+        new_wf = utils.pad_or_crop_to_shape(new_wf, detector.shape)
+
+        self.wavefront = new_wf
+        self._pixelscale_m = detector.pixelscale
+        self.n = detector.shape[0]
+
+
 class FresnelOpticalSystem(OpticalSystem):
     """ Class representing a series of optical elements,
     through which light can be propagated using the Fresnel formalism.
@@ -1018,13 +1069,23 @@ class FresnelOpticalSystem(OpticalSystem):
         return optic
 
     @u.quantity_input(distance=u.m)
-    def add_detector(self, pixelscale, distance=0.0 * u.m, **kwargs):
-        super(FresnelOpticalSystem, self).add_detector(pixelscale, **kwargs)
+    def add_detector(self, pixelscale=10*u.micron/u.pixel, fov_pixels=10*u.pixel, distance=0.0 * u.m):
+        """ Add a detector to the optical system
+
+        Parameters
+        ----------
+        pixelscale : astropy.Quantity, with units micron/pixel or equivalent
+            The pixel scale at the detector
+        fov_pixels : astropy.Quantity with units pixel
+            The number of pixels per axis of the detector. Assumes square detector.
+         distance : astropy.Quantity of dimension length
+            separation distance of this optic relative to the prior optic in the system.
+
+        """
+        super(FresnelOpticalSystem, self).add_detector(pixelscale=pixelscale, fov_pixels=fov_pixels)
         self.distances.append(distance)
         if self.verbose:
             _log.info("Added detector: {0} after separation: {1:.2e} ".format(self.planes[-1].name, distance))
-
-    add_detector = add_detector  # for compatibility with pre-pep8 names
 
     @utils.quantity_input(wavelength=u.meter)
     def input_wavefront(self, wavelength=1e-6 * u.meter):
@@ -1049,8 +1110,8 @@ class FresnelOpticalSystem(OpticalSystem):
                                   npix=self.npix, oversample=oversample)
         _log.debug(
             "Creating input wavefront with wavelength={0} microns,"
-            "npix={1}, pixel scale={2}".format(
-                wavelength.to(u.micron).value, self.npix, self.pupil_diameter / (self.npix * u.pixel)
+            "npix={1}, diam={3}, pixel scale={2}".format(
+                wavelength.to(u.micron).value, self.npix, self.pupil_diameter / (self.npix * u.pixel), self.pupil_diameter
             ))
         return inwave
 

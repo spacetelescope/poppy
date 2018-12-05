@@ -25,8 +25,8 @@ Usage of the Fresnel code
 
 
 The API has been kept as similar as possible to the original Fraunhofer mode of
-poppy. There are FresnelWavefront and FresnelOpticalSystem classes, which can
-be used for the most part similar to the Wavefront and OpticalSystem classes.
+poppy. There are :class:`~poppy.FresnelWavefront` and :class:`~poppy.FresnelOpticalSystem` classes, which can
+be used for the most part similar to the :class:`~poppy.Wavefront` and :class:`~poppy.OpticalSystem` classes.
 
 Users are encouraged to consult the Jupyter notebook `Fresnel_Propagation_Demo
 <https://github.com/spacetelescope/poppy/blob/master/notebooks/Fresnel_Propagation_Demo.ipynb>`_
@@ -57,25 +57,53 @@ the paraxial approximation.  Right now, only the Fresnel ``QuadraticLens`` class
 will actually cause the Gaussian beam parameters to change. You won't get that
 effect by adding wavefront error with some other ``OpticalElement`` class.
 
+Using the FreselOpticalSystem class
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Just like the ``OpticalSystem`` serves as a high-level container for
-``OpticalElements`` in Fraunhofer propagation, the ``FresnelOpticalSystem``
-serves the same purpose in Fresnel propagation.  Note that when adding
-``OpticalElements`` to the ``FresnelOpticalSystem``, you use an ``add_optic``
-function and must specify a physical distance separating that optic from the
+Just like the :class:`~poppy.OpticalSystem` serves as a high-level container for
+:class:`~poppy.OpticalElement` instances in Fraunhofer propagation, the :class:`~poppy.FresnelOpticalSystem`
+serves the same purpose in Fresnel propagation.  Note that when adding an
+:class:`~poppy.OpticalElement` to the :class:`~poppy.FresnelOpticalSystem`, you use the function  :meth:`~poppy.FresnelOpticalSystem.add_optic`
+and must specify a physical distance separating that optic from the
 previous optic, again as an `astropy.Quantity
 <http://docs.astropy.org/en/stable/units/>`_ of dimension length. This replaces
-the ``add_image`` and ``add_pupil`` methods used in Fraunhofer propagation.
+the ``add_image`` and ``add_pupil`` methods used in Fraunhofer propagation.  For example::
 
 
+    osys = poppy.FresnelOpticalSystem(pupil_diameter = 0.05*u.m, npix = npix, beam_ratio = 0.25)
+    osys.add_optic(poppy.CircularAperture(radius=0.025) )
+    osys.add_optic(poppy.ScalarTransmission(), distance = 10*u.m )
 
-For more details and examples of code usage, consult the Jupyter notebook
-`Fresnel_Propagation_Demo
-<https://github.com/spacetelescope/poppy/blob/master/notebooks/Fresnel_Propagation_Demo.ipynb>`_.
 
-A worked example of a compound microscope in POPPY is available
-`here <https://github.com/douglase/poppy_example_notebooks/blob/master/Fresnel/Microscope_Example.ipynb>`_,
-reproducing the microscope example case provided in the PROPER manual.
+If you want the output from a Fresnel calculation to have a particular pixel
+sampling, you may either (1) adjust the ``npix`` and ``oversample`` or
+``beam_ratio`` parameters so that the propagation output naturally has the
+desired sampling, or (2) add a :class:`~poppy.Detector` instance as the *last* optical plane
+to define the desired sampling, in which case the output wavefront will be
+interpolated onto the desired sampling and number of pixels. Note that when
+specifying Detectors in a Fresnel system you must use physical sizes of pixels,
+e.g. ``10*u.micron/u.pixel``, and NOT angular sizes in arcsec/pixel like in a
+regular Fraunhofer OpticalSystem. For instance::
+
+    osys.add_detector(pixelscale=20*u.micron/u.pixel, fov_pixels=512)
+
+
+Example Jupyter Notebooks
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. admonition:: Fresnel tutorial notebook
+
+   For more details and examples of code usage, consult the Jupyter
+   notebook `Fresnel_Propagation_Demo
+   <https://github.com/spacetelescope/poppy/blob/master/notebooks/Fresnel_Propagation_Demo.ipynb>`_.
+   In addition to details on code usage, this includes a worked example of
+   a Fresnel model of the Hubble Space Telescope.
+
+.. admonition:: A non-astronomical example
+
+    A worked example of a compound microscope in POPPY is available
+    `here <https://github.com/douglase/poppy_example_notebooks/blob/master/Fresnel/Microscope_Example.ipynb>`_,
+    reproducing the microscope example case provided in the PROPER manual.
 
 Fresnel calculations with Physical units
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -109,5 +137,4 @@ The following references were helpful in the development of this code.
     - Andersen, T., and A. Enmark (2011),
       `Integrated Modeling of Telescopes <http://www.amazon.com/Integrated-Modeling-Telescopes-Astrophysics-Science/dp/1461401488>`_,
       Springer Science & Business Media.
-
 

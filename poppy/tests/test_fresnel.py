@@ -8,8 +8,6 @@ from poppy.poppy_core import _log, PlaneType
 import astropy.units as u
 import matplotlib.pyplot as plt
 import numpy as np
-import astropy.units as u
-import numpy as np
 from .. import fwcentroid
 from scipy.ndimage import zoom,shift
 
@@ -365,7 +363,7 @@ def test_fresnel_optical_system_Hubble(display=False, sampling=2):
         utils.display_psf(psf, imagecrop=1)
 
 
-def test_fresnel_FITS_Optical_element(tmpdir, display=False):
+def test_fresnel_FITS_Optical_element(tmpdir, display=False, verbose=False):
     """ Test that Fresnel works with FITS optical elements.
 
     Incidentally serves as a test of the fix for the FITS endian issue
@@ -381,38 +379,73 @@ def test_fresnel_FITS_Optical_element(tmpdir, display=False):
     tmpdir : string
         temporary directory for output FITS file. To be provided by py.test's
         tmpdir test fixture.
+    display : bool
+        Show plots?
+    verbose : bool
+        Print some remarks when running?
 
     """
     import os.path
     import astropy.io.fits as fits
-    from .. import wfe
+    from poppy import wfe
 
-    m1_zernike= wfe.ZernikeWFE(radius=1.2,
-        coefficients=[0,0,0,0,0,1e-7],
-        oversample=0)
+    # parameters for calculation test case:
+    radius = 1.0 * u.m
+    npix = 128
 
-    fits_zern = m1_zernike.to_fits(what='opd')
+    conv_lens = fresnel.QuadraticLens(1.0 * u.m)
+    circular_aperture = optics.CircularAperture(radius=radius)
 
-    filename=os.path.join(str(tmpdir), "astigmatism.fits")
-    fits_zern.writeto(filename, overwrite=True)
-    astig_surf = poppy_core.FITSOpticalElement(opd=filename,
-        planetype=poppy_core._INTERMED,
-        oversample=1)
+    # To test two different versions of the FITS handling, we will repeat this test twice:
+    # once with the FITS element crafted to precisely match the pixel scale of the
+    # wavefront in the Fresnel propagation, and once with a mismatch in the pixel scale
+    # so that it has to be interpolated. We should get the same result both ways within the
+    # tolerances.
 
-    osys = poppy_core.OpticalSystem()
-    circular_aperture = optics.CircularAperture(radius=1.2)
-    osys.add_pupil(circular_aperture)
-    osys.add_pupil(astig_surf)
-    osys.add_detector(pixelscale=.01, fov_arcsec=5)
+    # Below we will create a FITSOpticalElement and show that it works in the FresnelOpticalSystem.
+    # To make the test interesting we put some astigmatism in that FITS file, but this is arbitrary.
+    # We make the OPD by creating a Zernike WFE object, sampling it as desired, writing it
+    # out as a temp file, then reading back in to a FITSOpticalElement
 
-    psf_with_astigmatism, wfronts = osys.calc_psf( display_intermediates=display,return_intermediates=True)
+    for matchscale in [True, False]:
 
-    cx, cy = utils.measure_centroid(psf_with_astigmatism)
-    expected_cx, expected_cy = 499.5, 499.5
-    assert np.abs(cx-expected_cx)< 0.02, "PSF centroid is not as expected in X"
-    assert np.abs(cy-expected_cy)< 0.02, "PSF centroid is not as expected in Y"
-    assert psf_with_astigmatism[0].data.sum() > 0.99, "PSF total flux is not as expected."
-    assert np.abs(psf_with_astigmatism[0].data.max() - 0.00178667) < 1e-5, "PSF peak pixel is not as expected"
+        # Create the FITS element to test
+        m1_zernike = wfe.ZernikeWFE(radius=radius,
+                                    coefficients=[0, 0, 0, 0, 0, 1e-7])
+        if matchscale:
+            fits_zern = m1_zernike.to_fits(what='opd', grid_size=2 * radius, npix=npix)
+        else:
+            fits_zern = m1_zernike.to_fits(what='opd', npix=376)
+
+        filename = os.path.join(str(tmpdir), "astigmatism.fits")
+        fits_zern.writeto(filename, overwrite=True)
+        astig_surf = poppy_core.FITSOpticalElement(opd=filename,
+                                                   planetype=poppy_core._INTERMED,
+                                                   oversample=1)
+
+        if verbose:
+            print("Astigmatism surface from FITS has pixelscale {}, npix={}".format(astig_surf.pixelscale,
+                                                                                    astig_surf.shape[0]))
+
+        # Now we put that FITSOpticalElement into a Fresnel optical system.
+        fosys = fresnel.FresnelOpticalSystem(pupil_diameter=radius * 2, beam_ratio=0.25, npix=npix)
+        fosys.add_optic(circular_aperture)
+        fosys.add_optic(astig_surf)
+        fosys.add_optic(conv_lens)
+        fosys.add_optic(optics.ScalarTransmission(name='focus'), distance=1 * u.m)
+
+        # perform the calculation, then check results are as expected
+        psf_with_astigmatism, wfronts = fosys.calc_psf(display_intermediates=display, return_intermediates=True)
+
+        cx, cy = utils.measure_centroid(psf_with_astigmatism)
+        expected_cx = expected_cy = psf_with_astigmatism[0].data.shape[0] // 2
+        assert np.abs(cx - expected_cx) < 0.02, "PSF centroid is not as expected in X"
+        assert np.abs(cy - expected_cy) < 0.02, "PSF centroid is not as expected in Y"
+        assert psf_with_astigmatism[0].data.sum() > 0.99, "PSF total flux is not as expected."
+        assert np.abs(psf_with_astigmatism[0].data.max() - 0.033212) < 2e-5, "PSF peak pixel is not as expected"
+
+        if verbose:
+            print("Tests of FITSOpticalElement in FresnelOpticalSystem pass.")
 
 
 def test_fresnel_propagate_direct_forward_and_back():
@@ -475,3 +508,28 @@ def test_fresnel_return_complex():
 
     assert len(psf[1])==1
     assert np.allclose(psf[1][0].intensity,psf[0][0].data)
+
+
+def test_detector_in_fresnel_system(npix=256):
+    """ Show that we can put a detector in a FresnelOpticalSystem
+    and it will resample the wavefront to the desired sampling and size"""
+
+    # Setup Fresnel system, with a detector that changes the sampling
+    osys = fresnel.FresnelOpticalSystem(pupil_diameter=0.05*u.m, npix=npix, beam_ratio=0.25)
+    osys.add_optic(optics.CircularAperture(radius=0.025))
+    osys.add_optic(optics.ScalarTransmission(), distance=10*u.m)
+    osys.add_detector(pixelscale=200*u.micron/u.pixel, fov_pixels=300)
+
+    # Calculate a PSF
+    psf, waves = osys.calc_psf(wavelength=1e-6, return_intermediates=True)
+
+    # Check the output pixel scale is as desired
+    np.testing.assert_almost_equal(psf[0].header['PIXELSCL'],  0.0002)
+
+    # Check the wavefront gets cropped to the right size of pixels, from something different
+    assert waves[0].shape == (1024, 1024)
+    assert waves[1].shape == (1024, 1024)
+    assert waves[2].shape == (300, 300)
+    assert psf[0].data.shape == (300, 300)
+
+    assert psf[0].header['NAXIS1'] == 300
