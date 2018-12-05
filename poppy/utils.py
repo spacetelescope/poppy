@@ -296,7 +296,7 @@ def display_psf_difference(hdulist_or_filename1=None, HDUlist_or_filename2=None,
         How should the colorbar be oriented? (Note: Updating a plot and
         changing the colorbar orientation is not supported. When replotting
         in the same axes, use the same colorbar orientation.)
-    print_ : bool
+    print\\_ : bool
         Print RMS difference value for the images? (Default: False)
     ax : matplotlib.Axes instance
         Axes to display into.

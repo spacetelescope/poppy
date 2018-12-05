@@ -11,11 +11,13 @@ measuring and modeling wavefronts:
     * Segmented bases with piston, tip, & tilt of independent hexagonal segments.
 
 For definitions of Zernikes and a basic introduction to why they are a useful way to
+
 parametrize data, see e.g.
     Hardy's 'Adaptive Optics for Astronomical Telescopes' section 3.5.1
     or even just the Wikipedia page is pretty decent.
 
 For definition of the hexagon and arbitrary pupil polynomials, a good reference to the
+
 Gram-Schmidt orthonormalization process as applied to this case is
     Mahajan and Dai, 2006. Optics Letters Vol 31, 16, p 2462:
 """
@@ -181,12 +183,16 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
     ordered by a single index.
 
     You may specify the pupil in one of two ways:
-     zernike(n, m, npix)       where npix specifies a pupil diameter in pixels.
-                               The returned pupil will be a circular aperture
-                               with this diameter, embedded in a square array
-                               of size npix*npix.
-     zernike(n, m, rho=r, theta=theta)    Which explicitly provides the desired pupil coordinates
-                               as arrays r and theta. These need not be regular or contiguous.
+
+        zernike(n, m, npix)
+            where npix specifies a pupil diameter in pixels.
+            The returned pupil will be a circular aperture
+            with this diameter, embedded in a square array
+            of size npix*npix.
+
+        zernike(n, m, rho=r, theta=theta)
+            Which explicitly provides the desired pupil coordinates
+            as arrays r and theta. These need not be regular or contiguous.
 
     The expressions for the Zernike terms follow the normalization convention
     of Noll et al. JOSA 1976 unless the `noll_normalize` argument is False.
@@ -1020,10 +1026,13 @@ def opd_expand_nonorthonormal(opd, aperture=None, nterms=15, basis=zernike_basis
 
     Based on various empirical experimentation for what is necessary to get
     reasonable behavior in this non-ideal case. Factors to consider:
+
     1) Masking to use just pixels good in both the zernike unit circle and the
        asymmetric numerical aperture
+
     2) Subtracting off the fit terms as you go, so as to not fit the same WFE
        multiple times
+
     3) Iterating multiples by re-fitting the residual, to include as much WFE
        as possible.
 
