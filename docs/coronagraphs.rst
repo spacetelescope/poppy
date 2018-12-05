@@ -4,9 +4,9 @@ Efficient Lyot coronagraph propagation
 
 
 Poppy has extensive functionality to faciliate the modeling of coronagraph point spread functions. In addition to the general summary of those capabilities here, see the examples in the notebooks subdirectory:
-`POPPY Examples <https://github.com/mperrin/poppy/blob/master/notebooks/POPPY%20Examples.ipynb>`_
+`POPPY Examples <https://github.com/spacetelescope/poppy/blob/master/notebooks/POPPY%20Examples.ipynb>`_
 and
-`MatrixFTCoronagraph_demo <https://github.com/mperrin/poppy/blob/master/notebooks/MatrixFTCoronagraph_demo.ipynb>`_.
+`MatrixFTCoronagraph_demo <https://github.com/spacetelescope/poppy/blob/master/notebooks/MatrixFTCoronagraph_demo.ipynb>`_.
 
 Introduction
 --------------
@@ -165,7 +165,7 @@ Compare the elapsed time::
 Band-limited coronagraph
 -------------------------
 
-Depending on the specific implementation, a Lyot coronagraph with a band-limited occulter can also benefit from the semi-analytical method in Poppy. For additional band-limited coronagraph examples, see the JWST NIRCam coronagraph modes included in `WebbPSF <http://github.com/mperrin/webbpsf>`_.
+Depending on the specific implementation, a Lyot coronagraph with a band-limited occulter can also benefit from the semi-analytical method in Poppy. For additional band-limited coronagraph examples, see the JWST NIRCam coronagraph modes included in `WebbPSF <http://github.com/spacetelescope/webbpsf>`_.
 
 As an example of a more complicated coronagraph PSF calculation than the ones above, here's a NIRCam-style band limited coronagraph with the source not precisely centered::
 

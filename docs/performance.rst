@@ -81,7 +81,7 @@ Of course, the calculation ought to proceed faster overall if you're using multi
 
 .. warning::
    On Mac OS X, for Python < 2.7, multiprocessing is not compatible with
-   Apple's Accelerate framework mentioned above, due to the non-POSIX-compliant manner in which multiprocessing forks new processes. See https://github.com/mperrin/poppy/issues/23
+   Apple's Accelerate framework mentioned above, due to the non-POSIX-compliant manner in which multiprocessing forks new processes. See https://github.com/spacetelescope/poppy/issues/23
    and https://github.com/numpy/numpy/issues/5752 for discussion.  Python 3.4 provides an improved method
    of starting new processes that removes this limitation. 
 

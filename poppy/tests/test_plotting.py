@@ -7,7 +7,7 @@ pass
 # ___________________ ERROR collecting poppy/tests/test_plotting.py ____________________
 # poppy/tests/test_plotting.py:5: in <module>
 # >   from matplotlib.testing.decorators import image_comparison
-# /Users/mperrin/software/macports/Library/Frameworks/Python.framework/Versions/2.7/lib/
+# /Users/spacetelescope/software/macports/Library/Frameworks/Python.framework/Versions/2.7/lib/
 # python2.7/site-packages/matplotlib/testing/decorators.py:7: in <module>
 # >   import matplotlib.tests
 # E   ImportError: No module named tests

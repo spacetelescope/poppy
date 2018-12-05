@@ -38,7 +38,7 @@ Summary
 
 .. admonition:: Quickstart IPython Notebook
 
-       This documentation is complemented by an `IPython Notebook quickstart tutorial <http://nbviewer.ipython.org/github/mperrin/poppy/blob/master/notebooks/POPPY_tutorial.ipynb>`_.
+       This documentation is complemented by an `IPython Notebook quickstart tutorial <http://nbviewer.ipython.org/github/spacetelescope/poppy/blob/master/notebooks/POPPY_tutorial.ipynb>`_.
 
        Downloading and running that notebook is a great way to get started using POPPY. The documentation following here provides greater details on the algorithms and API.
 
@@ -72,6 +72,6 @@ Contents
 Getting Help
 -------------------
 POPPY is developed and maintained by :ref:`Marshall Perrin and collaborators <about_team>`. Questions, comments, and
-pull requests always welcome, either via the `Github repository <https://github.com/mperrin/poppy>`_ or email to help@stsci.edu. 
+pull requests always welcome, either via the `Github repository <https://github.com/spacetelescope/poppy>`_ or email to help@stsci.edu.
 
 

@@ -29,7 +29,7 @@ poppy. There are FresnelWavefront and FresnelOpticalSystem classes, which can
 be used for the most part similar to the Wavefront and OpticalSystem classes.
 
 Users are encouraged to consult the Jupyter notebook `Fresnel_Propagation_Demo
-<https://github.com/mperrin/poppy/blob/master/notebooks/Fresnel_Propagation_Demo.ipynb>`_
+<https://github.com/spacetelescope/poppy/blob/master/notebooks/Fresnel_Propagation_Demo.ipynb>`_
 for examples of how to use the Fresnel code.
 
 Key Differences from Fraunhofer mode
@@ -71,7 +71,7 @@ the ``add_image`` and ``add_pupil`` methods used in Fraunhofer propagation.
 
 For more details and examples of code usage, consult the Jupyter notebook
 `Fresnel_Propagation_Demo
-<https://github.com/mperrin/poppy/blob/master/notebooks/Fresnel_Propagation_Demo.ipynb>`_.
+<https://github.com/spacetelescope/poppy/blob/master/notebooks/Fresnel_Propagation_Demo.ipynb>`_.
 
 A worked example of a compound microscope in POPPY is available
 `here <https://github.com/douglase/poppy_example_notebooks/blob/master/Fresnel/Microscope_Example.ipynb>`_,
@@ -86,7 +86,7 @@ total intensity (power).  This code was developed and contributed by `Phillip
 Springer <https://github.com/DaPhil>`_.
 
 See `this notebook
-<https://github.com/mperrin/poppy/blob/master/notebooks/Physical%20Units%20Demo.ipynb>`_
+<https://github.com/spacetelescope/poppy/blob/master/notebooks/Physical%20Units%20Demo.ipynb>`_
 for examples and further discussion.
 
 
