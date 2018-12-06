@@ -36,9 +36,6 @@ env:
         - SETUP_CMD='egg_info'
 
 matrix:
-    # Don't wait for allowed failures
-    fast_finish: true
-
     include:
         # do the actual tests.
         # Do a coverage test in Python 3.
