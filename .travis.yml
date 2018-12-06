@@ -67,8 +67,6 @@ matrix:
         - python: 3.5
           env: NUMPY_VERSION=1.11
 
-before_install:
-    - python -c "import fcntl; fcntl.fcntl(1, fcntl.F_SETFL, 0)"
 install:
 
     # We now use the ci-helpers package to set up our testing environment.
