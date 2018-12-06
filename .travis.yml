@@ -26,13 +26,19 @@ env:
         - NUMPY_VERSION=stable
         - ASTROPY_VERSION=stable
         - SETUP_CMD='test'
-        - PIP_DEPENDENCIES=''
-        - CONDA_DEPENDENCIES='scipy matplotlib six'
+        - PIP_DEPENDENCIES='jwxml nbsphinx Sphinx==1.5.6'
+        - CONDA_DEPENDENCIES='scipy matplotlib six cython'
+
+        # For headless testing of code that imports PyPlot:
+        - MPLBACKEND=Agg
     matrix:
         # Make sure that egg_info works without dependencies
         - SETUP_CMD='egg_info'
 
 matrix:
+    # Don't wait for allowed failures
+    fast_finish: true
+
     include:
         # do the actual tests.
         # Do a coverage test in Python 3.
@@ -61,6 +67,8 @@ matrix:
         - python: 3.5
           env: NUMPY_VERSION=1.11
 
+before_install:
+    - python -c "import fcntl; fcntl.fcntl(1, fcntl.F_SETFL, 0)"
 install:
 
     # We now use the ci-helpers package to set up our testing environment.
@@ -73,7 +81,7 @@ install:
     # environment. In some cases, ci-helpers may not offer enough flexibility
     # in how to install a package, in which case you can have additional
     # commands in the install: section below.
-    - python -c "import fcntl; fcntl.fcntl(1, fcntl.F_SETFL, 0)"
+
     - git clone git://github.com/astropy/ci-helpers.git
     - source ci-helpers/travis/setup_conda_$TRAVIS_OS_NAME.sh
 
