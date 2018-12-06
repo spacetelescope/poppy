@@ -73,7 +73,7 @@ install:
     # environment. In some cases, ci-helpers may not offer enough flexibility
     # in how to install a package, in which case you can have additional
     # commands in the install: section below.
-
+    - python -c "import fcntl; fcntl.fcntl(1, fcntl.F_SETFL, 0)"
     - git clone git://github.com/astropy/ci-helpers.git
     - source ci-helpers/travis/setup_conda_$TRAVIS_OS_NAME.sh
 
