@@ -26,8 +26,8 @@ env:
         - NUMPY_VERSION=stable
         - ASTROPY_VERSION=stable
         - SETUP_CMD='test'
-        - PIP_DEPENDENCIES='jwxml nbsphinx Sphinx==1.5.6'
-        - CONDA_DEPENDENCIES='scipy matplotlib six cython'
+        - PIP_DEPENDENCIES=''
+        - CONDA_DEPENDENCIES='scipy matplotlib six'
 
         # For headless testing of code that imports PyPlot:
         - MPLBACKEND=Agg
