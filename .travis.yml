@@ -48,7 +48,10 @@ matrix:
 
         # Check for Sphinx doc build errors
         - python: 3.6
-          env: SETUP_CMD='build_sphinx' CONDA_DEPENDENCIES='scipy matplotlib six nbsphinx pandoc'
+          env: SETUP_CMD='build_sphinx'
+               CONDA_DEPENDENCIES='scipy matplotlib six nbsphinx pandoc'
+               PIP_DEPENDENCIES='sphinx_rtd_theme stsci_rtd_theme sphinx-automodapi'
+
 
         # Try Astropy development version
         - python: 3.6
