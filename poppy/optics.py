@@ -681,7 +681,8 @@ class CircularPhaseMask(AnalyticImagePlaneElement):
     """
 
     @utils.quantity_input(radius=u.arcsec, wavelength=u.meter)
-    def __init__(self, name=None, radius=1*u.arcsec, wavelength=1e-6 * u.meter, retardance=0.5, **kwargs):
+    def __init__(self, name=None, radius=1*u.arcsec, wavelength=1e-6 * u.meter, retardance=0.5,
+            **kwargs):
         if name is None:
             name = "Phase mask r={:.3g}".format(radius)
         AnalyticImagePlaneElement.__init__(self, name=name, **kwargs)
@@ -693,12 +694,12 @@ class CircularPhaseMask(AnalyticImagePlaneElement):
         self.retardance = retardance
 
     def get_opd(self, wave):
-        """ Compute the OPD appropriate for a 4QPM for some given pixel spacing
+        """ Compute the OPD appropriate for that phase mask for some given pixel spacing
         corresponding to the supplied Wavefront
         """
 
         if not isinstance(wave, Wavefront):  # pragma: no cover
-            raise ValueError("4QPM get_opd must be called with a Wavefront to define the spacing")
+            raise ValueError("get_opd must be called with a Wavefront to define the spacing")
         assert (wave.planetype == PlaneType.image)
 
         y, x = self.get_coordinates(wave)
@@ -711,8 +712,10 @@ class CircularPhaseMask(AnalyticImagePlaneElement):
         npix = (r<=radius).sum()
         if npix < 50:
             import warnings
-            warnings.warn("Phase mask is very coarsely sampled: only {} pixels. Improve sampling for better precision!".format(npix))
-            _log.warn("Phase mask is very coarsely sampled: only {} pixels. Improve sampling for better precision!".format(npix))
+            errmsg = "Phase mask is very coarsely sampled: only {} pixels. "\
+                     "Improve sampling for better precision!".format(npix)
+            warnings.warn(errmsg)
+            _log.warn(errmsg)
         return self.opd
 
 
