@@ -6,10 +6,10 @@ POPPY may be installed from PyPI in the usual manner for Python packages::
    % pip install poppy --upgrade
 
 The source code is hosted in `this repository on GitHub
-<https://github.com/mperrin/poppy>`_. It is possible to directly install the
+<https://github.com/spacetelescope/poppy>`_. It is possible to directly install the
 latest development version from git::
 
-   % git clone https://github.com/mperrin/poppy.git
+   % git clone https://github.com/spacetelescope/poppy.git
    % cd poppy
    % pip install -e .
 

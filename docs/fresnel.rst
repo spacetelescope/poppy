@@ -29,7 +29,7 @@ poppy. There are :class:`~poppy.FresnelWavefront` and :class:`~poppy.FresnelOpti
 be used for the most part similar to the :class:`~poppy.Wavefront` and :class:`~poppy.OpticalSystem` classes.
 
 Users are encouraged to consult the Jupyter notebook `Fresnel_Propagation_Demo
-<https://github.com/mperrin/poppy/blob/master/notebooks/Fresnel_Propagation_Demo.ipynb>`_
+<https://github.com/spacetelescope/poppy/blob/master/notebooks/Fresnel_Propagation_Demo.ipynb>`_
 for examples of how to use the Fresnel code.
 
 Key Differences from Fraunhofer mode
@@ -69,7 +69,7 @@ previous optic, again as an `astropy.Quantity
 <http://docs.astropy.org/en/stable/units/>`_ of dimension length. This replaces
 the ``add_image`` and ``add_pupil`` methods used in Fraunhofer propagation.  For example::
 
-    
+
     osys = poppy.FresnelOpticalSystem(pupil_diameter = 0.05*u.m, npix = npix, beam_ratio = 0.25)
     osys.add_optic(poppy.CircularAperture(radius=0.025) )
     osys.add_optic(poppy.ScalarTransmission(), distance = 10*u.m )
@@ -95,7 +95,7 @@ Example Jupyter Notebooks
 
    For more details and examples of code usage, consult the Jupyter
    notebook `Fresnel_Propagation_Demo
-   <https://github.com/mperrin/poppy/blob/master/notebooks/Fresnel_Propagation_Demo.ipynb>`_.
+   <https://github.com/spacetelescope/poppy/blob/master/notebooks/Fresnel_Propagation_Demo.ipynb>`_.
    In addition to details on code usage, this includes a worked example of
    a Fresnel model of the Hubble Space Telescope.
 
@@ -114,7 +114,7 @@ total intensity (power).  This code was developed and contributed by `Phillip
 Springer <https://github.com/DaPhil>`_.
 
 See `this notebook
-<https://github.com/mperrin/poppy/blob/master/notebooks/Physical%20Units%20Demo.ipynb>`_
+<https://github.com/spacetelescope/poppy/blob/master/notebooks/Physical%20Units%20Demo.ipynb>`_
 for examples and further discussion.
 
 
@@ -137,5 +137,4 @@ The following references were helpful in the development of this code.
     - Andersen, T., and A. Enmark (2011),
       `Integrated Modeling of Telescopes <http://www.amazon.com/Integrated-Modeling-Telescopes-Astrophysics-Science/dp/1461401488>`_,
       Springer Science & Business Media.
-
 

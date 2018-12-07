@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Based on astropy affiliated package template's setup.py
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Licensed under a 3-clause BSD style license - see LICENSE.md
 from __future__ import print_function
 
 import glob

@@ -88,7 +88,7 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
                 adjust_for_oversampling=False, normalize='None',
                 crosshairs=False, markcentroid=False, colorbar=True,
                 colorbar_orientation='vertical', pixelscale='PIXELSCL',
-                ax=None, return_ax=False, interpolation=None):
+                ax=None, return_ax=False, interpolation=None, cube_slice=None):
     """Display nicely a PSF from a given hdulist or filename
 
     This is extensively configurable. In addition to making an attractive display, for
@@ -144,6 +144,9 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
         Interpolation technique for PSF image. Default is None,
         meaning it is taken from matplotlib's `image.interpolation`
         rcParam.
+    cube_slice : int or None
+        if input PSF is a datacube from calc_datacube, which slice
+        of the cube should be displayed?
     """
     if isinstance(HDUlist_or_filename, str):
         hdulist = fits.open(HDUlist_or_filename)
@@ -152,6 +155,20 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
     else:
         raise ValueError("input must be a filename or FITS HDUList object")
 
+    # Get a handle on the input image
+    if hdulist[ext].data.ndim == 2:
+        im0 = hdulist[ext].data
+        psf_array_shape = hdulist[ext].data.shape
+    elif hdulist[ext].data.ndim == 3:
+        if cube_slice is None:
+            raise ValueError("To display a PSF datacube, you must set cube_slice=<#>.")
+        else:
+            im0 = hdulist[ext].data[cube_slice]
+            psf_array_shape = hdulist[ext].data.shape[1:]
+    else:
+        raise RuntimeError("Unsupported image dimensionality.")
+
+    # Normalization
     if adjust_for_oversampling:
         try:
             scalefactor = hdulist[ext].header['OVERSAMP'] ** 2
@@ -159,10 +176,10 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
             _log.error("Could not determine oversampling scale factor; "
                        "therefore NOT rescaling fluxes.")
             scalefactor = 1
-        im = hdulist[ext].data * scalefactor
+        im = im0 * scalefactor
     else:
         # don't change normalization of actual input array, work with a copy!
-        im = hdulist[ext].data.copy()
+        im = im0.copy()
 
     if normalize.lower() == 'peak':
         _log.debug("Displaying image normalized to peak = 1")
@@ -176,7 +193,6 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
     else:
         norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
-    psf_array_shape = hdulist[ext].data.shape
     if isinstance(pixelscale, str):
         pixelscale = hdulist[ext].header[pixelscale]
         halffov_x = pixelscale * psf_array_shape[1] / 2.0
@@ -296,7 +312,7 @@ def display_psf_difference(hdulist_or_filename1=None, HDUlist_or_filename2=None,
         How should the colorbar be oriented? (Note: Updating a plot and
         changing the colorbar orientation is not supported. When replotting
         in the same axes, use the same colorbar orientation.)
-    print_ : bool
+    print\\_ : bool
         Print RMS difference value for the images? (Default: False)
     ax : matplotlib.Axes instance
         Axes to display into.
