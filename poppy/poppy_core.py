@@ -2245,7 +2245,7 @@ class FITSOpticalElement(OpticalElement):
     def __init__(self, name="unnamed optic", transmission=None, opd=None, opdunits=None,
                  rotation=None, pixelscale=None, planetype=None,
                  transmission_index=None, opd_index=None,
-                 shift=None, shift_x=None, shift_y=None, 
+                 shift=None, shift_x=None, shift_y=None,
                  flip_x=False, flip_y=False,
                  **kwargs):
 
@@ -2400,11 +2400,11 @@ class FITSOpticalElement(OpticalElement):
             if rotation is not None and len(self.amplitude.shape) == 2:
                 # do rotation with interpolation, but try to clean up some of the artifacts afterwards.
                 # this is imperfect at best, of course...
-                self.amplitude = scipy.ndimage.interpolation.rotate(self.amplitude, rotation,
+                self.amplitude = scipy.ndimage.interpolation.rotate(self.amplitude, -rotation, #negative = CCW
                                                                     reshape=False).clip(min=0, max=1.0)
                 wnoise = np.where((self.amplitude < 1e-3) & (self.amplitude > 0))
                 self.amplitude[wnoise] = 0
-                self.opd = scipy.ndimage.interpolation.rotate(self.opd, rotation, reshape=False)
+                self.opd = scipy.ndimage.interpolation.rotate(self.opd, -rotation, reshape=False) # negative = CCW
                 _log.info("  Rotated optic by %f degrees counter clockwise." % rotation)
                 self._rotation = rotation
 
