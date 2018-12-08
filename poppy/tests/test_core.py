@@ -3,6 +3,7 @@ import os
 
 import numpy as np
 from astropy.io import fits
+import astropy.units as u
 import pytest
 try:
     import scipy
@@ -59,22 +60,24 @@ def test_input_wavefront_size():
     # is applied during an FFT propagation; by default there's no effect
     # in the unpadded array.
     for oversamp in (1,2,4):
-        osys = poppy_core.OpticalSystem("test", oversample=oversamp)
+        osys = poppy_core.OpticalSystem("test", oversample=oversamp, pupil_diameter = 1*u.meter)
         #pupil = optics.CircularAperture(radius=1)
         wf = osys.input_wavefront()
         expected_shape = (1024,1024) if (wf.ispadded == False) else (1024*oversamp, 1024*oversamp)
         assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
 
 
-    # test setting the size based on the npix parameter, with null optical system
+    # test setting the size based on the npix parameter, with no optical system planes
+    # (so it gets the diameter from the optical system object)
     for size in [512, 1024, 2001]:
-        osys = poppy_core.OpticalSystem("test", oversample=1, npix=size)
+        osys = poppy_core.OpticalSystem("test", oversample=1, npix=size, pupil_diameter = 1*u.meter)
         #pupil = optics.CircularAperture(radius=1)
         wf = osys.input_wavefront()
         expected_shape = (size,size)
         assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
 
     # test setting the size based on the npix parameter, with a non-null optical system
+    # (so it infers the system diameter from the first optic's diameter)
     for size in [512, 1024, 2001]:
         osys = poppy_core.OpticalSystem("test", oversample=1, npix=size)
         osys.add_pupil(optics.CircularAperture(radius=1))

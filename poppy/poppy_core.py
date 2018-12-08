@@ -1066,7 +1066,7 @@ class OpticalSystem(object):
     """
 
     def __init__(self, name="unnamed system", verbose=True, oversample=2,
-                 npix=1024, pupil_diameter=None):
+                 npix=None, pupil_diameter=None):
         self.name = name
         self.verbose = verbose
         self.planes = []  # List of OpticalElements
@@ -1320,13 +1320,15 @@ class OpticalSystem(object):
 
     # methods for dealing with wavefronts:
     @utils.quantity_input(wavelength=u.meter)
-    def input_wavefront(self, wavelength=2e-6 * u.meter):
+    def input_wavefront(self, wavelength=1e-6 * u.meter):
         """Create a Wavefront object suitable for sending through a given optical system, based on
         the size of the first optical plane, assumed to be a pupil.
 
-        If the first optical element is an Analytic pupil (i.e. has no pixel scale) then
-        the default size is set by the `npix` parameter to __init__ of this class,
-        which itself has a default value of 1024.
+        Defining this needs both a number of pixels (npix) and physical size (diam) to set the sampling.
+
+        If this OpticalSystem has a provided `npix` attribute that is not None, use that to
+        set the input wavefront size. Otherwise, check if the first optical element has a defined sampling.
+        If not, default to 1024 pixels.
 
         Uses self.source_offset to assign an off-axis tilt, if requested.
 
@@ -1348,22 +1350,25 @@ class OpticalSystem(object):
 
         """
 
-        # somewhat complicated logic here for historical reasons.
-        # if we have a first optical plane, check and see if it specifies the entrance sampling.
+        # somewhat complicated logic here  (Revised version after #246)
+        # First check if the sampling parameters are explicitly defined for the OpticalSystem:
+        npix = getattr(self, 'npix', None)
+        diam = getattr(self, 'pupil_diameter', None)
 
-        npix = None
-        diam = None
+        # If not then if we have a first optical plane, check and see if it specifies the entrance sampling:
         if len(self.planes) > 0:
-            if self.planes[0].shape is not None:
-                npix = self.planes[0].shape[0]
-            if hasattr(self.planes[0], 'pupil_diam') and self.planes[0].pupil_diam is not None:
-                diam = self.planes[0].pupil_diam
+            if npix is None:
+                if self.planes[0].shape is not None:
+                    npix=self.planes[0].shape[0]
+            if diam is None:
+                if hasattr(self.planes[0], 'pupil_diam') and self.planes[0].pupil_diam is not None:
+                    diam = self.planes[0].pupil_diam
 
-        # if sampling is still undefined, fall back to what is set for this optical system itself
         if npix is None:
-            npix = self.npix if self.npix is not None else 1024
+            _log.info("You did not define npix either on the OpticalSystem or its first optic; defaulting to 1024 pixels.")
+            npix=1024
         if diam is None:
-            diam = self.pupil_diameter if self.pupil_diameter is not None else 1
+            raise RuntimeError("You must define an entrance pupil diameter either on the OpticalSystem or its first optic.")
 
         # if the diameter was specified as an astropy.Quantity, cast it to just a scalar in meters
         if isinstance(diam, u.Quantity):
