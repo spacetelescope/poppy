@@ -119,7 +119,7 @@ class Wavefront(object):
     """
 
     @utils.quantity_input(wavelength=u.meter, diam=u.meter, pixelscale=u.arcsec / u.pixel)
-    def __init__(self, wavelength=2e-6 * u.meter, npix=1024, dtype=None, diam=8.0 * u.meter,
+    def __init__(self, wavelength=1e-6 * u.meter, npix=1024, dtype=None, diam=8.0 * u.meter,
                  oversample=2, pixelscale=None):
 
         self._last_transform_type = None  # later used to track MFT vs FFT pixel coord centering in coordinates()
@@ -1410,7 +1410,7 @@ class OpticalSystem(object):
 
     @utils.quantity_input(wavelength=u.meter)
     def propagate_mono(self,
-                       wavelength=2e-6 * u.meter,
+                       wavelength=1e-6 * u.meter,
                        normalize='first',
                        retain_intermediates=False,
                        retain_final=False,
