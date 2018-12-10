@@ -101,3 +101,8 @@ if _HAVE_PYTEST:
             zernike.zernike(2,4)
         assert _exception_message_starts_with(excinfo, "Zernike index m must be >= index n")
 
+
+    def test_lack_of_input_wavefront_specification():
+        with pytest.raises(RuntimeError) as excinfo:
+            poppy_core.OpticalSystem().calc_psf()
+        assert _exception_message_starts_with(excinfo, "You must define an entrance pupil diameter")
