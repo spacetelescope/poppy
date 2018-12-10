@@ -109,7 +109,7 @@ rst_epilog += """
 
 # This does not *have* to match the package name, but typically does
 project = setup_cfg['package_name']
-author = u'Association of Universities for Research in Astronomy'
+author = setup_cfg['author']
 copyright = '{0}, {1}'.format(
     datetime.datetime.now().year, author)
 
@@ -125,7 +125,6 @@ version = package.__version__.split('-', 1)[0]
 # The full version, including alpha/beta/rc tags.
 release = package.__version__
 
-
 # -- Options for HTML output ---------------------------------------------------
 
 # A NOTE ON HTML THEMES
@@ -134,12 +133,6 @@ release = package.__version__
 # the options for this theme can be modified by overriding some of the
 # variables set in the global configuration. The variables set in the
 # global configuration are listed below, commented out.
-
-html_theme_options = {
-    'logotext1': '',  # white,  semi-bold
-    'logotext2': 'POPPY',     # orange, light
-    'logotext3': ' documentation'   # white,  light
-    }
 
 # Add any paths that contain custom themes here, relative to this directory.
 # To use a different custom theme, add the directory containing the theme.
