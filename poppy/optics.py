@@ -20,7 +20,7 @@ if accel_math._USE_NUMEXPR:
 _log = logging.getLogger('poppy')
 
 __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'InverseTransmission',
-           'BandLimitedCoron', 'BandLimitedCoronagraph', 'IdealFQPM', 'RectangularFieldStop', 'SquareFieldStop',
+           'BandLimitedCoron', 'BandLimitedCoronagraph', 'IdealFQPM', 'CircularPhaseMask', 'RectangularFieldStop', 'SquareFieldStop',
            'AnnularFieldStop', 'HexagonFieldStop',
            'CircularOcculter', 'BarOcculter', 'FQPM_FFT_aligner', 'CircularAperture',
            'HexagonAperture', 'MultiHexagonAperture', 'NgonAperture', 'RectangleAperture',
@@ -659,6 +659,64 @@ class IdealFQPM(AnalyticImagePlaneElement):
         phase = (1 - np.sign(x) * np.sign(y)) * 0.25
 
         return phase * self.central_wavelength.to(u.meter).value
+
+
+class CircularPhaseMask(AnalyticImagePlaneElement):
+    """ Circular phase mask coronagraph, with its retardance
+    set perfectly at one specific wavelength and varying linearly on
+    either side of that.
+
+    Parameters
+    ----------
+    name : string
+        Descriptive name
+    radius : float
+        Radius of the mask
+    wavelength : float
+        Wavelength in meters for which the phase mask was designed
+    retardance : float
+        Optical path delay at that wavelength, specified in waves
+        relative to the reference wavelengt. Default is 0.5.
+
+    """
+
+    @utils.quantity_input(radius=u.arcsec, wavelength=u.meter)
+    def __init__(self, name=None, radius=1*u.arcsec, wavelength=1e-6 * u.meter, retardance=0.5,
+            **kwargs):
+        if name is None:
+            name = "Phase mask r={:.3g}".format(radius)
+        AnalyticImagePlaneElement.__init__(self, name=name, **kwargs)
+        self.wavefront_display_hint = 'phase'  # preferred display for wavefronts at this plane
+        self._default_display_size = 4*radius
+
+        self.central_wavelength = wavelength
+        self.radius = radius
+        self.retardance = retardance
+
+    def get_opd(self, wave):
+        """ Compute the OPD appropriate for that phase mask for some given pixel spacing
+        corresponding to the supplied Wavefront
+        """
+
+        if not isinstance(wave, Wavefront):  # pragma: no cover
+            raise ValueError("get_opd must be called with a Wavefront to define the spacing")
+        assert (wave.planetype == PlaneType.image)
+
+        y, x = self.get_coordinates(wave)
+        r = _r(x, y)
+
+        self.opd= np.zeros(wave.shape, dtype=_float())
+        radius = self.radius.to(u.arcsec).value
+
+        self.opd[r <= radius] = self.retardance * self.central_wavelength.to(u.meter).value
+        npix = (r<=radius).sum()
+        if npix < 50:
+            import warnings
+            errmsg = "Phase mask is very coarsely sampled: only {} pixels. "\
+                     "Improve sampling for better precision!".format(npix)
+            warnings.warn(errmsg)
+            _log.warn(errmsg)
+        return self.opd
 
 
 class RectangularFieldStop(AnalyticImagePlaneElement):

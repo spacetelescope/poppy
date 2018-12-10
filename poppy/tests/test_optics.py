@@ -175,6 +175,20 @@ def test_SquareFieldStop():
     assert wave.intensity.sum() == 400 # 1/10 of the 1e4 element array
 
 
+def test_CircularPhaseMask():
+    import poppy
+    optic= optics.CircularPhaseMask(radius=1, retardance=0.25, wavelength=3e-6)
+    wave = poppy_core.Wavefront(npix=100, pixelscale=0.05, wavelength=3e-6)
+
+    wave*= optic
+    assert wave.phase[50,0]==0
+    assert wave.phase[50,29]==0
+    np.testing.assert_almost_equal(wave.phase[50,30], np.pi/2)
+    np.testing.assert_almost_equal(wave.phase[50,50], np.pi/2)
+    np.testing.assert_almost_equal(wave.phase[50,69], np.pi/2)
+    assert wave.phase[50,70]==0
+    assert wave.phase[50,80]==0
+
 
 def test_BarOcculter():
     optic= optics.BarOcculter(width=1, rotation=0)
