@@ -2207,7 +2207,12 @@ class FITSOpticalElement(OpticalElement):
         2-tuple containing X and Y fractional shifts for the pupil. These shifts
         are implemented by rounding them to the nearest integer pixel, and doing
         integer pixel shifts on the data array, without interpolation. If a
-        shift is specified, it takes place prior to any rotation operations.
+        shift is specified, it takes place after any rotation operations.
+    shift_x, shift_y : floats, optional
+        Alternate way of specifying shifts, given in meters of shift per each axis.
+        This is consistent with how AnalyticOpticalElement classes specify shifts.
+        If a shift is specified, it takes place after any rotation operations.
+        If both shift and shift_x/shift_y are specified, an error is raised.
     rotation : float
         Rotation for that optic, in degrees counterclockwise. This is
         implemented using spline interpolation via the
@@ -2238,8 +2243,9 @@ class FITSOpticalElement(OpticalElement):
     """
 
     def __init__(self, name="unnamed optic", transmission=None, opd=None, opdunits=None,
-                 shift=None, rotation=None, pixelscale=None, planetype=None,
+                 rotation=None, pixelscale=None, planetype=None,
                  transmission_index=None, opd_index=None,
+                 shift=None, shift_x=None, shift_y=None,
                  flip_x=False, flip_y=False,
                  **kwargs):
 
@@ -2394,33 +2400,15 @@ class FITSOpticalElement(OpticalElement):
             if rotation is not None and len(self.amplitude.shape) == 2:
                 # do rotation with interpolation, but try to clean up some of the artifacts afterwards.
                 # this is imperfect at best, of course...
-                self.amplitude = scipy.ndimage.interpolation.rotate(self.amplitude, rotation,
+                self.amplitude = scipy.ndimage.interpolation.rotate(self.amplitude, -rotation, #negative = CCW
                                                                     reshape=False).clip(min=0, max=1.0)
                 wnoise = np.where((self.amplitude < 1e-3) & (self.amplitude > 0))
                 self.amplitude[wnoise] = 0
-                self.opd = scipy.ndimage.interpolation.rotate(self.opd, rotation, reshape=False)
+                self.opd = scipy.ndimage.interpolation.rotate(self.opd, -rotation, reshape=False) # negative = CCW
                 _log.info("  Rotated optic by %f degrees counter clockwise." % rotation)
                 self._rotation = rotation
 
-            # ---- transformation: shift ----
-            # if a shift is specified and we're NOT a null (scalar) optic, then do the shift:
-            if shift is not None and len(self.amplitude.shape) == 2:
-                if abs(shift[0]) > 0.5 or abs(shift[1]) > 0.5:
-                    raise ValueError("You have asked for an implausibly large shift. Remember, "
-                                     "shifts should be specified as decimal values between -0.5 and 0.5, "
-                                     "a fraction of the total optic diameter. ")
-                rolly = int(np.round(self.amplitude.shape[0] * shift[1]))  # remember Y,X order for shape,
-                                                                           # but X,Y order for shift
-                rollx = int(np.round(self.amplitude.shape[1] * shift[0]))
-                _log.info("Requested optic shift of ({:6.3f}, {:6.3f}) ".format(*shift))
-                _log.info("Actual shift applied   = (%6.3f, %6.3f) " % (
-                          rollx * 1.0 / self.amplitude.shape[1], rolly * 1.0 / self.amplitude.shape[0]))
-                self._shift = (rollx * 1.0 / self.amplitude.shape[1], rolly * 1.0 / self.amplitude.shape[0])
-
-                self.amplitude = scipy.ndimage.shift(self.amplitude, (rolly, rollx))
-                self.opd = scipy.ndimage.shift(self.opd, (rolly, rollx))
-
-            # Determine the pixel scale for this image.
+            # ---- Determine the pixel scale for this image. ----
             _MISSING_PIXELSCALE_MSG = ("No FITS header keyword for pixel scale found "
                                        "(tried: {}). Supply pixelscale as a float in "
                                        "meters/px or arcsec/px, or as a string specifying which "
@@ -2490,6 +2478,40 @@ class FITSOpticalElement(OpticalElement):
                 self.pixelscale *= u.arcsec / u.pixel
             else:  # pupil or any other types of plane
                 self.pixelscale *= u.meter / u.pixel
+
+
+            # ---- transformation: shift ----
+            # if a shift is specified and we're NOT a null (scalar) optic, then do the shift
+            # This has to happen after the pixelscale has been determined, for the shift_x/shift_y path.
+            if shift is not None and (shift_x is not None or shift_y is not None):
+                raise RuntimeError("You cannot specify both the shift and shift_x/shift_y parameters simultaneously.")
+            elif ((shift is not None) or (shift_x is not None or shift_y is not None)) and len(self.amplitude.shape) == 2:
+                if shift_x is not None or shift_y is not None:
+                    # determine shift using the shift_x and shift_y parameters
+                    if shift_x is None: shift_x = 0
+                    if shift_y is None: shift_y = 0
+                    rollx = int(shift_x/self.pixelscale.to(u.m/u.pixel).value)
+                    rolly = int(shift_y/self.pixelscale.to(u.m/u.pixel).value)
+                    _log.info("Requested optic shift of ({:6.3f}, {:6.3f}) meters".format(shift_x, shift_y))
+                    _log.info("Actual shift applied  = ({:6.3f}, {:6.3f}) pixels".format(rollx, rolly))
+
+                elif shift is not None:
+                    # determine shift using the shift tuple
+                    if abs(shift[0]) > 0.5 or abs(shift[1]) > 0.5:
+                        raise ValueError("You have asked for an implausibly large shift. Remember, "
+                                         "shifts should be specified as decimal values between -0.5 and 0.5, "
+                                         "a fraction of the total optic diameter. ")
+                    rolly = int(np.round(self.amplitude.shape[0] * shift[1]))  # remember Y,X order for shape,
+                                                                               # but X,Y order for shift
+                    rollx = int(np.round(self.amplitude.shape[1] * shift[0]))
+                    _log.info("Requested optic shift of ({:6.3f}, {:6.3f}) fraction of pupil ".format(*shift))
+                    _log.info("Actual shift applied   = (%6.3f, %6.3f) " % (
+                              rollx * 1.0 / self.amplitude.shape[1], rolly * 1.0 / self.amplitude.shape[0]))
+                    self._shift = (rollx * 1.0 / self.amplitude.shape[1], rolly * 1.0 / self.amplitude.shape[0])
+
+                self.amplitude = scipy.ndimage.shift(self.amplitude, (rolly, rollx))
+                self.opd = scipy.ndimage.shift(self.opd, (rolly, rollx))
+
 
     @property
     def pupil_diam(self):

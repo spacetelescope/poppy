@@ -71,6 +71,90 @@ def test_roundtrip_through_FITS():
     assert np.all(optic2.amplitude == array), "Arrays before/after casting to FITS file didn't match"
 
 
+def test_shifting_optics( npix=30,  grid_size = 3, display=False):
+    """Test shifting (translation) of Analytic and FITS Optical elements.
+    Does shifting work as expected? Is it consistent between the two classes?
+
+    Tests the fix for #247
+    """
+    import poppy
+    pixsize =grid_size/npix
+    shift_size = np.round(0.2/pixsize)*pixsize  # by construction, an integer # of pixels
+
+    # Create a reference array
+    circ = poppy.CircularAperture()
+    circ_samp = circ.sample(npix=npix, grid_size=grid_size)
+
+    # Create a shifted version, and make sure it's different
+    circ_shift = poppy.CircularAperture( shift_x=shift_size)
+    circ_shift_samp = circ_shift.sample(npix=npix, grid_size=grid_size)
+
+    if display:
+        plt.imshow(circ_samp-circ_shift_samp)
+    assert np.allclose(circ_samp, circ_shift_samp) is False, "Shift didn't change array"
+
+    # Make a FITS element.
+    circ_fits = circ.to_fits(npix=npix, grid_size=grid_size)
+
+    # Show we can shift that and get the same result as shifting the analytic element
+    fits_shifted = poppy.FITSOpticalElement(transmission=circ_fits, shift_x=shift_size)
+    np.testing.assert_allclose(fits_shifted.amplitude, circ_shift_samp, atol=1e-9,
+                                       err_msg="Shifting Analytic and FITS versions are not consistent (v1, via shift_x)")
+
+    # FITSOpticalElement also lets you specify shifts via fraction of the array. Let's
+    # show that is  consistent.  This is older syntax that is discouraged, and may be
+    # deprecated and removed eventually. But while available it should be correct.
+    array_frac = shift_size/grid_size
+    fits_shifted_v2 = poppy.FITSOpticalElement(transmission=circ_fits, shift=(array_frac, 0))
+    np.testing.assert_allclose(fits_shifted.amplitude, fits_shifted_v2.amplitude, atol=1e-9,
+                                       err_msg="Shifting FITS via shift/shift_x are not consistent")
+    np.testing.assert_allclose(fits_shifted.amplitude, circ_shift_samp, atol=1e-9,
+                                       err_msg="Shifting Analytic and FITS versions are not consistent (v2, via shift)")
+
+
+    # Check in a 1D cut that the amount of shift is as expected -
+    # this is implicitly also checked above via the match of Analytic and FITS
+    # which use totally different methods to perform the shift.
+    shift_in_pixels = int(shift_size/pixsize)
+    assert np.allclose(np.roll(circ_samp[npix//2], shift_in_pixels),
+                               circ_shift_samp[npix//2])
+
+
+def test_shift_rotation_consistency(npix=30, grid_size = 1.5, angle=35, display=False):
+    """Test shifting & rotation together for FITS and Analytic optics
+    Do we get consistent behavior from each? Are the signs and
+    order of operations consistent?
+
+    Tests the fix for issue #275.
+    """
+    import poppy
+    if npix < 30:
+        raise ValueError("Need npix>=30 for enough resolution for this test")
+
+    # Create rectangle, rotated
+    rect = poppy.RectangleAperture(shift_x=0.25, rotation=angle)
+    rect_samp = rect.sample(grid_size=grid_size, npix=npix)
+
+    # Create rectangle, turn into FITS, then rotate
+    rect_fits = poppy.RectangleAperture().to_fits(grid_size=grid_size, npix=npix)
+    rect2 = poppy.FITSOpticalElement(transmission=rect_fits, shift_x=0.25, rotation=angle)
+
+    # Compare that they are consistent enough, meaning
+    # no more than 1% pixel difference. That tolerance allows for the
+    # imprecision of rotating low-res binary masks.
+    diff = np.round(rect2.amplitude)-rect_samp
+    assert np.abs(diff).sum() <= 0.01*rect_samp.sum(), "Shift and rotations differ unexpectedly"
+
+    if display:
+        plt.figure()
+        plt.subplot(131)
+        plt.imshow(rect_samp)
+        plt.subplot(132)
+        plt.imshow(np.round(rect2.amplitude))
+        plt.subplot(133)
+        plt.imshow(diff)
+
+
 #------ Analytic Image Plane elements -----
 
 def test_RectangularFieldStop():

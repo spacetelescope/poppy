@@ -241,12 +241,13 @@ Shifting and rotating optics
 ---------------------------------
 
 
-All AnalyticOpticalElements support arbitrary shifts and rotations
+All OpticalElements support arbitrary shifts and rotations
 of the optic. Set the `shift_x`, `shift_y` or `rotation` attributes. 
 The shifts are given in meters for pupil plane optics, or arcseconds
-for image plane optics. 
+for image plane optics.  Rotations are given in degrees counterclockwise around the optical
+axis.
 
-For instance we can demonstrate the shift invariance of PSFs::
+As an example, we can demonstrate the invariance of PSFs when an aperture is shifted::
 
     ap_regular = poppy.CircularAperture(radius=2, pad_factor=1.5)  # pad_factor is important here - without it you will
     ap_shifted = poppy.CircularAperture(radius=2, pad_factor=1.5)  # crop off part of the circle outside the array.
