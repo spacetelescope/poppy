@@ -710,7 +710,7 @@ class CircularPhaseMask(AnalyticImagePlaneElement):
 
         self.opd[r <= radius] = self.retardance * self.central_wavelength.to(u.meter).value
         npix = (r<=radius).sum()
-        if npix < 50:
+        if npix < 50:  # pragma: no cover
             import warnings
             errmsg = "Phase mask is very coarsely sampled: only {} pixels. "\
                      "Improve sampling for better precision!".format(npix)
