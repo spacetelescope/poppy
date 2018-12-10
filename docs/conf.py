@@ -125,6 +125,8 @@ version = package.__version__.split('-', 1)[0]
 # The full version, including alpha/beta/rc tags.
 release = package.__version__
 
+# The name of the Pygments (syntax highlighting) style to use.
+pygments_style = 'sphinx'
 
 # -- Options for HTML output ---------------------------------------------------
 
@@ -134,12 +136,6 @@ release = package.__version__
 # the options for this theme can be modified by overriding some of the
 # variables set in the global configuration. The variables set in the
 # global configuration are listed below, commented out.
-
-html_theme_options = {
-    'logotext1': '',  # white,  semi-bold
-    'logotext2': 'POPPY',     # orange, light
-    'logotext3': ' documentation'   # white,  light
-    }
 
 # Add any paths that contain custom themes here, relative to this directory.
 # To use a different custom theme, add the directory containing the theme.
