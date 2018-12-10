@@ -109,7 +109,7 @@ rst_epilog += """
 
 # This does not *have* to match the package name, but typically does
 project = setup_cfg['package_name']
-author = u'Association of Universities for Research in Astronomy'
+author = setup_cfg['author']
 copyright = '{0}, {1}'.format(
     datetime.datetime.now().year, author)
 
@@ -124,9 +124,6 @@ package = sys.modules[setup_cfg['package_name']]
 version = package.__version__.split('-', 1)[0]
 # The full version, including alpha/beta/rc tags.
 release = package.__version__
-
-# The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
 
 # -- Options for HTML output ---------------------------------------------------
 
