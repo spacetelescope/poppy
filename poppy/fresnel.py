@@ -579,6 +579,8 @@ class FresnelWavefront(Wavefront):
         if distance != 0 * u.m:
             self.propagate_fresnel(distance)
 
+        self.current_plane_index += 1
+
         # Now we may do some further manipulations depending on the next plane
         if optic.planetype == PlaneType.rotation:  # rotate
             self.rotate(optic.angle)
@@ -1115,65 +1117,69 @@ class FresnelOpticalSystem(OpticalSystem):
             ))
         return inwave
 
-    @utils.quantity_input(wavelength=u.meter)
-    def propagate_mono(self, wavelength=1e-6 * u.meter,
-                           normalize='first',
-                           retain_intermediates=False,
-                           retain_final=False,
-                           display_intermediates=False):
-        """Propagate a monochromatic wavefront through the optical system, via Fresnel calculations.
-        Called from within `calc_psf`.
-        Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s (empty if
-        `retain_intermediates=False`).
+#    @utils.quantity_input(wavelength=u.meter)
+#    def propagate_mono(self, wavelength=1e-6 * u.meter,
+#                           normalize='first',
+#                           retain_intermediates=False,
+#                           retain_final=False,
+#                           display_intermediates=False):
+#        """Propagate a monochromatic wavefront through the optical system, via Fresnel calculations.
+#        Called from within `calc_psf`.
+#        Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s (empty if
+#        `retain_intermediates=False`).
+#
+#        Parameters
+#        ----------
+#        wavelength : float
+#            Wavelength in meters
+#        normalize : string, {'first', 'last'}
+#            how to normalize the wavefront?
+#            * 'first' = set total flux = 1 after the first optic, presumably a pupil
+#            * 'last' = set total flux = 1 after the entire optical system.
+#            * 'first=2' = set total flux = 2 after the first optic (used for debugging only)
+#        display_intermediates : bool
+#            Should intermediate steps in the calculation be displayed on screen? Default: False.
+#        retain_intermediates : bool
+#            Should intermediate steps in the calculation be retained? Default: False.
+#            If True, the second return value of the method will be a list of `poppy.Wavefront` objects
+#            representing intermediate optical planes from the calculation.
+#        retain_final : bool
+#            Should the final complex wavefront be retained? Default: False.
+#            If True, the second return value of the method will be a single element list
+#            (for consistency with retain intermediates) containing a `poppy.Wavefront` object
+#            representing the final optical plane from the calculation.
+#            Overridden by retain_intermediates.
+#        Returns
+#        -------
+#        final_wf : fits.HDUList
+#            The final result of the monochromatic propagation as a FITS HDUList
+#        intermediate_wfs : list
+#            A list of `poppy.Wavefront` objects representing the wavefront at intermediate optical planes.
+#            The 0th item is "before first optical plane", 1st is "after first plane and before second plane", and so on.
+#            (n.b. This will be empty if `retain_intermediates` is False and singular if retain_final is True.)
+#        """
+#        if poppy.conf.enable_speed_tests:
+#            t_start = time.time()
 
-        Parameters
-        ----------
-        wavelength : float
-            Wavelength in meters
-        normalize : string, {'first', 'last'}
-            how to normalize the wavefront?
-            * 'first' = set total flux = 1 after the first optic, presumably a pupil
-            * 'last' = set total flux = 1 after the entire optical system.
-            * 'first=2' = set total flux = 2 after the first optic (used for debugging only)
-        display_intermediates : bool
-            Should intermediate steps in the calculation be displayed on screen? Default: False.
-        retain_intermediates : bool
-            Should intermediate steps in the calculation be retained? Default: False.
-            If True, the second return value of the method will be a list of `poppy.Wavefront` objects
-            representing intermediate optical planes from the calculation.
-        retain_final : bool
-            Should the final complex wavefront be retained? Default: False.
-            If True, the second return value of the method will be a single element list
-            (for consistency with retain intermediates) containing a `poppy.Wavefront` object
-            representing the final optical plane from the calculation.
-            Overridden by retain_intermediates.
-        Returns
-        -------
-        final_wf : fits.HDUList
-            The final result of the monochromatic propagation as a FITS HDUList
-        intermediate_wfs : list
-            A list of `poppy.Wavefront` objects representing the wavefront at intermediate optical planes.
-            The 0th item is "before first optical plane", 1st is "after first plane and before second plane", and so on.
-            (n.b. This will be empty if `retain_intermediates` is False and singular if retain_final is True.)
-        """
-        if poppy.conf.enable_speed_tests:
-            t_start = time.time()
+    def propagate_through(self,
+                          wavefront,
+                          normalize='none',
+                          return_intermediates=False,
+                          display_intermediates=False):
+
         if self.verbose:
-            _log.info(" Propagating wavelength = {0:g} meters".format(wavelength))
-        wavefront = self.input_wavefront(wavelength)
+            _log.info(" Propagating wavelength = {0:g} meters".format(wavefront.wavelength))
 
         intermediate_wfs = []
 
         # note: 0 is 'before first optical plane; 1 = 'after first plane and before second plane' and so on
-        current_plane_index = 0
         for optic, distance in zip(self.planes, self.distances):
             # The actual propagation:
             wavefront.propagate_to(optic, distance)
             wavefront *= optic
-            current_plane_index += 1
 
             # Normalize if appropriate:
-            if normalize.lower() == 'first' and current_plane_index == 1:  # set entrance plane to 1.
+            if normalize.lower() == 'first' and wavefront.current_plane_index == 1:  # set entrance plane to 1.
                 wavefront.normalize()
                 _log.debug("normalizing at first plane (entrance pupil) to 1.0 total intensity")
             elif normalize.lower() == 'first=2' and current_plane_index == 1:
@@ -1186,8 +1192,8 @@ class FresnelOpticalSystem(OpticalSystem):
                 if current_plane_index == last_pupil_plane_index:
                     wavefront.normalize()
                     _log.debug(
-                        "normalizing at exit pupil (plane {0}) to 1.0 total intensity".format(current_plane_index))
-            elif normalize.lower() == 'last' and current_plane_index == len(self.planes):
+                        "normalizing at exit pupil (plane {0}) to 1.0 total intensity".format(wavefront.current_plane_index))
+            elif normalize.lower() == 'last' and wavefront.current_plane_index == len(self.planes):
                 wavefront.normalize()
                 _log.debug("normalizing at last plane to 1.0 total intensity")
 
@@ -1195,16 +1201,15 @@ class FresnelOpticalSystem(OpticalSystem):
             if poppy.conf.enable_flux_tests:
                 _log.debug("  Flux === " + str(wavefront.total_intensity))
 
-            if retain_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
+            if return_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
                 intermediate_wfs.append(wavefront.copy())
 
             if display_intermediates:
                 if poppy.conf.enable_speed_tests:
                     t0 = time.time()
                 title = None if current_plane_index > 1 else "propagating $\lambda=${}".format(wavelength.to(u.micron))
-                wavefront.display(what='best', nrows=len(self.planes), row=current_plane_index, colorbar=False,
+                wavefront.display(what='best', nrows=len(self.planes), row=None, colorbar=False,
                                   title=title)
-                # plt.title("propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6))
 
                 if poppy.conf.enable_speed_tests:
                     t1 = time.time()
@@ -1214,10 +1219,11 @@ class FresnelOpticalSystem(OpticalSystem):
             t_stop = time.time()
             _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop - t_start))
 
-        if (not retain_intermediates) & (retain_final): #return the full complex wavefront of the last plane.
-                intermediate_wfs = [wavefront]
+        if return_intermediates:
+            return wavefront, intermediate_wfs
+        else:
+            return wavefront
 
-        return wavefront.as_fits(), intermediate_wfs
 
     def describe(self):
         """ Print out a string table describing all planes in an optical system"""

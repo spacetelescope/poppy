@@ -160,6 +160,10 @@ class Wavefront(object):
         self.history.append(" using array size %s" % (self.wavefront.shape,))
         self.location = 'Entrance Pupil'
         "Descriptive string for where a wavefront is instantaneously located. Used mostly for titling displayed plots."
+
+        self.current_plane_index = 0 # For tracking stages in a calculation
+        self._display_hint_expected_nplanes = 1     # For displaying a multi-step calculation nicely
+
         accel_math.update_math_settings()                   # ensure optimal propagation based on user settings
 
     def __str__(self):
@@ -343,7 +347,8 @@ class Wavefront(object):
             Number of rows to display in current figure (used for
             showing steps in a calculation)
         row : int
-            Which row to display this one in?
+            Which row to display this one in? If set to None, use the
+            wavefront's self.current_plane_index
         vmin, vmax : floats
             min and maximum values to display. When left unspecified, these default
             to [0, intens.max()] for linear (scale='linear') intensity plots,
@@ -388,6 +393,9 @@ class Wavefront(object):
         """
         if scale is None:
             scale = 'log' if self.planetype == PlaneType.image else 'linear'
+
+        if row is None:
+            row = self.current_plane_index
 
         intens = self.intensity.copy()
 
@@ -637,6 +645,7 @@ class Wavefront(object):
         """
         if self.planetype == optic.planetype:
             _log.debug("  Wavefront and optic %s already at same plane type, no propagation needed." % optic.name)
+            self.current_plane_index += 1
             return
         else:
             msg = "  Propagating wavefront to %s. " % str(optic)
@@ -664,6 +673,8 @@ class Wavefront(object):
         else:
             self._propagate_fft(optic)  # FFT pupil to image or image to pupil
             self.location = 'before ' + optic.name
+
+        self.current_plane_index += 1
 
     def _propagate_fft(self, optic):
         """ Propagate from pupil to image or vice versa using a padded FFT
@@ -1406,7 +1417,82 @@ class OpticalSystem(object):
             inwave.tilt(Xangle=offset_x, Yangle=offset_y)
             _log.debug("Tilted input wavefront by theta_X=%f, theta_Y=%f arcsec. (signs=%d, %d; theta offset=%f) " % (
             offset_x, offset_y, sign_x, sign_y, rotation_angle))
+
+        inwave._display_hint_expected_nplanes = len(self) # For display of intermediate steps nicely
         return inwave
+
+
+    def propagate_through(self,
+                          wavefront,
+                          normalize='none',
+                          return_intermediates=False,
+                          display_intermediates=False):
+        """ Experimental work-in-progress refactoring of propagate_mono
+
+        This is a **linear operator** that acts on an input wavefront to give an
+        output wavefront.
+
+        The option to retain intermediate wavefront complicates the situation.
+
+        Returns a wavefront.
+
+        """
+
+        if not isinstance(wavefront, Wavefront):
+            raise ValueError("First argument to propagate_through must be a Wavefront.")
+
+        intermediate_wfs = []
+
+        # note: 0 is 'before first optical plane; 1 = 'after first plane and before second plane' and so on
+        for optic in self.planes:
+            # The actual propagation:
+            wavefront.propagate_to(optic)
+            wavefront *= optic
+
+            # Normalize if appropriate:
+            if normalize.lower() == 'first' and wavefront.current_plane_index == 1:  # set entrance plane to 1.
+                wavefront.normalize()
+                _log.debug("normalizing at first plane (entrance pupil) to 1.0 total intensity")
+            elif normalize.lower() == 'first=2' and wavefront.current_plane_index == 1:
+                # this undocumented option is present only for testing/validation purposes
+                wavefront.normalize()
+                wavefront *= np.sqrt(2)
+            elif normalize.lower() == 'exit_pupil':  # normalize the last pupil in the system to 1
+                last_pupil_plane_index = np.where(np.asarray(
+                    [p.planetype is PlaneType.pupil for p in self.planes]))[0].max() + 1
+                if wavefront.current_plane_index == last_pupil_plane_index:
+                    wavefront.normalize()
+                    _log.debug("normalizing at exit pupil (plane {0}) to 1.0 total intensity".format(
+                        wavefront.current_plane_index))
+            elif normalize.lower() == 'last' and wavefront.current_plane_index == len(self.planes):
+                wavefront.normalize()
+                _log.debug("normalizing at last plane to 1.0 total intensity")
+
+            # Optional outputs:
+            if conf.enable_flux_tests:
+                _log.debug("  Flux === " + str(wavefront.total_intensity))
+
+            if return_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
+                intermediate_wfs.append(wavefront.copy())
+
+            if display_intermediates:
+                display_what = getattr(optic, 'wavefront_display_hint', 'best')
+                display_vmax = getattr(optic, 'wavefront_display_vmax_hint', None)
+                display_vmin = getattr(optic, 'wavefront_display_vmin_hint', None)
+
+                ax = wavefront.display(what=display_what,
+                                       row=None,
+                                       nrows=wavefront._display_hint_expected_nplanes,
+                                       colorbar=False, vmax=display_vmax, vmin=display_vmin)
+                if hasattr(optic, 'display_annotate'):
+                    optic.display_annotate(optic, ax)  # atypical calling convention needed empirically
+
+        if return_intermediates:
+            return wavefront, intermediate_wfs
+        else:
+            return wavefront
+
+
 
     @utils.quantity_input(wavelength=u.meter)
     def propagate_mono(self,
@@ -1458,75 +1544,24 @@ class OpticalSystem(object):
             _log.info(" Propagating wavelength = {0:g}".format(wavelength))
         wavefront = self.input_wavefront(wavelength)
 
-        intermediate_wfs = []
+        kwargs = {'normalize': normalize,
+                  'display_intermediates': display_intermediates,
+                  'return_intermediates': retain_intermediates}
 
-        # note: 0 is 'before first optical plane; 1 = 'after first plane and before second plane' and so on
-        current_plane_index = 0
-        for optic in self.planes:
-            # The actual propagation:
-            wavefront.propagate_to(optic)
-            wavefront *= optic
-            current_plane_index += 1
+        # Is there a more elegant way to handle optional return quantities?
+        # without making them mandatory.
+        if retain_intermediates:
+            wavefront, intermediate_wfs = self.propagate_through(wavefront, **kwargs)
+        else:
+            wavefront = self.propagate_through(wavefront, **kwargs)
+            intermediate_wfs = []
 
-            # Normalize if appropriate:
-            if normalize.lower() == 'first' and current_plane_index == 1:  # set entrance plane to 1.
-                wavefront.normalize()
-                _log.debug("normalizing at first plane (entrance pupil) to 1.0 total intensity")
-            elif normalize.lower() == 'first=2' and current_plane_index == 1:
-                # this undocumented option is present only for testing/validation purposes
-                wavefront.normalize()
-                wavefront *= np.sqrt(2)
-            elif normalize.lower() == 'exit_pupil':  # normalize the last pupil in the system to 1
-                last_pupil_plane_index = np.where(np.asarray(
-                    [p.planetype is PlaneType.pupil for p in self.planes]))[0].max() + 1
-                if current_plane_index == last_pupil_plane_index:
-                    wavefront.normalize()
-                    _log.debug("normalizing at exit pupil (plane {0}) to 1.0 total intensity".format(
-                        current_plane_index))
-            elif normalize.lower() == 'last' and current_plane_index == len(self.planes):
-                wavefront.normalize()
-                _log.debug("normalizing at last plane to 1.0 total intensity")
-
-            # Optional outputs:
-            if conf.enable_flux_tests:
-                _log.debug("  Flux === " + str(wavefront.total_intensity))
-
-            if retain_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
-                intermediate_wfs.append(wavefront.copy())
-
-            if display_intermediates:
-                if conf.enable_speed_tests:
-                    t0 = time.time()
-                # title = None if current_plane_index > 1 else "propagating $\lambda=$ {0:.3f}".format(
-                # wavelength.to(u.micron))
-                if hasattr(optic, 'wavefront_display_hint'):
-                    display_what = optic.wavefront_display_hint
-                else:
-                    display_what = 'best'
-                if hasattr(optic, 'wavefront_display_vmax_hint'):
-                    display_vmax = optic.wavefront_display_vmax_hint
-                else:
-                    display_vmax = None
-                if hasattr(optic, 'wavefront_display_vmin_hint'):
-                    display_vmin = optic.wavefront_display_vmin_hint
-                else:
-                    display_vmin = None
-
-                ax = wavefront.display(what=display_what, nrows=len(self.planes), row=current_plane_index,
-                                       colorbar=False, vmax=display_vmax, vmin=display_vmin)
-                if hasattr(optic, 'display_annotate'):
-                    optic.display_annotate(optic, ax)  # atypical calling convention needed empirically
-
-                if conf.enable_speed_tests:
-                    t1 = time.time()
-                    _log.debug("\tTIME %f s\t for displaying the wavefront." % (t1 - t0))
+        if (not retain_intermediates) & retain_final:  # return the full complex wavefront of the last plane.
+            intermediate_wfs = [wavefront]
 
         if conf.enable_speed_tests:
             t_stop = time.time()
             _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop - t_start))
-
-        if (not retain_intermediates) & retain_final:  # return the full complex wavefront of the last plane.
-            intermediate_wfs = [wavefront]
 
         return wavefront.as_fits(), intermediate_wfs
 

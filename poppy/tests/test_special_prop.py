@@ -55,12 +55,15 @@ def test_SAMC(fft_oversample=4, samc_oversample=8, npix=512,
 
     print("SAMC calculation: {} s".format(t_stop_sam - t_start_sam))
     if display:
+        plt.suptitle("Calculation using SAMC method")
         plt.figure()
 
     t_start_fft = time.time()
     psf_fft = osys.calc_psf(display_intermediates=display)
     t_stop_fft = time.time()
     print("Basic FFT calculation: {} s".format(t_stop_fft - t_start_fft))
+    if display:
+        plt.suptitle("Calculation using Basic FFT method")
 
     # The pixel by pixel difference should be small:
     maxdiff = np.abs(psf_fft[0].data - psf_sam[0].data).max()
