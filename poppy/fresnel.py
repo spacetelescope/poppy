@@ -1116,7 +1116,7 @@ class FresnelOpticalSystem(OpticalSystem):
         return inwave
 
     @utils.quantity_input(wavelength=u.meter)
-    def propagate_mono(self, wavelength=2e-6 * u.meter,
+    def propagate_mono(self, wavelength=1e-6 * u.meter,
                            normalize='first',
                            retain_intermediates=False,
                            retain_final=False,

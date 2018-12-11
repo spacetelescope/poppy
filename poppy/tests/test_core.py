@@ -3,12 +3,14 @@ import os
 
 import numpy as np
 from astropy.io import fits
+import astropy.units as u
 import pytest
 try:
     import scipy
 except ImportError:
     scipy = None
 
+import poppy
 from .. import poppy_core
 from .. import optics
 
@@ -59,22 +61,24 @@ def test_input_wavefront_size():
     # is applied during an FFT propagation; by default there's no effect
     # in the unpadded array.
     for oversamp in (1,2,4):
-        osys = poppy_core.OpticalSystem("test", oversample=oversamp)
+        osys = poppy_core.OpticalSystem("test", oversample=oversamp, pupil_diameter = 1*u.meter)
         #pupil = optics.CircularAperture(radius=1)
         wf = osys.input_wavefront()
         expected_shape = (1024,1024) if (wf.ispadded == False) else (1024*oversamp, 1024*oversamp)
         assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
 
 
-    # test setting the size based on the npix parameter, with null optical system
+    # test setting the size based on the npix parameter, with no optical system planes
+    # (so it gets the diameter from the optical system object)
     for size in [512, 1024, 2001]:
-        osys = poppy_core.OpticalSystem("test", oversample=1, npix=size)
+        osys = poppy_core.OpticalSystem("test", oversample=1, npix=size, pupil_diameter = 1*u.meter)
         #pupil = optics.CircularAperture(radius=1)
         wf = osys.input_wavefront()
         expected_shape = (size,size)
         assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
 
     # test setting the size based on the npix parameter, with a non-null optical system
+    # (so it infers the system diameter from the first optic's diameter)
     for size in [512, 1024, 2001]:
         osys = poppy_core.OpticalSystem("test", oversample=1, npix=size)
         osys.add_pupil(optics.CircularAperture(radius=1))
@@ -390,6 +394,55 @@ def test_return_complex():
     assert len(psf[1])==1 #make sure only one element was returned
     #test that the wavefront returned is the final wavefront:
     assert np.allclose(psf[1][0].intensity,psf[0][0].data)
+
+### Tests for OpticalElements defined in poppy_core###
+
+def test_ArrayOpticalElement():
+    import poppy
+    y,x = np.indices((10,10)) # arbitrary something to stick in an optical element
+
+    ar = poppy.ArrayOpticalElement(opd=x, transmission=y, pixelscale=1*u.meter/u.pixel)
+
+    assert np.allclose(ar.opd, x), "Couldn't set OPD"
+    assert np.allclose(ar.amplitude, y), "Couldn't set amplitude transmission"
+    assert ar.pixelscale == 1*u.meter/u.pixel
+
+def test_FITSOpticalElement(tempdir='./'):
+    circ_fits = poppy.CircularAperture().to_fits(grid_size=3, npix=10)
+    fn = tempdir+"circle.fits"
+    circ_fits.writeto(fn, overwrite=True)
+
+    # Test passing aperture via file on disk
+    foe = poppy.FITSOpticalElement(transmission=fn)
+    assert foe.amplitude_file == fn
+    assert np.allclose(foe.amplitude, circ_fits[0].data)
+
+    # Test passing OPD via FITS object, along with unit conversion
+    circ_fits[0].header['BUNIT'] = 'micron' # need unit for OPD
+    foe = poppy.FITSOpticalElement(opd=circ_fits)
+    assert foe.opd_file == 'supplied as fits.HDUList object'
+    assert np.allclose(foe.opd, circ_fits[0].data*1e-6)
+
+    # make a cube
+    rect_mask = poppy.RectangleAperture().sample(grid_size=3, npix=10)
+    circ_mask = circ_fits[0].data
+    circ_fits[0].data = np.stack([circ_mask, rect_mask])
+    circ_fits[0].header['BUNIT'] = 'nm' # need unit for OPD
+    fn2 = tempdir+"cube.fits"
+    circ_fits.writeto(fn2, overwrite=True)
+
+    # Test passing OPD as cube, with slice default, units of nanometers
+    foe = poppy.FITSOpticalElement(opd=fn2)
+    assert foe.opd_file == fn2
+    assert foe.opd_slice == 0
+    assert np.allclose(foe.opd, circ_mask*1e-9)
+
+    # Same cube but now we ask for the next slice
+    foe = poppy.FITSOpticalElement(opd=(fn2, 1))
+    assert foe.opd_file == fn2
+    assert foe.opd_slice == 1
+    assert np.allclose(foe.opd, rect_mask*1e-9)
+
 
 ### Detector class unit test ###
 

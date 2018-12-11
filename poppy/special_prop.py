@@ -90,7 +90,7 @@ class SemiAnalyticCoronagraph(poppy_core.OpticalSystem):
                                                     name='Oversampled Occulter Plane')
 
     @utils.quantity_input(wavelength=u.meter)
-    def propagate_mono(self, wavelength=2e-6 * u.meter,
+    def propagate_mono(self, wavelength=1e-6 * u.meter,
                        normalize='first',
                        retain_final=False,
                        retain_intermediates=False,

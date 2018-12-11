@@ -215,7 +215,7 @@ class AnalyticOpticalElement(OpticalElement):
             return output_array
 
     @utils.quantity_input(wavelength=u.meter)
-    def display(self, nrows=1, row=1, wavelength=2e-6 * u.meter, npix=512, grid_size=None,
+    def display(self, nrows=1, row=1, wavelength=1e-6 * u.meter, npix=512, grid_size=None,
                 what='intensity', **kwargs):
         """Display an Analytic optic by first computing it onto a grid...
 
@@ -283,7 +283,7 @@ class AnalyticOpticalElement(OpticalElement):
         return returnvalue
 
     @utils.quantity_input(wavelength=u.meter)
-    def to_fits(self, outname=None, what='amplitude', wavelength=2e-6 * u.meter, npix=512, **kwargs):
+    def to_fits(self, outname=None, what='amplitude', wavelength=1e-6 * u.meter, npix=512, **kwargs):
         """ Save an analytic optic computed onto a grid to a FITS file
 
         The FITS file is returned to the calling function, and may optionally be
@@ -710,7 +710,7 @@ class CircularPhaseMask(AnalyticImagePlaneElement):
 
         self.opd[r <= radius] = self.retardance * self.central_wavelength.to(u.meter).value
         npix = (r<=radius).sum()
-        if npix < 50:
+        if npix < 50:  # pragma: no cover
             import warnings
             errmsg = "Phase mask is very coarsely sampled: only {} pixels. "\
                      "Improve sampling for better precision!".format(npix)
@@ -1717,7 +1717,7 @@ class ThinLens(CircularAperture):
     """
 
     @utils.quantity_input(reference_wavelength=u.meter)
-    def __init__(self, name='Thin lens', nwaves=4.0, reference_wavelength=2e-6 * u.meter,
+    def __init__(self, name='Thin lens', nwaves=4.0, reference_wavelength=1e-6 * u.meter,
                  radius=1.0*u.meter, **kwargs):
         self.reference_wavelength = reference_wavelength
         self.nwaves = nwaves
