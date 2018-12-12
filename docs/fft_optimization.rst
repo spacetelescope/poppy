@@ -6,7 +6,7 @@ Optimizing numerical performance of FFTs is a complicated subject. Just using th
 .. note::
    The following tests were performed using the older PyFFTW3 package, and have not yet been updated for the newer pyFFTW package. However, performance considerations are expected to be fairly similar for both packages since the underlying FFTW library is the same.
 
-   See discussion and test results at https://github.com/mperrin/webbpsf/issues/10
+   See discussion and test results at https://github.com/spacetelescope/webbpsf/issues/10
 
 This is probably fairly sensitive to hardware details. The following benchmarks were performed on a Mac Pro, dual quad-core 2.66 GHz Xeon, 12 GB RAM.
 
