@@ -10,7 +10,7 @@ For a list of contributors, see :ref:`about`.
 
 .. _rel0.8.0:
 
-*2018 October-ish?*
+*2018 December 15*
 
 .. admonition:: Py2.7 support and deprecated function names removed
 
@@ -25,7 +25,10 @@ For a list of contributors, see :ref:`about`.
    The `opd_expand_segments` function implements a version of the `opd_expand_orthonormal` algorithm
    that has been updated to correctly handle disjoint (non-overlapping support) basis functions defined on
    individual segments. (mperrin)
- * Add new KnifeEdge optic class representing a sharp opaque half-plane. (@mperrin)
+ * Add new `KnifeEdge` optic class representing a sharp opaque half-plane, and a `CircularPhaseMask` representing a circular region with constant optical path difference. (#273, @mperrin)
+ * Fresnel propagation can now automatically resample wavefronts onto the right pixel scales at Detector objects,
+   same as Fraunhofer propagation. (#242, #264, @mperrin)
+ * The `display_psf` function now can also handle datacubes produced by `calc_datacube` (#265, @mperrin)
 
 **Documentation:**
 
@@ -34,10 +37,16 @@ For a list of contributors, see :ref:`about`.
 
 **Bug Fixes and Software Infrastructure Updates:**
 
+ * Removal of Python 2 compatibility code, Python 2 test cases on Travis, and similar (#239, @mperrin)
  * Removal of deprecated non-PEP8 function names (@mperrin)
- * Fix for output PSF formatting to better handle variable numbers of extensions (@shanosborne)
+ * Fix for output PSF formatting to better handle variable numbers of extensions (#219, @shanosborne)
  * Fix for FITSOpticalElement opd_index parameter for selecting slices in datacubes (@mperrin)
- * Some updates to Travis doc build setup (@mperrin)
+ * Fix inconsistent sign of rotations for FITSOpticalElements vs. other optics (#275, @mperrin)
+ * Cleaned up the logic for auto-choosing input wavefront array sizes (#274, @mperrin)
+ * Updates to Travis doc build setup (#270, @mperrin, robelgeda)
+ * Update package organization and documentation theme for consistency with current STScI package template (#267, #268, #278, @robelgeda)
+ * More comprehensive unit tests for Fresnel propagation. (#191, #251, #264, @mperrin)
+ * Update astropy-helpers to current version, and install bootstrap script too (@mperrin, @jhunkeler)
  * Minor: doc string correction in FresnelWavefront (@sdwill), fix typo in some error messages (#255, @douglase),
    update some deprecated logging function calls (@mperrin).
 

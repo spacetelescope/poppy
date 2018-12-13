@@ -42,6 +42,7 @@ Direct contributors to POPPY code
  * Kyle Douglass (@kmdouglas)
  * Christine Slocum (@cslocum)
  * Matt Mechtley (@mmechtley)
+ * Scott Will (@sdwill)
 
 Indirect Contributors (algorithms, advice, ideas, inspirations)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
