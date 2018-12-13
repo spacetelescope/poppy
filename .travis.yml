@@ -6,17 +6,6 @@ python:
 # Setting sudo to false opts in to Travis-CI container-based builds.
 sudo: false
 
-# The apt packages below are needed for sphinx builds. A full list of packages
-# that can be included can be found here:
-#
-# https://github.com/travis-ci/apt-package-whitelist/blob/master/ubuntu-precise
-
-addons:
-    apt:
-        packages:
-            - graphviz
-            - texlive-latex-extra
-            - dvipng
 
 env:
     global:
@@ -27,7 +16,7 @@ env:
         - ASTROPY_VERSION=stable
         - SETUP_CMD='test'
         - PIP_DEPENDENCIES=''
-        - CONDA_DEPENDENCIES='scipy matplotlib six'
+        - CONDA_DEPENDENCIES='scipy matplotlib'
 
         # For headless testing of code that imports PyPlot:
         - MPLBACKEND=Agg
@@ -49,7 +38,7 @@ matrix:
         # Check for Sphinx doc build errors
         - python: 3.6
           env: SETUP_CMD='build_sphinx'
-               CONDA_DEPENDENCIES='scipy matplotlib six nbsphinx pandoc'
+               CONDA_DEPENDENCIES='scipy matplotlib nbsphinx pandoc'
                PIP_DEPENDENCIES='sphinx_rtd_theme stsci_rtd_theme sphinx-automodapi'
 
 
