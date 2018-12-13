@@ -81,7 +81,5 @@ def test_ParameterizedAberration():
     pd_wave *= pupil
     pd_wave *= parameterized_distortion
 
-    stddev = np.std(pd_wave.phase - zern_wave.phase)
-
-    assert stddev < 1e-16, ("ParameterizedAberration disagrees with "
-                            "ZernikeAberration! stddev {}".format(stddev))
+    np.testing.assert_allclose(pd_wave.phase, zern_wave.phase,
+                               err_msg="ParameterizedAberration disagrees with ZernikeAberration")
