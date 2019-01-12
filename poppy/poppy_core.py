@@ -198,7 +198,8 @@ class Wavefront(object):
             raise ValueError('Wavefronts can only be *= multiplied by OpticalElements or scalar values')
 
         if isinstance(optic, Detector):
-            # detectors don't modify a wavefront.
+            # detectors don't modify a wavefront, but we do update the label
+            self.location = 'at ' + optic.name
             return self
 
         phasor = optic.get_phasor(self)
@@ -635,8 +636,9 @@ class Wavefront(object):
         Modifies this wavefront object itself.
 
         Transformations between pupil and detector planes use MFT or inverse MFT.
-        Transformations between pupil and other (non-detector) image planes use FFT or inverse FFT.
-        Transformations from any frame through a rotation plane simply rotate the wavefront accordingly.
+        Transformations between pupil and other (non-detector) image planes use FFT or inverse FFT, unless
+        explicitly tagged to use MFT via a propagation hint.
+        Transformations from any frame through a rotation or coordinate transform plane simply transform the wavefront accordingly.
 
         Parameters
         -----------
@@ -658,7 +660,8 @@ class Wavefront(object):
         elif optic.planetype == PlaneType.inversion:  # invert coordinates
             self.invert(axis=optic.axis)
             self.location = 'after ' + optic.name
-        elif optic.planetype == PlaneType.detector and self.planetype == PlaneType.pupil:  # MFT pupil to detector
+        elif ((optic.planetype == PlaneType.detector or getattr(optic, 'propagation_hint', None)=='MFT')
+                and self.planetype == PlaneType.pupil):  # from pupil to detector in image plane: use MFT
             self._propagate_mft(optic)
             self.location = 'before ' + optic.name
         elif (optic.planetype == PlaneType.pupil and self.planetype == PlaneType.image and \
@@ -741,7 +744,8 @@ class Wavefront(object):
             The target optical plane to propagate to."""
 
         assert self.planetype == PlaneType.pupil
-        assert det.planetype == PlaneType.detector
+        assert (det.planetype == PlaneType.detector or
+                getattr(det, 'propagation_hint', None)=='MFT')
 
         if self.ispadded:
             # pupil plane is padded - trim that out since it's not needed
@@ -781,6 +785,7 @@ class Wavefront(object):
         # This is where a perfect PSF would be centered. Of course any tilts, comas, etc, from the OPD
         # will probably shift it off elsewhere for an entirely different reason, too.
         self.wavefront = mft.perform(self.wavefront, det_fov_lam_d, det_calc_size_pixels, offset=det_offset)
+        # FIXME remove logging of total intensity - that's a nontrivial performance hit probably??
         _log.debug("     Result wavefront: at={0} shape={1} intensity={2:.3g}".format(
             self.location, str(self.shape), self.total_intensity))
         self._last_transform_type = 'MFT'
@@ -815,19 +820,27 @@ class Wavefront(object):
         # - focal plane size in lambda/D units
         # - number of pixels on a side in focal plane array.
 
-        # extract everything from Quantities to regular scalars here
-        lam_d = (self.wavelength / self.diam * u.radian).to(u.arcsec).value
-
-        det_fov_lam_d = self.fov.to(u.arcsec).value / lam_d
+        # Try to transform to whatever the intrinsic scale of the next pupil is.
+        # If it has a 
 
         # try to transform to whatever the intrinsic scale of the next pupil is.
         # but if this ends up being a scalar (meaning it is an AnalyticOptic) then
         # just go back to our own prior shape and pixel scale.
         if pupil_npix is None:
             if pupil.shape is not None and pupil.shape[0] != 1:
+                # Use next optic's shape, extent, and pixelscale to define the target sampling
                 pupil_npix = pupil.shape[0]
+                next_pupil_diam = pupil.shape[0]*pupil.pixelscale*u.pixel
+                _log.debug("Got post-invMFT pupil npix from next optic: {} pix, {} diam".format(pupil_npix, next_pupil_diam))
             else:
+                # Use the prior pupil's shape, extent, and pixelscale to define the target sampling
                 pupil_npix = self._preMFT_pupil_shape[0]
+                next_pupil_diam = self.diam
+                _log.debug("Got post-invMFT pupil npix from pre-MFT pupil: {} pix, {} diam ".format(pupil_npix, self.diam))
+
+        # extract everything from Quantities to regular scalars here
+        lam_d = (self.wavelength / next_pupil_diam * u.radian).to(u.arcsec).value
+        det_fov_lam_d = self.fov.to(u.arcsec).value / lam_d
 
         mft = MatrixFourierTransform(centering='ADJUSTABLE', verbose=False)
 
@@ -847,7 +860,54 @@ class Wavefront(object):
         self._last_transform_type = 'InvMFT'
 
         self.planetype = PlaneType.pupil
-        self.pixelscale = self.diam / self.wavefront.shape[0] / u.pixel
+        self.pixelscale = next_pupil_diam / self.wavefront.shape[0] / u.pixel
+        self.diam = next_pupil_diam
+
+    def _resample_wavefront_pixelscale(self, detector):
+        """ Resample a avefront to a desired detector sampling.
+
+        The interpolation is done via the scipy.ndimage.zoom function, by default
+        using cubic interpolation.  If you wish a different order of interpolation,
+        set the `.interp_order` attribute of the detector instance.
+
+        Parameters
+        ----------
+        detector : Detector class instance
+            Detector that defines the desired pixel scale
+
+        Returns
+        -------
+        The wavefront object is modified to have the appropriate pixel scale and spatial extent.
+
+        """
+        import scipy.ndimage
+
+        pixscale_ratio = (self.pixelscale / detector.pixelscale).decompose().value
+        _log.info("Resampling wavefront to detector with {} pixels and {}. Zoom factor is {}".format(
+            detector.shape, detector.pixelscale, pixscale_ratio ))
+
+        _log.debug("Wavefront pixel scale: {}".format(self.pixelscale))
+        _log.debug("Wavefront FOV: {} pixels, {}".format(self.shape, self.shape[0]*u.pixel*self.pixelscale))
+
+        _log.debug("Desired detector pixel scale: {}".format(detector.pixelscale))
+        _log.debug("Desired detector FOV: {} pixels, {}".format(detector.shape,
+                                                                      detector.shape[0]*u.pixel*detector.pixelscale,
+                                                                      ))
+
+        # TODO the following works but is not optimal for performance
+        # We should consider cropping out an appropriate subregion prior to performing the zoom.
+        # That makes a difference if the detector is only sampling a small part of a much larger wavefront
+
+        new_wf_real = scipy.ndimage.zoom(self.wavefront.real, pixscale_ratio, order=detector.interp_order)
+        new_wf_imag = scipy.ndimage.zoom(self.wavefront.imag, pixscale_ratio, order=detector.interp_order)
+        new_wf = new_wf_real + 1.j*new_wf_imag
+
+        _log.debug("Cropping/padding resampled wavefront to detector shape")
+        new_wf = utils.pad_or_crop_to_shape(new_wf, detector.shape)
+
+        self.wavefront = new_wf
+        self.pixelscale = detector.pixelscale
+
 
     @utils.quantity_input(Xangle=u.arcsec, Yangle=u.arcsec)
     def tilt(self, Xangle=0.0, Yangle=0.0):
@@ -1739,8 +1799,9 @@ class OpticalSystem(object):
                     for idx, wavefront in enumerate(mono_intermediate_wfs):
                         intermediate_wfs[idx] += wavefront * wave_weight
 
-            if display:
-                # Add final intensity panel to intermediate WF plot
+            # Display WF if requested.
+            #  Note - don't need to display here if we are showing all steps already
+            if display and not display_intermediates:
                 cmap = getattr(matplotlib.cm, conf.cmap_sequential)
                 cmap.set_bad('0.3')
                 halffov_x = outFITS[0].header['PIXELSCL'] * outFITS[0].data.shape[1] / 2
