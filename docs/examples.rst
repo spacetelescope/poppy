@@ -26,7 +26,7 @@ This is very simple, as it should be::
         osys.add_detector(pixelscale=0.010, fov_arcsec=5.0)  # image plane coordinates in arcseconds
 
         psf = osys.calc_psf(2e-6)                            # wavelength in microns
-        poppy.display_PSF(psf, title='The Airy Function')
+        poppy.display_psf(psf, title='The Airy Function')
 
 .. image:: ./example_airy.png
    :scale: 100%
@@ -56,7 +56,7 @@ And here's the PSF::
         osys.add_detector(pixelscale=0.010, fov_arcsec=2.0)
         psf = osys.calc_psf(1e-6)
 
-        poppy.display_PSF(psf, title="Mock ATLAST PSF")
+        poppy.display_psf(psf, title="Mock ATLAST PSF")
 
 .. image:: ./example_atlast_psf.png
    :scale: 100%
@@ -85,7 +85,7 @@ Defocus can be added using a lens::
             psfs.append(psf)
 
             plt.subplot(1,nsteps, nwaves+1)
-            poppy.display_PSF(psf, title='Defocused by {0} waves'.format(nwaves),
+            poppy.display_psf(psf, title='Defocused by {0} waves'.format(nwaves),
                 colorbar_orientation='horizontal')
 
         
@@ -217,9 +217,9 @@ The following code performs the same calculation both ways and compares their sp
         plt.figure(3)
         plt.clf()
         plt.subplot(121)
-        poppy.utils.display_PSF(psf_fft, title="FFT")
+        poppy.utils.display_psf(psf_fft, title="FFT")
         plt.subplot(122)
-        poppy.utils.display_PSF(psf_sam, title="SAM")
+        poppy.utils.display_psf(psf_sam, title="SAM")
 
         print "Elapsed time, FFT:  %.3s" % (t1f-t0f)
         print "Elapsed time, SAM:  %.3s" % (t1s-t0s)
@@ -267,7 +267,7 @@ As an example, we can demonstrate the invariance of PSFs when an aperture is shi
         optic.display(nrows=2, colorbar=False, ax=ax1)
         ax1.set_title(title+' pupil')
         ax2 = plt.subplot(2,2,i+1)
-        poppy.display_PSF(psf,ax=ax2, colorbar=False)
+        poppy.display_psf(psf,ax=ax2, colorbar=False)
         ax2.set_title(title+' PSF')
 
 .. image:: ./example_shift_invariance.png

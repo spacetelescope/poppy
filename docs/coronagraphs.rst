@@ -62,9 +62,9 @@ The following code performs the same calculation both with semi-analytical and F
         plt.figure(3)
         plt.clf()
         plt.subplot(121)
-        poppy.utils.display_PSF(psf_fft, title="FFT")
+        poppy.utils.display_psf(psf_fft, title="FFT")
         plt.subplot(122)
-        poppy.utils.display_PSF(psf_sam, title="SAM")
+        poppy.utils.display_psf(psf_sam, title="SAM")
 
         print "Elapsed time, FFT:  %.3s" % (t1f-t0f)
         print "Elapsed time, SAM:  %.3s" % (t1s-t0s)
@@ -122,14 +122,14 @@ Plot the results::
          plt.figure(figsize=(16,3.5))
          plt.subplots_adjust(left=0.10, right=0.95, bottom=0.02, top=0.98, wspace=0.2, hspace=None)
          plt.subplot(131)
-         ax_fft, cbar_fft = poppy.display_PSF(annFPM_fft_psf, vmin=1e-10, vmax=1e-7, title='Annular FPM Lyot coronagraph, FFT',
+         ax_fft, cbar_fft = poppy.display_psf(annFPM_fft_psf, vmin=1e-10, vmax=1e-7, title='Annular FPM Lyot coronagraph, FFT',
                                      return_ax=True)
          plt.subplot(132)
-         poppy.display_PSF(annFPM_mft_psf, vmin=1e-10, vmax=1e-7, title='Annular FPM Lyot coronagraph, Matrix FT')
+         poppy.display_psf(annFPM_mft_psf, vmin=1e-10, vmax=1e-7, title='Annular FPM Lyot coronagraph, Matrix FT')
          plt.subplot(133)
          diff_vmin = np.min(annFPM_mft_psf[0].data - annFPM_fft_psf[0].data)
          diff_vmax = np.max(annFPM_mft_psf[0].data - annFPM_fft_psf[0].data)
-         poppy.display_PSF_difference(annFPM_mft_psf, annFPM_fft_psf, vmin=diff_vmin, vmax=diff_vmax, cmap='gist_heat')
+         poppy.display_psf_difference(annFPM_mft_psf, annFPM_fft_psf, vmin=diff_vmin, vmax=diff_vmax, cmap='gist_heat')
          plt.title('Difference (MatrixFT - FFT)')
 
 .. image:: ./example_matrixFT_FFT_comparison.png
