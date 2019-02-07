@@ -201,7 +201,7 @@ class Instrument(object):
         """
         local_options = self.options  # all local state should be stored in a dict, for
         # ease of handing off to the various subroutines of
-        # calcPSF. Don't just modify the global self.options
+        # calc_psf. Don't just modify the global self.options
         # structure since that would pollute it with temporary
         # state as well as persistent state.
         local_options['monochromatic'] = monochromatic
@@ -882,10 +882,10 @@ class Instrument(object):
             self._spectra_cache[self._get_spec_cache_key(source, nlambda)] = newsource
             return newsource
         elif isinstance(source, dict) and ('wavelengths' in source) and ('weights' in source):
-            # Allow providing directly a set of specific weights and wavelengths, as in poppy.calcPSF source option #2
+            # Allow providing directly a set of specific weights and wavelengths, as in poppy.calc_psf source option #2
             return source['wavelengths'], source['weights']
         elif isinstance(source, tuple) and len(source) == 2:
-            # Allow user to provide directly a tuple, as in poppy.calcPSF source option #3
+            # Allow user to provide directly a tuple, as in poppy.calc_psf source option #3
             return source
 
         else:  # Fallback simple code for if we don't have pysynphot.

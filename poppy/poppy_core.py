@@ -1632,7 +1632,7 @@ class OpticalSystem(object):
             if display:
                 _log.warning('Display during calculations is not supported for multiprocessing mode. '
                                 'Please set poppy.conf.use_multiprocessing = False if you want to use display=True.')
-                _log.warning('(Plot the returned PSF with poppy.utils.display_PSF.)')
+                _log.warning('(Plot the returned PSF with poppy.utils.display_psf.)')
 
             if return_intermediates:
                 _log.warning('Memory usage warning: When preserving intermediate  planes in multiprocessing mode, '
