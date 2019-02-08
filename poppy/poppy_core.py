@@ -2375,7 +2375,8 @@ class FITSOpticalElement(OpticalElement):
                 self.opd *= 1e-6
             elif opdunits in ('nanometer', 'nm'):
                 self.opd *= 1e-9
-            self.opd_header['BUNIT'] = 'meter'
+            if self.opd_header is not None:
+                self.opd_header['BUNIT'] = 'meter'
 
             if len(self.opd.shape) != 2 or self.opd.shape[0] != self.opd.shape[1]:
                 _log.debug('OPD shape: ' + str(self.opd.shape))
