@@ -533,3 +533,71 @@ def test_detector_in_fresnel_system(npix=256):
     assert psf[0].data.shape == (300, 300)
 
     assert psf[0].header['NAXIS1'] == 300
+
+def test_wavefront_conversions():
+    """ Test conversions between Wavefront and FresnelWavefront
+    in both directions.
+    """
+    import poppy
+
+    props = lambda wf: (wf.shape, wf.ispadded, wf.oversample, wf.pixelscale)
+
+    optic = poppy.CircularAperture()
+    w = poppy.Wavefront(diam=4*u.m)
+    w*= optic
+
+    fw = poppy.FresnelWavefront(beam_radius=2*u.m)
+    fw*= optic
+
+    # test convert from Fraunhofer to Fresnel
+    fw2 = poppy.FresnelWavefront.from_wavefront(w)
+    assert props(fw)==props(fw2)
+    #np.testing.assert_allclose(fw.wavefront, fw2.wavefront)
+
+    # test convert from Fresnel to Fraunhofer
+    w2 = poppy.Wavefront.from_fresnel_wavefront(fw)
+    assert props(w)==props(w2)
+
+
+def test_CompoundOpticalSystem_fresnel(npix=128, display=False):
+    """ Test that the CompoundOpticalSystem container works for Fresnel systems
+
+    Parameters
+    ----------
+    npix : int
+        Number of pixels for the pupil sampling. Kept small by default to
+        reduce test run time.
+    """
+
+    import poppy
+
+    opt1 = poppy.SquareAperture()
+    opt2 = poppy.CircularAperture(radius=0.55)
+
+    # a single optical system
+    osys = poppy.FresnelOpticalSystem(beam_ratio=0.25, npix=npix)
+    osys.add_optic(opt1)
+    osys.add_optic(opt2, distance=10*u.cm)
+    osys.add_optic(poppy.QuadraticLens(1.0*u.m))
+    osys.add_optic(poppy.Detector(pixelscale=0.25*u.micron/u.pixel, fov_pixels=512), distance=1*u.m)
+
+    psf = osys.calc_psf(display_intermediates=display)
+
+    if display:
+        plt.figure()
+
+    # a Compound Fresnel optical system
+    osys1 = poppy.FresnelOpticalSystem(beam_ratio=0.25, npix=npix)
+    osys1.add_optic(opt1)
+    osys2 = poppy.FresnelOpticalSystem(beam_ratio=0.25)
+    osys2.add_optic(opt2, distance=10*u.cm)
+    osys2.add_optic(poppy.QuadraticLens(1.0*u.m))
+    osys2.add_optic(poppy.Detector(pixelscale=0.25*u.micron/u.pixel, fov_pixels=512), distance=1*u.m)
+
+    cosys = poppy.CompoundOpticalSystem([osys1, osys2])
+
+    psf2 = cosys.calc_psf(display_intermediates=display)
+
+    assert np.allclose(psf[0].data, psf2[0].data), "Results from simple and compound Fresnel systems differ unexpectedly."
+
+    return psf, psf2
