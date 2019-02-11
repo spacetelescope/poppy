@@ -88,49 +88,6 @@ class SemiAnalyticCoronagraph(poppy_core.OpticalSystem):
         self.occulter_highres = poppy_core.Detector(self.detector.pixelscale / self.oversample,
                                                     fov_arcsec=self.occulter_box * 2,
                                                     name='Oversampled Occulter Plane')
-#
-#    @utils.quantity_input(wavelength=u.meter)
-#    def propagate_mono(self, wavelength=1e-6 * u.meter,
-#                       normalize='first',
-#                       retain_final=False,
-#                       retain_intermediates=False,
-#                       display_intermediates=False):
-#        """Propagate a monochromatic wavefront through the optical system. Called from within `calc_psf`.
-#        Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s (empty if
-#        `retain_intermediates=False`).
-#
-#        *** This is a modified/custom version of the code in OpticalSystem.propagate_mono() ***
-#
-#        Parameters
-#        ----------
-#        wavelength : float
-#            Wavelength in meters
-#        normalize : string, {'first', 'last'}
-#            how to normalize the wavefront?
-#            * 'first' = set total flux = 1 after the first optic, presumably a pupil
-#            * 'last' = set total flux = 1 after the entire optical system.
-#        display_intermediates : bool
-#            Should intermediate steps in the calculation be displayed on screen? Default: False.
-#        retain_intermediates : bool
-#            Should intermediate steps in the calculation be retained? Default: False.
-#            If True, the second return value of the method will be a list of `poppy.Wavefront` objects
-#            representing intermediate optical planes from the calculation.
-#        retain_final : bool
-#            Should the final complex wavefront be retained? Default: False.
-#            If True, the second return value of the method will be a single element list
-#            (for consistency with retain intermediates) containing a `poppy.Wavefront` object
-#            representing the final optical plane from the calculation.
-#            Overridden by retain_intermediates.
-#        Returns
-#        -------
-#        final_wf : fits.HDUList
-#            The final result of the monochromatic propagation as a FITS HDUList
-#        intermediate_wfs : list
-#            A list of `poppy.Wavefront` objects representing the wavefront at intermediate optical planes.
-#            The 0th item is "before first plane", 1st is "after first plane and before second plane", and so on.
-#            (n.b. This will be empty if `retain_intermediates` is False and singular if retain_final is True.)
-#        """
-#        
 
     def propagate_through(self,
                           wavefront,
