@@ -10,7 +10,7 @@ from . import utils
 from . import accel_math
 if accel_math._USE_NUMEXPR:
     import numexpr as ne
-    pi = np.pi  # needed for evaluation inside numexpr strings. 
+    pi = np.pi  # needed for evaluation inside numexpr strings.
 
 _log = logging.getLogger('poppy')
 
@@ -64,7 +64,7 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
         _log.debug("Applying spherical phase curvature ={0:0.2e}".format(self.z))
         _log.debug("Applying spherical lens phase ={0:0.2e}".format(1.0 / self.z))
         z= self._z_m #numexpr can't evaluate self.
-        k = 2 * np.pi / wave._wavelength_m
+        k = 2 * np.pi / wave.wavelength.to(u.m).value
         if (z == np.inf) | (z == -np.inf):
             lens_phasor = 1 + 0j
             _log.debug("lens_phasor:"+str(lens_phasor))
@@ -424,15 +424,12 @@ class FresnelWavefront(BaseWavefront):
         # slightly differently. This is required for use in the angular spectrum propagation in the PTP and
         # Direct propagations.
 
-        #y, x = np.indices(shape, dtype=float)
         pixelscale_mpix = pixelscale.to(u.meter / u.pixel).value
         if not np.isscalar(pixelscale_mpix):
             pixel_scale_x, pixel_scale_y = pixelscale_mpix
         else:
             pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
 
-        #y -= (shape[0]) / 2.0
-        #x -= (shape[1]) / 2.0
         if accel_math._USE_NUMEXPR:
             return ne.evaluate("pixel_scale_y * y"),  ne.evaluate("pixel_scale_x * x")
         else:
@@ -496,12 +493,6 @@ class FresnelWavefront(BaseWavefront):
             return np.asarray(self.wavefront.shape) * u.pixel * self.pixelscale
         else:
             return None
-
-    @fov.setter
-    def fov(self, value):
-        # ignore attempts to set this, but this function needs to be defined for API compatibilty with
-        # regular Wavefront, specifically the self.fov=None line in Wavefront.__init__
-        return
 
     # methods for optical propagation
 
@@ -615,8 +606,6 @@ class FresnelWavefront(BaseWavefront):
         Lawrence eq. 82, 86,87
         """
 
-        # FIXME MP: should check here to confirm the starting wavefront
-        # is indeed planar rather than spherical
         if self.spherical:
             raise RuntimeError(
                 '_propagate_ptp can only start from a planar wavefront, but was called with a spherical one.')
@@ -638,16 +627,16 @@ class FresnelWavefront(BaseWavefront):
         rhosqr = accel_math._fftshift((x / ( meter_per_pix** 2 * self.n)) ** 2 + (
                                   y / (meter_per_pix** 2 * self.n)) ** 2)
         # Transfer Function of diffraction propagation eq. 22, eq. 87
-        wavelen_m = self._wavelength_m
+        wavelen_m = self.wavelength.to(u.m).value
 
         if accel_math._USE_NUMEXPR:
-                t= ne.evaluate("-1.0j * pi * wavelen_m * (z_direct) * rhosqr")
+            exp_t = ne.evaluate("exp(-1.0j * pi * wavelen_m * (z_direct) * rhosqr)")
         else:
-                t = -1.0j * np.pi * wavelen_m * (z_direct) * rhosqr
+            exp_t = np.exp(-1.0j * np.pi * wavelen_m * (z_direct) * rhosqr)
 
         self._fft()
 
-        self.wavefront = self.wavefront * accel_math._exp(t)  # eq. 6.68
+        self.wavefront *= exp_t  # eq. 6.68
 
         self._inv_fft()
         self.z += dz
@@ -671,10 +660,8 @@ class FresnelWavefront(BaseWavefront):
         ----------
          Lawrence eq. 83,88
         """
-        # dz = z2-self.z
         _log.debug("Waist to Spherical propagation, dz=" + str(dz))
 
-        # FIXME MP: check for planar input wavefront
         if self.spherical:
             raise RuntimeError(
                 '_propagate_wts can only start from a planar wavefront, but was called with a spherical one.')
@@ -718,7 +705,6 @@ class FresnelWavefront(BaseWavefront):
             raise RuntimeError(
                 '_propagate_stw can only start from a spherical wavefront, but was called with a planar one.')
 
-        # dz = z2 - self.z
         _log.debug("Spherical to Waist propagation, dz=" + str(dz))
 
         if dz == 0 * u.meter:
@@ -747,11 +733,6 @@ class FresnelWavefront(BaseWavefront):
             distance from the beam waist
 
         """
-
-        # if np.abs(self.z_w0 - z) < self.z_r:
-        #    return True
-        # else:
-        #    return False
         return np.abs(self.z_w0 - z) < self.z_r
 
     @utils.quantity_input(delta_z=u.meter)

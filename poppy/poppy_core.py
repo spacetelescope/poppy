@@ -452,7 +452,7 @@ class BaseWavefront(object):
         norm_phase = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
 
         def wrap_lines_title(title):
-            # Helper fn to add line breaks in plot titles, 
+            # Helper fn to add line breaks in plot titles,
             # tweaked to put in particular places for aesthetics
             for prep in ['after', 'before']:
                 if prep in title:
@@ -799,9 +799,6 @@ class BaseWavefront(object):
         # - number of pixels on a side in focal plane array.
 
         # Try to transform to whatever the intrinsic scale of the next pupil is.
-        # If it has a 
-
-        # try to transform to whatever the intrinsic scale of the next pupil is.
         # but if this ends up being a scalar (meaning it is an AnalyticOptic) then
         # just go back to our own prior shape and pixel scale.
         if pupil_npix is None:
@@ -1110,7 +1107,7 @@ class BaseWavefront(object):
         new_wf.history.append("  Fraunhofer array pixel scale = {:.4g}, oversample = {}".format(new_wf.pixelscale, new_wf.oversample))
         # Copy over the contents of the array
         new_wf.wavefront = utils.pad_or_crop_to_shape(wf.wavefront, new_wf.shape)
-        # Copy over misc internal info 
+        # Copy over misc internal info
         if hasattr(wf, '_display_hint_expected_nplanes'):
             new_wf._display_hint_expected_nplanes = wf._display_hint_expected_nplanes
 
