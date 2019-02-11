@@ -506,3 +506,36 @@ def test_Detector_pixelscale_units():
         assert _exception_message_starts_with(excinfo, "Argument 'fov_pixels' to function"), \
             "Error message not as expected"
 
+
+# Tests for CompoundOpticalSystem
+
+
+def test_CompoundOpticalSystem():
+    """ Verify basic functionality of concatenating optical systems
+    """
+    opt1 = poppy.SquareAperture()
+    opt2 = poppy.CircularAperture(radius=0.55)
+
+    # a single optical system
+    osys = poppy.OpticalSystem()
+    osys.add_pupil(opt1)
+    osys.add_pupil(opt2)
+    osys.add_detector(pixelscale=0.1, fov_pixels=128)
+
+    # two systems, joined into a CompoundOpticalSystem
+    osys1 = poppy.OpticalSystem()
+    osys1.add_pupil(opt1)
+
+    osys2 = poppy.OpticalSystem()
+    osys2.add_pupil(opt2)
+    osys2.add_detector(pixelscale=0.1, fov_pixels=128)
+
+    cosys = poppy.CompoundOpticalSystem([osys1, osys2])
+
+    # PSF calculations
+    psf_simple = osys.calc_psf()
+    psf_compound = cosys.calc_psf()
+
+    np.testing.assert_allclose(psf_simple[0].data, psf_compound[0].data,
+                               err_msg="PSFs do not match between equivalent simple and compound optical systems")
+

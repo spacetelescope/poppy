@@ -195,12 +195,10 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
 
     if isinstance(pixelscale, str):
         pixelscale = hdulist[ext].header[pixelscale]
-        halffov_x = pixelscale * psf_array_shape[1] / 2.0
-        halffov_y = pixelscale * psf_array_shape[0] / 2.0
     else:
         pixelscale = float(pixelscale)
-        halffov_x = pixelscale * psf_array_shape[1] / 2.0
-        halffov_y = pixelscale * psf_array_shape[0] / 2.0
+    halffov_x = pixelscale * psf_array_shape[1] / 2.0
+    halffov_y = pixelscale * psf_array_shape[0] / 2.0
 
     unit = "arcsec"
     extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
@@ -1141,6 +1139,9 @@ def pad_or_crop_to_shape(array, target_shape):
     pad_to_oversample, pad_to_size
 
     """
+
+    if array.shape == target_shape:
+        return array
 
     lx, ly = array.shape
     lx_w, ly_w = target_shape

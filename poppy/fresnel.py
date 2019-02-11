@@ -5,7 +5,7 @@ import logging
 import time
 
 import poppy
-from poppy.poppy_core import PlaneType, OpticalSystem, Wavefront
+from poppy.poppy_core import PlaneType, OpticalSystem, Wavefront, BaseWavefront
 from . import utils
 from . import accel_math
 if accel_math._USE_NUMEXPR:
@@ -170,7 +170,7 @@ class ConicLens(poppy.optics.CircularAperture):
         self.K = K
 
 
-class FresnelWavefront(Wavefront):
+class FresnelWavefront(BaseWavefront):
     angular_coordinates = False
     """Should coordinates be expressed in arcseconds instead of meters at the current plane? """
 
@@ -984,7 +984,12 @@ class FresnelWavefront(Wavefront):
             raise NotImplementedError("Resampling to detector doesn't yet work in angular coordinates for Fresnel.")
 
         pixscale_ratio = (self.pixelscale / detector.pixelscale).decompose().value
-        _log.info("Resampling wavefront to detector with {} pixels and {}. Zoom factor is {}".format(
+
+        if np.abs(pixscale_ratio-1.0)< 1e-3:
+            _log.debug("Wavefront is already at desired pixel scale {:.4g}.  No resampling needed.".format(self.pixelscale))
+            return
+
+        _log.info("Resampling wavefront to detector with {} pixels and {}. Zoom factor is {:.4g}".format(
             detector.shape, detector.pixelscale, pixscale_ratio ))
 
         _log.debug("Wavefront pixel scale: {}".format(self.pixelscale))
@@ -1010,6 +1015,41 @@ class FresnelWavefront(Wavefront):
         self._pixelscale_m = detector.pixelscale
         self.n = detector.shape[0]
 
+    @classmethod
+    def from_wavefront(cls, wavefront):
+        """Convert a Fraunhofer type wavefront object to a Fresnel one
+
+		Note, this function implicitly assumes this wavefront is at a
+		pupil plane, so the Fraunhofer wavefront can have pixelscale
+		in meters/pix rather than arcsec/pix.
+
+        Parameters
+        ----------
+        wavefront : Wavefront
+            The (Fraunhofer-type) wavefront to be converted
+
+        """
+        # Generate a Fresnel wavefront with the same sampling
+        wf = wavefront
+        if wf.ispadded:
+            beam_radius = wf.wavefront.shape[0]/wf.oversample/2 *wf.pixelscale*u.pixel
+        else:
+            beam_radius = wf.wavefront.shape[0]/2 *wf.pixelscale*u.pixel
+        new_wf = FresnelWavefront(beam_radius=beam_radius,
+                                  npix=wf.shape[0],
+                                  oversample=wf.oversample,
+                                  wavelength=wf.wavelength)
+        # Deal with metadata
+        new_wf.history = wf.history.copy()
+        new_wf.history.append("Converted to Fresnel propagation")
+        new_wf.history.append("  Fresnel array pixel scale = {:.4g}, oversample = {}".format(new_wf.pixelscale, new_wf.oversample))
+        # Copy over the contents of the array
+        new_wf.wavefront = utils.pad_to_size(wf.wavefront, new_wf.shape)
+        # Copy over misc internal info
+        if hasattr(wf, '_display_hint_expected_nplanes'):
+            new_wf._display_hint_expected_nplanes = wf._display_hint_expected_nplanes
+
+        return new_wf
 
 class FresnelOpticalSystem(OpticalSystem):
     """ Class representing a series of optical elements,
@@ -1070,7 +1110,7 @@ class FresnelOpticalSystem(OpticalSystem):
 
         return optic
 
-    @u.quantity_input(distance=u.m)
+    @u.quantity_input(distance=u.m, pixelscale=u.micron/u.pixel)
     def add_detector(self, pixelscale=10*u.micron/u.pixel, fov_pixels=10*u.pixel, distance=0.0 * u.m):
         """ Add a detector to the optical system
 
@@ -1115,6 +1155,7 @@ class FresnelOpticalSystem(OpticalSystem):
             "npix={1}, diam={3}, pixel scale={2}".format(
                 wavelength.to(u.micron).value, self.npix, self.pupil_diameter / (self.npix * u.pixel), self.pupil_diameter
             ))
+        inwave._display_hint_expected_nplanes = len(self)     # For displaying a multi-step calculation nicely
         return inwave
 
 #    @utils.quantity_input(wavelength=u.meter)
@@ -1167,8 +1208,6 @@ class FresnelOpticalSystem(OpticalSystem):
                           return_intermediates=False,
                           display_intermediates=False):
 
-        if self.verbose:
-            _log.info(" Propagating wavelength = {0:g} meters".format(wavefront.wavelength))
 
         intermediate_wfs = []
 
@@ -1182,14 +1221,14 @@ class FresnelOpticalSystem(OpticalSystem):
             if normalize.lower() == 'first' and wavefront.current_plane_index == 1:  # set entrance plane to 1.
                 wavefront.normalize()
                 _log.debug("normalizing at first plane (entrance pupil) to 1.0 total intensity")
-            elif normalize.lower() == 'first=2' and current_plane_index == 1:
+            elif normalize.lower() == 'first=2' and wavefront.current_plane_index == 1:
                 # this undocumented option is present only for testing/validation purposes
                 wavefront.normalize()
                 wavefront *= np.sqrt(2)
             elif normalize.lower() == 'exit_pupil':  # normalize the last pupil in the system to 1
                 last_pupil_plane_index = np.where(np.asarray([p.planetype is PlaneType.pupil for p in self.planes]))[
                                              0].max() + 1
-                if current_plane_index == last_pupil_plane_index:
+                if wavefront.current_plane_index == last_pupil_plane_index:
                     wavefront.normalize()
                     _log.debug(
                         "normalizing at exit pupil (plane {0}) to 1.0 total intensity".format(wavefront.current_plane_index))
@@ -1207,9 +1246,16 @@ class FresnelOpticalSystem(OpticalSystem):
             if display_intermediates:
                 if poppy.conf.enable_speed_tests:
                     t0 = time.time()
-                title = None if current_plane_index > 1 else "propagating $\lambda=${}".format(wavelength.to(u.micron))
-                wavefront.display(what='best', nrows=len(self.planes), row=None, colorbar=False,
-                                  title=title)
+                title = None if wavefront.current_plane_index > 1 else "propagating $\lambda=${}".format(wavefront.wavelength.to(u.micron))
+                display_what = getattr(optic, 'wavefront_display_hint', 'best')
+                display_vmax = getattr(optic, 'wavefront_display_vmax_hint', None)
+                display_vmin = getattr(optic, 'wavefront_display_vmin_hint', None)
+                display_nrows = getattr(wavefront, '_display_hint_expected_nplanes', len(self))
+
+                ax = wavefront.display(what=display_what,
+                                       row=None,
+                                       nrows=display_nrows,
+                                       colorbar=False, vmax=display_vmax, vmin=display_vmin)
 
                 if poppy.conf.enable_speed_tests:
                     t1 = time.time()
