@@ -1139,50 +1139,6 @@ class FresnelOpticalSystem(OpticalSystem):
         inwave._display_hint_expected_nplanes = len(self)     # For displaying a multi-step calculation nicely
         return inwave
 
-#    @utils.quantity_input(wavelength=u.meter)
-#    def propagate_mono(self, wavelength=1e-6 * u.meter,
-#                           normalize='first',
-#                           retain_intermediates=False,
-#                           retain_final=False,
-#                           display_intermediates=False):
-#        """Propagate a monochromatic wavefront through the optical system, via Fresnel calculations.
-#        Called from within `calc_psf`.
-#        Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s (empty if
-#        `retain_intermediates=False`).
-#
-#        Parameters
-#        ----------
-#        wavelength : float
-#            Wavelength in meters
-#        normalize : string, {'first', 'last'}
-#            how to normalize the wavefront?
-#            * 'first' = set total flux = 1 after the first optic, presumably a pupil
-#            * 'last' = set total flux = 1 after the entire optical system.
-#            * 'first=2' = set total flux = 2 after the first optic (used for debugging only)
-#        display_intermediates : bool
-#            Should intermediate steps in the calculation be displayed on screen? Default: False.
-#        retain_intermediates : bool
-#            Should intermediate steps in the calculation be retained? Default: False.
-#            If True, the second return value of the method will be a list of `poppy.Wavefront` objects
-#            representing intermediate optical planes from the calculation.
-#        retain_final : bool
-#            Should the final complex wavefront be retained? Default: False.
-#            If True, the second return value of the method will be a single element list
-#            (for consistency with retain intermediates) containing a `poppy.Wavefront` object
-#            representing the final optical plane from the calculation.
-#            Overridden by retain_intermediates.
-#        Returns
-#        -------
-#        final_wf : fits.HDUList
-#            The final result of the monochromatic propagation as a FITS HDUList
-#        intermediate_wfs : list
-#            A list of `poppy.Wavefront` objects representing the wavefront at intermediate optical planes.
-#            The 0th item is "before first optical plane", 1st is "after first plane and before second plane", and so on.
-#            (n.b. This will be empty if `retain_intermediates` is False and singular if retain_final is True.)
-#        """
-#        if poppy.conf.enable_speed_tests:
-#            t_start = time.time()
-
     def propagate_through(self,
                           wavefront,
                           normalize='none',
@@ -1250,7 +1206,6 @@ class FresnelOpticalSystem(OpticalSystem):
             return wavefront, intermediate_wfs
         else:
             return wavefront
-
 
     def describe(self):
         """ Print out a string table describing all planes in an optical system"""
