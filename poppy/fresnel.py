@@ -970,30 +970,8 @@ class FresnelWavefront(BaseWavefront):
             _log.debug("Wavefront is already at desired pixel scale {:.4g}.  No resampling needed.".format(self.pixelscale))
             return
 
-        _log.info("Resampling wavefront to detector with {} pixels and {}. Zoom factor is {:.4g}".format(
-            detector.shape, detector.pixelscale, pixscale_ratio ))
+        super(FresnelWavefront, self)._resample_wavefront_pixelscale(detector)
 
-        _log.debug("Wavefront pixel scale: {}".format(self.pixelscale))
-        _log.debug("Wavefront FOV: {} pixels, {}".format(self.shape, self.shape[0]*u.pixel*self.pixelscale))
-
-        _log.debug("Desired detector pixel scale: {}".format(detector.pixelscale))
-        _log.debug("Desired detector FOV: {} pixels, {}".format(detector.shape,
-                                                                      detector.shape[0]*u.pixel*detector.pixelscale,
-                                                                      ))
-
-        # TODO the following works but is not optimal for performance
-        # We should consider cropping out an appropriate subregion prior to performing the zoom.
-        # That makes a difference if the detector is only sampling a small part of a much larger wavefront
-
-        new_wf_real = scipy.ndimage.zoom(self.wavefront.real, pixscale_ratio, order=detector.interp_order)
-        new_wf_imag = scipy.ndimage.zoom(self.wavefront.imag, pixscale_ratio, order=detector.interp_order)
-        new_wf = new_wf_real + 1.j*new_wf_imag
-
-        _log.debug("Cropping/padding resampled wavefront to detector shape")
-        new_wf = utils.pad_or_crop_to_shape(new_wf, detector.shape)
-
-        self.wavefront = new_wf
-        self._pixelscale_m = detector.pixelscale
         self.n = detector.shape[0]
 
     @classmethod
@@ -1029,6 +1007,8 @@ class FresnelWavefront(BaseWavefront):
         # Copy over misc internal info
         if hasattr(wf, '_display_hint_expected_nplanes'):
             new_wf._display_hint_expected_nplanes = wf._display_hint_expected_nplanes
+        new_wf.current_plane_index = wf.current_plane_index
+        new_wf.location = wf.location
 
         return new_wf
 

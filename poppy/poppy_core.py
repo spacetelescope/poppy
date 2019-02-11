@@ -136,7 +136,6 @@ class BaseWavefront(object):
                                          # Used mostly for titling displayed plots.
 
         self.current_plane_index = 0 # For tracking stages in a calculation
-        #self._display_hint_expected_nplanes = 1     # For displaying a multi-step calculation nicely
 
         accel_math.update_math_settings()                   # ensure optimal propagation based on user settings
 
@@ -839,7 +838,7 @@ class BaseWavefront(object):
         self.diam = next_pupil_diam
 
     def _resample_wavefront_pixelscale(self, detector):
-        """ Resample a avefront to a desired detector sampling.
+        """ Resample a wavefront to a desired detector sampling.
 
         The interpolation is done via the scipy.ndimage.zoom function, by default
         using cubic interpolation.  If you wish a different order of interpolation,
@@ -861,13 +860,11 @@ class BaseWavefront(object):
         _log.info("Resampling wavefront to detector with {} pixels and {}. Zoom factor is {}".format(
             detector.shape, detector.pixelscale, pixscale_ratio ))
 
-        _log.debug("Wavefront pixel scale: {}".format(self.pixelscale))
-        _log.debug("Wavefront FOV: {} pixels, {}".format(self.shape, self.shape[0]*u.pixel*self.pixelscale))
-
+        _log.debug("Wavefront pixel scale:        {}".format(self.pixelscale))
         _log.debug("Desired detector pixel scale: {}".format(detector.pixelscale))
+        _log.debug("Wavefront FOV:        {} pixels, {}".format(self.shape, self.shape[0]*u.pixel*self.pixelscale))
         _log.debug("Desired detector FOV: {} pixels, {}".format(detector.shape,
-                                                                      detector.shape[0]*u.pixel*detector.pixelscale,
-                                                                      ))
+                                                                detector.shape[0]*u.pixel*detector.pixelscale))
 
         # TODO the following works but is not optimal for performance
         # We should consider cropping out an appropriate subregion prior to performing the zoom.
@@ -877,7 +874,10 @@ class BaseWavefront(object):
         new_wf_imag = scipy.ndimage.zoom(self.wavefront.imag, pixscale_ratio, order=detector.interp_order)
         new_wf = new_wf_real + 1.j*new_wf_imag
 
-        _log.debug("Cropping/padding resampled wavefront to detector shape")
+        # enforce conservation of energy:
+        new_wf *= 1./pixscale_ratio
+
+        _log.debug("Cropping/padding resampled wavefront to detector shape: {}".format(detector.shape))
         new_wf = utils.pad_or_crop_to_shape(new_wf, detector.shape)
 
         self.wavefront = new_wf
@@ -1110,6 +1110,8 @@ class BaseWavefront(object):
         # Copy over misc internal info
         if hasattr(wf, '_display_hint_expected_nplanes'):
             new_wf._display_hint_expected_nplanes = wf._display_hint_expected_nplanes
+        new_wf.current_plane_index = wf.current_plane_index
+        new_wf.location = wf.location
 
         return new_wf
 
@@ -2022,7 +2024,6 @@ class CompoundOpticalSystem(OpticalSystem):
 
         if return_intermediates:
             intermediate_wfs = []
-            #raise RuntimeError("Intermediates in CompoundOptSys Not yet implemented")
 
         # helper function for logging:
         def loghistory(wavefront, msg):
@@ -2035,14 +2036,14 @@ class CompoundOpticalSystem(OpticalSystem):
             if (isinstance(optsys, FresnelOpticalSystem) and
                 not isinstance(wavefront, FresnelWavefront)):
                 wavefront = FresnelWavefront.from_wavefront(wavefront)
-                loghistory(wavefront, "Converted wavefront to Fresnel type")
+                loghistory(wavefront, "CompoundOpticalSystem: Converted wavefront to Fresnel type")
             elif (not isinstance(optsys, FresnelOpticalSystem) and
                   isinstance(wavefront, FresnelWavefront)):
                 wavefront = Wavefront.from_fresnel_wavefront(wavefront)
-                loghistory(wavefront, "Converted wavefront to Fraunhofer type")
+                loghistory(wavefront, "CompoundOpticalSystem: Converted wavefront to Fraunhofer type")
 
             # Propagate
-            loghistory(wavefront, "Propagating through system {}: {}".format(i, optsys.name))
+            loghistory(wavefront, "CompoundOpticalSystem: Propagating through system {}: {}".format(i, optsys.name))
             retval = optsys.propagate_through(wavefront,
                                               normalize=normalize,
                                               return_intermediates=return_intermediates,
