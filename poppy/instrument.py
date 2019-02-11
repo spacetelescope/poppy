@@ -722,7 +722,7 @@ class Instrument(object):
             old_no_sam = None
         # Trigger config validation to update any optical planes
         # (specifically auto-selected pupils based on filter selection)
-        wavelengths, _ = self._get_weights()
+        wavelengths, _ = self._get_weights(nlambda=1)
         self._validate_config(wavelengths=wavelengths)
         optsys = self._get_optical_system()
         optsys.display(what='both')
