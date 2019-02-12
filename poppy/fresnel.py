@@ -978,9 +978,10 @@ class FresnelWavefront(BaseWavefront):
     def from_wavefront(cls, wavefront):
         """Convert a Fraunhofer type wavefront object to a Fresnel one
 
-		Note, this function implicitly assumes this wavefront is at a
-		pupil plane, so the Fraunhofer wavefront can have pixelscale
-		in meters/pix rather than arcsec/pix.
+        Note, for now this function only works if the input wavefront is at a
+        pupil plane, so the Fraunhofer wavefront has pixelscale
+        in meters/pix rather than arcsec/pix. Conversion from
+        image planes may be added later.
 
         Parameters
         ----------
@@ -990,6 +991,11 @@ class FresnelWavefront(BaseWavefront):
         """
         # Generate a Fresnel wavefront with the same sampling
         wf = wavefront
+
+        if wf.planetype==PlaneType.image:
+            raise NotImplementedError("Conversion from image planes to Fresnel is not yet implemented.")
+
+
         if wf.ispadded:
             beam_radius = wf.wavefront.shape[0]/wf.oversample/2 *wf.pixelscale*u.pixel
         else:

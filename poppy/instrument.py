@@ -592,10 +592,6 @@ class Instrument(object):
 
         return optsys
 
-    def _getOpticalSystem(self, *args, **kwargs):
-        warnings.warn("_getOpticalSystem is deprecated; use _get_optical_system instead", DeprecationWarning)
-        return self._get_optical_system(*args, **kwargs)
-
     def _check_for_aliasing(self, wavelengths):
         """ Check for spatial frequency aliasing and warn if the
         user is requesting a FOV which is larger than supported based on

@@ -4,6 +4,7 @@ import time
 import enum
 import warnings
 import textwrap
+from abc import ABC, abstractmethod
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -78,10 +79,10 @@ def _wrap_propagate_for_multiprocessing(args):
                                          normalize=normalize)
 
 
-class BaseWavefront(object):
-    """ Abstract base wavefront class.
-    Don't use this class directly, use either Wavefront or FresnelWavefront
-    child classes for most purposes.
+class BaseWavefront(ABC):
+    """ Abstract base class for wavefronts.
+    In general you should not need to use this class directly; use either
+    Wavefront or FresnelWavefront child classes for most purposes.
 
     Parameters
     ----------
@@ -604,6 +605,355 @@ class BaseWavefront(object):
         return self.intensity.sum()
 
     # methods for wavefront propagation:
+    @abstractmethod
+    def propagate_to(self, optic):
+        """ Placeholder for wavefront propagation.
+        To be implemented by subclasses
+        """
+        pass
+
+    def _resample_wavefront_pixelscale(self, detector):
+        """ Resample a wavefront to a desired detector sampling.
+
+        The interpolation is done via the scipy.ndimage.zoom function, by default
+        using cubic interpolation.  If you wish a different order of interpolation,
+        set the `.interp_order` attribute of the detector instance.
+
+        Parameters
+        ----------
+        detector : Detector class instance
+            Detector that defines the desired pixel scale
+
+        Returns
+        -------
+        The wavefront object is modified to have the appropriate pixel scale and spatial extent.
+
+        """
+        import scipy.ndimage
+
+        pixscale_ratio = (self.pixelscale / detector.pixelscale).decompose().value
+        _log.info("Resampling wavefront to detector with {} pixels and {}. Zoom factor is {:.5f}".format(
+            detector.shape, detector.pixelscale, pixscale_ratio ))
+
+        _log.debug("Wavefront pixel scale:        {:.3f}".format(self.pixelscale.to(detector.pixelscale.unit)))
+        _log.debug("Desired detector pixel scale: {:.3f}".format(detector.pixelscale))
+        _log.debug("Wavefront FOV:        {} pixels, {:.3f}".format(self.shape,
+                                                                self.shape[0]*u.pixel*self.pixelscale.to(
+                                                                    detector.pixelscale.unit)))
+        _log.debug("Desired detector FOV: {} pixels, {:.3f}".format(detector.shape,
+                                                                detector.shape[0]*u.pixel*detector.pixelscale))
+
+        # TODO the following works but is not optimal for performance
+        # We should consider cropping out an appropriate subregion prior to performing the zoom.
+        # That makes a difference if the detector is only sampling a small part of a much larger wavefront
+
+        new_wf_real = scipy.ndimage.zoom(self.wavefront.real, pixscale_ratio, order=detector.interp_order)
+        new_wf_imag = scipy.ndimage.zoom(self.wavefront.imag, pixscale_ratio, order=detector.interp_order)
+        new_wf = new_wf_real + 1.j*new_wf_imag
+
+        # enforce conservation of energy:
+        new_wf *= 1./pixscale_ratio
+
+        _log.debug("Cropping/padding resampled wavefront to detector shape: {}".format(detector.shape))
+        new_wf = utils.pad_or_crop_to_shape(new_wf, detector.shape)
+        self.ispadded = False   # if a pupil detector, avoid auto-cropping padded pixels on output
+
+        self.wavefront = new_wf
+        self.pixelscale = detector.pixelscale
+
+
+    @utils.quantity_input(Xangle=u.arcsec, Yangle=u.arcsec)
+    def tilt(self, Xangle=0.0, Yangle=0.0):
+        """ Tilt a wavefront in X and Y.
+
+        Recall from Fourier optics (although this is straightforwardly rederivable by drawing triangles)
+        that for a wavefront tilted by some angle theta in radians, that a point r meters from the center of
+        the pupil has:
+
+            extra_pathlength = sin(theta) * r
+            extra_waves = extra_pathlength/ wavelength = r * sin(theta) / wavelength
+
+        So we calculate the U and V arrays (corresponding to r for the pupil, in meters from the center)
+        and then multiply by the appropriate trig factors for the angle.
+
+        The sign convention is chosen such that positive Yangle tilts move the star upwards in the
+        array at the focal plane. (This is sort of an inverse of what physically happens in the propagation
+        to or through focus, but we're ignoring that here and trying to just work in sky coords)
+
+        Parameters
+        ----------
+        Xangle, Yangle : float
+            tilt angles, specified in arcseconds
+
+        """
+        if self.planetype == PlaneType.image:
+            raise NotImplementedError("Are you sure you want to tilt a wavefront in an _IMAGE plane?")
+
+        if np.abs(Xangle) > 0 or np.abs(Yangle) > 0:
+            xangle_rad = Xangle.to(u.radian).value
+            yangle_rad = Yangle.to(u.radian).value
+
+            if isinstance(self.pixelscale, u.Quantity):
+                pixelscale = self.pixelscale.to(u.m / u.pixel).value
+            else:
+                pixelscale = self.pixelscale
+
+            npix = self.wavefront.shape[0]
+            V, U = np.indices(self.wavefront.shape, dtype=_float())
+            V -= (npix - 1) / 2.0
+            V *= pixelscale
+            U -= (npix - 1) / 2.0
+            U *= pixelscale
+
+            tiltphasor = np.exp(2.0j * np.pi * (U * xangle_rad + V * yangle_rad) / self.wavelength.to(u.meter).value)
+            self.wavefront *= tiltphasor
+            self.history.append("Tilted wavefront by "
+                                "X={:2.2}, Y={:2.2} arcsec".format(Xangle, Yangle))
+
+        else:
+            _log.warning("Wavefront.tilt() called, but requested tilt was zero. No change.")
+
+    def rotate(self, angle=0.0):
+        """Rotate a wavefront by some amount, using spline interpolation
+
+        Parameters
+        ----------
+        angle : float
+            Angle to rotate, in degrees counterclockwise.
+
+        """
+        # self.wavefront = scipy.ndimage.interpolation.rotate(self.wavefront, angle, reshape=False)
+        # Huh, the ndimage rotate function does not work for complex numbers. That's weird.
+        # so let's treat the real and imaginary parts individually
+        # FIXME TODO or would it be better to do this on the amplitude and phase?
+        rot_real = scipy.ndimage.interpolation.rotate(self.wavefront.real, angle, reshape=False)
+        rot_imag = scipy.ndimage.interpolation.rotate(self.wavefront.imag, angle, reshape=False)
+        self.wavefront = rot_real + 1.j * rot_imag
+
+        self.history.append('Rotated by {:.2f} degrees, CCW'.format(angle))
+
+    def invert(self, axis='both'):
+        """Invert coordinates, i.e. flip the direction of the X and Y axes
+
+        This models the inversion of axes signs that happens for instance when a beam
+        passes through a focus.
+
+        Parameters
+        ------------
+        axis : string
+            either 'both', 'x', or 'y', for which axes to invert
+
+        """
+        if axis.lower() == 'both':
+            self.wavefront = self.wavefront[::-1, ::-1]
+        elif axis.lower() == 'x':
+            self.wavefront = self.wavefront[:, ::-1]
+        elif axis.lower() == 'y':
+            self.wavefront = self.wavefront[::-1]
+        else:
+            raise ValueError("Invalid/unknown value for the 'axis' parameter. Must be 'x', 'y', or 'both'.")
+        self.history.append('Inverted axis direction for {} axes'.format(axis.upper()))
+
+    # note: the following are implemented as static methods to
+    # allow for reuse outside of this class in the Zernike polynomial
+    # caching mechanisms. See zernike.py.
+    @staticmethod
+    def pupil_coordinates(shape, pixelscale):
+        """Utility function to generate coordinates arrays for a pupil
+        plane wavefront
+
+        Parameters
+        ----------
+
+        shape : tuple of ints
+            Shape of the wavefront array
+        pixelscale : float or 2-tuple of floats
+            the pixel scale in meters/pixel, optionally different in
+            X and Y
+        """
+        y, x = np.indices(shape, dtype=_float())
+        pixelscale_mpix = pixelscale.to(u.meter / u.pixel).value if isinstance(pixelscale, u.Quantity) else pixelscale
+        if not np.isscalar(pixelscale_mpix):
+            pixel_scale_x, pixel_scale_y = pixelscale_mpix
+        else:
+            pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
+
+        y -= (shape[0] - 1) / 2.0
+        x -= (shape[1] - 1) / 2.0
+
+        return pixel_scale_y * y, pixel_scale_x * x
+
+    @staticmethod
+    def image_coordinates(shape, pixelscale, last_transform_type, image_centered):
+        """Utility function to generate coordinates arrays for an image
+        plane wavefront
+
+        Parameters
+        ----------
+
+        shape : tuple of ints
+            Shape of the wavefront array
+        pixelscale : float or 2-tuple of floats
+            the pixelscale in meters/pixel, optionally different in
+            X and Y
+        last_transform_type : string
+            Was the last transformation on the Wavefront an FFT
+            or an MFT?
+        image_centered : string
+            Was POPPY trying to keeping the center of the image on
+            a pixel, crosshairs ('array_center'), or corner?
+        """
+        y, x = np.indices(shape, dtype=_float())
+        pixelscale_arcsecperpix = pixelscale.to(u.arcsec / u.pixel).value
+        if not np.isscalar(pixelscale_arcsecperpix):
+            pixel_scale_x, pixel_scale_y = pixelscale_arcsecperpix
+        else:
+            pixel_scale_x, pixel_scale_y = pixelscale_arcsecperpix, pixelscale_arcsecperpix
+
+        # in most cases, the x and y values are centered around the exact center of the array.
+        # This is not true in general for FFT-produced image planes where the center is in the
+        # middle of one single pixel (the 0th-order term of the FFT), even though that means that
+        # the PSF center is slightly offset from the array center.
+        # On the other hand, if we used the FQPM FFT Aligner optic, then that forces the PSF center
+        # to the exact center of an array.
+
+        # The following are just relevant for the FFT-created images, not for the Detector MFT
+        # image at the end.
+        if last_transform_type == 'FFT':
+            # FFT array sizes will always be even, right?
+            if image_centered == 'pixel':
+                # so this goes to an integer pixel
+                y -= shape[0] / 2.0
+                x -= shape[1] / 2.0
+            elif image_centered == 'array_center' or image_centered == 'corner':
+                # and this goes to a pixel center
+                y -= (shape[0] - 1) / 2.0
+                x -= (shape[1] - 1) / 2.0
+        else:
+            # MFT produced images are always exactly centered.
+            y -= (shape[0] - 1) / 2.0
+            x -= (shape[1] - 1) / 2.0
+
+        return pixel_scale_y * y, pixel_scale_x * x
+
+    def coordinates(self):
+        """ Return Y, X coordinates for this wavefront, in the manner of numpy.indices()
+
+        This function knows about the offset resulting from FFTs. Use it whenever computing anything
+        measured in wavefront coordinates.
+
+        Returns
+        -------
+        Y, X :  array_like
+            Wavefront coordinates in either meters or arcseconds for pupil and image, respectively
+        """
+
+        if self.planetype == PlaneType.pupil:
+            return type(self).pupil_coordinates(self.shape, self.pixelscale)
+        elif self.planetype == PlaneType.image:
+            return Wavefront.image_coordinates(self.shape, self.pixelscale,
+                                               self._last_transform_type, self._image_centered)
+        else:
+            raise RuntimeError("Unknown plane type (should be pupil or image!)")
+
+    @classmethod
+    def from_fresnel_wavefront(cls, fresnel_wavefront, verbose=False):
+        """Convert a Fresnel type wavefront object to a Fraunhofer one
+
+        Note, this function currently assumes this wavefront to be at a
+        pupil plane, so the resulting Fraunhofer wavefront will have
+        pixelscale in meters/pix rather than arcsec/pix. Conversion to
+        image planes may be added later.
+
+        Parameters
+        ----------
+        fresnel_wavefront : Wavefront
+            The (Fresnel-type) wavefront to be converted.
+
+        """
+        # Generate a Fraunhofer wavefront with the same sampling
+        wf = fresnel_wavefront
+        beam_diam = (wf.wavefront.shape[0]//wf.oversample) *wf.pixelscale*u.pixel
+        new_wf = Wavefront(diam=beam_diam,
+                           npix=wf.shape[0]//wf.oversample,
+                           oversample=wf.oversample,
+                           wavelength=wf.wavelength)
+        if verbose:
+            print(wf.pixelscale, new_wf.pixelscale, new_wf.shape)
+        # Deal with metadata
+        new_wf.history = wf.history.copy()
+        new_wf.history.append("Converted to Fraunhofer propagation")
+        new_wf.history.append("  Fraunhofer array pixel scale = {:.4g}, oversample = {}".format(new_wf.pixelscale, new_wf.oversample))
+        # Copy over the contents of the array
+        new_wf.wavefront = utils.pad_or_crop_to_shape(wf.wavefront, new_wf.shape)
+        # Copy over misc internal info
+        if hasattr(wf, '_display_hint_expected_nplanes'):
+            new_wf._display_hint_expected_nplanes = wf._display_hint_expected_nplanes
+        new_wf.current_plane_index = wf.current_plane_index
+        new_wf.location = wf.location
+
+        return new_wf
+
+class Wavefront(BaseWavefront):
+    """ Wavefront in the Fraunhofer approximation: a monochromatic wavefront that
+    can be transformed between pupil and image planes only, not to intermediate planes
+
+    In a pupil plane, a wavefront object `wf` has
+
+        * `wf.diam`,         a diameter in meters
+        * `wf.pixelscale`,   a scale in meters/pixel
+
+    In an image plane, it has
+
+        * `wf.fov`,          a field of view in arcseconds
+        * `wf.pixelscale`,   a  scale in arcsec/pixel
+
+
+    Use the `wf.propagate_to()` method to transform a wavefront between conjugate planes. This will update those
+    properties as appropriate.
+
+    By default, `Wavefronts` are created in a pupil plane. Set `pixelscale=#` to make an image plane instead.
+
+    Parameters
+    ----------
+    wavelength : float
+        Wavelength of light in meters
+    npix : int
+        Size parameter for wavefront array to create, per side.
+    diam : float, optional
+        For _PUPIL wavefronts, sets physical size corresponding to npix. Units are meters.
+        At most one of diam or pixelscale should be set when creating a wavefront.
+    pixelscale : float, optional
+        For PlaneType.image PLANE wavefronts, use this pixel scale.
+    oversample : int, optional
+        how much to oversample by in FFTs. Default is 2.
+        Note that final propagations to Detectors use a different algorithm
+        and, optionally, a separate oversampling factor.
+    dtype : numpy.dtype, optional
+        default is double complex.
+
+    """
+
+    @utils.quantity_input(wavelength=u.meter, diam=u.meter, pixelscale=u.arcsec / u.pixel)
+    def __init__(self, wavelength=1e-6 * u.meter, npix=1024, dtype=None, diam=8.0 * u.meter,
+                 oversample=2, pixelscale=None):
+        super(Wavefront, self).__init__(wavelength=wavelength,
+                                        npix=npix,
+                                        dtype=dtype,
+                                        diam=diam,
+                                        oversample=oversample)
+
+        if pixelscale is None:
+            self.pixelscale = self.diam / (npix * u.pixel)  # scale in meters/pix or arcsec/pix, as appropriate
+            self.planetype = PlaneType.pupil  # are we at image or pupil?
+        else:
+            self.pixelscale = pixelscale  # scale in meters/pix or arcsec/pix, as appropriate
+            self.planetype = PlaneType.image
+
+        self._last_transform_type = None  # later used to track MFT vs FFT pixel coord centering in coordinates()
+
+        self.fov = None  # Field of view in arcsec. Applies to an image plane only.
+
     def propagate_to(self, optic):
         """Propagates a wavefront object to the next optic in the list.
         Modifies this wavefront object itself.
@@ -836,344 +1186,6 @@ class BaseWavefront(object):
         self.planetype = PlaneType.pupil
         self.pixelscale = next_pupil_diam / self.wavefront.shape[0] / u.pixel
         self.diam = next_pupil_diam
-
-    def _resample_wavefront_pixelscale(self, detector):
-        """ Resample a wavefront to a desired detector sampling.
-
-        The interpolation is done via the scipy.ndimage.zoom function, by default
-        using cubic interpolation.  If you wish a different order of interpolation,
-        set the `.interp_order` attribute of the detector instance.
-
-        Parameters
-        ----------
-        detector : Detector class instance
-            Detector that defines the desired pixel scale
-
-        Returns
-        -------
-        The wavefront object is modified to have the appropriate pixel scale and spatial extent.
-
-        """
-        import scipy.ndimage
-
-        pixscale_ratio = (self.pixelscale / detector.pixelscale).decompose().value
-        _log.info("Resampling wavefront to detector with {} pixels and {}. Zoom factor is {}".format(
-            detector.shape, detector.pixelscale, pixscale_ratio ))
-
-        _log.debug("Wavefront pixel scale:        {}".format(self.pixelscale))
-        _log.debug("Desired detector pixel scale: {}".format(detector.pixelscale))
-        _log.debug("Wavefront FOV:        {} pixels, {}".format(self.shape, self.shape[0]*u.pixel*self.pixelscale))
-        _log.debug("Desired detector FOV: {} pixels, {}".format(detector.shape,
-                                                                detector.shape[0]*u.pixel*detector.pixelscale))
-
-        # TODO the following works but is not optimal for performance
-        # We should consider cropping out an appropriate subregion prior to performing the zoom.
-        # That makes a difference if the detector is only sampling a small part of a much larger wavefront
-
-        new_wf_real = scipy.ndimage.zoom(self.wavefront.real, pixscale_ratio, order=detector.interp_order)
-        new_wf_imag = scipy.ndimage.zoom(self.wavefront.imag, pixscale_ratio, order=detector.interp_order)
-        new_wf = new_wf_real + 1.j*new_wf_imag
-
-        # enforce conservation of energy:
-        new_wf *= 1./pixscale_ratio
-
-        _log.debug("Cropping/padding resampled wavefront to detector shape: {}".format(detector.shape))
-        new_wf = utils.pad_or_crop_to_shape(new_wf, detector.shape)
-
-        self.wavefront = new_wf
-        self.pixelscale = detector.pixelscale
-
-
-    @utils.quantity_input(Xangle=u.arcsec, Yangle=u.arcsec)
-    def tilt(self, Xangle=0.0, Yangle=0.0):
-        """ Tilt a wavefront in X and Y.
-
-        Recall from Fourier optics (although this is straightforwardly rederivable by drawing triangles)
-        that for a wavefront tilted by some angle theta in radians, that a point r meters from the center of
-        the pupil has:
-
-            extra_pathlength = sin(theta) * r
-            extra_waves = extra_pathlength/ wavelength = r * sin(theta) / wavelength
-
-        So we calculate the U and V arrays (corresponding to r for the pupil, in meters from the center)
-        and then multiply by the appropriate trig factors for the angle.
-
-        The sign convention is chosen such that positive Yangle tilts move the star upwards in the
-        array at the focal plane. (This is sort of an inverse of what physically happens in the propagation
-        to or through focus, but we're ignoring that here and trying to just work in sky coords)
-
-        Parameters
-        ----------
-        Xangle, Yangle : float
-            tilt angles, specified in arcseconds
-
-        """
-        if self.planetype == PlaneType.image:
-            raise NotImplementedError("Are you sure you want to tilt a wavefront in an _IMAGE plane?")
-
-        if np.abs(Xangle) > 0 or np.abs(Yangle) > 0:
-            xangle_rad = Xangle.to(u.radian).value
-            yangle_rad = Yangle.to(u.radian).value
-
-            if isinstance(self.pixelscale, u.Quantity):
-                pixelscale = self.pixelscale.to(u.m / u.pixel).value
-            else:
-                pixelscale = self.pixelscale
-
-            npix = self.wavefront.shape[0]
-            V, U = np.indices(self.wavefront.shape, dtype=_float())
-            V -= (npix - 1) / 2.0
-            V *= pixelscale
-            U -= (npix - 1) / 2.0
-            U *= pixelscale
-
-            tiltphasor = np.exp(2.0j * np.pi * (U * xangle_rad + V * yangle_rad) / self.wavelength.to(u.meter).value)
-            self.wavefront *= tiltphasor
-            self.history.append("Tilted wavefront by "
-                                "X={:2.2}, Y={:2.2} arcsec".format(Xangle, Yangle))
-
-        else:
-            _log.warning("Wavefront.tilt() called, but requested tilt was zero. No change.")
-
-    def rotate(self, angle=0.0):
-        """Rotate a wavefront by some amount, using spline interpolation
-
-        Parameters
-        ----------
-        angle : float
-            Angle to rotate, in degrees counterclockwise.
-
-        """
-        # self.wavefront = scipy.ndimage.interpolation.rotate(self.wavefront, angle, reshape=False)
-        # Huh, the ndimage rotate function does not work for complex numbers. That's weird.
-        # so let's treat the real and imaginary parts individually
-        # FIXME TODO or would it be better to do this on the amplitude and phase?
-        rot_real = scipy.ndimage.interpolation.rotate(self.wavefront.real, angle, reshape=False)
-        rot_imag = scipy.ndimage.interpolation.rotate(self.wavefront.imag, angle, reshape=False)
-        self.wavefront = rot_real + 1.j * rot_imag
-
-        self.history.append('Rotated by {:.2f} degrees, CCW'.format(angle))
-
-    def invert(self, axis='both'):
-        """Invert coordinates, i.e. flip the direction of the X and Y axes
-
-        This models the inversion of axes signs that happens for instance when a beam
-        passes through a focus.
-
-        Parameters
-        ------------
-        axis : string
-            either 'both', 'x', or 'y', for which axes to invert
-
-        """
-        if axis.lower() == 'both':
-            self.wavefront = self.wavefront[::-1, ::-1]
-        elif axis.lower() == 'x':
-            self.wavefront = self.wavefront[:, ::-1]
-        elif axis.lower() == 'y':
-            self.wavefront = self.wavefront[::-1]
-        else:
-            raise ValueError("Invalid/unknown value for the 'axis' parameter. Must be 'x', 'y', or 'both'.")
-        self.history.append('Inverted axis direction for {} axes'.format(axis.upper()))
-
-    # note: the following are implemented as static methods to
-    # allow for reuse outside of this class in the Zernike polynomial
-    # caching mechanisms. See zernike.py.
-    @staticmethod
-    def pupil_coordinates(shape, pixelscale):
-        """Utility function to generate coordinates arrays for a pupil
-        plane wavefront
-
-        Parameters
-        ----------
-
-        shape : tuple of ints
-            Shape of the wavefront array
-        pixelscale : float or 2-tuple of floats
-            the pixel scale in meters/pixel, optionally different in
-            X and Y
-        """
-        y, x = np.indices(shape, dtype=_float())
-        pixelscale_mpix = pixelscale.to(u.meter / u.pixel).value if isinstance(pixelscale, u.Quantity) else pixelscale
-        if not np.isscalar(pixelscale_mpix):
-            pixel_scale_x, pixel_scale_y = pixelscale_mpix
-        else:
-            pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
-
-        y -= (shape[0] - 1) / 2.0
-        x -= (shape[1] - 1) / 2.0
-
-        return pixel_scale_y * y, pixel_scale_x * x
-
-    @staticmethod
-    def image_coordinates(shape, pixelscale, last_transform_type, image_centered):
-        """Utility function to generate coordinates arrays for an image
-        plane wavefront
-
-        Parameters
-        ----------
-
-        shape : tuple of ints
-            Shape of the wavefront array
-        pixelscale : float or 2-tuple of floats
-            the pixelscale in meters/pixel, optionally different in
-            X and Y
-        last_transform_type : string
-            Was the last transformation on the Wavefront an FFT
-            or an MFT?
-        image_centered : string
-            Was POPPY trying to keeping the center of the image on
-            a pixel, crosshairs ('array_center'), or corner?
-        """
-        y, x = np.indices(shape, dtype=_float())
-        pixelscale_arcsecperpix = pixelscale.to(u.arcsec / u.pixel).value
-        if not np.isscalar(pixelscale_arcsecperpix):
-            pixel_scale_x, pixel_scale_y = pixelscale_arcsecperpix
-        else:
-            pixel_scale_x, pixel_scale_y = pixelscale_arcsecperpix, pixelscale_arcsecperpix
-
-        # in most cases, the x and y values are centered around the exact center of the array.
-        # This is not true in general for FFT-produced image planes where the center is in the
-        # middle of one single pixel (the 0th-order term of the FFT), even though that means that
-        # the PSF center is slightly offset from the array center.
-        # On the other hand, if we used the FQPM FFT Aligner optic, then that forces the PSF center
-        # to the exact center of an array.
-
-        # The following are just relevant for the FFT-created images, not for the Detector MFT
-        # image at the end.
-        if last_transform_type == 'FFT':
-            # FFT array sizes will always be even, right?
-            if image_centered == 'pixel':
-                # so this goes to an integer pixel
-                y -= shape[0] / 2.0
-                x -= shape[1] / 2.0
-            elif image_centered == 'array_center' or image_centered == 'corner':
-                # and this goes to a pixel center
-                y -= (shape[0] - 1) / 2.0
-                x -= (shape[1] - 1) / 2.0
-        else:
-            # MFT produced images are always exactly centered.
-            y -= (shape[0] - 1) / 2.0
-            x -= (shape[1] - 1) / 2.0
-
-        return pixel_scale_y * y, pixel_scale_x * x
-
-    def coordinates(self):
-        """ Return Y, X coordinates for this wavefront, in the manner of numpy.indices()
-
-        This function knows about the offset resulting from FFTs. Use it whenever computing anything
-        measured in wavefront coordinates.
-
-        Returns
-        -------
-        Y, X :  array_like
-            Wavefront coordinates in either meters or arcseconds for pupil and image, respectively
-        """
-
-        if self.planetype == PlaneType.pupil:
-            return type(self).pupil_coordinates(self.shape, self.pixelscale)
-        elif self.planetype == PlaneType.image:
-            return Wavefront.image_coordinates(self.shape, self.pixelscale,
-                                               self._last_transform_type, self._image_centered)
-        else:
-            raise RuntimeError("Unknown plane type (should be pupil or image!)")
-
-    @classmethod
-    def from_fresnel_wavefront(cls, fresnel_wavefront, verbose=False):
-        """Convert a Fresnel type wavefront object to a Fraunhofer one
-
-        Note, this function implicitly assumes this wavefront is at a
-        pupil plane, so the resulting Fraunhofer wavefront will have
-        pixelscale in meters/pix rather than arcsec/pix.
-
-        Parameters
-        ----------
-        fresnel_wavefront : Wavefront
-            The (Fresnel-type) wavefront to be converted.
-
-        """
-        # Generate a Fraunhofer wavefront with the same sampling
-        wf = fresnel_wavefront
-        beam_diam = (wf.wavefront.shape[0]//wf.oversample) *wf.pixelscale*u.pixel
-        new_wf = Wavefront(diam=beam_diam,
-                           npix=wf.shape[0]//wf.oversample,
-                           oversample=wf.oversample,
-                           wavelength=wf.wavelength)
-        if verbose:
-            print(wf.pixelscale, new_wf.pixelscale, new_wf.shape)
-        # Deal with metadata
-        new_wf.history = wf.history.copy()
-        new_wf.history.append("Converted to Fraunhofer propagation")
-        new_wf.history.append("  Fraunhofer array pixel scale = {:.4g}, oversample = {}".format(new_wf.pixelscale, new_wf.oversample))
-        # Copy over the contents of the array
-        new_wf.wavefront = utils.pad_or_crop_to_shape(wf.wavefront, new_wf.shape)
-        # Copy over misc internal info
-        if hasattr(wf, '_display_hint_expected_nplanes'):
-            new_wf._display_hint_expected_nplanes = wf._display_hint_expected_nplanes
-        new_wf.current_plane_index = wf.current_plane_index
-        new_wf.location = wf.location
-
-        return new_wf
-
-class Wavefront(BaseWavefront):
-    """ Wavefront in the Fraunhofer approximation: a monochromatic wavefront that
-    can be transformed between pupil and image planes only, not to intermediate planes
-
-    In a pupil plane, a wavefront object `wf` has
-
-        * `wf.diam`,         a diameter in meters
-        * `wf.pixelscale`,   a scale in meters/pixel
-
-    In an image plane, it has
-
-        * `wf.fov`,          a field of view in arcseconds
-        * `wf.pixelscale`,   a  scale in arcsec/pixel
-
-
-    Use the `wf.propagate_to()` method to transform a wavefront between conjugate planes. This will update those
-    properties as appropriate.
-
-    By default, `Wavefronts` are created in a pupil plane. Set `pixelscale=#` to make an image plane instead.
-
-    Parameters
-    ----------
-    wavelength : float
-        Wavelength of light in meters
-    npix : int
-        Size parameter for wavefront array to create, per side.
-    diam : float, optional
-        For _PUPIL wavefronts, sets physical size corresponding to npix. Units are meters.
-        At most one of diam or pixelscale should be set when creating a wavefront.
-    pixelscale : float, optional
-        For PlaneType.image PLANE wavefronts, use this pixel scale.
-    oversample : int, optional
-        how much to oversample by in FFTs. Default is 2.
-        Note that final propagations to Detectors use a different algorithm
-        and, optionally, a separate oversampling factor.
-    dtype : numpy.dtype, optional
-        default is double complex.
-
-    """
-
-    @utils.quantity_input(wavelength=u.meter, diam=u.meter, pixelscale=u.arcsec / u.pixel)
-    def __init__(self, wavelength=1e-6 * u.meter, npix=1024, dtype=None, diam=8.0 * u.meter,
-                 oversample=2, pixelscale=None):
-        super(Wavefront, self).__init__(wavelength=wavelength,
-                                        npix=npix,
-                                        dtype=dtype,
-                                        diam=diam,
-                                        oversample=oversample)
-
-        if pixelscale is None:
-            self.pixelscale = self.diam / (npix * u.pixel)  # scale in meters/pix or arcsec/pix, as appropriate
-            self.planetype = PlaneType.pupil  # are we at image or pupil?
-        else:
-            self.pixelscale = pixelscale  # scale in meters/pix or arcsec/pix, as appropriate
-            self.planetype = PlaneType.image
-
-        self._last_transform_type = None  # later used to track MFT vs FFT pixel coord centering in coordinates()
-
-        self.fov = None  # Field of view in arcsec. Applies to an image plane only.
 
 
 # ------ core Optical System class -------
