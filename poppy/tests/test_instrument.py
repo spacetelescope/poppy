@@ -29,7 +29,7 @@ def test_instrument_source_weight_dict(weights_dict=WEIGHTS_DICT):
         "Number of wavelengths in PSF header does not match number requested"
 
     # Check weighted sum
-    osys = inst._getOpticalSystem(fov_pixels=FOV_PIXELS,
+    osys = inst._get_optical_system(fov_pixels=FOV_PIXELS,
                                   detector_oversample=2, fft_oversample=2)
     output = np.zeros((2 * FOV_PIXELS, 2 * FOV_PIXELS))
     for wavelength, weight in zip(weights_dict['wavelengths'], weights_dict['weights']):
@@ -51,7 +51,7 @@ def test_instrument_source_weight_array(wavelengths=WAVELENGTHS_ARRAY, weights=W
         "Number of wavelengths in PSF header does not match number requested"
 
     # Check weighted sum
-    osys = inst._getOpticalSystem(fov_pixels=FOV_PIXELS,
+    osys = inst._get_optical_system(fov_pixels=FOV_PIXELS,
                                   detector_oversample=2, fft_oversample=2)
     output = np.zeros((2 * FOV_PIXELS, 2 * FOV_PIXELS))
     for wavelength, weight in zip(wavelengths, weights):
@@ -174,7 +174,7 @@ def test_instrument_calc_datacube():
                     "Spectral axis of datacube does not match number requested"
 
     # Check individual planes
-    osys = inst._getOpticalSystem(fov_pixels=FOV_PIXELS,
+    osys = inst._get_optical_system(fov_pixels=FOV_PIXELS,
                                   detector_oversample=2, fft_oversample=2)
     for i, wavelength in enumerate(WAVELENGTHS_ARRAY):
 
