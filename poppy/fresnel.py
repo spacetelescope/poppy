@@ -995,6 +995,27 @@ class FresnelWavefront(BaseWavefront):
         if wf.planetype==PlaneType.image:
             raise NotImplementedError("Conversion from image planes to Fresnel is not yet implemented.")
 
+        if wf.ispadded:
+            beam_radius = wf.wavefront.shape[0]/wf.oversample/2 *wf.pixelscale*u.pixel
+        else:
+            beam_radius = wf.wavefront.shape[0]/2 *wf.pixelscale*u.pixel
+        new_wf = FresnelWavefront(beam_radius=beam_radius,
+                                  npix=wf.shape[0],
+                                  oversample=wf.oversample,
+                                  wavelength=wf.wavelength)
+        # Deal with metadata
+        new_wf.history = wf.history.copy()
+        new_wf.history.append("Converted to Fresnel propagation")
+        new_wf.history.append("  Fresnel array pixel scale = {:.4g}, oversample = {}".format(new_wf.pixelscale, new_wf.oversample))
+        # Copy over the contents of the array
+        new_wf.wavefront = utils.pad_to_size(wf.wavefront, new_wf.shape)
+        # Copy over misc internal info
+        if hasattr(wf, '_display_hint_expected_nplanes'):
+            new_wf._display_hint_expected_nplanes = wf._display_hint_expected_nplanes
+        new_wf.current_plane_index = wf.current_plane_index
+        new_wf.location = wf.location
+
+        return new_wf
 
         if wf.ispadded:
             beam_radius = wf.wavefront.shape[0]/wf.oversample/2 *wf.pixelscale*u.pixel

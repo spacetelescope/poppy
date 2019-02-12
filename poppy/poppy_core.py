@@ -1220,6 +1220,43 @@ class Wavefront(BaseWavefront):
         self.pixelscale = next_pupil_diam / self.wavefront.shape[0] / u.pixel
         self.diam = next_pupil_diam
 
+    @classmethod
+    def from_fresnel_wavefront(cls, fresnel_wavefront, verbose=False):
+        """Convert a Fresnel type wavefront object to a Fraunhofer one
+
+        Note, this function implicitly assumes this wavefront is at a
+        pupil plane, so the resulting Fraunhofer wavefront will have
+        pixelscale in meters/pix rather than arcsec/pix.
+
+        Parameters
+        ----------
+        fresnel_wavefront : Wavefront
+            The (Fresnel-type) wavefront to be converted.
+
+        """
+        # Generate a Fraunhofer wavefront with the same sampling
+        wf = fresnel_wavefront
+        beam_diam = (wf.wavefront.shape[0]//wf.oversample) *wf.pixelscale*u.pixel
+        new_wf = Wavefront(diam=beam_diam,
+                           npix=wf.shape[0]//wf.oversample,
+                           oversample=wf.oversample,
+                           wavelength=wf.wavelength)
+        if verbose:
+            print(wf.pixelscale, new_wf.pixelscale, new_wf.shape)
+        # Deal with metadata
+        new_wf.history = wf.history.copy()
+        new_wf.history.append("Converted to Fraunhofer propagation")
+        new_wf.history.append("  Fraunhofer array pixel scale = {:.4g}, oversample = {}".format(new_wf.pixelscale, new_wf.oversample))
+        # Copy over the contents of the array
+        new_wf.wavefront = utils.pad_or_crop_to_shape(wf.wavefront, new_wf.shape)
+        # Copy over misc internal info
+        if hasattr(wf, '_display_hint_expected_nplanes'):
+            new_wf._display_hint_expected_nplanes = wf._display_hint_expected_nplanes
+        new_wf.current_plane_index = wf.current_plane_index
+        new_wf.location = wf.location
+
+        return new_wf
+
 
 # ------ core Optical System class -------
 class OpticalSystem(object):
