@@ -89,12 +89,15 @@ class SemiAnalyticCoronagraph(poppy_core.OpticalSystem):
                                                     fov_arcsec=self.occulter_box * 2,
                                                     name='Oversampled Occulter Plane')
 
-    def propagate_through(self,
-                          wavefront,
-                          normalize='none',
-                          return_intermediates=False,
-                          display_intermediates=False):
-        """ Experimental work-in-progress refactoring of propagate_mono
+    def propagate(self,
+                  wavefront,
+                  normalize='none',
+                  return_intermediates=False,
+                  display_intermediates=False):
+        """ Core low-level routine for propagating a wavefront through an optical system
+
+        See docstring of OpticalSystem.propagate for details
+
         """
 
         if self.verbose:
@@ -127,24 +130,8 @@ class SemiAnalyticCoronagraph(poppy_core.OpticalSystem):
 
             if return_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
                 intermediate_wfs.append(wavefront.copy())
-
             if display_intermediates:
-                if hasattr(optic, 'wavefront_display_hint'):
-                    display_what = optic.wavefront_display_hint
-                else:
-                    display_what = 'best'
-                if hasattr(optic, 'wavefront_display_vmax_hint'):
-                    display_vmax = optic.wavefront_display_vmax_hint
-                else:
-                    display_vmax = None
-                if hasattr(optic, 'wavefront_display_vmin_hint'):
-                    display_vmin = optic.wavefront_display_vmin_hint
-                else:
-                    display_vmin = None
-
-                wavefront.display(what=display_what, nrows=nrows, row=None,
-                                  colorbar=False, vmax=display_vmax, vmin=display_vmin)
-
+                wavefront._display_after_optic(optic, default_nplanes=nrows)
 
         # SAMC step 2: propagate to detector via MFT at high res.
 
@@ -157,7 +144,7 @@ class SemiAnalyticCoronagraph(poppy_core.OpticalSystem):
             intermediate_wfs.append(wavefront_cor.copy())
 
         if display_intermediates:  # Display prior to the occulter
-            wavefront_cor.display(what='best', nrows=nrows, row=None, colorbar=False)
+            wavefront_cor._display_after_optic(self.occulter_highres, default_nplanes=nrows)
 
         # Multiply that by M(r) =  1 - the occulting plane mask function
         wavefront_cor *= self.mask_function
@@ -166,7 +153,8 @@ class SemiAnalyticCoronagraph(poppy_core.OpticalSystem):
             intermediate_wfs.append(wavefront_cor.copy())
 
         if display_intermediates:  # Display after the occulter (EXTRA PLANE)
-            wavefront_cor.display(what='intensity', nrows=nrows, row=None, colorbar=False)
+            wavefront_cor._display_after_optic(self.occulter_highres, default_nplanes=nrows,
+                                               what='intensity')
 
         # SAMC step 3:
         # calculate the MFT from that small region back to the full Lyot plane, and
@@ -195,23 +183,8 @@ class SemiAnalyticCoronagraph(poppy_core.OpticalSystem):
 
             if return_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
                 intermediate_wfs.append(wavefront.copy())
-
             if display_intermediates:
-                if hasattr(optic, 'wavefront_display_hint'):
-                    display_what = optic.wavefront_display_hint
-                else:
-                    display_what = 'best'
-                if hasattr(optic, 'wavefront_display_vmax_hint'):
-                    display_vmax = optic.wavefront_display_vmax_hint
-                else:
-                    display_vmax = None
-                if hasattr(optic, 'wavefront_display_vmin_hint'):
-                    display_vmin = optic.wavefront_display_vmin_hint
-                else:
-                    display_vmin = None
-
-                wavefront.display(what=display_what, nrows=nrows, row=None,
-                                  colorbar=False, vmax=display_vmax, vmin=display_vmin)
+                wavefront._display_after_optic(optic, default_nplanes=nrows)
 
         # ------- differences from regular propagation end here --------------
 

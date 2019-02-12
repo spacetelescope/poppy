@@ -569,6 +569,39 @@ class BaseWavefront(ABC):
         plt.draw()
         return to_return
 
+    def _display_after_optic(self, optic, default_nplanes=2, **kwargs):
+        """ Convenience function for displaying a wavefront during propagations.
+
+        Checks for hint information attached to either the wavefront or the
+        current optic, and uses that to configure the plot as desired.
+        Called from within the various propagate() functions.
+
+        Parameters
+        ----------
+        optic : OpticalElement instance
+            An optic that might have display hint information attached
+        default_nplanes :
+            How many rows to use for the display, if this is not
+            already annotated onto this wavefront object itself.
+
+        Returns the plot axes instance.
+        """
+        display_what = getattr(optic, 'wavefront_display_hint', 'best')
+        display_vmax = getattr(optic, 'wavefront_display_vmax_hint', None)
+        display_vmin = getattr(optic, 'wavefront_display_vmin_hint', None)
+        display_nrows = getattr(self, '_display_hint_expected_nplanes', default_nplanes)
+
+        ax = self.display(what=display_what,
+                          row=None,
+                          nrows=display_nrows,
+                          colorbar=False,
+                          vmax=display_vmax, vmin=display_vmin,
+                          **kwargs)
+        if hasattr(optic, 'display_annotate'):
+            optic.display_annotate(optic, ax)  # atypical calling convention needed empirically
+
+        return ax
+
     # add convenient properties for intensity, phase, amplitude, total_flux
     @property
     def amplitude(self):
@@ -1566,24 +1599,39 @@ class OpticalSystem(object):
         return inwave
 
 
-    def propagate_through(self,
-                          wavefront,
-                          normalize='none',
-                          return_intermediates=False,
-                          display_intermediates=False):
-        """ Experimental work-in-progress refactoring of propagate_mono
+    def propagate(self,
+                  wavefront,
+                  normalize='none',
+                  return_intermediates=False,
+                  display_intermediates=False):
+        """ Core low-level routine for propagating a wavefront through an optical system
 
-        This is a **linear operator** that acts on an input wavefront to give an
-        output wavefront.
+        This is a **linear operator** that acts on an input complex wavefront to give an
+        output complex wavefront.
 
-        The option to retain intermediate wavefront complicates the situation.
+        Parameters
+        ----------
+        wavefront : Wavefront instance
+            Wavefront to propagate through this optical system
+        normalize : string
+            How to normalize the wavefront?
+            * 'first' = set total flux = 1 after the first optic, presumably a pupil
+            * 'last' = set total flux = 1 after the entire optical system.
+            * 'exit_pupil' = set total flux = 1 at the last pupil of the optical system.
+        display_intermediates : bool
+            Should intermediate steps in the calculation be displayed on screen? Default: False.
+        return_intermediates : bool
+            Should intermediate steps in the calculation be returned? Default: False.
+            If True, the second return value of the method will be a list of `poppy.Wavefront` objects
+            representing intermediate optical planes from the calculation.
 
-        Returns a wavefront.
+        Returns a wavefront, and optionally also the intermediate wavefronts after
+        each step of propagation.
 
         """
 
         if not isinstance(wavefront, Wavefront):
-            raise ValueError("First argument to propagate_through must be a Wavefront.")
+            raise ValueError("First argument to propagate must be a Wavefront.")
 
         intermediate_wfs = []
 
@@ -1618,19 +1666,8 @@ class OpticalSystem(object):
 
             if return_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
                 intermediate_wfs.append(wavefront.copy())
-
             if display_intermediates:
-                display_what = getattr(optic, 'wavefront_display_hint', 'best')
-                display_vmax = getattr(optic, 'wavefront_display_vmax_hint', None)
-                display_vmin = getattr(optic, 'wavefront_display_vmin_hint', None)
-                display_nrows = getattr(wavefront, '_display_hint_expected_nplanes', len(self))
-
-                ax = wavefront.display(what=display_what,
-                                       row=None,
-                                       nrows=display_nrows,
-                                       colorbar=False, vmax=display_vmax, vmin=display_vmin)
-                if hasattr(optic, 'display_annotate'):
-                    optic.display_annotate(optic, ax)  # atypical calling convention needed empirically
+                wavefront._display_after_optic(optic, default_nplanes=len(self))
 
         if return_intermediates:
             return wavefront, intermediate_wfs
@@ -1696,9 +1733,9 @@ class OpticalSystem(object):
         # Is there a more elegant way to handle optional return quantities?
         # without making them mandatory.
         if retain_intermediates:
-            wavefront, intermediate_wfs = self.propagate_through(wavefront, **kwargs)
+            wavefront, intermediate_wfs = self.propagate(wavefront, **kwargs)
         else:
-            wavefront = self.propagate_through(wavefront, **kwargs)
+            wavefront = self.propagate(wavefront, **kwargs)
             intermediate_wfs = []
 
         if (not retain_intermediates) & retain_final:  # return the full complex wavefront of the last plane.
@@ -2025,12 +2062,15 @@ class CompoundOpticalSystem(OpticalSystem):
         inwave._display_hint_expected_nplanes = len(self)     # For displaying a multi-step calculation nicely
         return inwave
 
-    def propagate_through(self,
-                          wavefront,
-                          normalize='none',
-                          return_intermediates=False,
-                          display_intermediates=False):
-        """ Experimental work-in-progress refactoring of propagate_mono
+    def propagate(self,
+                  wavefront,
+                  normalize='none',
+                  return_intermediates=False,
+                  display_intermediates=False):
+        """ Core low-level routine for propagating a wavefront through an optical system
+
+        See docstring of OpticalSystem.propagate for details
+
         """
         from poppy.fresnel import FresnelOpticalSystem, FresnelWavefront
 
@@ -2056,10 +2096,10 @@ class CompoundOpticalSystem(OpticalSystem):
 
             # Propagate
             loghistory(wavefront, "CompoundOpticalSystem: Propagating through system {}: {}".format(i, optsys.name))
-            retval = optsys.propagate_through(wavefront,
-                                              normalize=normalize,
-                                              return_intermediates=return_intermediates,
-                                              display_intermediates=display_intermediates)
+            retval = optsys.propagate(wavefront,
+                                      normalize=normalize,
+                                      return_intermediates=return_intermediates,
+                                      display_intermediates=display_intermediates)
 
             # Deal with returned item(s) as appropriate
             if return_intermediates:

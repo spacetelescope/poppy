@@ -1125,16 +1125,18 @@ class FresnelOpticalSystem(OpticalSystem):
         inwave._display_hint_expected_nplanes = len(self)     # For displaying a multi-step calculation nicely
         return inwave
 
-    def propagate_through(self,
-                          wavefront,
-                          normalize='none',
-                          return_intermediates=False,
-                          display_intermediates=False):
+    def propagate(self,
+                  wavefront,
+                  normalize='none',
+                  return_intermediates=False,
+                  display_intermediates=False):
+        """ Core low-level routine for propagating a wavefront through an optical system
 
+        See docstring of OpticalSystem.propagate for details
 
+        """
         intermediate_wfs = []
 
-        # note: 0 is 'before first optical plane; 1 = 'after first plane and before second plane' and so on
         for optic, distance in zip(self.planes, self.distances):
             # The actual propagation:
             wavefront.propagate_to(optic, distance)
@@ -1169,16 +1171,8 @@ class FresnelOpticalSystem(OpticalSystem):
             if display_intermediates:
                 if poppy.conf.enable_speed_tests:
                     t0 = time.time()
-                title = None if wavefront.current_plane_index > 1 else "propagating $\lambda=${}".format(wavefront.wavelength.to(u.micron))
-                display_what = getattr(optic, 'wavefront_display_hint', 'best')
-                display_vmax = getattr(optic, 'wavefront_display_vmax_hint', None)
-                display_vmin = getattr(optic, 'wavefront_display_vmin_hint', None)
-                display_nrows = getattr(wavefront, '_display_hint_expected_nplanes', len(self))
 
-                ax = wavefront.display(what=display_what,
-                                       row=None,
-                                       nrows=display_nrows,
-                                       colorbar=False, vmax=display_vmax, vmin=display_vmin)
+                ax = wavefront._display_after_optic(optic)
 
                 if poppy.conf.enable_speed_tests:
                     t1 = time.time()
