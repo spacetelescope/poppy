@@ -694,7 +694,6 @@ class BaseWavefront(ABC):
         self.wavefront = new_wf
         self.pixelscale = detector.pixelscale
 
-
     @utils.quantity_input(Xangle=u.arcsec, Yangle=u.arcsec)
     def tilt(self, Xangle=0.0, Yangle=0.0):
         """ Tilt a wavefront in X and Y.
@@ -787,145 +786,12 @@ class BaseWavefront(ABC):
             raise ValueError("Invalid/unknown value for the 'axis' parameter. Must be 'x', 'y', or 'both'.")
         self.history.append('Inverted axis direction for {} axes'.format(axis.upper()))
 
-    # note: the following are implemented as static methods to
-    # allow for reuse outside of this class in the Zernike polynomial
-    # caching mechanisms. See zernike.py.
-    @staticmethod
-    def pupil_coordinates(shape, pixelscale):
-        """Utility function to generate coordinates arrays for a pupil
-        plane wavefront
-
-        Parameters
-        ----------
-
-        shape : tuple of ints
-            Shape of the wavefront array
-        pixelscale : float or 2-tuple of floats
-            the pixel scale in meters/pixel, optionally different in
-            X and Y
-        """
-        y, x = np.indices(shape, dtype=_float())
-        pixelscale_mpix = pixelscale.to(u.meter / u.pixel).value if isinstance(pixelscale, u.Quantity) else pixelscale
-        if not np.isscalar(pixelscale_mpix):
-            pixel_scale_x, pixel_scale_y = pixelscale_mpix
-        else:
-            pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
-
-        y -= (shape[0] - 1) / 2.0
-        x -= (shape[1] - 1) / 2.0
-
-        return pixel_scale_y * y, pixel_scale_x * x
-
-    @staticmethod
-    def image_coordinates(shape, pixelscale, last_transform_type, image_centered):
-        """Utility function to generate coordinates arrays for an image
-        plane wavefront
-
-        Parameters
-        ----------
-
-        shape : tuple of ints
-            Shape of the wavefront array
-        pixelscale : float or 2-tuple of floats
-            the pixelscale in meters/pixel, optionally different in
-            X and Y
-        last_transform_type : string
-            Was the last transformation on the Wavefront an FFT
-            or an MFT?
-        image_centered : string
-            Was POPPY trying to keeping the center of the image on
-            a pixel, crosshairs ('array_center'), or corner?
-        """
-        y, x = np.indices(shape, dtype=_float())
-        pixelscale_arcsecperpix = pixelscale.to(u.arcsec / u.pixel).value
-        if not np.isscalar(pixelscale_arcsecperpix):
-            pixel_scale_x, pixel_scale_y = pixelscale_arcsecperpix
-        else:
-            pixel_scale_x, pixel_scale_y = pixelscale_arcsecperpix, pixelscale_arcsecperpix
-
-        # in most cases, the x and y values are centered around the exact center of the array.
-        # This is not true in general for FFT-produced image planes where the center is in the
-        # middle of one single pixel (the 0th-order term of the FFT), even though that means that
-        # the PSF center is slightly offset from the array center.
-        # On the other hand, if we used the FQPM FFT Aligner optic, then that forces the PSF center
-        # to the exact center of an array.
-
-        # The following are just relevant for the FFT-created images, not for the Detector MFT
-        # image at the end.
-        if last_transform_type == 'FFT':
-            # FFT array sizes will always be even, right?
-            if image_centered == 'pixel':
-                # so this goes to an integer pixel
-                y -= shape[0] / 2.0
-                x -= shape[1] / 2.0
-            elif image_centered == 'array_center' or image_centered == 'corner':
-                # and this goes to a pixel center
-                y -= (shape[0] - 1) / 2.0
-                x -= (shape[1] - 1) / 2.0
-        else:
-            # MFT produced images are always exactly centered.
-            y -= (shape[0] - 1) / 2.0
-            x -= (shape[1] - 1) / 2.0
-
-        return pixel_scale_y * y, pixel_scale_x * x
-
+    @abstractmethod
     def coordinates(self):
         """ Return Y, X coordinates for this wavefront, in the manner of numpy.indices()
-
-        This function knows about the offset resulting from FFTs. Use it whenever computing anything
-        measured in wavefront coordinates.
-
-        Returns
-        -------
-        Y, X :  array_like
-            Wavefront coordinates in either meters or arcseconds for pupil and image, respectively
         """
+        pass
 
-        if self.planetype == PlaneType.pupil:
-            return type(self).pupil_coordinates(self.shape, self.pixelscale)
-        elif self.planetype == PlaneType.image:
-            return Wavefront.image_coordinates(self.shape, self.pixelscale,
-                                               self._last_transform_type, self._image_centered)
-        else:
-            raise RuntimeError("Unknown plane type (should be pupil or image!)")
-
-    @classmethod
-    def from_fresnel_wavefront(cls, fresnel_wavefront, verbose=False):
-        """Convert a Fresnel type wavefront object to a Fraunhofer one
-
-        Note, this function currently assumes this wavefront to be at a
-        pupil plane, so the resulting Fraunhofer wavefront will have
-        pixelscale in meters/pix rather than arcsec/pix. Conversion to
-        image planes may be added later.
-
-        Parameters
-        ----------
-        fresnel_wavefront : Wavefront
-            The (Fresnel-type) wavefront to be converted.
-
-        """
-        # Generate a Fraunhofer wavefront with the same sampling
-        wf = fresnel_wavefront
-        beam_diam = (wf.wavefront.shape[0]//wf.oversample) *wf.pixelscale*u.pixel
-        new_wf = Wavefront(diam=beam_diam,
-                           npix=wf.shape[0]//wf.oversample,
-                           oversample=wf.oversample,
-                           wavelength=wf.wavelength)
-        if verbose:
-            print(wf.pixelscale, new_wf.pixelscale, new_wf.shape)
-        # Deal with metadata
-        new_wf.history = wf.history.copy()
-        new_wf.history.append("Converted to Fraunhofer propagation")
-        new_wf.history.append("  Fraunhofer array pixel scale = {:.4g}, oversample = {}".format(new_wf.pixelscale, new_wf.oversample))
-        # Copy over the contents of the array
-        new_wf.wavefront = utils.pad_or_crop_to_shape(wf.wavefront, new_wf.shape)
-        # Copy over misc internal info
-        if hasattr(wf, '_display_hint_expected_nplanes'):
-            new_wf._display_hint_expected_nplanes = wf._display_hint_expected_nplanes
-        new_wf.current_plane_index = wf.current_plane_index
-        new_wf.location = wf.location
-
-        return new_wf
 
 class Wavefront(BaseWavefront):
     """ Wavefront in the Fraunhofer approximation: a monochromatic wavefront that
@@ -1145,9 +1011,8 @@ class Wavefront(BaseWavefront):
         # This is where a perfect PSF would be centered. Of course any tilts, comas, etc, from the OPD
         # will probably shift it off elsewhere for an entirely different reason, too.
         self.wavefront = mft.perform(self.wavefront, det_fov_lam_d, det_calc_size_pixels, offset=det_offset)
-        # FIXME remove logging of total intensity - that's a nontrivial performance hit probably??
-        _log.debug("     Result wavefront: at={0} shape={1} intensity={2:.3g}".format(
-            self.location, str(self.shape), self.total_intensity))
+        _log.debug("     Result wavefront: at={0} shape={1} ".format(
+            self.location, str(self.shape)))
         self._last_transform_type = 'MFT'
 
         self.planetype = PlaneType.image
@@ -1219,6 +1084,109 @@ class Wavefront(BaseWavefront):
         self.planetype = PlaneType.pupil
         self.pixelscale = next_pupil_diam / self.wavefront.shape[0] / u.pixel
         self.diam = next_pupil_diam
+
+    # note: the following are implemented as static methods to
+    # allow for reuse outside of this class in the Zernike polynomial
+    # caching mechanisms. See zernike.py.
+    @staticmethod
+    def pupil_coordinates(shape, pixelscale):
+        """Utility function to generate coordinates arrays for a pupil
+        plane wavefront
+
+        Parameters
+        ----------
+
+        shape : tuple of ints
+            Shape of the wavefront array
+        pixelscale : float or 2-tuple of floats
+            the pixel scale in meters/pixel, optionally different in
+            X and Y
+        """
+        y, x = np.indices(shape, dtype=_float())
+        pixelscale_mpix = pixelscale.to(u.meter / u.pixel).value if isinstance(pixelscale, u.Quantity) else pixelscale
+        if not np.isscalar(pixelscale_mpix):
+            pixel_scale_x, pixel_scale_y = pixelscale_mpix
+        else:
+            pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
+
+        y -= (shape[0] - 1) / 2.0
+        x -= (shape[1] - 1) / 2.0
+
+        return pixel_scale_y * y, pixel_scale_x * x
+
+    @staticmethod
+    def image_coordinates(shape, pixelscale, last_transform_type, image_centered):
+        """Utility function to generate coordinates arrays for an image
+        plane wavefront
+
+        Parameters
+        ----------
+
+        shape : tuple of ints
+            Shape of the wavefront array
+        pixelscale : float or 2-tuple of floats
+            the pixelscale in meters/pixel, optionally different in
+            X and Y
+        last_transform_type : string
+            Was the last transformation on the Wavefront an FFT
+            or an MFT?
+        image_centered : string
+            Was POPPY trying to keeping the center of the image on
+            a pixel, crosshairs ('array_center'), or corner?
+        """
+        y, x = np.indices(shape, dtype=_float())
+        pixelscale_arcsecperpix = pixelscale.to(u.arcsec / u.pixel).value
+        if not np.isscalar(pixelscale_arcsecperpix):
+            pixel_scale_x, pixel_scale_y = pixelscale_arcsecperpix
+        else:
+            pixel_scale_x, pixel_scale_y = pixelscale_arcsecperpix, pixelscale_arcsecperpix
+
+        # in most cases, the x and y values are centered around the exact center of the array.
+        # This is not true in general for FFT-produced image planes where the center is in the
+        # middle of one single pixel (the 0th-order term of the FFT), even though that means that
+        # the PSF center is slightly offset from the array center.
+        # On the other hand, if we used the FQPM FFT Aligner optic, then that forces the PSF center
+        # to the exact center of an array.
+
+        # The following are just relevant for the FFT-created images, not for the Detector MFT
+        # image at the end.
+        if last_transform_type == 'FFT':
+            # FFT array sizes will always be even, right?
+            if image_centered == 'pixel':
+                # so this goes to an integer pixel
+                y -= shape[0] / 2.0
+                x -= shape[1] / 2.0
+            elif image_centered == 'array_center' or image_centered == 'corner':
+                # and this goes to a pixel center
+                y -= (shape[0] - 1) / 2.0
+                x -= (shape[1] - 1) / 2.0
+        else:
+            # MFT produced images are always exactly centered.
+            y -= (shape[0] - 1) / 2.0
+            x -= (shape[1] - 1) / 2.0
+
+        return pixel_scale_y * y, pixel_scale_x * x
+
+    def coordinates(self):
+        """ Return Y, X coordinates for this wavefront, in the manner of numpy.indices()
+
+        This function knows about the offset resulting from FFTs. Use it whenever computing anything
+        measured in wavefront coordinates.
+
+        Returns
+        -------
+        Y, X :  array_like
+            Wavefront coordinates in either meters or arcseconds for pupil and image, respectively
+        """
+
+        if self.planetype == PlaneType.pupil:
+            return type(self).pupil_coordinates(self.shape, self.pixelscale)
+        elif self.planetype == PlaneType.image:
+            return Wavefront.image_coordinates(self.shape, self.pixelscale,
+                                               self._last_transform_type, self._image_centered)
+        else:
+            raise RuntimeError("Unknown plane type (should be pupil or image!)")
+
 
     @classmethod
     def from_fresnel_wavefront(cls, fresnel_wavefront, verbose=False):
