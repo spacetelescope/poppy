@@ -154,9 +154,9 @@ class Wavefront(object):
             dtype = _complex()
         self.wavefront = np.ones((npix, npix), dtype=dtype)  # the actual complex wavefront array
         self.ispadded = False  # is the wavefront padded for oversampling?
-        self.history = []
-        "List of strings giving a descriptive history of actions performed on the wavefront. Saved to FITS headers."
-        self.history.append("Created wavefront: wavelength={0}, diam={1}".format(self.wavelength, self.diam))
+        self.history = []  # List of strings giving a descriptive history of actions
+                           # performed on the wavefront. Saved to FITS headers.
+        self.history.append("Created wavefront: wavelength={0:.4g}, diam={1:.4g}".format(self.wavelength, self.diam))
         self.history.append(" using array size %s" % (self.wavefront.shape,))
         self.location = 'Entrance Pupil'
         "Descriptive string for where a wavefront is instantaneously located. Used mostly for titling displayed plots."
@@ -240,10 +240,12 @@ class Wavefront(object):
         Parameters
         -----------
         what : string
-            what kind of data to write. Must be one of 'all', 'parts', 'intensity', or 'complex'.
-            The default is to write a file containing intensity, amplitude, and phase in a data cube
-            of shape (3, N, N). 'parts' omits intensity and produces a (2, N, N) array.
-            'intensity' and 'phase' write out 2D arrays with the corresponding values.
+            what kind of data to write. Must be one of 'all', 'parts', 'intensity',
+            'phase' or 'complex'.  The default is to write intensity.
+            'all' means write a file containing intensity, amplitude, and phase
+            in a data cube of shape (3, N, N).  'parts' omits intensity and
+            produces a (2, N, N) array with amplitude and phase.  'intensity'
+            and 'phase' write out 2D arrays with the corresponding values.
         includepadding : bool
             include any "padding" region, if present, in the returned FITS file?
         """
@@ -278,6 +280,14 @@ class Wavefront(object):
         elif what.lower() == 'phase':
             outfits = fits.HDUList(fits.PrimaryHDU(get_unpadded(self.phase)))
             outfits[0].header['PLANE1'] = 'Phase'
+        elif what.lower() == 'complex':
+            real = get_unpadded(self.wavefront.real)
+            outarr = np.zeros((2, real.shape[0], real.shape[1]))
+            outarr[0, :, :] = real
+            outarr[1, :, :] = get_unpadded(self.wavefront.imag)
+            outfits = fits.HDUList(fits.PrimaryHDU(outarr))
+            outfits[0].header['PLANE1'] = 'Real part of complex wavefront'
+            outfits[0].header['PLANE2'] = 'Imaginary part of complex wavefront'
         else:
             raise ValueError("Unknown string for what to return: " + what)
 

@@ -36,7 +36,10 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
                 for a Boston MEMS DMs will be used. This parameter can let you provide
                 a more detailed model for your particular mirror.
             radius : float or Quantity with dimension length
-                radius of the clear aperture of the DM.
+                radius of the clear aperture of the DM. Note, the reflective clear aperture
+                may potentially be larger than the controllable active aperture, depending
+                on the details of your particular hardware. This parameter does not affect
+                any of the actuator models, only the reflective area for wavefront amplitude.
 
             Note:  Keeping track of actuator locations and spacing is subtle. This note
             assumes you are familiar with 'counting fenceposts' and off-by-one errors.
@@ -46,7 +49,8 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
             which is still controlled by the outermost actuators.). The controlled portion of
             the pupil thus has diameter  = (N-1)*actuator_spacing.
             However, for display purposes etc it is often useful if the displayed pupil extends
-            over the full N actuators, so we set the `pupil_diam` attribute to N*actuator_spacing.
+            over the full N actuators, so we set the `pupil_diam` attribute to N*actuator_spacing,
+            or the reflective radius, whichever is larger.
             """
 
     @utils.quantity_input(actuator_spacing=u.meter, radius=u.meter)
@@ -63,21 +67,28 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         self.name = name
         self._surface = np.zeros(dm_shape)  # array for the DM surface OPD, in meters
         self.numacross = dm_shape[0]  # number of actuators across diameter of
-        # the optic's cleared aperture (may be
-        # less than full diameter of array)
+        # the optic's cleared aperture (may be less than full diameter of array)
+
+        # What is the total reflective area that passes light onwards?
+        self.radius_reflective = radius
         self._aperture = optics.CircularAperture(radius=radius)
-        self.radius = self._aperture.radius
+
+        # What is the active area and spacing between actuators?
         if actuator_spacing is None:
-            self.actuator_spacing = 1.0 * u.meter / (self.numacross - 1)  # distance between actuators,
-            # projected onto the primary
+            self.actuator_spacing = 2*radius / (self.numacross - 1)  # distance between actuators,
+                                                                     # projected onto the primary
         else:
             self.actuator_spacing = actuator_spacing
+        self.radius_active = self.actuator_spacing*(self.numacross-1)/2  # Boston Micromachines convention;
+                                                                         # active area is 'inside the fenceposts'
         self.pupil_center = (dm_shape[0] - 1.) / 2  # center of clear aperture in actuator units
-        # (may be offset from center of DM)
-        self.pupil_diam = np.max(dm_shape) * self.actuator_spacing  # see note above.
+
+        # the poppy-standard attribute 'pupil_diam' is used for default display or input wavefront sizes
+        self.pupil_diam = max(np.max(dm_shape) * self.actuator_spacing, self.radius_reflective*2)  # see note above
 
         self.include_actuator_print_through = include_actuator_print_through
 
+        # are some actuators masked out/inactive (i.e. circular factor Boston DMs have inactive corners)
         self.include_actuator_mask = actuator_mask_file is not None
         if self.include_actuator_mask:
             self.actuator_mask_file = actuator_mask_file
@@ -112,7 +123,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
             # hdulist = copy.copy(filehandle)
             hdulist = fits.open(filename)
             self.influence_func_file = filename
-            _log.info("Loaded influence function from " + self.influence_func_file)
+            _log.info("Loaded influence function from " + self.influence_func_file+" for "+self.name)
         else:
             raise RuntimeError("must supply exactly one of the filename and hdulist arguments.")
 
@@ -472,6 +483,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         ax._autoscaleXon, ax._autoscaleYon = autoscale_state
 
     def annotate_grid(self, linestyle=":", color="black", **kwargs):
+        import matplotlib
 
         y_act, x_act = self.get_act_coordinates(one_d=True)
 
@@ -486,6 +498,17 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
             plt.axvline(x + (act_space_m / 2), linestyle=linestyle, color=color)
         for y in y_act:
             plt.axhline(y + (act_space_m / 2), linestyle=linestyle, color=color)
+
+        ap_radius = self.radius_reflective.to(u.m).value
+        aperture = matplotlib.patches.Circle((0,0), radius=ap_radius, fill=False,
+                color='red')
+        ax.add_patch(aperture)
+
+        active_radius = self.radius_active.to(u.m).value
+        aperture = matplotlib.patches.Circle((0,0), radius=active_radius, fill=False,
+                color='blue')
+        ax.add_patch(aperture)
+
         ax._autoscaleXon, ax._autoscaleYon = autoscale_state
 
     def display_influence_fn(self):
