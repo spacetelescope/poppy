@@ -622,6 +622,23 @@ def test_CompoundOpticalSystem_hybrid(npix=128):
     opt1 = poppy.SquareAperture()
     opt2 = poppy.CircularAperture(radius=0.55)
 
+    ###### Simple test case to exercise the conversion functions, with only trivial propagation
+    osys1 = poppy.OpticalSystem()
+    osys1.add_pupil(opt1)
+    osys2 = poppy.FresnelOpticalSystem()
+    osys2.add_optic(poppy.ScalarTransmission())
+    osys3 = poppy.OpticalSystem()
+    osys3.add_pupil(poppy.ScalarTransmission())
+    osys3.add_detector(fov_pixels=64, pixelscale=0.01)
+    cosys = poppy.CompoundOpticalSystem([osys1, osys2, osys3])
+    psf, ints = cosys.calc_psf( return_intermediates=True)
+    assert len(ints) == 4, "Unexpected number of intermediate  wavefronts"
+    assert isinstance(ints[0], poppy.Wavefront), "Unexpected output type"
+    assert isinstance(ints[1], poppy.FresnelWavefront), "Unexpected output type"
+    assert isinstance(ints[2], poppy.Wavefront), "Unexpected output type"
+
+    ###### Harder case involving more complex actual propagations
+
     #===== a single Fresnel optical system =====
     osys = poppy.FresnelOpticalSystem(beam_ratio=0.25, npix=128, pupil_diameter=2*u.m)
     osys.add_optic(opt1)

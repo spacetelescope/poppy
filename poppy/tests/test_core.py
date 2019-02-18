@@ -53,10 +53,13 @@ def test_basic_functionality():
     # we need to be a little careful here due to floating point math comparision equality issues... Can't just do a strict equality
     assert abs(psf[0].data.max() - 0.201) < 0.001
 
+    # test the (fairly trivial) description function.
+    # This prints a string to screen and there's nothing returned.
+    osys.describe()
 
 def test_input_wavefront_size():
 
-    # if absolutely nothing is set then the default is 1024. 
+    # if absolutely nothing is set then the default is 1024.
     # the oversample parameter multiplies that *only* if padding
     # is applied during an FFT propagation; by default there's no effect
     # in the unpadded array.
@@ -104,11 +107,11 @@ def test_input_wavefront_size():
 def test_CircularAperture_Airy(display=False):
     """ Compare analytic 2d Airy function with the results of a POPPY
     numerical calculation of the PSF for a circular aperture.
-    
+   
     Note that we expect very close but not precisely perfect agreement due to
     the quantization of the POPPY PSF relative to a perfect geometric circle.
     """
-    
+   
     from ..misc import airy_2d
     # Analytic PSF for 1 meter diameter aperture
     analytic = airy_2d(diameter=1)
@@ -177,7 +180,7 @@ def test_multiwavelength_opticalsystem():
 
 
 def test_normalization():
-    """ Test that we can compute a PSF and get the desired flux, 
+    """ Test that we can compute a PSF and get the desired flux,
     depending on the normalization """
     osys = poppy_core.OpticalSystem("test", oversample=2)
     pupil = optics.CircularAperture(radius=6.5/2)
@@ -296,7 +299,7 @@ def test_fov_offset(scale=1.0):
 
 def test_inverse_MFT():
     """
-    Verify basic functionality of the Inverse MFT code. 
+    Verify basic functionality of the Inverse MFT code.
     """
 
     fov_arcsec  = 5.0
@@ -334,7 +337,7 @@ def test_optic_resizing():
     # diameter 1 meter, pixel scale 2 mm
     inputwf = poppy_core.Wavefront(diam=1.0, npix=500)
 
-    # Test rescaling from finer scales: diameter 1 meter, pixel scale 1 mm 
+    # Test rescaling from finer scales: diameter 1 meter, pixel scale 1 mm
     test_optic_small=fits.HDUList([fits.PrimaryHDU(np.zeros([1000,1000]))])
     test_optic_small[0].header["PUPLSCAL"]=.001
     test_optic_small_element=poppy_core.FITSOpticalElement(transmission=test_optic_small)
@@ -346,7 +349,7 @@ def test_optic_resizing():
     test_optic_large_element=poppy_core.FITSOpticalElement(transmission=test_optic_large)
     assert(test_optic_large_element.get_phasor(inputwf).shape ==inputwf.shape )
 
-    # Test rescaling where we have to pad with extra zeros: 
+    # Test rescaling where we have to pad with extra zeros:
     # diameter 0.8 mm, pixel scale 1 mm
     test_optic_pad=fits.HDUList([fits.PrimaryHDU(np.zeros([800,800]))])
     test_optic_pad[0].header["PUPLSCAL"]=.001
@@ -388,12 +391,64 @@ def test_unit_conversions():
 
 def test_return_complex():
     osys =poppy_core.OpticalSystem()
-    osys.add_pupil(optics.CircularAperture(radius=3))   
+    osys.add_pupil(optics.CircularAperture(radius=3))  
     osys.add_detector(pixelscale=0.010, fov_arcsec=5.0)
-    psf = osys.calc_psf(2e-6,return_final=True) 
+    psf = osys.calc_psf(2e-6,return_final=True)
     assert len(psf[1])==1 #make sure only one element was returned
     #test that the wavefront returned is the final wavefront:
     assert np.allclose(psf[1][0].intensity,psf[0][0].data)
+
+
+def test_displays():
+    # Right now doesn't check the outputs are as expected in any way
+    # TODO consider doing that? But it's hard given variations in matplotlib version etc
+    import poppy
+    import matplotlib.pyplot as plt
+
+    osys = poppy.OpticalSystem()
+    osys.add_pupil(poppy.CircularAperture())
+    osys.add_detector(fov_pixels=128, pixelscale=0.01)
+
+    osys.display()
+
+    plt.figure()
+    psf = osys.calc_psf(display_intermediates=True)
+
+    plt.figure()
+    #psf = osys.calc_psf(display_intermediates=True)
+    poppy.display_psf(psf)
+
+
+def test_rotation_in_OpticalSystem(display=False, npix=1024):
+    """ Test that rotation planes within an OpticalSystem work as
+    expected to rotate the wavefront. We can get equivalent results
+    by rotating an Optic a given amount, or rotating the wavefront
+    in the opposite direction.
+    """
+
+    angles_and_tolerances = ((90, 1e-8), (45, 3e-7))
+
+    for angle, atol in angles_and_tolerances:
+        osys = poppy.OpticalSystem(npix=npix)
+        osys.add_pupil(poppy.optics.ParityTestAperture(rotation=angle))
+        osys.add_detector(fov_pixels=128, pixelscale=0.01)
+
+        if display: plt.figure()
+        psf1 = osys.calc_psf(display=display)
+        if display: plt.title("Optic rotated {} deg".format(angle))
+
+
+        osys = poppy.OpticalSystem(npix=npix)
+        osys.add_pupil(poppy.optics.ParityTestAperture())
+        osys.add_rotation(angle=-angle)  # note, opposite sign here.
+        osys.add_detector(fov_pixels=128, pixelscale=0.01)
+        if display: plt.figure()
+        psf2 = osys.calc_psf(display=display)
+        if display: plt.title("Wavefront rotated {} deg".format(angle))
+
+
+        assert np.allclose(psf1[0].data, psf2[0].data, atol=atol), ("PSFs did not agree "
+            "within the requested tolerance")
 
 ### Tests for OpticalElements defined in poppy_core###
 
