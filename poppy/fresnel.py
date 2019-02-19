@@ -45,9 +45,9 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
                  name='Quadratic Wavefront Curvature Operator',
                  **kwargs):
         poppy.AnalyticOpticalElement.__init__(self,
-                                                  name=name,
-                                                  planetype=planetype,
-                                                  **kwargs)
+                                              name=name,
+                                              planetype=planetype,
+                                              **kwargs)
         self.z = z
         self._z_m = z.to(u.m).value
 
@@ -63,7 +63,7 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
         y, x = wave.coordinates()
         _log.debug("Applying spherical phase curvature ={0:0.2e}".format(self.z))
         _log.debug("Applying spherical lens phase ={0:0.2e}".format(1.0 / self.z))
-        z= self._z_m #numexpr can't evaluate self.
+        z = self._z_m  # numexpr can't evaluate self.
         k = 2 * np.pi / wave.wavelength.to(u.m).value
         if (z == np.inf) | (z == -np.inf):
             lens_phasor = 1 + 0j
@@ -71,13 +71,13 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
             return lens_phasor
         if accel_math._USE_NUMEXPR:
             rsqd = ne.evaluate("(x ** 2 + y ** 2)")
-            #slight faster to evaluate in one line but advantage diminishes w/size
-            #also significantly faster to call numexpr here then call _exp
+            # slight faster to evaluate in one line but advantage diminishes w/size
+            # also significantly faster to call numexpr here then call _exp
             lens_phasor = ne.evaluate("exp(1.j * k * rsqd / (2.0 *z))")
 
         else:
-            rsqd = (x ** 2 + y ** 2)# * u.m ** 2
-            lens_phasor = accel_math._exp(1.j * k * rsqd / (2.0 *z))
+            rsqd = (x ** 2 + y ** 2)  # * u.m ** 2
+            lens_phasor = accel_math._exp(1.j * k * rsqd / (2.0 * z))
 
         _log.debug("max_rsqd ={0:0.2e}".format(np.max(rsqd)))
 
@@ -148,7 +148,8 @@ class ConicLens(poppy.optics.CircularAperture):
                  K=1.0,
                  radius=1.0 * u.m,
                  planetype=PlaneType.unspecified,
-                 name="Conic lens"):
+                 name="Conic lens",
+                 **kwargs):
         """Conic Lens/Mirror
         Parabolic, elliptical, hyperbolic, or spherical powered optic.
 
@@ -165,7 +166,7 @@ class ConicLens(poppy.optics.CircularAperture):
         planetype : poppy.PlaneType, optional
             Optional optical plane type specifier
         """
-        CircularAperture.__init__(self, name=name, radius=radius.to(u.m).value, planetype=planetype, **kwargs)
+        super(ConicLens, self).__init__(name=name, radius=radius.to(u.m).value, planetype=planetype, **kwargs)
         self.f_lens = f_lens
         self.K = K
 
@@ -251,7 +252,6 @@ class FresnelWavefront(BaseWavefront):
 
         self.focal_length = np.inf * u.m
         """Focal length of the current beam, or infinity if not a focused beam"""
-
 
         if self.oversample > 1 and not self.ispadded:  # add padding for oversampling, if necessary
             self.wavefront = utils.pad_to_oversample(self.wavefront, self.oversample)
@@ -404,18 +404,22 @@ class FresnelWavefront(BaseWavefront):
     #  methods supporting coordinates, including switching between distance and angular units
 
     @staticmethod
-    def pupil_coordinates(x,y, pixelscale):
+    def pupil_coordinates(x, y, pixelscale):
         """Utility function to generate coordinates arrays for a pupil
         plane wavefront
 
         Parameters
         ------------
-
-        shape : tuple of ints
-            Shape of the wavefront array
+        x, y : array_like
+            pixel indices
         pixelscale : float or 2-tuple of floats
             the pixel scale in meters/pixel, optionally different in
             X and Y
+
+        Returns
+        -------
+        Y, X :  array_like
+            Wavefront coordinates in either meters or arcseconds for pupil and image, respectively
         """
         # Override parent class method to provide one that's comparatible with
         # FFT indexing conventions. Centered one one pixel not on the middle
@@ -457,7 +461,7 @@ class FresnelWavefront(BaseWavefront):
             Wavefront coordinates in either meters or arcseconds for pupil and image, respectively
         """
 
-        y, x = type(self).pupil_coordinates(self._x,self._y, self._pixelscale_m)
+        y, x = type(self).pupil_coordinates(self._x, self._y, self._pixelscale_m)
 
         # If the wavefront been explicitly set to use angular units,
         # for instance at an image plane,then
@@ -526,7 +530,7 @@ class FresnelWavefront(BaseWavefront):
             result = accel_math._ifftshift(stage1)
             result = accel_math.fft_2d(result, forward=True, fftshift=False)
             result = accel_math._fftshift(result)
-            result *= self.pixelscale.to(u.m / u.pix).value ** 2 # eq.6.69 and #6.80
+            result *= self.pixelscale.to(u.m / u.pix).value ** 2  # eq.6.69 and #6.80
         else:
             result = accel_math._fftshift(stage1)
             result = accel_math.fft_2d(result, forward=False, fftshift=False)
@@ -624,15 +628,15 @@ class FresnelWavefront(BaseWavefront):
 
         x, y = self.coordinates()  # meters
         meter_per_pix = self.pixelscale.to(u.m / u.pix).value
-        rhosqr = accel_math._fftshift((x / ( meter_per_pix** 2 * self.n)) ** 2 + (
-                                  y / (meter_per_pix** 2 * self.n)) ** 2)
+        rhosqr = accel_math._fftshift((x / (meter_per_pix ** 2 * self.n)) ** 2 + (
+                                  y / (meter_per_pix ** 2 * self.n)) ** 2)
         # Transfer Function of diffraction propagation eq. 22, eq. 87
         wavelen_m = self.wavelength.to(u.m).value
 
         if accel_math._USE_NUMEXPR:
             exp_t = ne.evaluate("exp(-1.0j * pi * wavelen_m * (z_direct) * rhosqr)")
         else:
-            exp_t = np.exp(-1.0j * np.pi * wavelen_m * (z_direct) * rhosqr)
+            exp_t = np.exp(-1.0j * np.pi * wavelen_m * z_direct * rhosqr)
 
         self._fft()
 
@@ -941,7 +945,6 @@ class FresnelWavefront(BaseWavefront):
 
         _log.debug("------ Optic: " + str(optic.name) + " applied ------")
 
-
     def _resample_wavefront_pixelscale(self, detector):
         """ Resample a Fresnel wavefront to a desired detector sampling.
 
@@ -959,15 +962,15 @@ class FresnelWavefront(BaseWavefront):
         The wavefront object is modified to have the appropriate pixel scale and spatial extent.
 
         """
-        import scipy.ndimage
 
         if self.angular_coordinates:
             raise NotImplementedError("Resampling to detector doesn't yet work in angular coordinates for Fresnel.")
 
         pixscale_ratio = (self.pixelscale / detector.pixelscale).decompose().value
 
-        if np.abs(pixscale_ratio-1.0)< 1e-3:
-            _log.debug("Wavefront is already at desired pixel scale {:.4g}.  No resampling needed.".format(self.pixelscale))
+        if np.abs(pixscale_ratio-1.0) < 1e-3:
+            _log.debug("Wavefront is already at desired pixel scale "
+                       "{:.4g}.  No resampling needed.".format(self.pixelscale))
             return
 
         super(FresnelWavefront, self)._resample_wavefront_pixelscale(detector)
@@ -992,13 +995,13 @@ class FresnelWavefront(BaseWavefront):
         # Generate a Fresnel wavefront with the same sampling
         wf = wavefront
 
-        if wf.planetype==PlaneType.image:
+        if wf.planetype == PlaneType.image:
             raise NotImplementedError("Conversion from image planes to Fresnel is not yet implemented.")
 
         if wf.ispadded:
-            beam_radius = wf.wavefront.shape[0]/wf.oversample/2 *wf.pixelscale*u.pixel
+            beam_radius = wf.wavefront.shape[0]/wf.oversample/2 * wf.pixelscale*u.pixel
         else:
-            beam_radius = wf.wavefront.shape[0]/2 *wf.pixelscale*u.pixel
+            beam_radius = wf.wavefront.shape[0]/2 * wf.pixelscale * u.pixel
         new_wf = FresnelWavefront(beam_radius=beam_radius,
                                   npix=wf.shape[0],
                                   oversample=wf.oversample,
@@ -1081,7 +1084,7 @@ class FresnelOpticalSystem(BaseOpticalSystem):
             The pixel scale at the detector
         fov_pixels : astropy.Quantity with units pixel
             The number of pixels per axis of the detector. Assumes square detector.
-         distance : astropy.Quantity of dimension length
+        distance : astropy.Quantity of dimension length
             separation distance of this optic relative to the prior optic in the system.
 
         """
@@ -1166,7 +1169,7 @@ class FresnelOpticalSystem(BaseOpticalSystem):
                 if poppy.conf.enable_speed_tests:
                     t0 = time.time()
 
-                ax = wavefront._display_after_optic(optic)
+                wavefront._display_after_optic(optic)
 
                 if poppy.conf.enable_speed_tests:
                     t1 = time.time()
