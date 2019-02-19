@@ -5,7 +5,7 @@ import logging
 import time
 
 import poppy
-from poppy.poppy_core import PlaneType, OpticalSystem, Wavefront, BaseWavefront
+from poppy.poppy_core import PlaneType, Wavefront, BaseWavefront, BaseOpticalSystem
 from . import utils
 from . import accel_math
 if accel_math._USE_NUMEXPR:
@@ -1017,29 +1017,8 @@ class FresnelWavefront(BaseWavefront):
 
         return new_wf
 
-        if wf.ispadded:
-            beam_radius = wf.wavefront.shape[0]/wf.oversample/2 *wf.pixelscale*u.pixel
-        else:
-            beam_radius = wf.wavefront.shape[0]/2 *wf.pixelscale*u.pixel
-        new_wf = FresnelWavefront(beam_radius=beam_radius,
-                                  npix=wf.shape[0],
-                                  oversample=wf.oversample,
-                                  wavelength=wf.wavelength)
-        # Deal with metadata
-        new_wf.history = wf.history.copy()
-        new_wf.history.append("Converted to Fresnel propagation")
-        new_wf.history.append("  Fresnel array pixel scale = {:.4g}, oversample = {}".format(new_wf.pixelscale, new_wf.oversample))
-        # Copy over the contents of the array
-        new_wf.wavefront = utils.pad_to_size(wf.wavefront, new_wf.shape)
-        # Copy over misc internal info
-        if hasattr(wf, '_display_hint_expected_nplanes'):
-            new_wf._display_hint_expected_nplanes = wf._display_hint_expected_nplanes
-        new_wf.current_plane_index = wf.current_plane_index
-        new_wf.location = wf.location
 
-        return new_wf
-
-class FresnelOpticalSystem(OpticalSystem):
+class FresnelOpticalSystem(BaseOpticalSystem):
     """ Class representing a series of optical elements,
     through which light can be propagated using the Fresnel formalism.
 
@@ -1073,12 +1052,6 @@ class FresnelOpticalSystem(OpticalSystem):
         self.npix = npix
 
         self.distances = []  # distance along the optical axis to each successive optic
-
-    def add_pupil(self, *args, **kwargs):
-        raise NotImplementedError('Use add_optic for Fresnel instead')
-
-    def add_image(self, *args, **kwargs):
-        raise NotImplementedError('Use add_optic for Fresnel instead')
 
     @u.quantity_input(distance=u.m)
     def add_optic(self, optic=None, distance=0.0 * u.m):

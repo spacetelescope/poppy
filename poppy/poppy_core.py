@@ -1225,18 +1225,10 @@ class Wavefront(BaseWavefront):
 
         return new_wf
 
+# ------ core Optical System classes -------
 
-# ------ core Optical System class -------
-class OpticalSystem(object):
-    """ A class representing a series of optical elements,
-    either Pupil, Image, or Detector planes, through which light
-    can be propagated.
-
-    The difference between
-    Image and Detector planes is that Detectors have fixed pixels
-    in terms of arcsec/pixel regardless of wavelength (computed via
-    MFT) while Image planes have variable pixels scaled in terms of
-    lambda/D. Pupil planes are some fixed size in meters, of course.
+class BaseOpticalSystem(ABC):
+    """ Abstract Base class for optical systems
 
     Parameters
     ----------
@@ -1255,9 +1247,7 @@ class OpticalSystem(object):
         Diameter of entrance pupil. Defaults to size of first optical element
         if unspecified, or else 1 meter.
 
-
     """
-
     def __init__(self, name="unnamed system", verbose=True, oversample=2,
                  npix=None, pupil_diameter=None):
         self.name = name
@@ -1274,7 +1264,11 @@ class OpticalSystem(object):
         if self.verbose:
             _log.info("Initialized OpticalSystem: " + self.name)
 
-    # Methods for adding or manipulating optical planes:
+    def __getitem__(self, num):
+        return self.planes[num]
+
+    def __len__(self):
+        return len(self.planes)
 
     def _add_plane(self, optic, index=None, logstring=""):
         """ utility helper function for adding a generic plane """
@@ -1284,145 +1278,6 @@ class OpticalSystem(object):
             self.planes.insert(index, optic)
         if self.verbose: _log.info("Added {}: {}".format(logstring, optic.name))
         return optic
-
-    def add_pupil(self, optic=None, function=None, index=None, **kwargs):
-        """ Add a pupil plane optic from file(s) giving transmission or OPD
-
-          1) from file(s) giving transmission and/or OPD
-                [set arguments `transmission=filename` and/or `opd=filename`]
-          2) from an already-created :py:class:`OpticalElement` object
-                [set `optic=that object`]
-
-        Parameters
-        ----------
-        optic : poppy.OpticalElement, optional
-            An already-created :py:class:`OpticalElement` object you would like to add
-        function : string, optional
-            Deprecated. The name of some analytic function you would like to use.
-            Optional `kwargs` can be used to set the parameters of that function.
-            Allowable function names are Circle, Square, Hexagon, Rectangle, and FQPM_FFT_Aligner
-        opd, transmission : string, optional
-            Filenames of FITS files describing the desired optic.
-        index : int
-            Index into the optical system's planes for where to add the new optic. Defaults to
-            appending the optic to the end of the plane list.
-
-        Returns
-        -------
-        poppy.OpticalElement subclass
-            The pupil optic added (either `optic` passed in, or a new OpticalElement created)
-
-
-        Note: Now you can use the optic argument for either an OpticalElement or a string function name,
-        and it will do the right thing depending on type.  Both existing arguments are left for compatibility for now.
-
-
-        Any provided parameters are passed to :py:class:`OpticalElement`.
-
-
-        """
-        if function is not None:
-            import warnings
-            warnings.warn("The function argument to add_pupil is deprecated. Please provide an Optic object instead.",
-                          DeprecationWarning)
-        if optic is None and function is not None:
-            # ease of use: 'function' input and providing 'optic' parameter as a string are synonymous.
-            optic = function
-
-        if isinstance(optic, OpticalElement):
-            # OpticalElement object provided.
-            # We can use it directly, but make sure the plane type is set.
-            optic.planetype = PlaneType.pupil
-        elif isinstance(optic, str):
-            # convenience code to instantiate objects from a string name.
-            raise NotImplementedError('Setting optics based on strings is now deprecated.')
-        elif optic is None and len(kwargs) > 0:  # create image from files specified in kwargs
-            # create image from files specified in kwargs
-            optic = FITSOpticalElement(planetype=PlaneType.pupil, oversample=self.oversample, **kwargs)
-        elif optic is None and len(kwargs) == 0:  # create empty optic.
-            from . import optics
-            optic = optics.ScalarTransmission()  # placeholder optic, transmission=100%
-            optic.planetype = PlaneType.pupil
-        else:
-            raise TypeError("Not sure how to handle an Optic input of the provided type, {0}".format(
-                str(optic.__class__)))
-
-        return self._add_plane(optic, index=index, logstring="pupil plane")
-
-    def add_image(self, optic=None, function=None, index=None, **kwargs):
-        """ Add an image plane optic to the optical system
-
-        That image plane optic can be specified either
-
-          1) from file(s) giving transmission or OPD
-                [set arguments `transmission=filename` and/or `opd=filename`]
-          2) from an analytic function
-                [set `function='circle, fieldstop, bandlimitedcoron, or FQPM'`
-                and set additional kwargs to define shape etc.
-          3) from an already-created OpticalElement object
-                [set `optic=that object`]
-
-        Parameters
-        ----------
-        optic : poppy.OpticalElement
-            An already-created OpticalElement you would like to add
-        function: string
-            Name of some analytic function to add.
-            Optional `kwargs` can be used to set the parameters of that function.
-            Allowable function names are CircularOcculter, fieldstop, BandLimitedCoron, FQPM
-        opd, transmission : string
-            Filenames of FITS files describing the desired optic.
-        index : int
-            Index into the optical system's planes for where to add the new optic. Defaults to
-            appending the optic to the end of the plane list.
-
-
-        Returns
-        -------
-        poppy.OpticalElement subclass
-            The pupil optic added (either `optic` passed in, or a new OpticalElement created)
-
-        Notes
-        ------
-
-        Now you can use the optic argument for either an OpticalElement or a
-        string function name, and it will do the right thing depending on type.
-        Both existing arguments are left for back compatibility for now.
-
-
-
-        """
-
-        if isinstance(optic, str):
-            function = optic
-            optic = None
-
-        if optic is None:
-            from . import optics
-            if function == 'CircularOcculter':
-                fn = optics.CircularOcculter
-            elif function == 'BarOcculter':
-                fn = optics.BarOcculter
-            elif function == 'fieldstop':
-                fn = optics.FieldStop
-            elif function == 'BandLimitedCoron':
-                fn = optics.BandLimitedCoron
-            elif function == 'FQPM':
-                fn = optics.IdealFQPM
-            elif function is not None:
-                raise ValueError("Analytic mask type '%s' is unknown." % function)
-            elif len(kwargs) > 0:  # create image from files specified in kwargs
-                fn = FITSOpticalElement
-            else:
-                fn = optics.ScalarTransmission  # placeholder optic, transmission=100%
-
-            optic = fn(oversample=self.oversample, **kwargs)
-            optic.planetype = PlaneType.image
-        else:
-            optic.planetype = PlaneType.image
-            optic.oversample = self.oversample  # these need to match...
-
-        return self._add_plane(optic, index=index, logstring="image plane")
 
     def add_rotation(self, angle=0.0, index=None, *args, **kwargs):
         """
@@ -1501,256 +1356,17 @@ class OpticalSystem(object):
                                    pixelscale,
                                    oversample))
 
-    def describe(self):
-        """ Print out a string table describing all planes in an optical system"""
-        print(str(self) + "\n\t" + "\n\t".join([str(p) for p in self.planes]))
+    @abstractmethod
+    def propagate(self, wavefront):
+        """Propagate a wavefront through this system
+        and return the output wavefront."""
+        pass
 
-    def __getitem__(self, num):
-        return self.planes[num]
-
-    def __len__(self):
-        return len(self.planes)
-
-    # methods for dealing with wavefronts:
+    @abstractmethod
     @utils.quantity_input(wavelength=u.meter)
-    def input_wavefront(self, wavelength=1e-6 * u.meter):
-        """Create a Wavefront object suitable for sending through a given optical system, based on
-        the size of the first optical plane, assumed to be a pupil.
-
-        Defining this needs both a number of pixels (npix) and physical size (diam) to set the sampling.
-
-        If this OpticalSystem has a provided `npix` attribute that is not None, use that to
-        set the input wavefront size. Otherwise, check if the first optical element has a defined sampling.
-        If not, default to 1024 pixels.
-
-        Uses self.source_offset to assign an off-axis tilt, if requested.
-
-        The convention here is that the desired source position is specified with
-        respect to the **final focal plane** of the optical system. If there are any
-        intervening coordinate transformation planes, this function attempts to take
-        them into account when setting the tilt of the input wavefront. This is
-        subtle trickery and may not work properly in all instances.
-
-        Parameters
-        ----------
-        wavelength : float
-            Wavelength in meters
-
-        Returns
-        -------
-        wavefront : poppy.Wavefront instance
-            A wavefront appropriate for passing through this optical system.
-
-        """
-
-        # somewhat complicated logic here  (Revised version after #246)
-        # First check if the sampling parameters are explicitly defined for the OpticalSystem:
-        npix = getattr(self, 'npix', None)
-        diam = getattr(self, 'pupil_diameter', None)
-
-        # If not then if we have a first optical plane, check and see if it specifies the entrance sampling:
-        if len(self.planes) > 0:
-            if npix is None:
-                if self.planes[0].shape is not None:
-                    npix=self.planes[0].shape[0]
-            if diam is None:
-                if hasattr(self.planes[0], 'pupil_diam') and self.planes[0].pupil_diam is not None:
-                    diam = self.planes[0].pupil_diam
-
-        if npix is None:
-            _log.info("You did not define npix either on the OpticalSystem or its first optic; defaulting to 1024 pixels.")
-            npix=1024
-        if diam is None:
-            raise RuntimeError("You must define an entrance pupil diameter either on the OpticalSystem or its first optic.")
-
-        # if the diameter was specified as an astropy.Quantity, cast it to just a scalar in meters
-        if isinstance(diam, u.Quantity):
-            diam = diam.to(u.m).value
-
-        inwave = Wavefront(wavelength=wavelength, npix=npix,
-                           diam=diam, oversample=self.oversample)
-        _log.debug("Creating input wavefront with wavelength={}, npix={:d}, diam={:.3g}, pixel scale={:.3g} meters/pixel".format(
-            wavelength, npix, diam, diam / npix))
-
-        if np.abs(self.source_offset_r) > 0:
-            # Add a tilt to the input wavefront.
-            # First we must work out the handedness of the input pupil relative to the
-            # final image plane.  This is needed to apply (to the input pupil) shifts
-            # with the correct handedness to get the desired motion in the final plane.
-            sign_x = 1
-            sign_y = 1
-            rotation_angle = 0
-            if len(self.planes) > 0:
-                for plane in self.planes:
-                    if isinstance(plane, CoordinateInversion):
-                        if plane.axis == 'x' or plane.axis == 'both':
-                            sign_x *= -1
-                        if plane.axis == 'y' or plane.axis == 'both':
-                            sign_y *= -1
-                    elif isinstance(plane, Rotation):
-                        rotation_angle += plane.angle * sign_x * sign_y
-
-            # now we must also work out the rotation
-
-            # convert to offset X,Y in arcsec using the usual astronomical angle convention
-            angle = (self.source_offset_theta - rotation_angle) * np.pi / 180
-            offset_x = sign_x * self.source_offset_r * -np.sin(angle)
-            offset_y = sign_y * self.source_offset_r * np.cos(angle)
-            inwave.tilt(Xangle=offset_x, Yangle=offset_y)
-            _log.debug("Tilted input wavefront by theta_X=%f, theta_Y=%f arcsec. (signs=%d, %d; theta offset=%f) " % (
-            offset_x, offset_y, sign_x, sign_y, rotation_angle))
-
-        inwave._display_hint_expected_nplanes = len(self) # For display of intermediate steps nicely
-        return inwave
-
-
-    def propagate(self,
-                  wavefront,
-                  normalize='none',
-                  return_intermediates=False,
-                  display_intermediates=False):
-        """ Core low-level routine for propagating a wavefront through an optical system
-
-        This is a **linear operator** that acts on an input complex wavefront to give an
-        output complex wavefront.
-
-        Parameters
-        ----------
-        wavefront : Wavefront instance
-            Wavefront to propagate through this optical system
-        normalize : string
-            How to normalize the wavefront?
-            * 'first' = set total flux = 1 after the first optic, presumably a pupil
-            * 'last' = set total flux = 1 after the entire optical system.
-            * 'exit_pupil' = set total flux = 1 at the last pupil of the optical system.
-        display_intermediates : bool
-            Should intermediate steps in the calculation be displayed on screen? Default: False.
-        return_intermediates : bool
-            Should intermediate steps in the calculation be returned? Default: False.
-            If True, the second return value of the method will be a list of `poppy.Wavefront` objects
-            representing intermediate optical planes from the calculation.
-
-        Returns a wavefront, and optionally also the intermediate wavefronts after
-        each step of propagation.
-
-        """
-
-        if not isinstance(wavefront, Wavefront):
-            raise ValueError("First argument to propagate must be a Wavefront.")
-
-        intermediate_wfs = []
-
-        # note: 0 is 'before first optical plane; 1 = 'after first plane and before second plane' and so on
-        for optic in self.planes:
-            # The actual propagation:
-            wavefront.propagate_to(optic)
-            wavefront *= optic
-
-            # Normalize if appropriate:
-            if normalize.lower() == 'first' and wavefront.current_plane_index == 1:  # set entrance plane to 1.
-                wavefront.normalize()
-                _log.debug("normalizing at first plane (entrance pupil) to 1.0 total intensity")
-            elif normalize.lower() == 'first=2' and wavefront.current_plane_index == 1:
-                # this undocumented option is present only for testing/validation purposes
-                wavefront.normalize()
-                wavefront *= np.sqrt(2)
-            elif normalize.lower() == 'exit_pupil':  # normalize the last pupil in the system to 1
-                last_pupil_plane_index = np.where(np.asarray(
-                    [p.planetype is PlaneType.pupil for p in self.planes]))[0].max() + 1
-                if wavefront.current_plane_index == last_pupil_plane_index:
-                    wavefront.normalize()
-                    _log.debug("normalizing at exit pupil (plane {0}) to 1.0 total intensity".format(
-                        wavefront.current_plane_index))
-            elif normalize.lower() == 'last' and wavefront.current_plane_index == len(self.planes):
-                wavefront.normalize()
-                _log.debug("normalizing at last plane to 1.0 total intensity")
-
-            # Optional outputs:
-            if conf.enable_flux_tests:
-                _log.debug("  Flux === " + str(wavefront.total_intensity))
-
-            if return_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
-                intermediate_wfs.append(wavefront.copy())
-            if display_intermediates:
-                wavefront._display_after_optic(optic, default_nplanes=len(self))
-
-        if return_intermediates:
-            return wavefront, intermediate_wfs
-        else:
-            return wavefront
-
-
-
-    @utils.quantity_input(wavelength=u.meter)
-    def propagate_mono(self,
-                       wavelength=1e-6 * u.meter,
-                       normalize='first',
-                       retain_intermediates=False,
-                       retain_final=False,
-                       display_intermediates=False):
-        """Propagate a monochromatic wavefront through the optical system. Called from within `calc_psf`.
-        Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s (empty if
-        `retain_intermediates=False`).
-
-        Parameters
-        ----------
-        wavelength : float
-            Wavelength in meters
-        normalize : string, {'first', 'last'}
-            how to normalize the wavefront?
-            * 'first' = set total flux = 1 after the first optic, presumably a pupil
-            * 'last' = set total flux = 1 after the entire optical system.
-            * 'exit_pupil' = set total flux = 1 at the last pupil of the optical system.
-            * 'first=2' = set total flux = 2 after the first optic (used for debugging only)
-        display_intermediates : bool
-            Should intermediate steps in the calculation be displayed on screen? Default: False.
-        retain_intermediates : bool
-            Should intermediate steps in the calculation be retained? Default: False.
-            If True, the second return value of the method will be a list of `poppy.Wavefront` objects
-            representing intermediate optical planes from the calculation.
-        retain_final : bool
-            Should the final complex wavefront be retained? Default: False.
-            If True, the second return value of the method will be a single element list
-            (for consistency with retain intermediates) containing a `poppy.Wavefront` object
-            representing the final optical plane from the calculation.
-            Overridden by retain_intermediates.
-
-        Returns
-        -------
-        final_wf : fits.HDUList
-            The final result of the monochromatic propagation as a FITS HDUList
-        intermediate_wfs : list
-            A list of `poppy.Wavefront` objects representing the wavefront at intermediate optical planes.
-            The 0th item is "before first optical plane", 1st is "after first plane and before second plane", and so on.
-            (n.b. This will be empty if `retain_intermediates` is False and singular if retain_final is True.)
-        """
-
-        if conf.enable_speed_tests:
-            t_start = time.time()
-        if self.verbose:
-            _log.info(" Propagating wavelength = {0:g}".format(wavelength))
-        wavefront = self.input_wavefront(wavelength)
-
-        kwargs = {'normalize': normalize,
-                  'display_intermediates': display_intermediates,
-                  'return_intermediates': retain_intermediates}
-
-        # Is there a more elegant way to handle optional return quantities?
-        # without making them mandatory.
-        if retain_intermediates:
-            wavefront, intermediate_wfs = self.propagate(wavefront, **kwargs)
-        else:
-            wavefront = self.propagate(wavefront, **kwargs)
-            intermediate_wfs = []
-
-        if (not retain_intermediates) & retain_final:  # return the full complex wavefront of the last plane.
-            intermediate_wfs = [wavefront]
-
-        if conf.enable_speed_tests:
-            t_stop = time.time()
-            _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop - t_start))
-
-        return wavefront.as_fits(), intermediate_wfs
+    def input_wavefront(self, wavelength=1e-6*u.meter):
+        """Create an input wavefront suitable for propagation"""
+        pass
 
     @utils.quantity_input(wavelength=u.meter)
     def calc_psf(self, wavelength=1e-6,
@@ -1980,6 +1596,76 @@ class OpticalSystem(object):
 
         else:
             return outFITS
+    @utils.quantity_input(wavelength=u.meter)
+    def propagate_mono(self,
+                       wavelength=1e-6 * u.meter,
+                       normalize='first',
+                       retain_intermediates=False,
+                       retain_final=False,
+                       display_intermediates=False):
+        """Propagate a monochromatic wavefront through the optical system. Called from within `calc_psf`.
+        Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s (empty if
+        `retain_intermediates=False`).
+
+        Parameters
+        ----------
+        wavelength : float
+            Wavelength in meters
+        normalize : string, {'first', 'last'}
+            how to normalize the wavefront?
+            * 'first' = set total flux = 1 after the first optic, presumably a pupil
+            * 'last' = set total flux = 1 after the entire optical system.
+            * 'exit_pupil' = set total flux = 1 at the last pupil of the optical system.
+            * 'first=2' = set total flux = 2 after the first optic (used for debugging only)
+        display_intermediates : bool
+            Should intermediate steps in the calculation be displayed on screen? Default: False.
+        retain_intermediates : bool
+            Should intermediate steps in the calculation be retained? Default: False.
+            If True, the second return value of the method will be a list of `poppy.Wavefront` objects
+            representing intermediate optical planes from the calculation.
+        retain_final : bool
+            Should the final complex wavefront be retained? Default: False.
+            If True, the second return value of the method will be a single element list
+            (for consistency with retain intermediates) containing a `poppy.Wavefront` object
+            representing the final optical plane from the calculation.
+            Overridden by retain_intermediates.
+
+        Returns
+        -------
+        final_wf : fits.HDUList
+            The final result of the monochromatic propagation as a FITS HDUList
+        intermediate_wfs : list
+            A list of `poppy.Wavefront` objects representing the wavefront at intermediate optical planes.
+            The 0th item is "before first optical plane", 1st is "after first plane and before second plane", and so on.
+            (n.b. This will be empty if `retain_intermediates` is False and singular if retain_final is True.)
+        """
+
+        if conf.enable_speed_tests:
+            t_start = time.time()
+        if self.verbose:
+            _log.info(" Propagating wavelength = {0:g}".format(wavelength))
+        wavefront = self.input_wavefront(wavelength)
+
+        kwargs = {'normalize': normalize,
+                  'display_intermediates': display_intermediates,
+                  'return_intermediates': retain_intermediates}
+
+        # Is there a more elegant way to handle optional return quantities?
+        # without making them mandatory.
+        if retain_intermediates:
+            wavefront, intermediate_wfs = self.propagate(wavefront, **kwargs)
+        else:
+            wavefront = self.propagate(wavefront, **kwargs)
+            intermediate_wfs = []
+
+        if (not retain_intermediates) & retain_final:  # return the full complex wavefront of the last plane.
+            intermediate_wfs = [wavefront]
+
+        if conf.enable_speed_tests:
+            t_stop = time.time()
+            _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop - t_start))
+
+        return wavefront.as_fits(), intermediate_wfs
 
     def display(self, **kwargs):
         """ Display all elements in an optical system on screen.
@@ -1993,6 +1679,350 @@ class OpticalSystem(object):
         for i, plane in enumerate(planes_to_display):
             _log.info("Displaying plane {0:s} in row {1:d} of {2:d}".format(plane.name, i + 1, nplanes))
             plane.display(nrows=nplanes, row=i + 1, **kwargs)
+
+
+
+class OpticalSystem(BaseOpticalSystem):
+    """ A class representing a series of optical elements,
+    either Pupil, Image, or Detector planes, through which light
+    can be propagated.
+
+    The difference between
+    Image and Detector planes is that Detectors have fixed pixels
+    in terms of arcsec/pixel regardless of wavelength (computed via
+    MFT) while Image planes have variable pixels scaled in terms of
+    lambda/D. Pupil planes are some fixed size in meters, of course.
+
+    Parameters
+    ----------
+    name : string
+        descriptive name of optical system
+    oversample : int
+        Either how many times *above* Nyquist we should be
+        (for pupil or image planes), or how many times a fixed
+        detector pixel will be sampled. E.g. `oversample=2` means
+        image plane sampling lambda/4*D (twice Nyquist) and
+        detector plane sampling 2x2 computed pixels per real detector
+        pixel.  Default is 2.
+    verbose : bool
+        whether to be more verbose with log output while computing
+    pupil_diameter : astropy.Quantity of dimension length
+        Diameter of entrance pupil. Defaults to size of first optical element
+        if unspecified, or else 1 meter.
+
+    """
+
+    # Methods for adding or manipulating optical planes:
+
+    def add_pupil(self, optic=None, function=None, index=None, **kwargs):
+        """ Add a pupil plane optic from file(s) giving transmission or OPD
+
+          1) from file(s) giving transmission and/or OPD
+                [set arguments `transmission=filename` and/or `opd=filename`]
+          2) from an already-created :py:class:`OpticalElement` object
+                [set `optic=that object`]
+
+        Parameters
+        ----------
+        optic : poppy.OpticalElement, optional
+            An already-created :py:class:`OpticalElement` object you would like to add
+        function : string, optional
+            Deprecated. The name of some analytic function you would like to use.
+            Optional `kwargs` can be used to set the parameters of that function.
+            Allowable function names are Circle, Square, Hexagon, Rectangle, and FQPM_FFT_Aligner
+        opd, transmission : string, optional
+            Filenames of FITS files describing the desired optic.
+        index : int
+            Index into the optical system's planes for where to add the new optic. Defaults to
+            appending the optic to the end of the plane list.
+
+        Returns
+        -------
+        poppy.OpticalElement subclass
+            The pupil optic added (either `optic` passed in, or a new OpticalElement created)
+
+
+        Note: Now you can use the optic argument for either an OpticalElement or a string function name,
+        and it will do the right thing depending on type.  Both existing arguments are left for compatibility for now.
+
+
+        Any provided parameters are passed to :py:class:`OpticalElement`.
+
+
+        """
+        if function is not None:
+            import warnings
+            warnings.warn("The function argument to add_pupil is deprecated. Please provide an Optic object instead.",
+                          DeprecationWarning)
+        if optic is None and function is not None:
+            # ease of use: 'function' input and providing 'optic' parameter as a string are synonymous.
+            optic = function
+
+        if isinstance(optic, OpticalElement):
+            # OpticalElement object provided.
+            # We can use it directly, but make sure the plane type is set.
+            optic.planetype = PlaneType.pupil
+        elif isinstance(optic, str):
+            # convenience code to instantiate objects from a string name.
+            raise NotImplementedError('Setting optics based on strings is now deprecated.')
+        elif optic is None and len(kwargs) > 0:  # create image from files specified in kwargs
+            # create image from files specified in kwargs
+            optic = FITSOpticalElement(planetype=PlaneType.pupil, oversample=self.oversample, **kwargs)
+        elif optic is None and len(kwargs) == 0:  # create empty optic.
+            from . import optics
+            optic = optics.ScalarTransmission()  # placeholder optic, transmission=100%
+            optic.planetype = PlaneType.pupil
+        else:
+            raise TypeError("Not sure how to handle an Optic input of the provided type, {0}".format(
+                str(optic.__class__)))
+
+        return self._add_plane(optic, index=index, logstring="pupil plane")
+
+    def add_image(self, optic=None, function=None, index=None, **kwargs):
+        """ Add an image plane optic to the optical system
+
+        That image plane optic can be specified either
+
+          1) from file(s) giving transmission or OPD
+                [set arguments `transmission=filename` and/or `opd=filename`]
+          2) from an analytic function
+                [set `function='circle, fieldstop, bandlimitedcoron, or FQPM'`
+                and set additional kwargs to define shape etc.
+          3) from an already-created OpticalElement object
+                [set `optic=that object`]
+
+        Parameters
+        ----------
+        optic : poppy.OpticalElement
+            An already-created OpticalElement you would like to add
+        function: string
+            Name of some analytic function to add.
+            Optional `kwargs` can be used to set the parameters of that function.
+            Allowable function names are CircularOcculter, fieldstop, BandLimitedCoron, FQPM
+        opd, transmission : string
+            Filenames of FITS files describing the desired optic.
+        index : int
+            Index into the optical system's planes for where to add the new optic. Defaults to
+            appending the optic to the end of the plane list.
+
+
+        Returns
+        -------
+        poppy.OpticalElement subclass
+            The pupil optic added (either `optic` passed in, or a new OpticalElement created)
+
+        Notes
+        ------
+
+        Now you can use the optic argument for either an OpticalElement or a
+        string function name, and it will do the right thing depending on type.
+        Both existing arguments are left for back compatibility for now.
+
+
+
+        """
+
+        if isinstance(optic, str):
+            function = optic
+            optic = None
+
+        if optic is None:
+            from . import optics
+            if function == 'CircularOcculter':
+                fn = optics.CircularOcculter
+            elif function == 'BarOcculter':
+                fn = optics.BarOcculter
+            elif function == 'fieldstop':
+                fn = optics.FieldStop
+            elif function == 'BandLimitedCoron':
+                fn = optics.BandLimitedCoron
+            elif function == 'FQPM':
+                fn = optics.IdealFQPM
+            elif function is not None:
+                raise ValueError("Analytic mask type '%s' is unknown." % function)
+            elif len(kwargs) > 0:  # create image from files specified in kwargs
+                fn = FITSOpticalElement
+            else:
+                fn = optics.ScalarTransmission  # placeholder optic, transmission=100%
+
+            optic = fn(oversample=self.oversample, **kwargs)
+            optic.planetype = PlaneType.image
+        else:
+            optic.planetype = PlaneType.image
+            optic.oversample = self.oversample  # these need to match...
+
+        return self._add_plane(optic, index=index, logstring="image plane")
+
+    def describe(self):
+        """ Print out a string table describing all planes in an optical system"""
+        print(str(self) + "\n\t" + "\n\t".join([str(p) for p in self.planes]))
+
+    # methods for dealing with wavefronts:
+    @utils.quantity_input(wavelength=u.meter)
+    def input_wavefront(self, wavelength=1e-6 * u.meter):
+        """Create a Wavefront object suitable for sending through a given optical system, based on
+        the size of the first optical plane, assumed to be a pupil.
+
+        Defining this needs both a number of pixels (npix) and physical size (diam) to set the sampling.
+
+        If this OpticalSystem has a provided `npix` attribute that is not None, use that to
+        set the input wavefront size. Otherwise, check if the first optical element has a defined sampling.
+        If not, default to 1024 pixels.
+
+        Uses self.source_offset to assign an off-axis tilt, if requested.
+
+        The convention here is that the desired source position is specified with
+        respect to the **final focal plane** of the optical system. If there are any
+        intervening coordinate transformation planes, this function attempts to take
+        them into account when setting the tilt of the input wavefront. This is
+        subtle trickery and may not work properly in all instances.
+
+        Parameters
+        ----------
+        wavelength : float
+            Wavelength in meters
+
+        Returns
+        -------
+        wavefront : poppy.Wavefront instance
+            A wavefront appropriate for passing through this optical system.
+
+        """
+
+        # somewhat complicated logic here  (Revised version after #246)
+        # First check if the sampling parameters are explicitly defined for the OpticalSystem:
+        npix = getattr(self, 'npix', None)
+        diam = getattr(self, 'pupil_diameter', None)
+
+        # If not then if we have a first optical plane, check and see if it specifies the entrance sampling:
+        if len(self.planes) > 0:
+            if npix is None:
+                if self.planes[0].shape is not None:
+                    npix=self.planes[0].shape[0]
+            if diam is None:
+                if hasattr(self.planes[0], 'pupil_diam') and self.planes[0].pupil_diam is not None:
+                    diam = self.planes[0].pupil_diam
+
+        if npix is None:
+            _log.info("You did not define npix either on the OpticalSystem or its first optic; defaulting to 1024 pixels.")
+            npix=1024
+        if diam is None:
+            raise RuntimeError("You must define an entrance pupil diameter either on the OpticalSystem or its first optic.")
+
+        # if the diameter was specified as an astropy.Quantity, cast it to just a scalar in meters
+        if isinstance(diam, u.Quantity):
+            diam = diam.to(u.m).value
+
+        inwave = Wavefront(wavelength=wavelength, npix=npix,
+                           diam=diam, oversample=self.oversample)
+        _log.debug("Creating input wavefront with wavelength={}, npix={:d}, diam={:.3g}, pixel scale={:.3g} meters/pixel".format(
+            wavelength, npix, diam, diam / npix))
+
+        if np.abs(self.source_offset_r) > 0:
+            # Add a tilt to the input wavefront.
+            # First we must work out the handedness of the input pupil relative to the
+            # final image plane.  This is needed to apply (to the input pupil) shifts
+            # with the correct handedness to get the desired motion in the final plane.
+            sign_x = 1
+            sign_y = 1
+            rotation_angle = 0
+            if len(self.planes) > 0:
+                for plane in self.planes:
+                    if isinstance(plane, CoordinateInversion):
+                        if plane.axis == 'x' or plane.axis == 'both':
+                            sign_x *= -1
+                        if plane.axis == 'y' or plane.axis == 'both':
+                            sign_y *= -1
+                    elif isinstance(plane, Rotation):
+                        rotation_angle += plane.angle * sign_x * sign_y
+
+            # now we must also work out the rotation
+
+            # convert to offset X,Y in arcsec using the usual astronomical angle convention
+            angle = (self.source_offset_theta - rotation_angle) * np.pi / 180
+            offset_x = sign_x * self.source_offset_r * -np.sin(angle)
+            offset_y = sign_y * self.source_offset_r * np.cos(angle)
+            inwave.tilt(Xangle=offset_x, Yangle=offset_y)
+            _log.debug("Tilted input wavefront by theta_X=%f, theta_Y=%f arcsec. (signs=%d, %d; theta offset=%f) " % (
+            offset_x, offset_y, sign_x, sign_y, rotation_angle))
+
+        inwave._display_hint_expected_nplanes = len(self) # For display of intermediate steps nicely
+        return inwave
+
+    def propagate(self,
+                  wavefront,
+                  normalize='none',
+                  return_intermediates=False,
+                  display_intermediates=False):
+        """ Core low-level routine for propagating a wavefront through an optical system
+
+        This is a **linear operator** that acts on an input complex wavefront to give an
+        output complex wavefront.
+
+        Parameters
+        ----------
+        wavefront : Wavefront instance
+            Wavefront to propagate through this optical system
+        normalize : string
+            How to normalize the wavefront?
+            * 'first' = set total flux = 1 after the first optic, presumably a pupil
+            * 'last' = set total flux = 1 after the entire optical system.
+            * 'exit_pupil' = set total flux = 1 at the last pupil of the optical system.
+        display_intermediates : bool
+            Should intermediate steps in the calculation be displayed on screen? Default: False.
+        return_intermediates : bool
+            Should intermediate steps in the calculation be returned? Default: False.
+            If True, the second return value of the method will be a list of `poppy.Wavefront` objects
+            representing intermediate optical planes from the calculation.
+
+        Returns a wavefront, and optionally also the intermediate wavefronts after
+        each step of propagation.
+
+        """
+
+        if not isinstance(wavefront, Wavefront):
+            raise ValueError("First argument to propagate must be a Wavefront.")
+
+        intermediate_wfs = []
+
+        # note: 0 is 'before first optical plane; 1 = 'after first plane and before second plane' and so on
+        for optic in self.planes:
+            # The actual propagation:
+            wavefront.propagate_to(optic)
+            wavefront *= optic
+
+            # Normalize if appropriate:
+            if normalize.lower() == 'first' and wavefront.current_plane_index == 1:  # set entrance plane to 1.
+                wavefront.normalize()
+                _log.debug("normalizing at first plane (entrance pupil) to 1.0 total intensity")
+            elif normalize.lower() == 'first=2' and wavefront.current_plane_index == 1:
+                # this undocumented option is present only for testing/validation purposes
+                wavefront.normalize()
+                wavefront *= np.sqrt(2)
+            elif normalize.lower() == 'exit_pupil':  # normalize the last pupil in the system to 1
+                last_pupil_plane_index = np.where(np.asarray(
+                    [p.planetype is PlaneType.pupil for p in self.planes]))[0].max() + 1
+                if wavefront.current_plane_index == last_pupil_plane_index:
+                    wavefront.normalize()
+                    _log.debug("normalizing at exit pupil (plane {0}) to 1.0 total intensity".format(
+                        wavefront.current_plane_index))
+            elif normalize.lower() == 'last' and wavefront.current_plane_index == len(self.planes):
+                wavefront.normalize()
+                _log.debug("normalizing at last plane to 1.0 total intensity")
+
+            # Optional outputs:
+            if conf.enable_flux_tests:
+                _log.debug("  Flux === " + str(wavefront.total_intensity))
+
+            if return_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
+                intermediate_wfs.append(wavefront.copy())
+            if display_intermediates:
+                wavefront._display_after_optic(optic, default_nplanes=len(self))
+
+        if return_intermediates:
+            return wavefront, intermediate_wfs
+        else:
+            return wavefront
 
     def _propagation_info(self):
         """ Provide some summary information on the optical propagation calculations that
@@ -2027,10 +2057,21 @@ class OpticalSystem(object):
 
 
 class CompoundOpticalSystem(OpticalSystem):
-    """ A concatenation of two or more optical systems """
+    """ A concatenation of two or more optical systems,
+    acting as a single larger optical system.
+
+    This can be used to combine together multiple existing
+    OpticalSystem instances, including mixed lists of both
+    Fraunhofer and Fresnel type systems.
+    """
 
     def __init__(self, optsyslist=None, name=None, **kwargs):
-        """
+        """ Create combined optical system,
+
+        Parameters
+        ----------
+        optsyslist : List of OpticalSystem and/or FresnelOpticalSystem instances.
+
         """
         # validate the input optical systems make sense
         if optsyslist is None:
@@ -2038,7 +2079,7 @@ class CompoundOpticalSystem(OpticalSystem):
         elif len(optsyslist)==0:
             raise ValueError("The provided optsyslist argument is an empty list. Must contain at least 1 optical system.")
         for item in optsyslist:
-            if not isinstance(item, OpticalSystem):
+            if not isinstance(item, BaseOpticalSystem):
                 raise ValueError("All items in the optical system list must be OpticalSystem instances, not "+repr(item))
 
         if name is None:
