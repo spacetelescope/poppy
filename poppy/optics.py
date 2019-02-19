@@ -11,7 +11,7 @@ from . import utils
 from . import conf
 from . import accel_math
 from .version import version
-from .poppy_core import OpticalElement, Wavefront, PlaneType, _RADIANStoARCSEC
+from .poppy_core import OpticalElement, Wavefront, BaseWavefront, PlaneType, _RADIANStoARCSEC
 from .accel_math import _exp, _r, _float, _complex
 
 if accel_math._USE_NUMEXPR:
@@ -104,7 +104,7 @@ class AnalyticOpticalElement(OpticalElement):
             either a scalar wavelength or a Wavefront object
 
         """
-        if isinstance(wave, Wavefront):
+        if isinstance(wave, BaseWavefront):
             wavelength = wave.wavelength
         else:
             wavelength = wave
@@ -499,7 +499,7 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
         for pointing this out.
 
         """
-        if not isinstance(wave, Wavefront):  # pragma: no cover
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
             raise ValueError("BLC get_transmission must be called with a Wavefront to define the spacing")
         assert (wave.planetype == PlaneType.image)
 
@@ -651,7 +651,7 @@ class IdealFQPM(AnalyticImagePlaneElement):
         corresponding to the supplied Wavefront
         """
 
-        if not isinstance(wave, Wavefront):  # pragma: no cover
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
             raise ValueError("4QPM get_opd must be called with a Wavefront to define the spacing")
         assert (wave.planetype == PlaneType.image)
 
@@ -698,7 +698,7 @@ class CircularPhaseMask(AnalyticImagePlaneElement):
         corresponding to the supplied Wavefront
         """
 
-        if not isinstance(wave, Wavefront):  # pragma: no cover
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
             raise ValueError("get_opd must be called with a Wavefront to define the spacing")
         assert (wave.planetype == PlaneType.image)
 
@@ -741,7 +741,7 @@ class RectangularFieldStop(AnalyticImagePlaneElement):
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the field stop.
         """
-        if not isinstance(wave, Wavefront):  # pragma: no cover
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
             raise ValueError("IdealFieldStop get_transmission must be called with a Wavefront "
                              "to define the spacing")
         assert (wave.planetype == PlaneType.image)
@@ -833,7 +833,7 @@ class HexagonFieldStop(AnalyticImagePlaneElement):
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the occulter.
         """
-        if not isinstance(wave, Wavefront):  # pragma: no cover
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
             raise ValueError("HexagonFieldStop get_transmission must be called with a Wavefront "
                              "to define the spacing")
         assert (wave.planetype == PlaneType.image)
@@ -889,7 +889,7 @@ class AnnularFieldStop(AnalyticImagePlaneElement):
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the field stop.
         """
-        if not isinstance(wave, Wavefront):  # pragma: no cover
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
             raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         assert (wave.planetype == PlaneType.image)
 
@@ -952,7 +952,7 @@ class BarOcculter(AnalyticImagePlaneElement):
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the occulter.
         """
-        if not isinstance(wave, Wavefront):  # pragma: no cover
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
             raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         assert (wave.planetype == PlaneType.image)
 
@@ -1002,7 +1002,7 @@ class FQPM_FFT_aligner(AnalyticOpticalElement):
         the 4 central pixels, not on the central pixel itself.
         """
 
-        if not isinstance(wave, Wavefront):  # pragma: no cover
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
             raise ValueError("FQPM get_opd must be called with a Wavefront to define the spacing")
         assert wave.planetype != PlaneType.image, "This optic does not work on image planes"
 
@@ -1051,7 +1051,7 @@ class ParityTestAperture(AnalyticOpticalElement):
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the occulter.
         """
-        if not isinstance(wave, Wavefront):  # pragma: no cover
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
             raise ValueError("CircularAperture get_opd must be called with a Wavefront "
                              "to define the spacing")
         assert (wave.planetype != PlaneType.image)
@@ -1111,7 +1111,7 @@ class CircularAperture(AnalyticOpticalElement):
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the aperture.
         """
-        if not isinstance(wave, Wavefront):  # pragma: no cover
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
             raise ValueError("CircularAperture get_transmission must be called with a Wavefront "
                              "to define the spacing")
         assert (wave.planetype != PlaneType.image)
@@ -1177,7 +1177,7 @@ class HexagonAperture(AnalyticOpticalElement):
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the occulter.
         """
-        if not isinstance(wave, Wavefront):  # pragma: no cover
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
             raise ValueError("HexagonAperture get_transmission must be called with a Wavefront "
                              "to define the spacing")
         assert (wave.planetype != PlaneType.image)
@@ -1377,7 +1377,7 @@ class MultiHexagonAperture(AnalyticOpticalElement):
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the occulter.
         """
-        if not isinstance(wave, Wavefront):
+        if not isinstance(wave, BaseWavefront):
             raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         assert (wave.planetype != PlaneType.image)
 
@@ -1447,7 +1447,7 @@ class NgonAperture(AnalyticOpticalElement):
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the occulter.
         """
-        if not isinstance(wave, Wavefront):  # pragma: no cover
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
             raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         assert (wave.planetype != PlaneType.image)
         y, x = self.get_coordinates(wave)
@@ -1497,7 +1497,7 @@ class RectangleAperture(AnalyticOpticalElement):
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the occulter.
         """
-        if not isinstance(wave, Wavefront):  # pragma: no cover
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
             raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         assert (wave.planetype != PlaneType.image)
 
@@ -1588,7 +1588,7 @@ class SecondaryObscuration(AnalyticOpticalElement):
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the obscuration
         """
-        if not isinstance(wave, Wavefront):  # pragma: no cover
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
             raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         assert (wave.planetype != PlaneType.image)
 
@@ -1662,7 +1662,7 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the obscuration
         """
-        if not isinstance(wave, Wavefront):  # pragma: no cover
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
             raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         assert (wave.planetype != PlaneType.image)
 
@@ -1793,7 +1793,7 @@ class GaussianAperture(AnalyticOpticalElement):
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the aperture.
         """
-        if not isinstance(wave, Wavefront):  # pragma: no cover
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
             raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         y, x = self.get_coordinates(wave)
 
@@ -1823,7 +1823,7 @@ class KnifeEdge(AnalyticOpticalElement):
         AnalyticOpticalElement.__init__(self, name=name, rotation=rotation, **kwargs)
 
     def get_transmission(self, wave):
-        if not isinstance(wave, Wavefront):  # pragma: no cover
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
             raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         y, x = self.get_coordinates(wave)
         return x < 0

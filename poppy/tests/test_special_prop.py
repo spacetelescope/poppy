@@ -51,16 +51,22 @@ def test_SAMC(fft_oversample=4, samc_oversample=8, npix=512,
         plt.figure()
     t_start_sam = time.time()
     psf_sam = sam_osys.calc_psf(display_intermediates=display)
+    # also compute a version with the intermediate planes returned
+    psf_sam_copy, intermediates= sam_osys.calc_psf(display_intermediates=display,
+                    return_intermediates=True)
     t_stop_sam = time.time()
 
     print("SAMC calculation: {} s".format(t_stop_sam - t_start_sam))
     if display:
+        plt.suptitle("Calculation using SAMC method")
         plt.figure()
 
     t_start_fft = time.time()
     psf_fft = osys.calc_psf(display_intermediates=display)
     t_stop_fft = time.time()
     print("Basic FFT calculation: {} s".format(t_stop_fft - t_start_fft))
+    if display:
+        plt.suptitle("Calculation using Basic FFT method")
 
     # The pixel by pixel difference should be small:
     maxdiff = np.abs(psf_fft[0].data - psf_sam[0].data).max()
@@ -82,4 +88,8 @@ def test_SAMC(fft_oversample=4, samc_oversample=8, npix=512,
     assert totdiff < thresh, "Total pixel value absolute difference summed overimages ({}) exceeds threshold ({}).".format(totdiff, thresh)
 
 
+    # Check there are the expected number of intermediate planes, which for this
+    # kind of propagation has some extras:
+    assert len(intermediates) == len(osys)+2, "Unexpected number of returned optical planes"
 
+    assert np.allclose(psf_sam[0].data, psf_sam_copy[0].data), "Didn't get same results with & without return_intermediates"

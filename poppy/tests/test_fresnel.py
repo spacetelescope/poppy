@@ -533,3 +533,140 @@ def test_detector_in_fresnel_system(npix=256):
     assert psf[0].data.shape == (300, 300)
 
     assert psf[0].header['NAXIS1'] == 300
+
+def test_wavefront_conversions():
+    """ Test conversions between Wavefront and FresnelWavefront
+    in both directions.
+    """
+    import poppy
+
+    props = lambda wf: (wf.shape, wf.ispadded, wf.oversample, wf.pixelscale)
+
+    optic = poppy.CircularAperture()
+    w = poppy.Wavefront(diam=4*u.m)
+    w*= optic
+
+    fw = poppy.FresnelWavefront(beam_radius=2*u.m)
+    fw*= optic
+
+    # test convert from Fraunhofer to Fresnel
+    fw2 = poppy.FresnelWavefront.from_wavefront(w)
+    assert props(fw)==props(fw2)
+    #np.testing.assert_allclose(fw.wavefront, fw2.wavefront)
+
+    # test convert from Fresnel to Fraunhofer
+    w2 = poppy.Wavefront.from_fresnel_wavefront(fw)
+    assert props(w)==props(w2)
+
+
+def test_CompoundOpticalSystem_fresnel(npix=128, display=False):
+    """ Test that the CompoundOpticalSystem container works for Fresnel systems
+
+    Parameters
+    ----------
+    npix : int
+        Number of pixels for the pupil sampling. Kept small by default to
+        reduce test run time.
+    """
+
+    import poppy
+
+    opt1 = poppy.SquareAperture()
+    opt2 = poppy.CircularAperture(radius=0.55)
+
+    # a single optical system
+    osys = poppy.FresnelOpticalSystem(beam_ratio=0.25, npix=npix)
+    osys.add_optic(opt1)
+    osys.add_optic(opt2, distance=10*u.cm)
+    osys.add_optic(poppy.QuadraticLens(1.0*u.m))
+    osys.add_optic(poppy.Detector(pixelscale=0.25*u.micron/u.pixel, fov_pixels=512), distance=1*u.m)
+
+    psf = osys.calc_psf(display_intermediates=display)
+
+    if display:
+        plt.figure()
+
+    # a Compound Fresnel optical system
+    osys1 = poppy.FresnelOpticalSystem(beam_ratio=0.25, npix=npix)
+    osys1.add_optic(opt1)
+    osys2 = poppy.FresnelOpticalSystem(beam_ratio=0.25)
+    osys2.add_optic(opt2, distance=10*u.cm)
+    osys2.add_optic(poppy.QuadraticLens(1.0*u.m))
+    osys2.add_optic(poppy.Detector(pixelscale=0.25*u.micron/u.pixel, fov_pixels=512), distance=1*u.m)
+
+    cosys = poppy.CompoundOpticalSystem([osys1, osys2])
+
+    psf2 = cosys.calc_psf(display_intermediates=display)
+
+    assert np.allclose(psf[0].data, psf2[0].data), "Results from simple and compound Fresnel systems differ unexpectedly."
+
+    return psf, psf2
+
+def test_CompoundOpticalSystem_hybrid(npix=128):
+    """ Test that the CompoundOpticalSystem container works for hybrid Fresnel+Fraunhofer systems
+
+    Defining "works correctly" here is a bit arbitrary given the different physical assumptions.
+    For the purpose of this test we consider a VERY simple case, mostly a Fresnel system. We split
+    out the first optic and put that in a Fraunhofer system. We then test that a compound hybrid
+    system yields the same results as the original fully-Fresnel system.
+
+    Parameters
+    ----------
+    npix : int
+        Number of pixels for the pupil sampling. Kept small by default to
+        reduce test run time.
+    """
+
+    import poppy
+
+    opt1 = poppy.SquareAperture()
+    opt2 = poppy.CircularAperture(radius=0.55)
+
+    ###### Simple test case to exercise the conversion functions, with only trivial propagation
+    osys1 = poppy.OpticalSystem()
+    osys1.add_pupil(opt1)
+    osys2 = poppy.FresnelOpticalSystem()
+    osys2.add_optic(poppy.ScalarTransmission())
+    osys3 = poppy.OpticalSystem()
+    osys3.add_pupil(poppy.ScalarTransmission())
+    osys3.add_detector(fov_pixels=64, pixelscale=0.01)
+    cosys = poppy.CompoundOpticalSystem([osys1, osys2, osys3])
+    psf, ints = cosys.calc_psf( return_intermediates=True)
+    assert len(ints) == 4, "Unexpected number of intermediate  wavefronts"
+    assert isinstance(ints[0], poppy.Wavefront), "Unexpected output type"
+    assert isinstance(ints[1], poppy.FresnelWavefront), "Unexpected output type"
+    assert isinstance(ints[2], poppy.Wavefront), "Unexpected output type"
+
+    ###### Harder case involving more complex actual propagations
+
+    #===== a single Fresnel optical system =====
+    osys = poppy.FresnelOpticalSystem(beam_ratio=0.25, npix=128, pupil_diameter=2*u.m)
+    osys.add_optic(opt1)
+    osys.add_optic(opt2, distance=10*u.cm)
+    osys.add_optic(poppy.QuadraticLens(1.0*u.m))
+    osys.add_optic(poppy.Detector(pixelscale=0.125*u.micron/u.pixel, fov_pixels=512), distance=1*u.m)
+
+    #===== two systems, joined into a CompoundOpticalSystem =====
+    # First part is Fraunhofer then second is Fresnel
+    osys1 = poppy.OpticalSystem(npix=128, oversample=4, name="FIRST PART, FRAUNHOFER")
+    # Note for strict consistency we need to apply a half pixel shift to optics in the Fraunhofer part;
+    # this accomodates the differences between different types of image centering.
+    pixscl = osys.input_wavefront().pixelscale
+    halfpixshift = (pixscl*0.5*u.pixel).to(u.m).value
+    opt1shifted = poppy.SquareAperture(shift_x = halfpixshift, shift_y = halfpixshift)
+    osys1.add_pupil(opt1shifted)
+
+    osys2 = poppy.FresnelOpticalSystem(name='SECOND PART, FRESNEL')
+    osys2.add_optic(opt2, distance=10*u.cm)
+    osys2.add_optic(poppy.QuadraticLens(1.0*u.m))
+    osys2.add_optic(poppy.Detector(pixelscale=0.125*u.micron/u.pixel, fov_pixels=512), distance=1*u.m)
+
+    cosys = poppy.CompoundOpticalSystem([osys1, osys2])
+
+    #===== PSF calculations =====
+    psf_simple = osys.calc_psf(return_intermediates=False)
+    poppy.poppy_core._log.info("******=========calculation divider============******")
+    psf_compound = cosys.calc_psf(return_intermediates=False)
+
+    np.testing.assert_allclose(psf_simple[0].data, psf_compound[0].data,
+                               err_msg="PSFs do not match between equivalent simple and compound/hybrid optical systems")
