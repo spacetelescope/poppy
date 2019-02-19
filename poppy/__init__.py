@@ -8,7 +8,8 @@ and point spread function formation, particularly in the context of astronomical
 POPPY was developed as part of a simulation package for JWST, but is more broadly applicable to many kinds of
 imaging simulations.
 
-Developed by Marshall Perrin and colleagues at STScI, 2010-2017, for use simulating the James Webb Space Telescope.
+Developed by Marshall Perrin and colleagues at STScI, for use simulating the James Webb Space Telescope
+and other NASA missions.
 
 Documentation can be found online at https://poppy-optics.readthedocs.io/
 """

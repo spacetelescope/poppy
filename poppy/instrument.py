@@ -592,10 +592,6 @@ class Instrument(object):
 
         return optsys
 
-    def _getOpticalSystem(self, *args, **kwargs):
-        warnings.warn("_getOpticalSystem is deprecated; use _get_optical_system instead", DeprecationWarning)
-        return self._get_optical_system(*args, **kwargs)
-
     def _check_for_aliasing(self, wavelengths):
         """ Check for spatial frequency aliasing and warn if the
         user is requesting a FOV which is larger than supported based on
@@ -722,7 +718,7 @@ class Instrument(object):
             old_no_sam = None
         # Trigger config validation to update any optical planes
         # (specifically auto-selected pupils based on filter selection)
-        wavelengths, _ = self._get_weights()
+        wavelengths, _ = self._get_weights(nlambda=1)
         self._validate_config(wavelengths=wavelengths)
         optsys = self._get_optical_system()
         optsys.display(what='both')

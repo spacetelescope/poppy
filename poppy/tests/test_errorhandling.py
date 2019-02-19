@@ -106,3 +106,29 @@ if _HAVE_PYTEST:
         with pytest.raises(RuntimeError) as excinfo:
             poppy_core.OpticalSystem().calc_psf()
         assert _exception_message_starts_with(excinfo, "You must define an entrance pupil diameter")
+
+
+    def test_compound_osys_errors():
+
+        """ Test that it rejects incompatible inputs"""
+        import poppy
+
+        inputs_and_errors = ( (None, "Missing required optsyslist argument"),
+                              ([], "The provided optsyslist argument is an empty list"),
+                              ([poppy.CircularAperture()], "All items in the optical system list must be OpticalSystem instances"))
+
+        for test_input, expected_error in inputs_and_errors:
+            with pytest.raises(ValueError) as excinfo:
+                poppy.CompoundOpticalSystem(test_input)
+            assert _exception_message_starts_with(excinfo, expected_error)
+
+
+        osys = poppy.OpticalSystem()
+        osys.add_pupil(poppy.CircularAperture())
+
+        cosys = poppy.CompoundOpticalSystem([osys])
+
+        with pytest.raises(RuntimeError) as excinfo:
+            cosys.add_pupil(poppy.SquareAperture())
+        assert _exception_message_starts_with(excinfo, "Adding individual optical elements is disallowed")
+

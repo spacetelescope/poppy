@@ -199,6 +199,10 @@ class ZernikeWFE(WavefrontError):
     @utils.quantity_input(coefficients=u.meter, radius=u.meter)
     def __init__(self, name="Zernike WFE", coefficients=None, radius=None,
             aperture_stop=False, **kwargs):
+
+        if radius is None:
+            raise ValueError("You must specify a radius for the unit circle "
+                             "over which the Zernike polynomials are normalized")
         self.radius = radius
         self.aperture_stop=aperture_stop
         self.coefficients = coefficients
