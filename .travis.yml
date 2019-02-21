@@ -15,7 +15,7 @@ env:
         - NUMPY_VERSION=stable
         - ASTROPY_VERSION=stable
         - SETUP_CMD='test'
-        - PIP_DEPENDENCIES=''
+        - PIP_DEPENDENCIES='numexpr'
         - CONDA_DEPENDENCIES='scipy matplotlib'
 
         # For headless testing of code that imports PyPlot:
