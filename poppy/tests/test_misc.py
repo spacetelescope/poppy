@@ -21,7 +21,7 @@ def test_airy_1d(display=False):
         plt.axvline(1.028/2, color='k', ls=':')
         plt.axhline(0.5, color='k', ls=':')
         plt.ylabel('Intensity relative to peak')
-        plt.xlabel('Separation in $\lambda/D$')
+        plt.xlabel('Separation in $\\lambda/D$')
         for rad in airy_zeros:
             plt.axvline(rad, color='red', ls='--')
 
@@ -60,13 +60,13 @@ def test_airy_2d(display=False):
         plt.legend(loc='upper right')
         plt.axvline(0.251643, color='red', ls='--')
         plt.ylabel('Intensity relative to peak')
-        plt.xlabel('Separation in $\lambda/D$')
+        plt.xlabel('Separation in $\\lambda/D$')
  
         ax=plt.subplot(212)
         plt.plot(r, cut-fn1d)
         ax.set_ylim(-1e-8, 1e-8)
         plt.ylabel('Difference')
-        plt.xlabel('Separation in $\lambda/D$')
+        plt.xlabel('Separation in $\\lambda/D$')
 
     #print fn1d[0], cut[0]
     #print np.abs(fn1d-cut) #< 1e-9
@@ -109,7 +109,7 @@ def test_sinc2_2d(display=False):
 
         plt.legend(loc='upper right')
         plt.ylabel('Intensity relative to peak')
-        plt.xlabel('Separation in $\lambda/D$')
+        plt.xlabel('Separation in $\\lambda/D$')
  
         #plt.plot(r, cut-fn1d)
         #ax.set_ylim(-1e-8, 1e-8)

@@ -600,6 +600,7 @@ class BaseWavefront(ABC):
         display_what = getattr(optic, 'wavefront_display_hint', 'best')
         display_vmax = getattr(optic, 'wavefront_display_vmax_hint', None)
         display_vmin = getattr(optic, 'wavefront_display_vmin_hint', None)
+        display_crop = getattr(optic, 'wavefront_display_imagecrop', None)
         display_nrows = getattr(self, '_display_hint_expected_nplanes', default_nplanes)
 
         ax = self.display(what=display_what,
@@ -607,6 +608,7 @@ class BaseWavefront(ABC):
                           nrows=display_nrows,
                           colorbar=False,
                           vmax=display_vmax, vmin=display_vmin,
+                          imagecrop=display_crop,
                           **kwargs)
         if hasattr(optic, 'display_annotate'):
             optic.display_annotate(optic, ax)  # atypical calling convention needed empirically
@@ -964,7 +966,7 @@ class Wavefront(BaseWavefront):
             self.planetype = PlaneType.image
             self.pixelscale = (self.wavelength / self.diam * u.radian / self.oversample).to(u.arcsec) / u.pixel
             self.fov = self.wavefront.shape[0] * u.pixel * self.pixelscale
-            self.history.append('   FFT {},  to IMAGE plane  scale={}'.format(self.wavefront.shape, self.pixelscale))
+            self.history.append('   FFT {},  to IMAGE plane  scale={:.4f}'.format(self.wavefront.shape, self.pixelscale))
 
         elif self.planetype == PlaneType.image and optic.planetype == PlaneType.pupil:
             fft_forward = False
@@ -972,7 +974,7 @@ class Wavefront(BaseWavefront):
             # (pre-)update state:
             self.planetype = PlaneType.pupil
             self.pixelscale = self.diam * self.oversample / (self.wavefront.shape[0] * u.pixel)
-            self.history.append('   FFT {},  to PUPIL scale={}'.format(self.wavefront.shape, self.pixelscale))
+            self.history.append('   FFT {},  to PUPIL scale={:.4f}'.format(self.wavefront.shape, self.pixelscale))
 
         # do FFT
         if conf.enable_flux_tests: _log.debug("\tPre-FFT total intensity: " + str(self.total_intensity))
@@ -2172,7 +2174,7 @@ class CompoundOpticalSystem(OpticalSystem):
                 loghistory(wavefront, "CompoundOpticalSystem: Converted wavefront to Fraunhofer type")
 
             # Propagate
-            loghistory(wavefront, "CompoundOpticalSystem: Propagating through system {}: {}".format(i, optsys.name))
+            loghistory(wavefront, "CompoundOpticalSystem: Propagating through system {}: {}".format(i+1, optsys.name))
             retval = optsys.propagate(wavefront,
                                       normalize=normalize,
                                       return_intermediates=return_intermediates,
@@ -3144,7 +3146,7 @@ class Detector(OpticalElement):
         return (int(fpix), int(fpix)) if np.isscalar(fpix) else fpix.astype(int)[0:2]
 
     def __str__(self):
-        return "Detector plane: {} ({}x{} pixels, {})".format(self.name, self.shape[1], self.shape[0], self.pixelscale)
+        return "Detector plane: {} ({}x{} pixels, {:.3f})".format(self.name, self.shape[1], self.shape[0], self.pixelscale)
 
     @staticmethod
     def _handle_pixelscale_units_flexibly(pixelscale, fov_pixels):
