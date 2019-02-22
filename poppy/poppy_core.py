@@ -2170,6 +2170,17 @@ class CompoundOpticalSystem(OpticalSystem):
         else:
             return wavefront
 
+    @property
+    def planes(self):
+        """ A merged list containing all the planes in all the included optical systems """
+        out = []
+        [out.extend(osys.planes) for osys in self.optsyslist]
+        return out
+
+    @planes.setter
+    def planes(self, value):
+        # needed for compatibility with superclass init
+        pass
 
 # ------ core Optical Element Classes ------
 
