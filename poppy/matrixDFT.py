@@ -94,7 +94,7 @@ def matrix_dft(plane, nlamD, npix,
         Is this a forward or inverse transformation? (Default is False,
         implying a forward transformation.)
     centering : {'FFTSTYLE', 'SYMMETRIC', 'ADJUSTABLE'}, optional
-        What type of centering convention should be used for this FFT? 
+        What type of centering convention should be used for this FFT?
 
         * ADJUSTABLE (the default) For an output array with ODD size n,
           the PSF center will be at the center of pixel (n-1)/2. For an output
