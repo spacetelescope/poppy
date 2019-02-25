@@ -133,7 +133,6 @@ class AnalyticOpticalElement(OpticalElement):
         else:
             return self.get_transmission(wave) * np.exp(1.j * self.get_opd(wave) * scale)
 
-
     @utils.quantity_input(wavelength=u.meter)
     def sample(self, wavelength=1e-6 * u.meter, npix=512, grid_size=None, what='amplitude',
                return_scale=False, phase_unit='waves'):
@@ -1936,3 +1935,41 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
             opd += optic.get_opd(wave)
         self.opd = opd
         return self.opd
+
+# ------ convert analytic optics to array optics ------
+
+def fixed_sampling_optic(optic, wavefront):
+    """Convert a variable-sampling AnalyticOpticalElement to a fixed-sampling ArrayOpticalElement
+
+    For a given input optic this produces an equivalent output optic stored in simple arrays rather
+    than created each time via function calls.
+
+    If you know a priori the desired sampling will remain constant for some
+    application, and don't need any of the other functionality of the
+    AnalyticOpticalElement machinery with get_opd and get_transmission functions,
+    you can save time by setting the sampling to a fixed value and saving arrays
+    computed on that sampling.
+
+    Parameters
+    ----------
+    optic : poppy.AnalyticOpticalElement
+        Some optical element
+    wave : poppy.Wavefront
+        A wavefront to define the desired sampling pixel size and number.
+
+    Returns
+    -------
+    new_array_optic : poppy.ArrayOpticalElement
+        A version ofthe input optic with fixed arrays for OPD and transmission.
+
+    """
+    from poppy_core import ArrayOpticalElement
+    npix = wavefront.shape[0]
+    grid_size = npix*u.pixel*wavefront.pixelscale
+    sampled_opd = optic.sample(what='opd', npix=npix, grid_size=grid_size)
+    sampled_trans = optic.sample(what='amplitude', npix=npix, grid_size=grid_size)
+
+    return ArrayOpticalElement(opd=sampled_opd,
+                               transmission=sampled_trans,
+                               pixelscale=wf.pixelscale,
+                               name=optic.name)

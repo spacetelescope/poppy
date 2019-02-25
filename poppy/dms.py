@@ -67,7 +67,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
                  actuator_print_through_file=None,
                  actuator_mask_file=None,
                  radius=1.0 * u.meter,
-                 **kwargs,
+                 **kwargs
                  ):
 
         optics.AnalyticOpticalElement.__init__(self, planetype=poppy_core.PlaneType.pupil, **kwargs)
@@ -212,7 +212,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         if np.isscalar(new_surface.value):
             self._surface[:] = new_surface.to(u.meter).value
         else:
-            assert new_surface.shape == self._surface.shape
+            assert new_surface.shape == self._surface.shape, "Supplied surface shape doesn't match DM. Must be {}".format(self._surface.shape)
             self._surface[:] = np.asarray(new_surface.to(u.meter).value, dtype=float)
 
     @utils.quantity_input(new_value=u.meter)
@@ -247,11 +247,17 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
     def get_act_coordinates(self, one_d=False):
         """ Y and X coordinates for the actuators
+
         Parameters
         ------------
         one_d : bool
             Return 1-dimensional arrays of coordinates per axis?
             Default is to return 2D arrays with same shape as full array.
+
+        Returns
+        -------
+        y_act, x_act : float ndarrays
+            actuator coordinates, in units of meters
         """
 
         act_space_m = self.actuator_spacing.to(u.meter).value
