@@ -2429,17 +2429,19 @@ class OpticalElement(object):
                          colorbar_orientation=colorbar_orientation, title=None, opd_vmax=opd_vmax,
                          nrows=nrows)
             ax2.set_ylabel('')  # suppress redundant label which duplicates the intensity plot's label
+            if title is not None:
+                plt.suptitle(title)
             return ax, ax2
         elif what == 'amplitude':
             plot_array = ampl
-            title = 'Transmissivity'
+            default_title = 'Transmissivity'
             cb_label = 'Fraction'
             cb_values = [0, 0.25, 0.5, 0.75, 1.0]
             cmap = cmap_amp
             norm = norm_amp
         elif what == 'intensity':
             plot_array = ampl ** 2
-            title = "Transmittance"
+            default_title = "Transmittance"
             cb_label = 'Fraction'
             cb_values = [0, 0.25, 0.5, 0.75, 1.0]
             cmap = cmap_amp
@@ -2448,14 +2450,14 @@ class OpticalElement(object):
             warnings.warn("displaying 'phase' has been deprecated. Use what='opd' instead.",
                           category=DeprecationWarning)
             plot_array = opd
-            title = "OPD"
+            default_title = "OPD"
             cb_label = 'waves'
             cb_values = np.array([-1, -0.5, 0, 0.5, 1]) * opd_vmax_m
             cmap = cmap_opd
             norm = norm_opd
         elif what == 'opd':
             plot_array = opd
-            title = "OPD"
+            default_title = "OPD"
             cb_label = 'meters'
             cb_values = np.array([-1, -0.5, 0, 0.5, 1]) * opd_vmax_m
             cmap = cmap_opd
@@ -2472,7 +2474,10 @@ class OpticalElement(object):
         utils.imshow_with_mouseover(plot_array, ax=ax, extent=extent, cmap=cmap, norm=norm,
                                     origin='lower')
         if nrows == 1:
-            plt.title(title + " for " + self.name)
+            if title is None:
+                plt.title(default_title + " for " + self.name)
+            else:
+                plt.title(title)
         plt.ylabel(units)
         ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
         ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
