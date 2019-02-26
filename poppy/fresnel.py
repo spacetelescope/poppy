@@ -1057,7 +1057,7 @@ class FresnelOpticalSystem(BaseOpticalSystem):
         self.distances = []  # distance along the optical axis to each successive optic
 
     @u.quantity_input(distance=u.m)
-    def add_optic(self, optic=None, distance=0.0 * u.m):
+    def add_optic(self, optic=None, distance=0.0 * u.m, index=None):
         """ Add an optic to the optical system
 
         Parameters
@@ -1066,9 +1066,19 @@ class FresnelOpticalSystem(BaseOpticalSystem):
             Some optic
         distance : astropy.Quantity of dimension length
             separation distance of this optic relative to the prior optic in the system.
+        index : int
+            Index at which to insert the new optical element
+
         """
-        self.planes.append(optic)
-        self.distances.append(distance.to(u.m))
+        if index is None:
+            # Optic is appended to the end of the system
+            self.planes.append(optic)
+            self.distances.append(distance.to(u.m))
+        else:
+            # Insert the optic into the middle of the beam train somewhere
+            self.planes.insert(index, optic)
+            self.distances.insert(index, distance.to(u.m))
+
         if self.verbose:
             _log.info("Added optic: {0} after separation: {1:.2e} ".format(self.planes[-1].name, distance))
 
