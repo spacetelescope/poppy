@@ -67,7 +67,7 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
         k = 2 * np.pi / wave.wavelength.to(u.m).value
         if (z == np.inf) | (z == -np.inf):
             lens_phasor = 1 + 0j
-            _log.debug("lens_phasor:"+str(lens_phasor))
+            _log.debug("lens_phasor:" + str(lens_phasor))
             return lens_phasor
         if accel_math._USE_NUMEXPR:
             rsqd = ne.evaluate("(x ** 2 + y ** 2)")
@@ -435,7 +435,7 @@ class FresnelWavefront(BaseWavefront):
             pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
 
         if accel_math._USE_NUMEXPR:
-            return ne.evaluate("pixel_scale_y * y"),  ne.evaluate("pixel_scale_x * x")
+            return ne.evaluate("pixel_scale_y * y"), ne.evaluate("pixel_scale_x * x")
         else:
             return pixel_scale_y * y, pixel_scale_x * x
 
@@ -586,7 +586,7 @@ class FresnelWavefront(BaseWavefront):
             self.planetype = PlaneType.image  # needed for back compatibility when using image plane optics
         elif optic.planetype == PlaneType.detector:
             self._resample_wavefront_pixelscale(optic)
-            self.location = 'at detector '+optic.name
+            self.location = 'at detector ' + optic.name
         else:
             self.location = 'before ' + optic.name
 
@@ -629,7 +629,7 @@ class FresnelWavefront(BaseWavefront):
         x, y = self.coordinates()  # meters
         meter_per_pix = self.pixelscale.to(u.m / u.pix).value
         rhosqr = accel_math._fftshift((x / (meter_per_pix ** 2 * self.n)) ** 2 + (
-                                  y / (meter_per_pix ** 2 * self.n)) ** 2)
+            y / (meter_per_pix ** 2 * self.n)) ** 2)
         # Transfer Function of diffraction propagation eq. 22, eq. 87
         wavelen_m = self.wavelength.to(u.m).value
 
@@ -968,7 +968,7 @@ class FresnelWavefront(BaseWavefront):
 
         pixscale_ratio = (self.pixelscale / detector.pixelscale).decompose().value
 
-        if np.abs(pixscale_ratio-1.0) < 1e-3:
+        if np.abs(pixscale_ratio - 1.0) < 1e-3:
             _log.debug("Wavefront is already at desired pixel scale "
                        "{:.4g}.  No resampling needed.".format(self.pixelscale))
             return
@@ -999,9 +999,9 @@ class FresnelWavefront(BaseWavefront):
             raise NotImplementedError("Conversion from image planes to Fresnel is not yet implemented.")
 
         if wf.ispadded:
-            beam_radius = wf.wavefront.shape[0]/wf.oversample/2 * wf.pixelscale*u.pixel
+            beam_radius = wf.wavefront.shape[0] / wf.oversample / 2 * wf.pixelscale * u.pixel
         else:
-            beam_radius = wf.wavefront.shape[0]/2 * wf.pixelscale * u.pixel
+            beam_radius = wf.wavefront.shape[0] / 2 * wf.pixelscale * u.pixel
         new_wf = FresnelWavefront(beam_radius=beam_radius,
                                   npix=wf.shape[0],
                                   oversample=wf.oversample,
@@ -1084,8 +1084,9 @@ class FresnelOpticalSystem(BaseOpticalSystem):
 
         return optic
 
-    @u.quantity_input(distance=u.m, pixelscale=u.micron/u.pixel)
-    def add_detector(self, pixelscale=10*u.micron/u.pixel, fov_pixels=10*u.pixel, distance=0.0 * u.m):
+    @u.quantity_input(distance=u.m, pixelscale=u.micron / u.pixel)
+    def add_detector(self, pixelscale=10 * u.micron / u.pixel, fov_pixels=10 * u.pixel,
+                     distance=0.0 * u.m):
         """ Add a detector to the optical system
 
         Parameters
@@ -1158,8 +1159,8 @@ class FresnelOpticalSystem(BaseOpticalSystem):
                 wavefront.normalize()
                 wavefront *= np.sqrt(2)
             elif normalize.lower() == 'exit_pupil':  # normalize the last pupil in the system to 1
-                last_pupil_plane_index = np.where(np.asarray([p.planetype is PlaneType.pupil for p in self.planes]))[
-                                             0].max() + 1
+                last_pupil_plane_index = np.where(
+                    np.asarray([p.planetype is PlaneType.pupil for p in self.planes]))[0].max() + 1
                 if wavefront.current_plane_index == last_pupil_plane_index:
                     wavefront.normalize()
                     _log.debug(
