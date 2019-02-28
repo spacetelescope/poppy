@@ -2475,9 +2475,8 @@ class OpticalElement(object):
                                     origin='lower')
         if nrows == 1:
             if title is None:
-                plt.title(default_title + " for " + self.name)
-            else:
-                plt.title(title)
+                title = default_title + " for " + self.name
+            plt.title(title)
         plt.ylabel(units)
         ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
         ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
