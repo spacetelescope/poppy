@@ -204,7 +204,7 @@ class ZernikeWFE(WavefrontError):
             raise ValueError("You must specify a radius for the unit circle "
                              "over which the Zernike polynomials are normalized")
         self.radius = radius
-        self.aperture_stop=aperture_stop
+        self.aperture_stop = aperture_stop
         self.coefficients = coefficients
         self.circular_aperture = CircularAperture(radius=self.radius, **kwargs)
         self._default_display_size = radius * 3
@@ -275,6 +275,7 @@ class ZernikeWFE(WavefrontError):
         else:
             return np.ones(wave.shape)
 
+
 class SineWaveWFE(WavefrontError):
     """ A single sine wave ripple across the optic
 
@@ -323,3 +324,32 @@ class SineWaveWFE(WavefrontError):
         if units == 'waves':
             opd /= wave.wavelength.to(u.meter).value
         return opd
+
+
+class StatsticalPSDWFE(WavefrontError):
+    """
+    Statistical PSF WFE class from power law for optical noise.
+
+    Input WFE in radians RMS.
+    """
+
+    @utils.quantity_input(wfe=u.rad)
+    def __init__(self, name='PSD WFE', index=3.0, wfe=0.25, **kwargs):
+
+        super(WavefrontError, self).__init__(name=name, **kwargs)
+        self.index = index
+        self.wfe_rad = wfe
+
+    def get_opd(self, wave, units='meters'):
+
+        y, x = self.get_coordinates(wave)
+        rho, theta = _wave_y_x_to_rho_theta(y, x, self.radius.to(u.meter).value)
+        psd = np.power(rho, -self.index)
+        psd = psd / np.sum(psd) * np.square(self.wfe_rad / wave.wavelength.to(u.meter).value)
+
+        rndm_phase = np.random.random((len(y), len(x)))
+        rndm_psd = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(rndm_phase)))
+        scaled = np.sqrt(psd) * rndm_psd
+        phase_screen = np.real_if_close(np.fft.ifftshift(np.fft.ifft2(np.fft.ifftshift(scaled))))
+
+        return phase_screen.real
