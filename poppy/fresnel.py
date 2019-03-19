@@ -971,6 +971,7 @@ class FresnelWavefront(BaseWavefront):
         if np.abs(pixscale_ratio - 1.0) < 1e-3:
             _log.debug("Wavefront is already at desired pixel scale "
                        "{:.4g}.  No resampling needed.".format(self.pixelscale))
+            self.wavefront = utils.pad_or_crop_to_shape(self.wavefront, detector.shape)
             return
 
         super(FresnelWavefront, self)._resample_wavefront_pixelscale(detector)
