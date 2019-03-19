@@ -691,12 +691,18 @@ class BaseWavefront(ABC):
         # We should consider cropping out an appropriate subregion prior to performing the zoom.
         # That makes a difference if the detector is only sampling a small part of a much larger wavefront
 
-        new_wf_real = scipy.ndimage.zoom(self.wavefront.real, pixscale_ratio, order=detector.interp_order)
-        new_wf_imag = scipy.ndimage.zoom(self.wavefront.imag, pixscale_ratio, order=detector.interp_order)
-        new_wf = new_wf_real + 1.j*new_wf_imag
+        # Crop the wavefront down, but leave a 10% margin around the edges to avoid interpolation
+        # artifacts
+        intermediate_crop_shape = [int(np.floor(1.1 * shape)) for shape in detector.shape]
+        wf_cropped = utils.pad_or_crop_to_shape(self.wavefront, intermediate_crop_shape)
+
+        # Interpolate cropped wavefront
+        new_wf_real = scipy.ndimage.zoom(wf_cropped.real, pixscale_ratio, order=detector.interp_order)
+        new_wf_imag = scipy.ndimage.zoom(wf_cropped.imag, pixscale_ratio, order=detector.interp_order)
+        new_wf = new_wf_real + 1.j * new_wf_imag
 
         # enforce conservation of energy:
-        new_wf *= 1./pixscale_ratio
+        new_wf *= 1. / pixscale_ratio
 
         _log.debug("Cropping/padding resampled wavefront to detector shape: {}".format(detector.shape))
         new_wf = utils.pad_or_crop_to_shape(new_wf, detector.shape)
