@@ -199,7 +199,7 @@ class BaseWavefront(ABC):
 
     def __iadd__(self, wave):
         """Add another wavefront to this one"""
-        if not isinstance(wave, Wavefront):
+        if not isinstance(wave, BaseWavefront):
             raise ValueError('Wavefronts can only be summed with other Wavefronts')
 
         if not self.wavefront.shape[0] == wave.wavefront.shape[0]:
