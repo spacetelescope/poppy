@@ -673,7 +673,19 @@ class BaseWavefront(ABC):
         The wavefront object is modified to have the appropriate pixel scale and spatial extent.
 
         """
-        import scipy.ndimage
+        import scipy.interpolate
+
+        # scipy.interpolate.interp2d accepts string arguments for 1st, 3rd, 5th order splines, so
+        # associate these strings with the values of detector.interp_order
+        ORDERS = {
+            1: 'linear',
+            3: 'cubic',
+            5: 'quintic'
+        }
+
+        if detector.interp_order not in ORDERS:
+            _log.warning('Invalid interpolation order. Valid options: 1, 3, 5.  Falling back to 3rd-order.')
+            detector.interp_order = 3
 
         pixscale_ratio = (self.pixelscale / detector.pixelscale).decompose().value
         _log.info("Resampling wavefront to detector with {} pixels and {}. Zoom factor is {:.5f}".format(
@@ -687,19 +699,28 @@ class BaseWavefront(ABC):
         _log.debug("Desired detector FOV: {} pixels, {:.3f}".format(detector.shape,
                                                                     detector.shape[0]*u.pixel*detector.pixelscale))
 
-        # TODO the following works but is not optimal for performance
-        # We should consider cropping out an appropriate subregion prior to performing the zoom.
-        # That makes a difference if the detector is only sampling a small part of a much larger wavefront
+        def make_axis(npix, step):
+            """ Helper function to make coordinate axis for interpolation """
+            return step * np.arange(-npix // 2, npix // 2, dtype=np.float64)
 
-        # Crop the wavefront down, but leave a 10% margin around the edges to avoid interpolation
-        # artifacts
-        intermediate_crop_shape = [int(np.floor(1.1 * shape)) for shape in detector.shape]
-        wf_cropped = utils.pad_or_crop_to_shape(self.wavefront, intermediate_crop_shape)
+        # Provide 2x margin around image to reduce interpolation errors at edge, but also make
+        # sure that image is centered properly after it gets cropped down to detector size
+        margin_factor = 2
+        x_in = make_axis(self.wavefront.shape[0], self.pixelscale)
+        y_in = make_axis(self.wavefront.shape[1], self.pixelscale)
+        x_out = make_axis(margin_factor * detector.shape[0], detector.pixelscale)
+        y_out = make_axis(margin_factor * detector.shape[1], detector.pixelscale)
 
-        # Interpolate cropped wavefront
-        new_wf_real = scipy.ndimage.zoom(wf_cropped.real, pixscale_ratio, order=detector.interp_order)
-        new_wf_imag = scipy.ndimage.zoom(wf_cropped.imag, pixscale_ratio, order=detector.interp_order)
-        new_wf = new_wf_real + 1.j * new_wf_imag
+        def interpolator(arr):
+            """ Bind arguments to scipy's interp2d function """
+            # TODO: scipy.interpolate.RectBivariateSpline is much more efficient for data on a
+            # regular grid
+            return scipy.interpolate.interp2d(x_in, y_in, arr, kind=ORDERS[detector.interp_order])
+
+        # Interpolate real and imaginary parts separately
+        real_resampled = interpolator(self.wavefront.real)(x_out, y_out)
+        imag_resampled = interpolator(self.wavefront.imag)(x_out, y_out)
+        new_wf = real_resampled + 1j * imag_resampled
 
         # enforce conservation of energy:
         new_wf *= 1. / pixscale_ratio
