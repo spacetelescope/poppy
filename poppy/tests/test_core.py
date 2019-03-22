@@ -525,7 +525,7 @@ def test_OPD_in_waves_for_FITSOpticalElement():
     lens_as_fits[0].header['BUNIT'] = 'radian'
     lens_as_fits[0].data *= 2 * np.pi / reference_wavelength.to(u.m).value
     thin_lens_wl_indep = poppy.FITSOpticalElement(opd=lens_as_fits, opdunits='radian')
-    central_pixels = []
+    # We expect identical peak flux for all wavelengths, so check at 0.5x and 2x
     for prefactor in (0.5, 1.0, 2.0):
         osys = poppy.OpticalSystem(oversample=1, npix=npix)
         osys.add_pupil(pupil)
