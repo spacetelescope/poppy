@@ -2634,7 +2634,7 @@ class FITSOpticalElement(OpticalElement):
         self.amplitude_file = None
         self.amplitude_header = None
         self.opd_header = None
-        self._opd_is_phase_map = False
+        self._opd_in_radians = False
         self.planetype = planetype
 
         _log.debug("Trans: " + str(transmission))
@@ -2754,14 +2754,14 @@ class FITSOpticalElement(OpticalElement):
             elif opdunits in ('nanometer', 'nm'):
                 self.opd *= 1e-9
             elif opdunits == 'radian':
-                self._opd_is_phase_map = True
+                self._opd_in_radians = True
             else:
                 raise ValueError(
                     "Got opdunits (or BUNIT header keyword) {}. Valid options "
                     "are meter, micron, nanometer, or radian.".format(repr(opdunits))
                 )
 
-            if self.opd_header is not None and not self._opd_is_phase_map:
+            if self.opd_header is not None and not self._opd_in_radians:
                 self.opd_header['BUNIT'] = 'meter'
 
             if len(self.opd.shape) != 2 or self.opd.shape[0] != self.opd.shape[1]:
@@ -2929,7 +2929,7 @@ class FITSOpticalElement(OpticalElement):
             wavelength = wave.wavelength
         else:
             wavelength = wave
-        if self._opd_is_phase_map:
+        if self._opd_in_radians:
             return self.opd * wavelength.to(u.m) / (2 * np.pi)
         return self.opd
 
