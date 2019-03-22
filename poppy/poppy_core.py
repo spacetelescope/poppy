@@ -2349,9 +2349,9 @@ class OpticalElement(object):
         else:
             return self.phasor
 
-    @utils.quantity_input(opd_vmax=u.meter)
+    @utils.quantity_input(opd_vmax=u.meter, wavelength=u.meter)
     def display(self, nrows=1, row=1, what='intensity', crosshairs=False, ax=None, colorbar=True,
-                colorbar_orientation=None, title=None, opd_vmax=0.5e-6 * u.meter):
+                colorbar_orientation=None, title=None, opd_vmax=0.5e-6 * u.meter, wavelength=1e-6 * u.meter):
         """Display plots showing an optic's transmission and OPD.
 
         Parameters
@@ -2374,6 +2374,9 @@ class OpticalElement(object):
             Max absolute value for OPD image display, in meters.
         title : string
             Plot label
+        wavelength : float, default 1 micron
+            For optics with wavelength-dependent behavior, evaluate at this
+            wavelength for display.
         """
         if colorbar_orientation is None:
             colorbar_orientation = "horizontal" if nrows == 1 else 'vertical'
@@ -2415,8 +2418,9 @@ class OpticalElement(object):
             halfsize = 1.0
         extent = [-halfsize, halfsize, -halfsize, halfsize]
 
-        ampl = self.amplitude
-        opd = self.opd.copy()
+
+        ampl = self.get_transmission(wavelength)
+        opd = self.get_opd(wavelength)
         opd[np.where(self.amplitude == 0)] = np.nan
 
         if what == 'both':
