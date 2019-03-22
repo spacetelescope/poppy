@@ -502,13 +502,14 @@ def test_OPD_in_waves_for_FITSOpticalElement():
     pupil_radius = 1 * u.m
     pupil = poppy.CircularAperture(radius=pupil_radius)
     reference_wavelength = 1 * u.um
+    npix = 16
     single_wave_1um_lens = poppy.ThinLens(
         name='Defocus',
         nwaves=1,
         reference_wavelength=reference_wavelength,
         radius=pupil_radius
     )
-    osys = poppy.OpticalSystem(oversample=1, npix=1024)
+    osys = poppy.OpticalSystem(oversample=1, npix=npix)
     osys.add_pupil(pupil)
     osys.add_pupil(single_wave_1um_lens)
     osys.add_detector(0.01 * u.arcsec / u.pixel, fov_pixels=3)
@@ -520,21 +521,18 @@ def test_OPD_in_waves_for_FITSOpticalElement():
     assert psf_2um[0].data[1,1] > psf_1um[0].data[1,1]
     # Now, use the single_wave_1um_lens optic to make a
     # wavelength-independent 1 wave defocus
-    lens_as_fits = single_wave_1um_lens.to_fits(what='opd', npix=1536)
+    lens_as_fits = single_wave_1um_lens.to_fits(what='opd', npix=3 * npix // 2)
     lens_as_fits[0].header['BUNIT'] = 'radian'
     lens_as_fits[0].data *= 2 * np.pi / reference_wavelength.to(u.m).value
     thin_lens_wl_indep = poppy.FITSOpticalElement(opd=lens_as_fits, opdunits='radian')
     central_pixels = []
     for prefactor in (0.5, 1.0, 2.0):
-        osys = poppy.OpticalSystem(oversample=1, npix=1024)
+        osys = poppy.OpticalSystem(oversample=1, npix=npix)
         osys.add_pupil(pupil)
         osys.add_pupil(thin_lens_wl_indep)
         osys.add_detector(prefactor * 0.01 * u.arcsec / u.pixel, fov_pixels=3)
         psf = osys.calc_psf(wavelength=prefactor * u.um)
-        central_pixels.append(psf[0].data[1,1])
-        yc, xc = psf[0].data.shape[0] // 2, psf[0].data.shape[1] // 2
-    assert np.allclose(center_pixel_value, central_pixels)
-
+        assert np.isclose(center_pixel_value, psf[0].data[1,1])
 
 ### Detector class unit test ###
 
