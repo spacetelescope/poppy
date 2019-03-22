@@ -516,7 +516,7 @@ def test_OPD_in_waves_for_FITSOpticalElement():
     # has lower flux than at 2 um (it should be the 'hole' of the donut)
     psf_1um = osys.calc_psf(reference_wavelength)
     center_pixel_value = psf_1um[0].data[1,1]
-    psf_2um = osys.calc_psf(reference_wavelength)
+    psf_2um = osys.calc_psf(2 * reference_wavelength)
     assert psf_2um[0].data[1,1] > psf_1um[0].data[1,1]
     # Now, use the single_wave_1um_lens optic to make a
     # wavelength-independent 1 wave defocus
