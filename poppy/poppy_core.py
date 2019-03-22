@@ -675,18 +675,6 @@ class BaseWavefront(ABC):
         """
         import scipy.interpolate
 
-        # scipy.interpolate.interp2d accepts string arguments for 1st, 3rd, 5th order splines, so
-        # associate these strings with the values of detector.interp_order
-        ORDERS = {
-            1: 'linear',
-            3: 'cubic',
-            5: 'quintic'
-        }
-
-        if detector.interp_order not in ORDERS:
-            _log.warning('Invalid interpolation order. Valid options: 1, 3, 5.  Falling back to 3rd-order.')
-            detector.interp_order = 3
-
         pixscale_ratio = (self.pixelscale / detector.pixelscale).decompose().value
         _log.info("Resampling wavefront to detector with {} pixels and {}. Zoom factor is {:.5f}".format(
             detector.shape, detector.pixelscale, pixscale_ratio))
@@ -703,32 +691,38 @@ class BaseWavefront(ABC):
             """ Helper function to make coordinate axis for interpolation """
             return step * np.arange(-npix // 2, npix // 2, dtype=np.float64)
 
-        # Provide 2x margin around image to reduce interpolation errors at edge, but also make
+        # Provide 2-pixel margin around image to reduce interpolation errors at edge, but also make
         # sure that image is centered properly after it gets cropped down to detector size
-        margin_factor = 2
-        x_in = make_axis(self.wavefront.shape[0], self.pixelscale)
-        y_in = make_axis(self.wavefront.shape[1], self.pixelscale)
-        x_out = make_axis(margin_factor * detector.shape[0], detector.pixelscale)
-        y_out = make_axis(margin_factor * detector.shape[1], detector.pixelscale)
+        margin = 2
+        crop_shape = [margin + shape for shape in self.wavefront.shape]
+
+        # Crop wavefront down to detector size + margin- don't waste computation interpolating
+        # parts of plane that get cropped out later anyways
+        cropped_wf = utils.pad_or_crop_to_shape(self.wavefront, crop_shape)
+
+        # Input and output axes for interpolation.  The interpolated wavefront will be evaluated
+        # directly onto the detector axis, so don't need to crop afterwards.
+        x_in = make_axis(crop_shape[0], self.pixelscale)
+        y_in = make_axis(crop_shape[1], self.pixelscale)
+        x_out = make_axis(detector.shape[0], detector.pixelscale)
+        y_out = make_axis(detector.shape[1], detector.pixelscale)
 
         def interpolator(arr):
-            """ Bind arguments to scipy's interp2d function """
-            # TODO: scipy.interpolate.RectBivariateSpline is much more efficient for data on a
-            # regular grid
-            return scipy.interpolate.interp2d(x_in, y_in, arr, kind=ORDERS[detector.interp_order])
+            """
+            Bind arguments to scipy's RectBivariateSpline function.  For data on a regular 2D grid, RectBivariateSpline is more efficient than interp2d.
+            """
+            return scipy.interpolate.RectBivariateSpline(
+                x_in, y_in, arr, kx=detector.interp_order, ky=detector.interp_order)
 
         # Interpolate real and imaginary parts separately
-        real_resampled = interpolator(self.wavefront.real)(x_out, y_out)
-        imag_resampled = interpolator(self.wavefront.imag)(x_out, y_out)
+        real_resampled = interpolator(cropped_wf.real)(x_out, y_out)
+        imag_resampled = interpolator(cropped_wf.imag)(x_out, y_out)
         new_wf = real_resampled + 1j * imag_resampled
 
         # enforce conservation of energy:
         new_wf *= 1. / pixscale_ratio
 
-        _log.debug("Cropping/padding resampled wavefront to detector shape: {}".format(detector.shape))
-        new_wf = utils.pad_or_crop_to_shape(new_wf, detector.shape)
         self.ispadded = False   # if a pupil detector, avoid auto-cropping padded pixels on output
-
         self.wavefront = new_wf
         self.pixelscale = detector.pixelscale
 
