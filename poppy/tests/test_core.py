@@ -107,11 +107,11 @@ def test_input_wavefront_size():
 def test_CircularAperture_Airy(display=False):
     """ Compare analytic 2d Airy function with the results of a POPPY
     numerical calculation of the PSF for a circular aperture.
-   
+
     Note that we expect very close but not precisely perfect agreement due to
     the quantization of the POPPY PSF relative to a perfect geometric circle.
     """
-   
+
     from ..misc import airy_2d
     # Analytic PSF for 1 meter diameter aperture
     analytic = airy_2d(diameter=1)
@@ -391,7 +391,7 @@ def test_unit_conversions():
 
 def test_return_complex():
     osys =poppy_core.OpticalSystem()
-    osys.add_pupil(optics.CircularAperture(radius=3))  
+    osys.add_pupil(optics.CircularAperture(radius=3))
     osys.add_detector(pixelscale=0.010, fov_arcsec=5.0)
     psf = osys.calc_psf(2e-6,return_final=True)
     assert len(psf[1])==1 #make sure only one element was returned
@@ -497,6 +497,43 @@ def test_FITSOpticalElement(tempdir='./'):
     assert foe.opd_file == fn2
     assert foe.opd_slice == 1
     assert np.allclose(foe.opd, rect_mask*1e-9)
+
+def test_OPD_in_waves_for_FITSOpticalElement():
+    pupil_radius = 1 * u.m
+    pupil = poppy.CircularAperture(radius=pupil_radius)
+    reference_wavelength = 1 * u.um
+    single_wave_1um_lens = poppy.ThinLens(
+        name='Defocus',
+        nwaves=1,
+        reference_wavelength=reference_wavelength,
+        radius=pupil_radius
+    )
+    osys = poppy.OpticalSystem(oversample=1, npix=1024)
+    osys.add_pupil(pupil)
+    osys.add_pupil(single_wave_1um_lens)
+    osys.add_detector(0.01 * u.arcsec / u.pixel, fov_pixels=3)
+    # We have applied 1 wave of defocus at 1 um, so verify the center
+    # has lower flux than at 2 um (it should be the 'hole' of the donut)
+    psf_1um = osys.calc_psf(reference_wavelength)
+    center_pixel_value = psf_1um[0].data[1,1]
+    psf_2um = osys.calc_psf(reference_wavelength)
+    assert psf_2um[0].data[1,1] > psf_1um[0].data[1,1]
+    # Now, use the single_wave_1um_lens optic to make a
+    # wavelength-independent 1 wave defocus
+    lens_as_fits = single_wave_1um_lens.to_fits(what='opd', npix=1536)
+    lens_as_fits[0].header['BUNIT'] = 'radian'
+    lens_as_fits[0].data *= 2 * np.pi / reference_wavelength.to(u.m).value
+    thin_lens_wl_indep = poppy.FITSOpticalElement(opd=lens_as_fits, opdunits='radian')
+    central_pixels = []
+    for prefactor in (0.5, 1.0, 2.0):
+        osys = poppy.OpticalSystem(oversample=1, npix=1024)
+        osys.add_pupil(pupil)
+        osys.add_pupil(thin_lens_wl_indep)
+        osys.add_detector(prefactor * 0.01 * u.arcsec / u.pixel, fov_pixels=3)
+        psf = osys.calc_psf(wavelength=prefactor * u.um)
+        central_pixels.append(psf[0].data[1,1])
+        yc, xc = psf[0].data.shape[0] // 2, psf[0].data.shape[1] // 2
+    assert np.allclose(center_pixel_value, central_pixels)
 
 
 ### Detector class unit test ###

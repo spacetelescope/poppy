@@ -2289,11 +2289,13 @@ class OpticalElement(object):
             else:
                 # raise NotImplementedError("Need to implement resampling.")
                 zoom = (self.pixelscale / wave.pixelscale).decompose().value
-                resampled_opd = scipy.ndimage.interpolation.zoom(self.opd, zoom,
-                                                                 output=self.opd.dtype,
+                original_opd = self.get_opd(wave)
+                resampled_opd = scipy.ndimage.interpolation.zoom(original_opd, zoom,
+                                                                 output=original_opd.dtype,
                                                                  order=self.interp_order)
-                resampled_amplitude = scipy.ndimage.interpolation.zoom(self.amplitude, zoom,
-                                                                       output=self.amplitude.dtype,
+                original_amplitude = self.get_transmission(wave)
+                resampled_amplitude = scipy.ndimage.interpolation.zoom(original_amplitude, zoom,
+                                                                       output=original_amplitude.dtype,
                                                                        order=self.interp_order)
                 _log.debug("resampled optic to match wavefront via spline interpolation by a" +
                            " zoom factor of {:.3g}".format(zoom))
@@ -2632,7 +2634,7 @@ class FITSOpticalElement(OpticalElement):
         self.amplitude_file = None
         self.amplitude_header = None
         self.opd_header = None
-
+        self._opd_is_phase_map = False
         self.planetype = planetype
 
         _log.debug("Trans: " + str(transmission))
@@ -2734,7 +2736,7 @@ class FITSOpticalElement(OpticalElement):
                 try:
                     opdunits = self.opd_header['BUNIT']
                 except KeyError:
-                    _log.error("No opdunit keyword supplied, and BUNIT keyword not found in header. "
+                    _log.error("No opdunits keyword supplied, and BUNIT keyword not found in header. "
                                "Cannot determine OPD units")
                     raise Exception("No opdunit keyword supplied, and BUNIT keyword not found in header. "
                                     "Cannot determine OPD units.")
@@ -2751,7 +2753,15 @@ class FITSOpticalElement(OpticalElement):
                 self.opd *= 1e-6
             elif opdunits in ('nanometer', 'nm'):
                 self.opd *= 1e-9
-            if self.opd_header is not None:
+            elif opdunits == 'radian':
+                self._opd_is_phase_map = True
+            else:
+                raise ValueError(
+                    "Got opdunits (or BUNIT header keyword) {}. Valid options "
+                    "are meter, micron, nanometer, or radian.".format(repr(opdunits))
+                )
+
+            if self.opd_header is not None and not self._opd_is_phase_map:
                 self.opd_header['BUNIT'] = 'meter'
 
             if len(self.opd.shape) != 2 or self.opd.shape[0] != self.opd.shape[1]:
@@ -2895,6 +2905,33 @@ class FITSOpticalElement(OpticalElement):
     def pupil_diam(self):
         """Diameter of the pupil (if this is a pupil plane optic)"""
         return self.pixelscale * (self.amplitude.shape[0] * u.pixel)
+
+    def get_opd(self, wave):
+        """ Return the optical path difference, given a wavelength.
+
+        When the OPD map is defined in terms of wavelength-independent
+        phase, as in the case of the vector apodizing phase plate
+        coronagraph of Snik et al. (Proc. SPIE, 2012), it is converted
+        to optical path difference in meters at the given wavelength for
+        consistency with the rest of POPPY.
+
+        Parameters
+        ----------
+        wave : float or obj
+            either a scalar wavelength or a Wavefront object
+
+        Returns
+        --------
+        ndarray giving OPD in meters
+
+        """
+        if isinstance(wave, BaseWavefront):
+            wavelength = wave.wavelength
+        else:
+            wavelength = wave
+        if self._opd_is_phase_map:
+            return self.opd * wavelength.to(u.m) / (2 * np.pi)
+        return self.opd
 
 
 class CoordinateTransform(OpticalElement):
