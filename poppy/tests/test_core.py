@@ -515,9 +515,9 @@ def test_OPD_in_waves_for_FITSOpticalElement():
     osys.add_detector(0.01 * u.arcsec / u.pixel, fov_pixels=3)
     # We have applied 1 wave of defocus at 1 um, so verify the center
     # has lower flux than at 2 um (it should be the 'hole' of the donut)
-    psf_1um = osys.calc_psf(reference_wavelength)
+    psf_1um = osys.calc_psf(reference_wavelength.to(u.m).value)
     center_pixel_value = psf_1um[0].data[1,1]
-    psf_2um = osys.calc_psf(2 * reference_wavelength)
+    psf_2um = osys.calc_psf(2 * reference_wavelength.to(u.m).value)
     assert psf_2um[0].data[1,1] > psf_1um[0].data[1,1]
     # Now, use the single_wave_1um_lens optic to make a
     # wavelength-independent 1 wave defocus
@@ -531,7 +531,7 @@ def test_OPD_in_waves_for_FITSOpticalElement():
         osys.add_pupil(pupil)
         osys.add_pupil(thin_lens_wl_indep)
         osys.add_detector(prefactor * 0.01 * u.arcsec / u.pixel, fov_pixels=3)
-        psf = osys.calc_psf(wavelength=prefactor * u.um)
+        psf = osys.calc_psf(wavelength=(prefactor * reference_wavelength).to(u.m).value)
         assert np.isclose(center_pixel_value, psf[0].data[1,1])
 
 ### Detector class unit test ###
