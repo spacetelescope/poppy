@@ -5,13 +5,13 @@ import numpy as np
 #  Functions for reasonably exact geometry on discrete arrays
 #  These codes allow you to calculate circles and other such
 #  shapes discretized onto arrays with proper handling of areas
-#  at subpixel precision. (or at least reasonably proper; no 
+#  at subpixel precision. (or at least reasonably proper; no
 #  guarantees for utter mathematical exactness at machine precision.)
 
 
 # original code in pixwt.c by Marc Buie
 #    See http://www.boulder.swri.edu/~buie/idl/downloads/custom/32bit/pixwt.c
-# 
+#
 # ported to pixwt.pro (IDL) by Doug Loucks, Lowell Observatory, 1992 Sep
 #
 # subsequently ported to python by Michael Fitzgerald, 2007-10-16
@@ -99,7 +99,7 @@ def _oneside(x, y0, y1, r):
         if np.any(j):
             ans[j] = _chord(x[j], y0[j], yh[j]) + \
                      _arc(x[j], yh[j], y1[j], r)
-        
+
     i = ((y0 >= yh) & ti)
     if np.any(i):
 
@@ -155,7 +155,7 @@ def pixwt(xc, yc, r, x, y):
 
 
 
-def filled_circle_aa(shape, xcenter, ycenter, radius, xarray=None, yarray=None, 
+def filled_circle_aa(shape, xcenter, ycenter, radius, xarray=None, yarray=None,
         fillvalue=1, clip=True, cliprange=(0,1)):
     """Draw a filled circle with subpixel antialiasing into an array.
 

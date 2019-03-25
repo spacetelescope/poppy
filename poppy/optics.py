@@ -307,6 +307,18 @@ class AnalyticOpticalElement(OpticalElement):
 
         return y, x
 
+    def transform_coords_to_wave(self, wave, y, x):
+        """ Given cartesian coordinates (Y,X) in
+        meters (or arcsec, for image planes) in the optic's native
+        coordinate systen, transform those to the coordinates of the wavefront's
+        array sampling, after taking into account rotation and translation etc.
+
+
+
+        """
+        raise NotImplementedError("Not implemented yet.")
+
+
 
 class ScalarTransmission(AnalyticOpticalElement):
     """ Uniform transmission between 0 and 1.0 in intensity.
@@ -678,10 +690,6 @@ class RectangularFieldStop(AnalyticImagePlaneElement):
                              "to define the spacing")
         assert (wave.planetype == PlaneType.image)
 
-        #        y, x = wave.coordinates()
-        #        xnew = x * np.cos(np.deg2rad(self.angle)) + y * np.sin(np.deg2rad(self.angle))
-        #        ynew = -x * np.sin(np.deg2rad(self.angle)) + y * np.cos(np.deg2rad(self.angle))
-        #        x, y = xnew, ynew
         y, x = self.get_coordinates(wave)
 
         w_outside = np.where(
@@ -831,21 +839,17 @@ class AnnularFieldStop(AnalyticImagePlaneElement):
         radius_inner = self.radius_inner.to(u.arcsec).value
         radius_outer = self.radius_outer.to(u.arcsec).value
 
-        pxscl = x[0,1]-x[0,0]
+        pxscl = wave.pixelscale.to(u.arcsec/u.pixel).value
         ypix=y/pxscl  # The filled_circle_aa code and in particular pxwt doesn't seem reliable with pixel scale <1
         xpix=x/pxscl
 
         if self.radius_outer > 0:
-            #w_outside = np.where(r >= self.radius_outer)
-            #self.transmission[w_outside] = 0
             self.transmission = geometry.filled_circle_aa(wave.shape, 0,0, radius_outer/pxscl, xarray=xpix, yarray=ypix)
         else:
             self.transmission = np.ones(wave.shape, dtype=_float())
 
         if self.radius_inner > 0:
             self.transmission -= geometry.filled_circle_aa(wave.shape, 0,0, radius_inner/pxscl, xarray=xpix, yarray=ypix)
-            #w_inside = np.where(r <= self.radius_inner)
-            #self.transmission[w_inside] = 0
 
         return self.transmission
 
@@ -1645,13 +1649,16 @@ class ThinLens(CircularAperture):
         # rather than center-to-peak
         defocus_zernike = ((2 * r_norm ** 2 - 1) *
                            (0.5 * self.nwaves * self.reference_wavelength.to(u.meter).value))
+
         # add negative sign here to get desired sign convention
-        opd = -defocus_zernike * aperture_intensity
+        opd = -defocus_zernike
 
         # the thin lens is explicitly also a circular aperture:
-        # we use the aperture instensity here to mask the OPD we return
+        # we use the aperture instensity here to mask the OPD we return, in
+        # order to avoid bogus values outside the aperture
         aperture_intensity = CircularAperture.get_transmission(self, wave)
         opd[aperture_intensity==0] = 0
+
 
         return opd
 

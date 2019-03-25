@@ -266,7 +266,7 @@ class ZernikeWFE(WavefrontError):
                     noll_normalize=True
                 )
 
-        combined_zernikes *= aperture_intensity
+        combined_zernikes[aperture_intensity==0] = 0
         if units == 'waves':
             combined_zernikes /= wave.wavelength.to(u.meter).value
         return combined_zernikes
