@@ -514,25 +514,49 @@ def test_detector_in_fresnel_system(npix=256):
     """ Show that we can put a detector in a FresnelOpticalSystem
     and it will resample the wavefront to the desired sampling and size"""
 
+    output_npix = 400
+    out_pixscale = 210
+
     # Setup Fresnel system, with a detector that changes the sampling
-    osys = fresnel.FresnelOpticalSystem(pupil_diameter=0.05*u.m, npix=npix, beam_ratio=0.25)
+    # note - ensure pupil array diameter is at least a bit larger than the actual aperture
+    osys = fresnel.FresnelOpticalSystem(pupil_diameter=0.051*u.m, npix=npix, beam_ratio=0.25)
     osys.add_optic(optics.CircularAperture(radius=0.025))
     osys.add_optic(optics.ScalarTransmission(), distance=10*u.m)
-    osys.add_detector(pixelscale=200*u.micron/u.pixel, fov_pixels=300)
+    osys.add_detector(pixelscale=out_pixscale*u.micron/u.pixel, fov_pixels=output_npix)
 
     # Calculate a PSF
     psf, waves = osys.calc_psf(wavelength=1e-6, return_intermediates=True)
 
     # Check the output pixel scale is as desired
-    np.testing.assert_almost_equal(psf[0].header['PIXELSCL'],  0.0002)
+    np.testing.assert_almost_equal(psf[0].header['PIXELSCL'],  out_pixscale/1e6)
 
     # Check the wavefront gets cropped to the right size of pixels, from something different
     assert waves[0].shape == (1024, 1024)
     assert waves[1].shape == (1024, 1024)
-    assert waves[2].shape == (300, 300)
-    assert psf[0].data.shape == (300, 300)
+    assert waves[2].shape == (output_npix, output_npix)
+    assert psf[0].data.shape == (output_npix, output_npix)
 
-    assert psf[0].header['NAXIS1'] == 300
+    assert psf[0].header['NAXIS1'] == output_npix
+
+    # Check the PSF is centered and not offset
+    psfdata = psf[0].data
+    ny, nx = psfdata.shape
+    assert psfdata[ny//2, nx//2] == psfdata.max(), "Peak (spot of Arago) is not in the center"
+    assert np.allclose(psfdata[output_npix//2],
+                       np.roll(psfdata[output_npix//2][::-1], 1), atol=3e-8), "PSF is unexpectedly asymmetric"
+    y, x = np.indices(psfdata.shape)
+    x -= nx//2
+    y -= ny//2
+    assert (psf[0].data*x).sum() / \
+        psf[0].data.sum() < 0.001, "PSF is surprisingly offset from centered in X"
+    assert (psf[0].data*y).sum() / \
+        psf[0].data.sum() < 0.001, "PSF is surprisingly offset from centered in Y"
+
+    # Check flux conservation
+    # Note this test relies on the detector covering a sufficiently large area of the PSF that the
+    # encircled energy is nearly total
+    assert np.abs(waves[2].total_intensity -
+                  1) < 0.001, "PSF total flux is surprisingly different from 1"
 
 def test_wavefront_conversions():
     """ Test conversions between Wavefront and FresnelWavefront
