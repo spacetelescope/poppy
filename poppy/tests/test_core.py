@@ -629,3 +629,6 @@ def test_CompoundOpticalSystem():
     np.testing.assert_allclose(psf_simple[0].data, psf_compound[0].data,
                                err_msg="PSFs do not match between equivalent simple and compound optical systems")
 
+
+    # check the planes
+    assert len(cosys.planes) == len(osys1.planes)+len(osys2.planes)
