@@ -2418,9 +2418,9 @@ class OpticalElement(object):
             halfsize = 1.0
         extent = [-halfsize, halfsize, -halfsize, halfsize]
 
-
-        ampl = self.get_transmission(wavelength)
-        opd = self.get_opd(wavelength)
+        temp_wavefront = Wavefront(wavelength)
+        ampl = self.get_transmission(temp_wavefront)
+        opd = self.get_opd(temp_wavefront)
         opd[np.where(ampl == 0)] = np.nan
 
         if what == 'both':
