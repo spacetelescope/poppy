@@ -1034,16 +1034,20 @@ class CircularAperture(AnalyticOpticalElement):
         Descriptive name
     radius : float
         Radius of the pupil, in meters. Default is 1.0
-
+    gray_pixel : bool
+        Apply gray pixel approximation to return fractional transmission for
+        edge pixels that are only partially within this aperture?
     pad_factor : float, optional
         Amount to oversize the wavefront array relative to this pupil.
         This is in practice not very useful, but it provides a straightforward way
         of verifying during code testing that the amount of padding (or size of the circle)
         does not make any numerical difference in the final result.
+
     """
 
     @utils.quantity_input(radius=u.meter)
-    def __init__(self, name=None, radius=1.0 * u.meter, pad_factor=1.0, planetype=PlaneType.unspecified, **kwargs):
+    def __init__(self, name=None, radius=1.0 * u.meter, pad_factor=1.0, planetype=PlaneType.unspecified,
+            gray_pixel=False, **kwargs):
 
         if name is None:
             name = "Circle, radius={}".format(radius)
@@ -1054,6 +1058,7 @@ class CircularAperture(AnalyticOpticalElement):
         # for creating input wavefronts - let's pad a bit:
         self.pupil_diam = pad_factor * 2 * self.radius
         self._default_display_size = 3 * self.radius
+        self._use_gray_pixel = bool(gray_pixel)
 
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the aperture.
@@ -1065,8 +1070,18 @@ class CircularAperture(AnalyticOpticalElement):
 
         y, x = self.get_coordinates(wave)
         radius = self.radius.to(u.meter).value
-        pixscale = wave.pixelscale.to(u.meter/u.pixel).value
-        self.transmission = geometry.filled_circle_aa(wave.shape, 0, 0, radius/pixscale, x/pixscale, y/pixscale)
+        if self._use_gray_pixel:
+            pixscale = wave.pixelscale.to(u.meter/u.pixel).value
+            self.transmission = geometry.filled_circle_aa(wave.shape, 0, 0, radius/pixscale, x/pixscale, y/pixscale)
+        else:
+            r = _r(x, y)
+            del x
+            del y
+
+            w_outside = np.where(r > radius)
+            del r
+            self.transmission = np.ones(wave.shape, dtype=_float())
+            self.transmission[w_outside] = 0
         return self.transmission
 
 
