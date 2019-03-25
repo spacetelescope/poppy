@@ -2421,7 +2421,7 @@ class OpticalElement(object):
 
         ampl = self.get_transmission(wavelength)
         opd = self.get_opd(wavelength)
-        opd[np.where(self.amplitude == 0)] = np.nan
+        opd[np.where(ampl == 0)] = np.nan
 
         if what == 'both':
             # recursion!
@@ -2934,7 +2934,7 @@ class FITSOpticalElement(OpticalElement):
         else:
             wavelength = wave
         if self._opd_in_radians:
-            return self.opd * wavelength.to(u.m) / (2 * np.pi)
+            return self.opd * wavelength.to(u.m).value / (2 * np.pi)
         return self.opd
 
 
