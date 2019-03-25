@@ -702,14 +702,15 @@ class BaseWavefront(ABC):
 
         # Input and output axes for interpolation.  The interpolated wavefront will be evaluated
         # directly onto the detector axis, so don't need to crop afterwards.
-        x_in = make_axis(crop_shape[0], self.pixelscale)
-        y_in = make_axis(crop_shape[1], self.pixelscale)
-        x_out = make_axis(detector.shape[0], detector.pixelscale)
-        y_out = make_axis(detector.shape[1], detector.pixelscale)
+        x_in = make_axis(crop_shape[0], self.pixelscale.to(u.m/u.pix).value)
+        y_in = make_axis(crop_shape[1], self.pixelscale.to(u.m/u.pix).value)
+        x_out = make_axis(detector.shape[0], detector.pixelscale.to(u.m/u.pix).value)
+        y_out = make_axis(detector.shape[1], detector.pixelscale.to(u.m/u.pix).value)
 
         def interpolator(arr):
             """
-            Bind arguments to scipy's RectBivariateSpline function.  For data on a regular 2D grid, RectBivariateSpline is more efficient than interp2d.
+            Bind arguments to scipy's RectBivariateSpline function.
+            For data on a regular 2D grid, RectBivariateSpline is more efficient than interp2d.
             """
             return scipy.interpolate.RectBivariateSpline(
                 x_in, y_in, arr, kx=detector.interp_order, ky=detector.interp_order)
