@@ -36,7 +36,7 @@ def test_InverseTransmission():
         assert( np.all(  np.abs(optic.get_phasor(wave) - (1-inverted.get_phasor(wave))) < 1e-10 ))
 
     # vary 2d shape
-    for radius in np.arange(10, dtype=float)/10:
+    for radius in np.arange(1, 11, dtype=float)/10:
 
         optic = optics.CircularAperture(radius=radius)
         inverted = optics.InverseTransmission(optic)

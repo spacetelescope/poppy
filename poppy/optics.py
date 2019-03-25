@@ -1048,6 +1048,8 @@ class CircularAperture(AnalyticOpticalElement):
         if name is None:
             name = "Circle, radius={}".format(radius)
         super(CircularAperture, self).__init__(name=name, planetype=planetype, **kwargs)
+        if radius <= 0*u.meter:
+            raise ValueError("radius must be a positive nonzero number.")
         self.radius = radius
         # for creating input wavefronts - let's pad a bit:
         self.pupil_diam = pad_factor * 2 * self.radius
@@ -1063,7 +1065,7 @@ class CircularAperture(AnalyticOpticalElement):
 
         y, x = self.get_coordinates(wave)
         radius = self.radius.to(u.meter).value
-        pixscale = wave.pixelscale.to(u.meter).value
+        pixscale = wave.pixelscale.to(u.meter/u.pixel).value
         self.transmission = geometry.filled_circle_aa(wave.shape, 0, 0, radius/pixscale, x/pixscale, y/pixscale)
         return self.transmission
 
