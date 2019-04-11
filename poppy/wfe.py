@@ -35,7 +35,6 @@ def _accept_wavefront_or_meters(f):
 
     @wraps(f)
     def wrapper(*args, **kwargs):
-        print(args[1])
         if not ( isinstance(args[1], FresnelWavefront) or isinstance(args[1], Wavefront)):
             wave = Wavefront(wavelength=args[1])
             new_args = (args[0],) + (wave,) + (args[2:])
