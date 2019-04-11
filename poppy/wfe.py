@@ -18,6 +18,8 @@ import astropy.units as u
 
 from .optics import AnalyticOpticalElement, CircularAperture
 from .poppy_core import Wavefront, PlaneType
+from poppy.fresnel import FresnelWavefront
+
 from . import zernike
 from . import utils
 from . import accel_math
@@ -33,7 +35,8 @@ def _accept_wavefront_or_meters(f):
 
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if not isinstance(args[1], Wavefront):
+        print(args[1])
+        if not ( isinstance(args[1], FresnelWavefront) or isinstance(args[1], Wavefront)):
             wave = Wavefront(wavelength=args[1])
             new_args = (args[0],) + (wave,) + (args[2:])
             return f(*new_args, **kwargs)
