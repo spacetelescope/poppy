@@ -332,11 +332,12 @@ class StatsticalPSDWFE(WavefrontError):
     """
 
     @utils.quantity_input(wfe=u.rad)
-    def __init__(self, name='PSD WFE', index=3.0, wfe=0.25, seed=None, **kwargs):
+    def __init__(self, name='PSD WFE', index=3.0, wfe=0.25, radius=1*u.meter, seed=None, **kwargs):
 
         super(WavefrontError, self).__init__(name=name, **kwargs)
         self.index = index
         self.wfe_rad = wfe
+        self.radius = radius
         self.seed = seed
 
     def get_opd(self, wave):
@@ -360,6 +361,6 @@ class StatsticalPSDWFE(WavefrontError):
         rndm_phase = np.random.normal(size=(len(y), len(x)))
         rndm_psd = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(rndm_phase)))
         scaled = np.sqrt(psd) * rndm_psd
-        phase_screen = np.fft.ifftshift(np.fft.ifft2(np.fft.ifftshift(scaled)))
+        phase_screen = np.fft.ifftshift(np.fft.ifft2(np.fft.ifftshift(scaled))).real
 
-        return phase_screen.real
+        return phase_screen
