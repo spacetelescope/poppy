@@ -83,3 +83,7 @@ def test_ParameterizedAberration():
 
     np.testing.assert_allclose(pd_wave.phase, zern_wave.phase,
                                err_msg="ParameterizedAberration disagrees with ZernikeAberration")
+
+
+def test_psd_get_opd():
+    pass
