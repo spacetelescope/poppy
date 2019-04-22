@@ -331,27 +331,37 @@ class SineWaveWFE(WavefrontError):
 class StatsticalPSDWFE(WavefrontError):
     """
     Statistical PSF WFE class from power law for optical noise.
-
-    Input WFE in radians RMS.
     """
 
     @utils.quantity_input(wfe=u.rad)
-    def __init__(self, name='PSD WFE', index=3.0, wfe=0.25, **kwargs):
+    def __init__(self, name='PSD WFE', index=3.0, wfe=0.25, seed=None, **kwargs):
 
         super(WavefrontError, self).__init__(name=name, **kwargs)
         self.index = index
         self.wfe_rad = wfe
+        self.seed = seed
 
-    def get_opd(self, wave, units='meters'):
+    def get_opd(self, wave):
+        """
+        Parameters
+        ----------
+        wave : poppy.Wavefront (or float)
+            Incoming Wavefront before this optic to set wavelength and
+            scale, or a float giving the wavelength in meters
+            for a temporary Wavefront used to compute the OPD.
+        seed : integer
+            seed for the random phase screen generator
+        """
 
         y, x = self.get_coordinates(wave)
         rho, theta = _wave_y_x_to_rho_theta(y, x, self.radius.to(u.meter).value)
         psd = np.power(rho, -self.index)
         psd = psd / np.sum(psd) * np.square(self.wfe_rad / wave.wavelength.to(u.meter).value)
 
-        rndm_phase = np.random.random((len(y), len(x)))
+        np.random.seed(self.seed)
+        rndm_phase = np.random.normal(size=(len(y), len(x)))
         rndm_psd = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(rndm_phase)))
         scaled = np.sqrt(psd) * rndm_psd
-        phase_screen = np.real_if_close(np.fft.ifftshift(np.fft.ifft2(np.fft.ifftshift(scaled))))
+        phase_screen = np.fft.ifftshift(np.fft.ifft2(np.fft.ifftshift(scaled)))
 
         return phase_screen.real
