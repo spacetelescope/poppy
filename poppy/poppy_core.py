@@ -2386,7 +2386,9 @@ class OpticalElement(object):
 
     @utils.quantity_input(opd_vmax=u.meter, wavelength=u.meter)
     def display(self, nrows=1, row=1, what='intensity', crosshairs=False, ax=None, colorbar=True,
-                colorbar_orientation=None, title=None, opd_vmax=0.5e-6 * u.meter, wavelength=1e-6 * u.meter):
+                colorbar_orientation=None, title=None, opd_vmax=0.5e-6 * u.meter,
+                wavelength=1e-6 * u.meter,
+                npix=512, grid_size=None):
         """Display plots showing an optic's transmission and OPD.
 
         Parameters
@@ -2412,6 +2414,15 @@ class OpticalElement(object):
         wavelength : float, default 1 micron
             For optics with wavelength-dependent behavior, evaluate at this
             wavelength for display.
+        npix : integer
+            For optics without a fixed pixel sampling, evaluate onto this many
+            pixels for display.
+        grid_size : float
+            For optics without a fixed pixel sampling, evaluate onto this large
+            a spatial or angular extent for display. Specify in units of
+            arcsec for image plane optics, meters for all other optics.
+            If unspecified, a default value will be chosen instead, possibly
+            from the ._default_display_size attribute, if present.
         """
         if colorbar_orientation is None:
             colorbar_orientation = "horizontal" if nrows == 1 else 'vertical'
@@ -2437,103 +2448,135 @@ class OpticalElement(object):
             if len(units) > 20:
                 units = "\n".join(textwrap.wrap(units, 20))
 
+        ## Create a wavefront object to use when evaluating/sampling the optic.
         if self.pixelscale is not None:
-            if self.pixelscale.decompose().unit == u.m / u.pix:
-                halfsize = self.pixelscale.to(u.m / u.pix).value * self.amplitude.shape[0] / 2
-            elif self.pixelscale.decompose().unit == u.radian / u.pix:
-                halfsize = self.pixelscale.to(u.arcsec / u.pix).value * self.amplitude.shape[0] / 2
-            else:
-                halfsize = self.pixelscale.value * self.amplitude.shape[0] / 2
-                _log.warning("Using pixelscale value without conversion, units not recognized.")
-            _log.debug("Display pixel scale = {} ".format(self.pixelscale))
+            # This optic has an inherent sampling.  The display wavefront's sampling is
+            # irrelevant; we get the native pixel scale opd and amplitude regardless and
+            # display that.
+            temp_wavefront = Wavefront(wavelength, npix=2)
+            disp_pixelscale = self.pixelscale
+            disp_shape = self.shape
         else:
-            # TODO not sure this code path ever gets used - since pixelscale is set temporarily
-            # in AnalyticOptic.display
-            _log.debug("No defined pixel scale - this must be an analytic optic")
-            halfsize = 1.0
+            # this optic does not have an inherent sampling. Set up the display wavefront based on
+            # the parameters to this function call, and/or object attributes for defaults.
+            # The syntax for how to do that depends on image plane vs other kinds of planes.
+            # This code is partially duplicative of AnalyticOpticalElement.sample()
+            if self.planetype == PlaneType.image:
+                if grid_size is not None:
+                    fov = grid_size if isinstance(grid_size, u.Quantity) else grid_size * u.arcsec
+                elif hasattr(self, '_default_display_size'):
+                    fov = self._default_display_size
+                else:
+                    fov = 4 * u.arcsec
+                pixel_scale = fov / (npix * u.pixel)
+                temp_wavefront = Wavefront(wavelength=wavelength, npix=npix, pixelscale=pixel_scale)
+            else:
+                if grid_size is not None:
+                    diam = grid_size if isinstance(grid_size, u.Quantity) else grid_size * u.meter
+                elif hasattr(self, '_default_display_size'):
+                    diam = self._default_display_size
+                elif hasattr(self, 'pupil_diam'):
+                    diam = self.pupil_diam * 1
+                else:
+                    diam = 1.0 * u.meter
+                temp_wavefront = Wavefront(wavelength=wavelength, npix=npix, diam=diam)
+            _log.info("Computing {0} for {1} sampled onto {2} pixel grid with "
+                      "pixelscale {3}".format(what, self.name, npix, temp_wavefront.pixelscale))
+
+            disp_pixelscale = temp_wavefront.pixelscale
+            disp_shape = temp_wavefront.shape
+
+        ## Determine the extent of the image in physical units, for axes labels.
+        _log.debug("Display pixel scale = {} ".format(disp_pixelscale))
+        if disp_pixelscale.decompose().unit == u.m / u.pix:
+            halfsize = disp_pixelscale.to(u.m / u.pix).value * disp_shape[0] / 2
+        elif disp_pixelscale.decompose().unit == u.radian / u.pix:
+            halfsize = disp_pixelscale.to(u.arcsec / u.pix).value * disp_shape[0] / 2
+        else:
+            raise RuntimeError("Pixelscale units not recognized in display; "
+                              "must be equivalent to arcsec/pix or m/pix")
         extent = [-halfsize, halfsize, -halfsize, halfsize]
 
-        temp_wavefront = Wavefront(wavelength)
+        # Evaluate the wavefront at the desired sampling and pixel scale.
         ampl = self.get_transmission(temp_wavefront)
         opd = self.get_opd(temp_wavefront)
         opd[np.where(ampl == 0)] = np.nan
 
+        # define a helper function for the actual plotting - we do it this way so
+        # we can call it twice if the 'both' option is chosen. This avoids the complexities of the
+        # earlier version of this function which called itself recursively to show both.
+        def optic_display_helper(plot_array, ax, title, is_opd=False):
+            if is_opd:
+                cmap = cmap_opd
+                norm = norm_opd
+                cb_values = np.array([-1, -0.5, 0, 0.5, 1]) * opd_vmax_m
+                cb_label = 'meters'
+            else:
+                cmap = cmap_amp
+                norm = norm_amp
+                cb_values = [0, 0.25, 0.5, 0.75, 1.0]
+                cb_label = 'Fraction'
+
+            utils.imshow_with_mouseover(plot_array, ax=ax, extent=extent, cmap=cmap, norm=norm,
+                                    origin='lower')
+
+            plt.title(title)
+            plt.ylabel(units)
+            ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
+            ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
+            if colorbar:
+                cb = plt.colorbar(ax.images[0], orientation=colorbar_orientation, ticks=cb_values)
+                cb.set_label(cb_label)
+            if crosshairs:
+                ax.axhline(0, ls=":", color='k')
+                ax.axvline(0, ls=":", color='k')
+
+            if hasattr(self, 'display_annotate'):
+                self.display_annotate(self, ax)  # atypical calling convention needed empirically
+                # since Python doesn't seem to automatically pass
+                # self as first argument for functions added at
+                # run time as attributes?
+
         if what == 'both':
-            # recursion!
-            if ax is None:
-                ax = plt.subplot(nrows, 2, row * 2 - 1)
-            self.display(what='intensity', ax=ax, crosshairs=crosshairs, colorbar=colorbar,
-                         colorbar_orientation=colorbar_orientation, title=None, opd_vmax=opd_vmax,
-                         nrows=nrows)
+            ax1 = plt.subplot(nrows, 2, row * 2 - 1)
+            optic_display_helper(ampl**2, ax1, 'Transmittance for '+self.name, False)
+
             ax2 = plt.subplot(nrows, 2, row * 2)
-            self.display(what='opd', ax=ax2, crosshairs=crosshairs, colorbar=colorbar,
-                         colorbar_orientation=colorbar_orientation, title=None, opd_vmax=opd_vmax,
-                         nrows=nrows)
+            optic_display_helper(opd, ax2, 'OPD for '+self.name, True)
+
             ax2.set_ylabel('')  # suppress redundant label which duplicates the intensity plot's label
             if title is not None:
                 plt.suptitle(title)
-            return ax, ax2
-        elif what == 'amplitude':
-            plot_array = ampl
-            default_title = 'Transmissivity'
-            cb_label = 'Fraction'
-            cb_values = [0, 0.25, 0.5, 0.75, 1.0]
-            cmap = cmap_amp
-            norm = norm_amp
-        elif what == 'intensity':
-            plot_array = ampl ** 2
-            default_title = "Transmittance"
-            cb_label = 'Fraction'
-            cb_values = [0, 0.25, 0.5, 0.75, 1.0]
-            cmap = cmap_amp
-            norm = norm_amp
-        elif what == 'phase':
-            warnings.warn("displaying 'phase' has been deprecated. Use what='opd' instead.",
-                          category=DeprecationWarning)
-            plot_array = opd
-            default_title = "OPD"
-            cb_label = 'waves'
-            cb_values = np.array([-1, -0.5, 0, 0.5, 1]) * opd_vmax_m
-            cmap = cmap_opd
-            norm = norm_opd
-        elif what == 'opd':
-            plot_array = opd
-            default_title = "OPD"
-            cb_label = 'meters'
-            cb_values = np.array([-1, -0.5, 0, 0.5, 1]) * opd_vmax_m
-            cmap = cmap_opd
-            norm = norm_opd
+            return ax1, ax2
         else:
-            raise ValueError("Invalid value for 'what' parameter")
-
-        # now we plot whichever was chosen...
-        if ax is None:
-            if nrows > 1:
-                ax = plt.subplot(nrows, 2, row * 2 - 1)
+            if what == 'amplitude':
+                plot_array = ampl
+                default_title = 'Transmissivity'
+                is_opd = False
+            elif what == 'intensity':
+                plot_array = ampl ** 2
+                default_title = "Transmittance"
+                is_opd = False
+            elif what == 'opd':
+                plot_array = opd
+                default_title = "OPD"
+                is_opd = True
             else:
-                ax = plt.subplot(111)
-        utils.imshow_with_mouseover(plot_array, ax=ax, extent=extent, cmap=cmap, norm=norm,
-                                    origin='lower')
-        if nrows == 1:
-            if title is None:
-                title = default_title + " for " + self.name
-            plt.title(title)
-        plt.ylabel(units)
-        ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
-        ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
-        if colorbar:
-            cb = plt.colorbar(ax.images[0], orientation=colorbar_orientation, ticks=cb_values)
-            cb.set_label(cb_label)
-        if crosshairs:
-            ax.axhline(0, ls=":", color='k')
-            ax.axvline(0, ls=":", color='k')
+                raise ValueError("Invalid value for 'what' parameter")
 
-        if hasattr(self, 'display_annotate'):
-            self.display_annotate(self, ax)  # atypical calling convention needed empirically
-            # since Python doesn't seem to automatically pass
-            # self as first argument for functions added at
-            # run time as attributes?
-        return ax
+            # now we plot whichever was chosen...
+            if ax is None:
+                if nrows > 1:
+                    ax = plt.subplot(nrows, 2, row * 2 - 1)
+                else:
+                    ax = plt.subplot(1, 1, 1)
+            if nrows == 1:
+                if title is None:
+                    title = default_title + " for " + self.name
+
+            # do the actual plot! (for all cases except 'both')
+            optic_display_helper(plot_array, ax, title, is_opd)
+            return ax
 
     def __str__(self):
         if self.planetype == PlaneType.pupil:
