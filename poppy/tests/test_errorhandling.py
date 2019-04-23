@@ -132,3 +132,27 @@ if _HAVE_PYTEST:
             cosys.add_pupil(poppy.SquareAperture())
         assert _exception_message_starts_with(excinfo, "Adding individual optical elements is disallowed")
 
+    def test_add_incompatible_wavefronts():
+        """ Test we can't add wavefronts to incompatible things. Verifies fix of #308 """
+        import poppy
+        import astropy.units as u
+        n = 10
+        w1 = poppy.Wavefront(npix=n)
+        w2 = poppy.Wavefront(npix=n)
+        w3 = poppy.Wavefront(npix=n, diam=1*u.m)
+        w4 = poppy.Wavefront(npix=n, pixelscale=1*u.arcsec/u.pixel)
+
+        f1 = poppy.FresnelWavefront(1.0*u.m, npix=n, oversample=1)
+
+        # test a valid addition works:
+        output = w1+w2
+        assert isinstance(output, w1.__class__), "couldn't add compatible wavefronts"
+
+        inputs_and_errors = ((3, "Wavefronts can only be summed with other Wavefronts"),
+                             (f1, "Wavefronts can only be summed with other Wavefronts of the same class"),
+                             (w3, "Wavefronts can only be added if they have the same pixelscale"),
+                             (w4, "Wavefronts can only be added if they have the same pixelscale"))
+        for test_input, expected_error in inputs_and_errors:
+            with pytest.raises(ValueError) as excinfo:
+                output = w1+test_input
+            assert _exception_message_starts_with(excinfo, expected_error)
