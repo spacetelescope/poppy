@@ -199,11 +199,17 @@ class BaseWavefront(ABC):
 
     def __iadd__(self, wave):
         """Add another wavefront to this one"""
-        if not isinstance(wave, BaseWavefront):
-            raise ValueError('Wavefronts can only be summed with other Wavefronts')
+        if not isinstance(wave, self.__class__):
+            raise ValueError('Wavefronts can only be summed with other Wavefronts of the same class.')
 
-        if not self.wavefront.shape[0] == wave.wavefront.shape[0]:
-            raise ValueError('Wavefronts can only be added if they have the same size and shape')
+        if not self.wavefront.shape == wave.wavefront.shape:
+            raise ValueError('Wavefronts can only be added if they have the same size and shape: {} vs {} '.format(
+                self.wavefront.shape, wave.wavefront.shape))
+
+        if not self.pixelscale == wave.pixelscale:
+            raise ValueError('Wavefronts can only be added if they have the same pixelscale: {} vs {}'.format(
+                self.pixelscale, wave.pixelscale))
+
 
         self.wavefront += wave.wavefront
         self.history.append("Summed with another wavefront!")
