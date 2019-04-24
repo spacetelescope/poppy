@@ -331,16 +331,31 @@ class StatsticalPSDWFE(WavefrontError):
     Statistical PSF WFE class from power law for optical noise.
     """
 
-    @utils.quantity_input(wfe=u.rad)
-    def __init__(self, name='PSD WFE', index=3.0, wfe=0.25, radius=1*u.meter, seed=None, **kwargs):
+    @utils.quantity_input(wfe=u.nm, radius=u.meter)
+    def __init__(self, name='PSD WFE', index=3.0, wfe=50*u.nm, radius=1*u.meter, seed=None, **kwargs):
+        """
+        Parameters
+        ----------
+        name : string
+            name of the optic
+        index: float
+            negative power law spectra index, defaults to 3
+        wfe: astropy quantity
+            wfe in linear astropy units, defaults to 50 nm
+        radius: astropy quantity
+            radius of optic in linear astropy units, defaults to 1 m
+        seed : integer
+            seed for the random phase screen generator
+        """
 
         super(WavefrontError, self).__init__(name=name, **kwargs)
         self.index = index
-        self.wfe_rad = wfe
+        self.wfe = wfe
         self.radius = radius
         self.seed = seed
 
-    def get_opd(self, wave):
+    @_accept_wavefront_or_meters
+    def get_opd(self, wave, units='meters'):
         """
         Parameters
         ----------
@@ -348,19 +363,26 @@ class StatsticalPSDWFE(WavefrontError):
             Incoming Wavefront before this optic to set wavelength and
             scale, or a float giving the wavelength in meters
             for a temporary Wavefront used to compute the OPD.
-        seed : integer
-            seed for the random phase screen generator
+        units : 'meters' or 'waves'
+            Coefficients are supplied as meters of OPD, but the
+            resulting OPD can be converted to
+            waves based on the `Wavefront` wavelength or a supplied
+            wavelength value.
         """
-
         y, x = self.get_coordinates(wave)
         rho, theta = _wave_y_x_to_rho_theta(y, x, self.radius.to(u.meter).value)
-        psd = np.power(rho, -self.index)
-        psd = psd / np.sum(psd) * np.square(self.wfe_rad / wave.wavelength.to(u.meter).value)
+        psd = np.power(rho, -self.index)   # generate power-law PSD
 
-        np.random.seed(self.seed)
-        rndm_phase = np.random.normal(size=(len(y), len(x)))
-        rndm_psd = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(rndm_phase)))
-        scaled = np.sqrt(psd) * rndm_psd
-        phase_screen = np.fft.ifftshift(np.fft.ifft2(np.fft.ifftshift(scaled))).real
+        np.random.seed(self.seed)   # if provided, set a seed for random number generator
+        rndm_phase = np.random.normal(size=(len(y), len(x)))   # generate random phase screen
+        rndm_psd = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(rndm_phase)))   # FT of random phase screen to get random PSD
+        scaled = np.sqrt(psd) * rndm_psd    # scale random PSD by power-law PSD
+        phase_screen = np.fft.ifftshift(np.fft.ifft2(np.fft.ifftshift(scaled))).real   # FT of scaled random PSD makes phase screen
 
-        return phase_screen
+        phase_screen -= np.mean(phase_screen)  # force zero-mean
+        opd = phase_screen / np.std(phase_screen) * self.wfe.to(u.m).value  # normalize to wanted input rms wfe
+
+        if units == 'waves':
+            opd /= wave.wavelength.to(u.meter).value
+
+        return opd
