@@ -74,9 +74,9 @@ class AnalyticOpticalElement(OpticalElement):
 
     def __str__(self):
         if self.planetype == PlaneType.pupil:
-            return "Pupil plane: %s (Analytic)" % self.name
+            return "Pupil plane: " + self.name
         elif self.planetype == PlaneType.image:
-            return "Image plane: %s (Analytic)" % self.name
+            return "Image plane: " + self.name
         else:
             return "Optic: " + self.name
 
@@ -132,7 +132,6 @@ class AnalyticOpticalElement(OpticalElement):
 
         else:
             return self.get_transmission(wave) * np.exp(1.j * self.get_opd(wave) * scale)
-
 
     @utils.quantity_input(wavelength=u.meter)
     def sample(self, wavelength=1e-6 * u.meter, npix=512, grid_size=None, what='amplitude',
@@ -1236,8 +1235,12 @@ class MultiHexagonAperture(AnalyticOpticalElement):
 
 
     Note that this routine becomes a bit slow for nrings >4. For repeated computations on
-    the same aperture, it will be faster to create this once, save it to a FITS file using
-    the toFITS() method, and then use that.
+    the same aperture, avoid repeated evaluations of this function. It will be faster to create
+    this aperture, evalute it once, and save the result onto a discrete array, via either
+       (1) saving it to a FITS file using the to_fits() method, and then use that in a
+       FITSOpticalElement, or
+       (2) Use the fixed_sampling_optic function to create an ArrayOpticalElement with
+       a sampled version of this.
 
     """
 
@@ -1297,80 +1300,51 @@ class MultiHexagonAperture(AnalyticOpticalElement):
         """
         ring = self._hex_in_ring(hex_index)
 
+        # handle degenerate case of center segment
+        # to avoid div by 0 in the main code below
+        if ring == 0:
+            return 0, 0
+
         # now count around from the starting point:
         index_in_ring = hex_index - self._n_hexes_inside_ring(ring) + 1  # 1-based
         angle_per_hex = 2 * np.pi / self._n_hexes_in_ring(ring)  # angle in radians
 
         # Now figure out what the radius is:
-        xpos = None
         flattoflat = self.flattoflat.to(u.meter).value
         gap = self.gap.to(u.meter).value
         side = self.side.to(u.meter).value
-        if ring <= 1:
-            radius = (flattoflat + gap) * ring
+
+        radius = (flattoflat + gap) * ring  # JWST 'B' segments, aka corners
+        if np.mod(index_in_ring, ring) == 1:
             angle = angle_per_hex * (index_in_ring - 1)
-        elif ring == 2:
-            if np.mod(index_in_ring, 2) == 1:
-                radius = (flattoflat + gap) * ring  # JWST 'B' segments
-            else:
-                radius = side * 3 + gap * np.sqrt(3.) / 2 * 2  # JWST 'C' segments
-            angle = angle_per_hex * (index_in_ring - 1)
-        elif ring == 3:
-            if np.mod(index_in_ring, ring) == 1:
-                radius = (flattoflat + gap) * ring  # JWST 'B' segments
-                angle = angle_per_hex * (index_in_ring - 1)
-            else:  # C-like segments (in pairs)
-                ypos = 2.5 * (flattoflat + gap)
-                xpos = 1.5 * side + gap * np.sqrt(3) / 4
-                radius = np.sqrt(xpos ** 2 + ypos ** 2)
-                Cangle = np.arctan2(xpos, ypos)
-
-                if np.mod(index_in_ring, 3) == 2:
-                    last_B_angle = ((index_in_ring - 1) // 3) * 3 * angle_per_hex
-                    angle = last_B_angle + Cangle * np.mod(index_in_ring - 1, 3)
-                else:
-                    next_B_angle = (((index_in_ring - 1) // 3) * 3 + 3) * angle_per_hex
-                    angle = next_B_angle - Cangle
-                xpos = None
-        else:  # generalized code!
-            # the above are actuall now redundant given that this exists, but
-            # I'll leave them alone for now.
-            # TODO:jlong: remove redundant code paths?
-            whichside = (index_in_ring - 1) // ring  # which of the sides are we on?
-
-            if np.mod(index_in_ring, ring) == 1:
-                radius = (flattoflat + gap) * ring  # JWST 'B' segments
-                angle = angle_per_hex * (index_in_ring - 1)
-            else:
-                # find position of previous 'B' type segment.
-                radius0 = (flattoflat + gap) * ring  # JWST 'B' segments
-                last_B_angle = ((index_in_ring - 1) // ring) * ring * angle_per_hex
-                ypos0 = radius0 * np.cos(last_B_angle)
-                xpos0 = radius0 * np.sin(last_B_angle)
-
-                da = (flattoflat + gap) * np.cos(30 * np.pi / 180)
-                db = (flattoflat + gap) * np.sin(30 * np.pi / 180)
-
-                if whichside == 0:
-                    dx, dy = da, -db
-                elif whichside == 1:
-                    dx, dy = 0, -(flattoflat + gap)
-                elif whichside == 2:
-                    dx, dy = -da, -db
-                elif whichside == 3:
-                    dx, dy = -da, db
-                elif whichside == 4:
-                    dx, dy = 0, (flattoflat + gap)
-                elif whichside == 5:
-                    dx, dy = da, db
-
-                xpos = xpos0 + dx * np.mod(index_in_ring - 1, ring)
-                ypos = ypos0 + dy * np.mod(index_in_ring - 1, ring)
-
-        # now clock clockwise around the ring (for rings <=3 only)
-        if xpos is None:
             ypos = radius * np.cos(angle)
             xpos = radius * np.sin(angle)
+        else:
+            # find position of previous 'B' type segment.
+            last_B_angle = ((index_in_ring - 1) // ring) * ring * angle_per_hex
+            ypos0 = radius * np.cos(last_B_angle)
+            xpos0 = radius * np.sin(last_B_angle)
+
+            # count around from that corner
+            da = (flattoflat + gap) * np.cos(30 * np.pi / 180)
+            db = (flattoflat + gap) * np.sin(30 * np.pi / 180)
+
+            whichside = (index_in_ring - 1) // ring  # which of the sides are we on?
+            if whichside == 0:
+                dx, dy = da, -db
+            elif whichside == 1:
+                dx, dy = 0, -(flattoflat + gap)
+            elif whichside == 2:
+                dx, dy = -da, -db
+            elif whichside == 3:
+                dx, dy = -da, db
+            elif whichside == 4:
+                dx, dy = 0, (flattoflat + gap)
+            elif whichside == 5:
+                dx, dy = da, db
+
+            xpos = xpos0 + dx * np.mod(index_in_ring - 1, ring)
+            ypos = ypos0 + dy * np.mod(index_in_ring - 1, ring)
 
         return ypos, xpos
 
@@ -1936,3 +1910,41 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
             opd += optic.get_opd(wave)
         self.opd = opd
         return self.opd
+
+# ------ convert analytic optics to array optics ------
+
+def fixed_sampling_optic(optic, wavefront):
+    """Convert a variable-sampling AnalyticOpticalElement to a fixed-sampling ArrayOpticalElement
+
+    For a given input optic this produces an equivalent output optic stored in simple arrays rather
+    than created each time via function calls.
+
+    If you know a priori the desired sampling will remain constant for some
+    application, and don't need any of the other functionality of the
+    AnalyticOpticalElement machinery with get_opd and get_transmission functions,
+    you can save time by setting the sampling to a fixed value and saving arrays
+    computed on that sampling.
+
+    Parameters
+    ----------
+    optic : poppy.AnalyticOpticalElement
+        Some optical element
+    wave : poppy.Wavefront
+        A wavefront to define the desired sampling pixel size and number.
+
+    Returns
+    -------
+    new_array_optic : poppy.ArrayOpticalElement
+        A version ofthe input optic with fixed arrays for OPD and transmission.
+
+    """
+    from .poppy_core import ArrayOpticalElement
+    npix = wavefront.shape[0]
+    grid_size = npix*u.pixel*wavefront.pixelscale
+    sampled_opd = optic.sample(what='opd', npix=npix, grid_size=grid_size)
+    sampled_trans = optic.sample(what='amplitude', npix=npix, grid_size=grid_size)
+
+    return ArrayOpticalElement(opd=sampled_opd,
+                               transmission=sampled_trans,
+                               pixelscale=wavefront.pixelscale,
+                               name=optic.name)

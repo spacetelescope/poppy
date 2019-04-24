@@ -6,7 +6,7 @@ POPPY FITS Header Keywords Definitions
 
 * `WAVELEN`: Wavelength in meters
 * `DIFFLMT`:  Diffraction limit lambda/D in *arcsecond*
-* `OVERSAMP`: Oversampling factor for FFTs in computation of PSF 
+* `OVERSAMP`: Oversampling factor for FFTs in computation of PSF
 * `DET_SAMP`: Oversampling factor for MFT to detector plane
 * `PIXELSCL` : Scale in *arcsecond/pixel*  or *meter/pixel* (after oversampling)
 * `PIXUNIT` : units of the pixels in the header, typically either *arcsecond* or *meter*
@@ -18,4 +18,4 @@ POPPY FITS Header Keywords Definitions
 * `DIFFLMT`: Scale in arcsec/pix (after oversampling)
 * `DIAM`: Pupil diameter in meters (not incl padding)
 * `NWAVES`: Number of wavelengths used in calculation
-* `BUNIT`:        units of OPD error. Default is 'meters'. can be 'meter', 'meters', 'micron(s)', 'nanometer(s)', or their SI abbreviations.
+* `BUNIT`: units of OPD error. Default is 'meters'. Can be 'meter', 'meters', 'micron(s)', 'nanometer(s)', or their SI abbreviations. Can also be 'radian' or 'radians', which makes POPPY treat the phase pattern as wavelength-independent (i.e. Pancharatnam-Berry phase).

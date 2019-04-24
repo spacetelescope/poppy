@@ -199,7 +199,7 @@ class BaseWavefront(ABC):
 
     def __iadd__(self, wave):
         """Add another wavefront to this one"""
-        if not isinstance(wave, Wavefront):
+        if not isinstance(wave, BaseWavefront):
             raise ValueError('Wavefronts can only be summed with other Wavefronts')
 
         if not self.wavefront.shape[0] == wave.wavefront.shape[0]:
@@ -600,6 +600,7 @@ class BaseWavefront(ABC):
         display_what = getattr(optic, 'wavefront_display_hint', 'best')
         display_vmax = getattr(optic, 'wavefront_display_vmax_hint', None)
         display_vmin = getattr(optic, 'wavefront_display_vmin_hint', None)
+        display_crop = getattr(optic, 'wavefront_display_imagecrop', None)
         display_nrows = getattr(self, '_display_hint_expected_nplanes', default_nplanes)
 
         ax = self.display(what=display_what,
@@ -607,6 +608,7 @@ class BaseWavefront(ABC):
                           nrows=display_nrows,
                           colorbar=False,
                           vmax=display_vmax, vmin=display_vmin,
+                          imagecrop=display_crop,
                           **kwargs)
         if hasattr(optic, 'display_annotate'):
             optic.display_annotate(optic, ax)  # atypical calling convention needed empirically
@@ -673,7 +675,7 @@ class BaseWavefront(ABC):
         The wavefront object is modified to have the appropriate pixel scale and spatial extent.
 
         """
-        import scipy.ndimage
+        import scipy.interpolate
 
         pixscale_ratio = (self.pixelscale / detector.pixelscale).decompose().value
         _log.info("Resampling wavefront to detector with {} pixels and {}. Zoom factor is {:.5f}".format(
@@ -687,21 +689,43 @@ class BaseWavefront(ABC):
         _log.debug("Desired detector FOV: {} pixels, {:.3f}".format(detector.shape,
                                                                     detector.shape[0]*u.pixel*detector.pixelscale))
 
-        # TODO the following works but is not optimal for performance
-        # We should consider cropping out an appropriate subregion prior to performing the zoom.
-        # That makes a difference if the detector is only sampling a small part of a much larger wavefront
+        def make_axis(npix, step):
+            """ Helper function to make coordinate axis for interpolation """
+            return step * np.arange(-npix // 2, npix // 2, dtype=np.float64)
 
-        new_wf_real = scipy.ndimage.zoom(self.wavefront.real, pixscale_ratio, order=detector.interp_order)
-        new_wf_imag = scipy.ndimage.zoom(self.wavefront.imag, pixscale_ratio, order=detector.interp_order)
-        new_wf = new_wf_real + 1.j*new_wf_imag
+        # Provide 2-pixel margin around image to reduce interpolation errors at edge, but also make
+        # sure that image is centered properly after it gets cropped down to detector size
+        margin = 2
+        crop_shape = [margin + shape for shape in self.wavefront.shape]
+
+        # Crop wavefront down to detector size + margin- don't waste computation interpolating
+        # parts of plane that get cropped out later anyways
+        cropped_wf = utils.pad_or_crop_to_shape(self.wavefront, crop_shape)
+
+        # Input and output axes for interpolation.  The interpolated wavefront will be evaluated
+        # directly onto the detector axis, so don't need to crop afterwards.
+        x_in = make_axis(crop_shape[0], self.pixelscale.to(u.m/u.pix).value)
+        y_in = make_axis(crop_shape[1], self.pixelscale.to(u.m/u.pix).value)
+        x_out = make_axis(detector.shape[0], detector.pixelscale.to(u.m/u.pix).value)
+        y_out = make_axis(detector.shape[1], detector.pixelscale.to(u.m/u.pix).value)
+
+        def interpolator(arr):
+            """
+            Bind arguments to scipy's RectBivariateSpline function.
+            For data on a regular 2D grid, RectBivariateSpline is more efficient than interp2d.
+            """
+            return scipy.interpolate.RectBivariateSpline(
+                x_in, y_in, arr, kx=detector.interp_order, ky=detector.interp_order)
+
+        # Interpolate real and imaginary parts separately
+        real_resampled = interpolator(cropped_wf.real)(x_out, y_out)
+        imag_resampled = interpolator(cropped_wf.imag)(x_out, y_out)
+        new_wf = real_resampled + 1j * imag_resampled
 
         # enforce conservation of energy:
-        new_wf *= 1./pixscale_ratio
+        new_wf *= 1. / pixscale_ratio
 
-        _log.debug("Cropping/padding resampled wavefront to detector shape: {}".format(detector.shape))
-        new_wf = utils.pad_or_crop_to_shape(new_wf, detector.shape)
         self.ispadded = False   # if a pupil detector, avoid auto-cropping padded pixels on output
-
         self.wavefront = new_wf
         self.pixelscale = detector.pixelscale
 
@@ -942,7 +966,7 @@ class Wavefront(BaseWavefront):
             self.planetype = PlaneType.image
             self.pixelscale = (self.wavelength / self.diam * u.radian / self.oversample).to(u.arcsec) / u.pixel
             self.fov = self.wavefront.shape[0] * u.pixel * self.pixelscale
-            self.history.append('   FFT {},  to IMAGE plane  scale={}'.format(self.wavefront.shape, self.pixelscale))
+            self.history.append('   FFT {},  to IMAGE plane  scale={:.4f}'.format(self.wavefront.shape, self.pixelscale))
 
         elif self.planetype == PlaneType.image and optic.planetype == PlaneType.pupil:
             fft_forward = False
@@ -950,7 +974,7 @@ class Wavefront(BaseWavefront):
             # (pre-)update state:
             self.planetype = PlaneType.pupil
             self.pixelscale = self.diam * self.oversample / (self.wavefront.shape[0] * u.pixel)
-            self.history.append('   FFT {},  to PUPIL scale={}'.format(self.wavefront.shape, self.pixelscale))
+            self.history.append('   FFT {},  to PUPIL scale={:.4f}'.format(self.wavefront.shape, self.pixelscale))
 
         # do FFT
         if conf.enable_flux_tests: _log.debug("\tPre-FFT total intensity: " + str(self.total_intensity))
@@ -2150,7 +2174,7 @@ class CompoundOpticalSystem(OpticalSystem):
                 loghistory(wavefront, "CompoundOpticalSystem: Converted wavefront to Fraunhofer type")
 
             # Propagate
-            loghistory(wavefront, "CompoundOpticalSystem: Propagating through system {}: {}".format(i, optsys.name))
+            loghistory(wavefront, "CompoundOpticalSystem: Propagating through system {}: {}".format(i+1, optsys.name))
             retval = optsys.propagate(wavefront,
                                       normalize=normalize,
                                       return_intermediates=return_intermediates,
@@ -2168,6 +2192,17 @@ class CompoundOpticalSystem(OpticalSystem):
         else:
             return wavefront
 
+    @property
+    def planes(self):
+        """ A merged list containing all the planes in all the included optical systems """
+        out = []
+        [out.extend(osys.planes) for osys in self.optsyslist]
+        return out
+
+    @planes.setter
+    def planes(self, value):
+        # needed for compatibility with superclass init
+        pass
 
 # ------ core Optical Element Classes ------
 
@@ -2289,11 +2324,13 @@ class OpticalElement(object):
             else:
                 # raise NotImplementedError("Need to implement resampling.")
                 zoom = (self.pixelscale / wave.pixelscale).decompose().value
-                resampled_opd = scipy.ndimage.interpolation.zoom(self.opd, zoom,
-                                                                 output=self.opd.dtype,
+                original_opd = self.get_opd(wave)
+                resampled_opd = scipy.ndimage.interpolation.zoom(original_opd, zoom,
+                                                                 output=original_opd.dtype,
                                                                  order=self.interp_order)
-                resampled_amplitude = scipy.ndimage.interpolation.zoom(self.amplitude, zoom,
-                                                                       output=self.amplitude.dtype,
+                original_amplitude = self.get_transmission(wave)
+                resampled_amplitude = scipy.ndimage.interpolation.zoom(original_amplitude, zoom,
+                                                                       output=original_amplitude.dtype,
                                                                        order=self.interp_order)
                 _log.debug("resampled optic to match wavefront via spline interpolation by a" +
                            " zoom factor of {:.3g}".format(zoom))
@@ -2347,9 +2384,9 @@ class OpticalElement(object):
         else:
             return self.phasor
 
-    @utils.quantity_input(opd_vmax=u.meter)
+    @utils.quantity_input(opd_vmax=u.meter, wavelength=u.meter)
     def display(self, nrows=1, row=1, what='intensity', crosshairs=False, ax=None, colorbar=True,
-                colorbar_orientation=None, title=None, opd_vmax=0.5e-6 * u.meter):
+                colorbar_orientation=None, title=None, opd_vmax=0.5e-6 * u.meter, wavelength=1e-6 * u.meter):
         """Display plots showing an optic's transmission and OPD.
 
         Parameters
@@ -2372,6 +2409,9 @@ class OpticalElement(object):
             Max absolute value for OPD image display, in meters.
         title : string
             Plot label
+        wavelength : float, default 1 micron
+            For optics with wavelength-dependent behavior, evaluate at this
+            wavelength for display.
         """
         if colorbar_orientation is None:
             colorbar_orientation = "horizontal" if nrows == 1 else 'vertical'
@@ -2413,9 +2453,10 @@ class OpticalElement(object):
             halfsize = 1.0
         extent = [-halfsize, halfsize, -halfsize, halfsize]
 
-        ampl = self.amplitude
-        opd = self.opd.copy()
-        opd[np.where(self.amplitude == 0)] = np.nan
+        temp_wavefront = Wavefront(wavelength)
+        ampl = self.get_transmission(temp_wavefront)
+        opd = self.get_opd(temp_wavefront)
+        opd[np.where(ampl == 0)] = np.nan
 
         if what == 'both':
             # recursion!
@@ -2632,7 +2673,7 @@ class FITSOpticalElement(OpticalElement):
         self.amplitude_file = None
         self.amplitude_header = None
         self.opd_header = None
-
+        self._opd_in_radians = False
         self.planetype = planetype
 
         _log.debug("Trans: " + str(transmission))
@@ -2734,7 +2775,7 @@ class FITSOpticalElement(OpticalElement):
                 try:
                     opdunits = self.opd_header['BUNIT']
                 except KeyError:
-                    _log.error("No opdunit keyword supplied, and BUNIT keyword not found in header. "
+                    _log.error("No opdunits keyword supplied, and BUNIT keyword not found in header. "
                                "Cannot determine OPD units")
                     raise Exception("No opdunit keyword supplied, and BUNIT keyword not found in header. "
                                     "Cannot determine OPD units.")
@@ -2751,7 +2792,15 @@ class FITSOpticalElement(OpticalElement):
                 self.opd *= 1e-6
             elif opdunits in ('nanometer', 'nm'):
                 self.opd *= 1e-9
-            if self.opd_header is not None:
+            elif opdunits == 'radian':
+                self._opd_in_radians = True
+            else:
+                raise ValueError(
+                    "Got opdunits (or BUNIT header keyword) {}. Valid options "
+                    "are meter, micron, nanometer, or radian.".format(repr(opdunits))
+                )
+
+            if self.opd_header is not None and not self._opd_in_radians:
                 self.opd_header['BUNIT'] = 'meter'
 
             if len(self.opd.shape) != 2 or self.opd.shape[0] != self.opd.shape[1]:
@@ -2895,6 +2944,33 @@ class FITSOpticalElement(OpticalElement):
     def pupil_diam(self):
         """Diameter of the pupil (if this is a pupil plane optic)"""
         return self.pixelscale * (self.amplitude.shape[0] * u.pixel)
+
+    def get_opd(self, wave):
+        """ Return the optical path difference, given a wavelength.
+
+        When the OPD map is defined in terms of wavelength-independent
+        phase, as in the case of the vector apodizing phase plate
+        coronagraph of Snik et al. (Proc. SPIE, 2012), it is converted
+        to optical path difference in meters at the given wavelength for
+        consistency with the rest of POPPY.
+
+        Parameters
+        ----------
+        wave : float or obj
+            either a scalar wavelength or a Wavefront object
+
+        Returns
+        --------
+        ndarray giving OPD in meters
+
+        """
+        if isinstance(wave, BaseWavefront):
+            wavelength = wave.wavelength
+        else:
+            wavelength = wave
+        if self._opd_in_radians:
+            return self.opd * wavelength.to(u.m).value / (2 * np.pi)
+        return self.opd
 
 
 class CoordinateTransform(OpticalElement):
@@ -3081,7 +3157,7 @@ class Detector(OpticalElement):
         return (int(fpix), int(fpix)) if np.isscalar(fpix) else fpix.astype(int)[0:2]
 
     def __str__(self):
-        return "Detector plane: {} ({}x{} pixels, {})".format(self.name, self.shape[1], self.shape[0], self.pixelscale)
+        return "Detector plane: {} ({}x{} pixels, {:.3f})".format(self.name, self.shape[1], self.shape[0], self.pixelscale)
 
     @staticmethod
     def _handle_pixelscale_units_flexibly(pixelscale, fov_pixels):

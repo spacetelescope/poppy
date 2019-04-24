@@ -635,3 +635,11 @@ def test_ThinLens(display=False):
         "ThinLens shouldn't be affected by null optical elements! Introducing extra image planes "
         "made the output PSFs differ beyond numerical tolerances."
     )
+
+def test_fixed_sampling_optic():
+    optic= optics.HexagonAperture(side=1)
+    wave = poppy_core.Wavefront(npix=100, diam=10.0, wavelength=1e-6) # 10x10 meter square
+
+    array_optic= optics.fixed_sampling_optic(optic, wave)
+
+    assert np.allclose(array_optic.amplitude, optic.get_transmission(wave)), 'mismatch between original and fixed sampling version'
