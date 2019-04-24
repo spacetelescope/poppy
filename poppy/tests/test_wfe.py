@@ -86,7 +86,7 @@ def test_ParameterizedAberration():
                                err_msg="ParameterizedAberration disagrees with ZernikeAberration")
 
 
-def test_StatsticalPSDWFE():
+def test_StatistcalPSDWFE():
 
     # Verify that we produce phase screen with input RMS WFE
     NPIX = 256    # 101 is too small and results in issues for this test
@@ -97,7 +97,7 @@ def test_StatsticalPSDWFE():
 
     wvferr = 134*u.nm
     psd_wave = poppy_core.Wavefront(npix=NPIX, diam=DIAM, wavelength=1e-6)
-    psd_wfe = wfe.StatsticalPSDWFE(index=3.0, wfe=wvferr, radius=RADIUS, seed=None)
+    psd_wfe = wfe.StatisticalPSDWFE(index=3.0, wfe=wvferr, radius=RADIUS, seed=None)
 
     psd_opd = psd_wfe.get_opd(psd_wave)
     assert np.isclose(rms(psd_opd), wvferr.to(u.m).value), "WFE doesn't match input WFE."

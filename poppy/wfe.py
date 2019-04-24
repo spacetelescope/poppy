@@ -328,7 +328,7 @@ class SineWaveWFE(WavefrontError):
         return opd
 
 
-class StatsticalPSDWFE(WavefrontError):
+class StatisticalPSDWFE(WavefrontError):
     """
     Statistical PSF WFE class from power law for optical noise.
     """
