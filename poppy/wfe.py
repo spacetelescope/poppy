@@ -330,27 +330,26 @@ class SineWaveWFE(WavefrontError):
 
 class StatisticalPSDWFE(WavefrontError):
     """
-    Statistical PSF WFE class from power law for optical noise.
+    Statistical PSD WFE class from power law for optical noise.
+
+    Parameters
+    ----------
+    name : string
+        name of the optic
+    index: float
+        negative power law spectra index, defaults to 3
+    wfe: astropy quantity
+        wfe in linear astropy units, defaults to 50 nm
+    radius: astropy quantity
+        radius of optic in linear astropy units, defaults to 1 m
+    seed : integer
+        seed for the random phase screen generator
     """
 
     @utils.quantity_input(wfe=u.nm, radius=u.meter)
     def __init__(self, name='PSD WFE', index=3.0, wfe=50*u.nm, radius=1*u.meter, seed=None, **kwargs):
-        """
-        Parameters
-        ----------
-        name : string
-            name of the optic
-        index: float
-            negative power law spectra index, defaults to 3
-        wfe: astropy quantity
-            wfe in linear astropy units, defaults to 50 nm
-        radius: astropy quantity
-            radius of optic in linear astropy units, defaults to 1 m
-        seed : integer
-            seed for the random phase screen generator
-        """
 
-        super(WavefrontError, self).__init__(name=name, **kwargs)
+        super().__init__(name=name, **kwargs)
         self.index = index
         self.wfe = wfe
         self.radius = radius

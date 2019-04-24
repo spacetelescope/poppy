@@ -86,7 +86,7 @@ def test_ParameterizedAberration():
                                err_msg="ParameterizedAberration disagrees with ZernikeAberration")
 
 
-def test_StatistcalPSDWFE():
+def test_StatisticalPSDWFE():
 
     # Verify that we produce phase screen with input RMS WFE
     NPIX = 256    # 101 is too small and results in issues for this test
@@ -165,7 +165,7 @@ def test_StatistcalPSDWFE():
     com *= prof[5] / com.max()
 
     # Verify that the slopes of prof and com are the same
-    del_prof = prof[100] - prof[5]
+    del_prof = prof[105] - prof[5]
     del_com = com[100] - com[0]
 
     assert np.isclose(del_prof, del_com), "Spectral indices do not match."
