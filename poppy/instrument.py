@@ -437,10 +437,10 @@ class Instrument(object):
         if self.pupilopd is None:
             opdstring = "NONE - perfect telescope! "
             opdfile = 'None'
-            opdslice = 'None'
+            opdslice = 0
         elif isinstance(self.pupilopd, str):
             opdstring = os.path.basename(self.pupilopd)
-            opdfile = self.pupilopd
+            opdfile = os.path.basename(self.pupilopd)
             opdslice = 0  # default slice
         elif isinstance(self.pupilopd, fits.HDUList):
             opdstring = 'OPD from supplied FITS HDUlist object'
@@ -448,18 +448,18 @@ class Instrument(object):
                 opdfile = os.path.basename(self.pupilopd.filename())
             else:
                 opdfile = 'None'
-            opdslice = 'None'
+            opdslice = 0
         elif isinstance(self.pupilopd, poppy_core.OpticalElement):
             opdstring = 'OPD from supplied OpticalElement: ' + str(self.pupilopd)
             opdfile = str(self.pupilopd)
-            opdslice = 'None'
+            opdslice = 0
         else:  # tuple?
             opdstring = "%s slice %d" % (os.path.basename(self.pupilopd[0]), self.pupilopd[1])
             opdfile = os.path.basename(self.pupilopd[0])
             opdslice = self.pupilopd[1]
         result[0].header['PUPILOPD'] = (opdstring, 'Pupil OPD source')
         result[0].header['OPD_FILE'] = (opdfile, 'Pupil OPD file name')
-        result[0].header['OPDSLICE'] = (opdslice, 'Pupil OPD slice number')
+        result[0].header['OPDSLICE'] = (opdslice, 'Pupil OPD slice number, if file is a datacube')
 
         result[0].header['INSTRUME'] = (self.name, 'Instrument')
         result[0].header['FILTER'] = (self.filter, 'Filter name')
