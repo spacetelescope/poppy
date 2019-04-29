@@ -141,17 +141,20 @@ if _HAVE_PYTEST:
         w2 = poppy.Wavefront(npix=n)
         w3 = poppy.Wavefront(npix=n, diam=1*u.m)
         w4 = poppy.Wavefront(npix=n, pixelscale=1*u.arcsec/u.pixel)
+        w5 = poppy.Wavefront(npix=n*2)
 
-        f1 = poppy.FresnelWavefront(1.0*u.m, npix=n, oversample=1)
+        fw1 = poppy.FresnelWavefront(1.0*u.m, npix=n, oversample=1)
 
         # test a valid addition works:
         output = w1+w2
         assert isinstance(output, w1.__class__), "couldn't add compatible wavefronts"
 
+        # test the invalid additions are caught:
         inputs_and_errors = ((3, "Wavefronts can only be summed with other Wavefronts"),
-                             (f1, "Wavefronts can only be summed with other Wavefronts of the same class"),
+                             (fw1, "Wavefronts can only be summed with other Wavefronts of the same class"),
                              (w3, "Wavefronts can only be added if they have the same pixelscale"),
-                             (w4, "Wavefronts can only be added if they have the same pixelscale"))
+                             (w4, "Wavefronts can only be added if they have the same pixelscale"),
+                             (w5, "Wavefronts can only be added if they have the same size and shape"))
         for test_input, expected_error in inputs_and_errors:
             with pytest.raises(ValueError) as excinfo:
                 output = w1+test_input
