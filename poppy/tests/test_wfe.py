@@ -86,7 +86,7 @@ def test_ParameterizedAberration():
                                err_msg="ParameterizedAberration disagrees with ZernikeAberration")
 
 
-def test_StatisticalPSDWFE():
+def test_StatisticalPSDWFE(index=3, seed=123456, plot=False):
 
     # Verify that we produce phase screen with input RMS WFE
     NPIX = 256    # 101 is too small and results in issues for this test
@@ -97,7 +97,7 @@ def test_StatisticalPSDWFE():
 
     wvferr = 134*u.nm
     psd_wave = poppy_core.Wavefront(npix=NPIX, diam=DIAM, wavelength=1e-6)
-    psd_wfe = wfe.StatisticalPSDWFE(index=3.0, wfe=wvferr, radius=RADIUS, seed=None)
+    psd_wfe = wfe.StatisticalPSDWFE(index=index, wfe=wvferr, radius=RADIUS, seed=seed)
 
     psd_opd = psd_wfe.get_opd(psd_wave)
     assert np.isclose(rms(psd_opd), wvferr.to(u.m).value), "WFE doesn't match input WFE."
@@ -160,12 +160,41 @@ def test_StatisticalPSDWFE():
     inv_psd = np.fft.ifftshift(np.fft.ifft2(np.fft.ifftshift(psd_opd)))
     rad, prof = radial_profile(np.abs(inv_psd) ** 2, center=(int(NPIX/2), int(NPIX/2)))
 
-    # Make comparison slope
-    com = rad[5:] ** (-3)
-    com *= prof[5] / com.max()
+    # Test that the output power law matches the requested input power law.
+    # We set a relatively generous threshold for this test (3% difference in index)
+    # because this is statistical, and any given realization will differ from the index
+    # by potentially several percent. We also fix the seed above, to ensure test repeatability.
 
-    # Verify that the slopes of prof and com are the same
-    del_prof = prof[105] - prof[5]
-    del_com = com[100] - com[0]
+    assert (0.1 <= index <= 10), "index is outside of the range supported by this unit test"
 
-    assert np.isclose(del_prof, del_com), "Spectral indices do not match."
+    import astropy.modeling
+    # guess a power law model; but don't have the starting guess be the right anwser
+    plaw_guess = astropy.modeling.models.PowerLaw1D(alpha=index*1.5,
+        bounds={'alpha': (0.1, 10)}) # avoid floating point overflow warnings on test
+
+    # Perform a fit. Drop some initial and trailing values to avoid numerical artifacts.
+    fitter = astropy.modeling.fitting.LevMarLSQFitter()
+    drop = 20  # how many array elements to discard from fit
+    prof_norm = prof/prof.max() # Empirically this fit process works better if we normalize the profile first.
+    plaw_fit = fitter(plaw_guess, rad[drop:-drop], prof_norm[drop:-drop], weights=(prof_norm[drop:-drop])**-2)
+
+    # check the spectral index is as desired, within at least a few percent
+    assert np.isclose(index, plaw_fit.alpha, rtol=0.03), ("Measured output spectral index doesn't "
+            "match input within 3%: {} vs {}".format(index, plaw_fit.alpha) )
+
+    if plot:
+        import matplotlib.pyplot as plt
+        plt.figure()
+        psd_wfe.display(what='both')
+        plt.figure()
+        plt.loglog(rad[1:], prof_norm[1:],
+                   label='StatisticalPSD output for {}'.format(index))
+        plt.plot(rad[drop:-drop], plaw_fit(rad[drop:-drop]),
+                 label='power law fit: {:.5f}'.format(plaw_fit.alpha.value))
+        plt.xlabel("Spatial frequency [1/m]")
+        plt.ylabel("Normalized PSD")
+        plt.legend()
+
+
+
+
