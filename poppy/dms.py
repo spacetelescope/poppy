@@ -572,6 +572,7 @@ class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
         optics.MultiHexagonAperture.__init__(self, name=name, rings=rings, flattoflat=flattoflat,
                                              gap=gap, center=center)
 
+        self._center = center
         self._surface = np.zeros((len(self.segmentlist), 3))
 
         # see _setup_arrays for the following
@@ -605,6 +606,8 @@ class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
             Piston (in meters or other length units) and tip and tilt
             (in radians or other angular units)
         """
+        if not self._center:
+            segnum -= 1
         self._surface[segnum] = [piston.to(u.meter).value,
                                  tip.to(u.radian).value,
                                  tilt.to(u.radian).value]
@@ -650,6 +653,8 @@ class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
         self.opd = np.zeros(wave.shape)
         for i in self.segmentlist:
             wseg = self._seg_indices[i]
+            if not self._center:
+                i -= 1
             self.opd[wseg] = (self._surface[i, 0] +
                               self._surface[i, 1] * self._seg_x[wseg] +
                               self._surface[i, 2] * self._seg_y[wseg])
