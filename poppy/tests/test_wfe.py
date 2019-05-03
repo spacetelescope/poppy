@@ -1,5 +1,6 @@
 
 import numpy as np
+import astropy.units as u
 
 from .. import poppy_core
 from .. import optics
@@ -83,3 +84,88 @@ def test_ParameterizedAberration():
 
     np.testing.assert_allclose(pd_wave.phase, zern_wave.phase,
                                err_msg="ParameterizedAberration disagrees with ZernikeAberration")
+
+
+def test_StatisticalPSDWFE():
+
+    # Verify that we produce phase screen with input RMS WFE
+    NPIX = 256    # 101 is too small and results in issues for this test
+    def rms(opd):
+        """Calculate the RMS WFE of a wf with a zero mean."""
+        rms = np.sqrt(np.mean(np.square(opd)))
+        return rms
+
+    wvferr = 134*u.nm
+    psd_wave = poppy_core.Wavefront(npix=NPIX, diam=DIAM, wavelength=1e-6)
+    psd_wfe = wfe.StatisticalPSDWFE(index=3.0, wfe=wvferr, radius=RADIUS, seed=None)
+
+    psd_opd = psd_wfe.get_opd(psd_wave)
+    assert np.isclose(rms(psd_opd), wvferr.to(u.m).value), "WFE doesn't match input WFE."
+
+    # Verify that we reproduce the correct spectral index of the PSD
+    def radial_profile(image, center=None):
+        """ Compute a radial profile of the image.
+        Stripped down version of puppy.utils.radial_profile().
+        Keeps only the functionality that is needed for this test.
+        Parameters
+        ----------
+        image : array
+            image to get a radial profile of
+        center : tuple of floats
+            Coordinates (x,y) of PSF center, in pixel units. Default is image center.
+        Returns
+        --------
+        results : tuple
+            Tuple containing (radius, profile).
+        """
+
+        y, x = np.indices(image.shape, dtype=float)
+        if center is None:
+            # get exact center of image
+            # center = (image.shape[1]/2, image.shape[0]/2)
+            center = tuple((a - 1) / 2.0 for a in image.shape[::-1])
+
+        x -= center[0]
+        y -= center[1]
+
+        r = np.sqrt(x ** 2 + y ** 2)
+
+        # Use full image
+        ind = np.argsort(r.flat)
+        sr = r.flat[ind]  # sorted r
+        sim = image.flat[ind]  # sorted image
+
+        ri = sr.astype(int)  # sorted r as int
+        deltar = ri[1:] - ri[:-1]  # assume all radii represented (more work if not)
+        rind = np.where(deltar)[0]
+        nr = rind[1:] - rind[:-1]  # number in radius bin
+        csim = np.nan_to_num(sim).cumsum(dtype=float)  # cumulative sum to figure out sums for each bin
+        # np.nancumsum is implemented in >1.12
+        tbin = csim[rind[1:]] - csim[rind[:-1]]  # sum for image values in radius bins
+        radialprofile = tbin / nr
+
+        # pre-pend the initial element that the above code misses.
+        radialprofile2 = np.empty(len(radialprofile) + 1)
+        if rind[0] != 0:
+            radialprofile2[0] = csim[rind[0]] / (
+                    rind[0] + 1)  # if there are multiple elements in the center bin, average them
+        else:
+            radialprofile2[0] = csim[0]  # otherwise if there's just one then just take it.
+        radialprofile2[1:] = radialprofile
+        rr = np.arange(
+            len(radialprofile2)) +  0.5  # these should be centered in the bins, so add a half.
+
+        return rr, radialprofile2
+
+    inv_psd = np.fft.ifftshift(np.fft.ifft2(np.fft.ifftshift(psd_opd)))
+    rad, prof = radial_profile(np.abs(inv_psd) ** 2, center=(int(NPIX/2), int(NPIX/2)))
+
+    # Make comparison slope
+    com = rad[5:] ** (-3)
+    com *= prof[5] / com.max()
+
+    # Verify that the slopes of prof and com are the same
+    del_prof = prof[105] - prof[5]
+    del_com = com[100] - com[0]
+
+    assert np.isclose(del_prof, del_com), "Spectral indices do not match."
