@@ -571,8 +571,7 @@ class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
                  name='HexDM', center=True):
         optics.MultiHexagonAperture.__init__(self, name=name, rings=rings, flattoflat=flattoflat,
                                              gap=gap, center=center)
-
-        self._surface = np.zeros((len(self.segmentlist), 3))
+        self._surface = np.zeros((self._n_hexes_inside_ring(rings+1), 3))
 
         # see _setup_arrays for the following
         self._last_npix = np.nan
@@ -605,6 +604,9 @@ class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
             Piston (in meters or other length units) and tip and tilt
             (in radians or other angular units)
         """
+
+        if segnum not in self.segmentlist:
+            raise ValueError("Segment {} is not present for this DM instance.".format(segnum))
         self._surface[segnum] = [piston.to(u.meter).value,
                                  tip.to(u.radian).value,
                                  tilt.to(u.radian).value]
