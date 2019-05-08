@@ -24,7 +24,8 @@ from . import zernike
 from . import utils
 from . import accel_math
 
-__all__ = ['WavefrontError', 'ParameterizedWFE', 'ZernikeWFE', 'SineWaveWFE']
+__all__ = ['WavefrontError', 'ParameterizedWFE', 'ZernikeWFE', 'SineWaveWFE',
+        'StatisticalPSDWFE']
 
 
 def _accept_wavefront_or_meters(f):

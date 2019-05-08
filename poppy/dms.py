@@ -470,6 +470,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
     def display_actuators(self, annotate=False, grid=True, what='opd', crosshairs=False, *args, **kwargs):
         """ Display the optical surface, viewed as discrete actuators
+
         Parameters
         ------------
         annotate : bool
@@ -482,23 +483,11 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
             Draw crosshairs on plot to indicate the origin.
         """
 
-        # display in DM coordinates
-        # temporarily set attributes appropriately as if this were a regular OpticalElement
-        self.amplitude = np.ones_like(self.surface)
-        self.opd = self.surface
-        if self.include_actuator_mask:
-            self.amplitude[self.actuator_mask == 0] = 0
-
-        self.pixelscale = self.actuator_spacing / u.pixel
-
-        # then call parent class display
-        returnvalue = optics.OpticalElement.display(self, what=what, crosshairs=crosshairs, **kwargs)
-
-        # now un-set all the temporary attributes, since this is analytic and
-        # these are unneeded
-        del self.pixelscale
-        del self.opd
-        del self.amplitude
+        # call parent class display, setting parameters to display at actuator grid resolution
+        returnvalue = super().display(what=what, crosshairs=crosshairs,
+                npix = self.dm_shape[0],
+                grid_size = self.dm_shape[0]*self.actuator_spacing.to(u.m).value,
+                **kwargs)
 
         if annotate: self.annotate()
         if grid: self.annotate_grid()
