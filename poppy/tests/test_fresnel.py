@@ -130,7 +130,7 @@ def test_Circular_Aperture_PTP_long(display=False, npix=512, display_proper=Fals
     # and obviously the case based on the x axis of the figure.
 
     gw = fresnel.FresnelWavefront(beam_radius=0.5*u.m,wavelength=2200e-9,npix=npix,oversample=4)
-    gw *= optics.CircularAperture(radius=0.5,oversample=gw.oversample)
+    gw *= optics.CircularAperture(radius=0.5,oversample=gw.oversample, gray_pixel=False)
 
     gw.propagate_fresnel(z)
     inten = gw.intensity
@@ -394,7 +394,7 @@ def test_fresnel_FITS_Optical_element(tmpdir, display=False, verbose=False):
     npix = 128
 
     conv_lens = fresnel.QuadraticLens(1.0 * u.m)
-    circular_aperture = optics.CircularAperture(radius=radius)
+    circular_aperture = optics.CircularAperture(radius=radius, gray_pixel=False)
 
     # To test two different versions of the FITS handling, we will repeat this test twice:
     # once with the FITS element crafted to precisely match the pixel scale of the

@@ -307,18 +307,6 @@ class AnalyticOpticalElement(OpticalElement):
 
         return y, x
 
-    def transform_coords_to_wave(self, wave, y, x):
-        """ Given cartesian coordinates (Y,X) in
-        meters (or arcsec, for image planes) in the optic's native
-        coordinate systen, transform those to the coordinates of the wavefront's
-        array sampling, after taking into account rotation and translation etc.
-
-
-
-        """
-        raise NotImplementedError("Not implemented yet.")
-
-
 
 class ScalarTransmission(AnalyticOpticalElement):
     """ Uniform transmission between 0 and 1.0 in intensity.
@@ -1047,7 +1035,7 @@ class CircularAperture(AnalyticOpticalElement):
 
     @utils.quantity_input(radius=u.meter)
     def __init__(self, name=None, radius=1.0 * u.meter, pad_factor=1.0, planetype=PlaneType.unspecified,
-            gray_pixel=False, **kwargs):
+            gray_pixel=True, **kwargs):
 
         if name is None:
             name = "Circle, radius={}".format(radius)
@@ -1876,7 +1864,7 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
 
 # ------ convert analytic optics to array optics ------
 
-def fixed_sampling_optic(optic, wavefront):
+def fixed_sampling_optic(optic, wavefront, oversample=2):
     """Convert a variable-sampling AnalyticOpticalElement to a fixed-sampling ArrayOpticalElement
 
     For a given input optic this produces an equivalent output optic stored in simple arrays rather
@@ -1888,12 +1876,20 @@ def fixed_sampling_optic(optic, wavefront):
     you can save time by setting the sampling to a fixed value and saving arrays
     computed on that sampling.
 
+    Also, you can use this to evaluate any optic on a finer sampling scale and then bin the
+    results to the desired scale, using the so-called gray-pixel approximation. (i.e. the
+    value for each output pixel is computed as the average of N*N finer pixels in an
+    intermediate array.)
+
     Parameters
     ----------
     optic : poppy.AnalyticOpticalElement
         Some optical element
     wave : poppy.Wavefront
         A wavefront to define the desired sampling pixel size and number.
+    oversample : int
+        Subpixel sampling factor for "gray pixel" approximation: the optic will be
+        evaluated on a finer pixel scale and then binned down to the desired sampling.
 
     Returns
     -------
@@ -1904,8 +1900,20 @@ def fixed_sampling_optic(optic, wavefront):
     from .poppy_core import ArrayOpticalElement
     npix = wavefront.shape[0]
     grid_size = npix*u.pixel*wavefront.pixelscale
-    sampled_opd = optic.sample(what='opd', npix=npix, grid_size=grid_size)
-    sampled_trans = optic.sample(what='amplitude', npix=npix, grid_size=grid_size)
+    _log.debug("Converting {} to fixed sampling with grid_size={}, npix={}, oversample={}".format(
+        optic.name, grid_size, npix, oversample))
+
+    if oversample>1:
+        _log.debug("retrieving oversampled opd and transmission arrays")
+        sampled_opd = optic.sample(what='opd', npix=npix*oversample, grid_size=grid_size)
+        sampled_trans = optic.sample(what='amplitude', npix=npix*oversample, grid_size=grid_size)
+
+        _log.debug("binning down opd and transmission arrays")
+        sampled_opd = utils.krebin(sampled_opd, wavefront.shape)/oversample**2
+        sampled_trans = utils.krebin(sampled_trans, wavefront.shape)/oversample**2
+    else:
+        sampled_opd = optic.sample(what='opd', npix=npix, grid_size=grid_size)
+        sampled_trans = optic.sample(what='amplitude', npix=npix, grid_size=grid_size)
 
     return ArrayOpticalElement(opd=sampled_opd,
                                transmission=sampled_trans,
