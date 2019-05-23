@@ -205,17 +205,26 @@ def test_AnnularFieldStop():
 
     wave*= optic
     # Just check a handful of points that it goes from 0 to 1 back to 0
-    assert wave.intensity[50,50] == 0
-    assert wave.intensity[55,50] == 0
-    assert wave.intensity[60,50] == 1
-    assert wave.intensity[69,50] == 1
-    assert wave.intensity[75,50] == 0
-    assert wave.intensity[95,50] == 0
+    np.testing.assert_almost_equal( wave.intensity[50,50], 0)
+    np.testing.assert_almost_equal( wave.intensity[55,50], 0)
+    np.testing.assert_almost_equal( wave.intensity[60,50], 1)
+    np.testing.assert_almost_equal( wave.intensity[68,50], 1)
+    np.testing.assert_almost_equal( wave.intensity[75,50], 0)
+    np.testing.assert_almost_equal( wave.intensity[95,50], 0)
     # and check the area is approximately right
     expected_area = np.pi*(optic.radius_outer**2 - optic.radius_inner**2) * 100
     expected_area = expected_area.to(u.arcsec**2).value
+
+    # updated criteria for dealing with gray pixels
+    # sum of pixels should be close to this, and just a bit less than it
     area = wave.intensity.sum()
-    assert np.abs(expected_area-area) < 0.01*expected_area
+    assert expected_area-area < 0.05*expected_area
+    assert expected_area-area >0
+    # if we count the number of pixels that are significantly nonzero
+    # it should be a bit above the desired area
+    area_upper_bound = (wave.intensity > 0.01).sum()
+    assert area_upper_bound > expected_area
+    assert area_upper_bound < expected_area*1.1
 
 
 def test_BandLimitedOcculter(halfsize = 5) :

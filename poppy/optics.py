@@ -13,6 +13,7 @@ from . import accel_math
 from .version import version
 from .poppy_core import OpticalElement, Wavefront, BaseWavefront, PlaneType, _RADIANStoARCSEC
 from .accel_math import _exp, _r, _float, _complex
+from . import geometry
 
 if accel_math._USE_NUMEXPR:
     import numexpr as ne
@@ -827,15 +828,24 @@ class AnnularFieldStop(AnalyticImagePlaneElement):
         y, x = self.get_coordinates(wave)
         r = _r(x, y)
 
-        self.transmission = np.ones(wave.shape, dtype=_float())
-
         radius_inner = self.radius_inner.to(u.arcsec).value
         radius_outer = self.radius_outer.to(u.arcsec).value
 
-        if radius_inner > 0:
-            self.transmission[r <= radius_inner] = 0
+        pxscl = x[0,1]-x[0,0]
+        ypix=y/pxscl  # The filled_circle_aa code and in particular pxwt doesn't seem reliable with pixel scale <1
+        xpix=x/pxscl
+
         if self.radius_outer > 0:
-            self.transmission[r >= radius_outer] = 0
+            #w_outside = np.where(r >= self.radius_outer)
+            #self.transmission[w_outside] = 0
+            self.transmission = geometry.filled_circle_aa(wave.shape, 0,0, radius_outer/pxscl, xarray=xpix, yarray=ypix)
+        else:
+            self.transmission = np.ones(wave.shape, dtype=_float())
+
+        if self.radius_inner > 0:
+            self.transmission -= geometry.filled_circle_aa(wave.shape, 0,0, radius_inner/pxscl, xarray=xpix, yarray=ypix)
+            #w_inside = np.where(r <= self.radius_inner)
+            #self.transmission[w_inside] = 0
 
         return self.transmission
 
@@ -1049,14 +1059,8 @@ class CircularAperture(AnalyticOpticalElement):
 
         y, x = self.get_coordinates(wave)
         radius = self.radius.to(u.meter).value
-        r = _r(x, y)
-        del x
-        del y
-
-        w_outside = np.where(r > radius)
-        del r
-        self.transmission = np.ones(wave.shape, dtype=_float())
-        self.transmission[w_outside] = 0
+        pixscale = wave.pixelscale.to(u.meter).value
+        self.transmission = geometry.filled_circle_aa(wave.shape, 0, 0, radius/pixscale, x/pixscale, y/pixscale)
         return self.transmission
 
 

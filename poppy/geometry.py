@@ -13,9 +13,8 @@ import numpy as np
 # 
 # ported to pixwt.pro (IDL) by Doug Loucks, Lowell Observatory, 1992 Sep
 #
-# subsequently ported to python by Michael Fitzgerald,
-# LLNL, fitzgerald15@llnl.gov, 2007-10-16
-#
+# subsequently ported to python by Michael Fitzgerald, 2007-10-16
+# LLNL / UCLA
 
 def _arc(x, y0, y1, r):
     """
@@ -167,6 +166,7 @@ def filled_circle_aa(shape, xcenter, ycenter, radius, xarray=None, yarray=None, 
     xarray, yarray : 2d ndarrays
         X and Y coordinates corresponding to the center of each pixel
         in the main array. If not present, integer pixel indices are assumed.
+        WARNING - code currently is buggy with pixel scales != 1
     fillvalue : float
         Value to add into the array, for pixels that are entirely within the radius.
         This is *added* to each pixel at the specified coordinates. Default is 1
@@ -175,7 +175,6 @@ def filled_circle_aa(shape, xcenter, ycenter, radius, xarray=None, yarray=None, 
     cliprange : array_like
         if clip is True, give values to use in the clip function.
     """
-
 
 
 
@@ -189,11 +188,15 @@ def filled_circle_aa(shape, xcenter, ycenter, radius, xarray=None, yarray=None, 
     array[r < radius ]  = fillvalue
 
     pixscale = np.abs(xarray[0,1] - xarray[0,0])
+    area_per_pix = pixscale**2
+
+    if np.abs(pixscale -1.0) > 0.01:
+        _log.warning('filled_circle_aa is not reliable for pixel scale <1')
     border = np.where( np.abs(r-radius) < pixscale)
 
     weights = pixwt(xcenter, ycenter, radius, xarray[border], yarray[border])
 
-    array[border] = weights
+    array[border] = weights *fillvalue/area_per_pix
 
 
     if clip:
