@@ -340,11 +340,6 @@ class StatisticalPSDWFE(WavefrontError):
             Incoming Wavefront before this optic to set wavelength and
             scale, or a float giving the wavelength in meters
             for a temporary Wavefront used to compute the OPD.
-        units : 'meters' or 'waves'
-            Coefficients are supplied as meters of OPD, but the
-            resulting OPD can be converted to
-            waves based on the `Wavefront` wavelength or a supplied
-            wavelength value.
         """
         y, x = self.get_coordinates(wave)
         rho, theta = _wave_y_x_to_rho_theta(y, x, self.radius.to(u.meter).value)
@@ -358,8 +353,5 @@ class StatisticalPSDWFE(WavefrontError):
 
         phase_screen -= np.mean(phase_screen)  # force zero-mean
         opd = phase_screen / np.std(phase_screen) * self.wfe.to(u.m).value  # normalize to wanted input rms wfe
-
-        if units == 'waves':
-            opd /= wave.wavelength.to(u.meter).value
 
         return opd
