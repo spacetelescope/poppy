@@ -36,24 +36,13 @@ def test_ZernikeAberration():
 
     assert stddev < 1e-16, ("ZernikeAberration disagrees with ThinLens! stddev {}".format(stddev))
 
-def test_wavefront_or_meters_decorator():
-    zernike_lens = wfe.ZernikeWFE(
-        coefficients=[0, 0, 0, NWAVES * WAVELENGTH / (2 * np.sqrt(3))],
-        radius=RADIUS
-    )
-    opd_waves_a = zernike_lens.get_opd(WAVELENGTH)
-    opd_waves_b = zernike_lens.get_opd(poppy_core.Wavefront(wavelength=WAVELENGTH))
-
-    stddev = np.std(opd_waves_a - opd_waves_b)
-    assert stddev < 1e-16, "OPD map disagreement based on form of argument to get_opd!"
 
 def test_zernike_get_opd():
+    wave = poppy_core.Wavefront(wavelength=WAVELENGTH)
     zernike_optic = wfe.ZernikeWFE(coefficients=[NWAVES * WAVELENGTH,], radius=RADIUS)
-    opd_map = zernike_optic.get_opd(WAVELENGTH, units='meters')
+    opd_map = zernike_optic.get_opd(wave)
     assert np.max(opd_map) == NWAVES * WAVELENGTH
 
-    opd_map_waves = zernike_optic.get_opd(WAVELENGTH, units='waves')
-    assert np.max(opd_map_waves) == NWAVES
 
 def test_ParameterizedAberration():
     # verify that we can reproduce the same behavior as ZernikeAberration
