@@ -332,7 +332,7 @@ class StatisticalPSDWFE(WavefrontError):
         self.seed = seed
 
     @_check_wavefront_arg
-    def get_opd(self, wave, units='meters'):
+    def get_opd(self, wave):
         """
         Parameters
         ----------
