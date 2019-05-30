@@ -40,6 +40,10 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
                 may potentially be larger than the controllable active aperture, depending
                 on the details of your particular hardware. This parameter does not affect
                 any of the actuator models, only the reflective area for wavefront amplitude.
+            flip_x, flip_y : Bool
+                Flip the orientation of the X or Y axes of the DM actuators. Useful if your
+                device is not oriented such that the origin is at lower left as seen in the
+                pupil.
 
             Additionally, the standard parameters for shift_x and shift_y can be accepted and
             will be handled by the **kwargs mechanism. Note, rotation is not yet supported for DMs,
@@ -67,6 +71,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
                  actuator_print_through_file=None,
                  actuator_mask_file=None,
                  radius=1.0 * u.meter,
+                 flip_x=False, flip_y=False,
                  **kwargs
                  ):
 
@@ -76,6 +81,8 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         self._surface = np.zeros(dm_shape)  # array for the DM surface OPD, in meters
         self.numacross = dm_shape[0]  # number of actuators across diameter of
             # the optic's cleared aperture (may be less than full diameter of array)
+        self.flip_x = flip_x
+        self.flip_y = flip_y
 
         # What is the total reflective area that passes light onwards?
         self.radius_reflective = radius
@@ -332,9 +339,16 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         pixelscale = x[0, 1] - x[0, 0]  # scale of x,y
         # boxsize = (3 * sigma) / pixelscale  # half size for subarray
 
+        # check for flips
+        surface = self._surface
+        if self.flip_x:
+            surface = np.fliplr(surface)
+        if self.flip_y:
+            surface = np.flipud(surface)
+
         for yi, yc in enumerate(y_act):
             for xi, xc in enumerate(x_act):
-                if self._surface[yi, xi] == 0: continue
+                if surface[yi, xi] == 0: continue
 
                 # 2d Gaussian
                 if accel_math._USE_NUMEXPR:
@@ -342,7 +356,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
                 else:
                     roversigma2 = ((x - xc) ** 2 + (y - yc) ** 2) / sigma ** 2
 
-                interpolated_surface += self._surface[yi, xi] * accel_math._exp(-roversigma2)
+                interpolated_surface += surface[yi, xi] * accel_math._exp(-roversigma2)
 
         return interpolated_surface
 
@@ -359,8 +373,15 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
         # Set physical DM surface trace
 
+        # check for flips
+        surface = self._surface
+        if self.flip_x:
+            surface = np.fliplr(surface)
+        if self.flip_y:
+            surface = np.flipud(surface)
+
         if self.include_actuator_mask:
-            target_val = (self._surface * self.actuator_mask).ravel()
+            target_val = (surface * self.actuator_mask).ravel()
         else:
             target_val = self._surface.ravel()
 
