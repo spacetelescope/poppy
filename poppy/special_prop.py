@@ -257,7 +257,6 @@ class MatrixFTCoronagraph(poppy_core.OpticalSystem):
                                                    # just below will work
         self.occulter_box = occulter_box
 
-    @utils.quantity_input(wavelength=u.meter)
     def propagate(self,
                   wavefront,
                   normalize='first',
@@ -279,7 +278,7 @@ class MatrixFTCoronagraph(poppy_core.OpticalSystem):
             t_start = time.time()
         if self.verbose:
             _log.info(" Propagating wavelength = {0:g} meters using "
-                      "Matrix FTs".format(wavelength))
+                      "Matrix FTs".format(wavefront.wavelength))
         intermediate_wfs = []
 
         wavefront.history.append("Propagating using Matrix FT Coronagraph Method")
@@ -293,7 +292,7 @@ class MatrixFTCoronagraph(poppy_core.OpticalSystem):
                     metadet = poppy_core.Detector(optic.pixelscale, fov_pixels=optic.amplitude.shape[0],
                                                   name='Oversampled Occulter Plane')
                 else:
-                    metadet_pixelscale = ((wavelength / self.planes[0].pupil_diam).decompose()
+                    metadet_pixelscale = ((wavefront.wavelength / self.planes[0].pupil_diam).decompose()
                                           * u.radian).to(u.arcsec) / self.oversample / 2 / u.pixel
                     metadet = poppy_core.Detector(metadet_pixelscale, fov_arcsec=self.occulter_box * 2,
                                                   name='Oversampled Occulter Plane')
@@ -326,7 +325,7 @@ class MatrixFTCoronagraph(poppy_core.OpticalSystem):
             if conf.enable_flux_tests:
                 _log.debug("  Flux === " + str(wavefront.total_intensity))
 
-            if retain_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
+            if return_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
                 intermediate_wfs.append(wavefront.copy())
             if display_intermediates:
                 wavefront._display_after_optic(optic)
