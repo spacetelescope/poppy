@@ -267,7 +267,7 @@ class FresnelWavefront(BaseWavefront):
             _log.debug("Skipping oversampling, oversample < 1 or already padded ")
 
         if self.oversample < 2:
-            _log.warning("Oversampling > 2x suggested for reliable results.")
+            _log.warning("Oversampling > 2x suggested for reliable results in Fresnel propagation.")
 
         self._y, self._x = np.indices(self.shape, dtype=float)
         self._y -= (self.wavefront.shape[0]) / 2.0
