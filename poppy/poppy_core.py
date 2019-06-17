@@ -208,9 +208,14 @@ class BaseWavefront(ABC):
             raise ValueError('Wavefronts can only be added if they have the same size and shape: {} vs {} '.format(
                 self.wavefront.shape, wave.wavefront.shape))
 
-        if not self.pixelscale == wave.pixelscale:
-            raise ValueError('Wavefronts can only be added if they have the same pixelscale: {} vs {}'.format(
-                self.pixelscale, wave.pixelscale))
+
+        try:
+            if not np.isclose(self.pixelscale.value, wave.pixelscale.to(self.pixelscale.unit).value):
+                raise ValueError('Wavefronts can only be added if they have the same pixelscale: {} vs {}'.format(
+                    self.pixelscale, wave.pixelscale))
+        except u.UnitConversionError:
+            raise ValueError('Wavefronts can only be added if they have equivalent units: {} vs {}'.format(
+                self.pixelscale.unit, wave.pixelscale.unit))
 
 
         self.wavefront += wave.wavefront

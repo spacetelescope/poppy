@@ -662,6 +662,6 @@ def test_fixed_sampling_optic():
     optic= optics.HexagonAperture(side=1)
     wave = poppy_core.Wavefront(npix=100, diam=10.0, wavelength=1e-6) # 10x10 meter square
 
-    array_optic= optics.fixed_sampling_optic(optic, wave)
+    array_optic= optics.fixed_sampling_optic(optic, wave, oversample=1)
 
     assert np.allclose(array_optic.amplitude, optic.get_transmission(wave)), 'mismatch between original and fixed sampling version'

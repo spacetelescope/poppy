@@ -65,6 +65,10 @@ class SemiAnalyticCoronagraph(poppy_core.OpticalSystem):
         self.lyotplane = self.planes[fpm_index + 1]
         self.detector = self.planes[-1]
 
+        # some tweaks for display
+        self.occulter.wavefront_display_hint = 'intensity'
+        self.lyotplane.wavefront_display_hint = 'intensity'
+
         self.mask_function = optics.InverseTransmission(self.occulter)
 
         pt = poppy_core.PlaneType
@@ -114,6 +118,7 @@ class SemiAnalyticCoronagraph(poppy_core.OpticalSystem):
         # ------- differences from regular propagation begin here --------------
 
         nrows = len(self.planes) + 2  # there are some extra display planes
+        wavefront._display_hint_expected_nplanes = nrows  # For display of intermediate steps nicely
         if (normalize.lower() != 'first') and (normalize.lower() != 'last'):
             raise NotImplementedError("Only normalizations 'first' or 'last' are implemented for SAMC")
 
@@ -122,7 +127,6 @@ class SemiAnalyticCoronagraph(poppy_core.OpticalSystem):
             # The actual propagation:
             wavefront.propagate_to(optic)
             wavefront *= optic
-
 
             # Normalize if appropriate:
             if normalize.lower() == 'first' and wavefront.current_plane_index == 1:  # set entrance plane to 1.
@@ -153,8 +157,7 @@ class SemiAnalyticCoronagraph(poppy_core.OpticalSystem):
             intermediate_wfs.append(wavefront_cor.copy())
 
         if display_intermediates:  # Display after the occulter (EXTRA PLANE)
-            wavefront_cor._display_after_optic(self.occulter_highres, default_nplanes=nrows,
-                                               what='intensity')
+            wavefront_cor._display_after_optic(self.occulter_highres, default_nplanes=nrows,)
 
         # SAMC step 3:
         # calculate the MFT from that small region back to the full Lyot plane, and
@@ -173,7 +176,7 @@ class SemiAnalyticCoronagraph(poppy_core.OpticalSystem):
         wavefront = wavefront_combined
 
         if display_intermediates:  # Display back at Lyot (EXTRA PLANE)
-            wavefront.display(what='intensity', nrows=nrows, row=None, colorbar=False)
+            wavefront._display_after_optic(self.lyotplane, default_nplanes=nrows)
 
         # SAMC step 4: propagate through the rest of the optical system
         for optic in self.planes[self.fpm_index + 1:]:
@@ -254,12 +257,11 @@ class MatrixFTCoronagraph(poppy_core.OpticalSystem):
                                                    # just below will work
         self.occulter_box = occulter_box
 
-    @utils.quantity_input(wavelength=u.meter)
-    def propagate_mono(self, wavelength=1e-6*u.meter,
-                       normalize='first',
-                       retain_intermediates=False,
-                       retain_final=False,
-                       display_intermediates=False):
+    def propagate(self,
+                  wavefront,
+                  normalize='first',
+                  return_intermediates=False,
+                  display_intermediates=False):
         """Propagate a monochromatic wavefront through the optical system using matrix FTs. Called from
         within `calc_psf`. Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s
         (empty if `retain_intermediates=False`).
@@ -268,45 +270,18 @@ class MatrixFTCoronagraph(poppy_core.OpticalSystem):
         pupil-to-image propagation, to force the propagation method to switch to the
         matrix FT. Otherwise it would default to FFT.
 
-        Parameters
-        ----------
-        wavelength : float
-            Wavelength in meters
-        normalize : string, {'first', 'last'}
-            how to normalize the wavefront?
-            * 'first' = set total flux = 1 after the first optic, presumably a pupil
-            * 'last' = set total flux = 1 after the entire optical system.
-        display_intermediates : bool
-            Should intermediate steps in the calculation be displayed on screen? Default: False.
-        retain_intermediates : bool
-            Should intermediate steps in the calculation be retained? Default: False.
-            If True, the second return value of the method will be a list of `poppy.Wavefront` objects
-            representing intermediate optical planes from the calculation.
-        retain_final : bool
-            Should the final complex wavefront be retained? Default: False.
-            If True, the second return value of the method will be a single element list
-            (for consistency with retain intermediates) containing a `poppy.Wavefront` object
-            representing the final optical plane from the calculation.
-            Overridden by retain_intermediates.
+        See docstring of OpticalSystem.propagate for details
 
-        Returns
-        -------
-        final_wf : fits.HDUList
-            The final result of the monochromatic propagation as a FITS HDUList
-        intermediate_wfs : list
-            A list of `poppy.Wavefront` objects representing the wavefront at intermediate optical planes.
-            The 0th item is "before first plane", 1st is "after first plane and before second plane", and so on.
-            (n.b. This will be empty if `retain_intermediates` is False.)
         """
 
         if conf.enable_speed_tests:
             t_start = time.time()
         if self.verbose:
             _log.info(" Propagating wavelength = {0:g} meters using "
-                      "Matrix FTs".format(wavelength))
-        wavefront = self.input_wavefront(wavelength)
-
+                      "Matrix FTs".format(wavefront.wavelength))
         intermediate_wfs = []
+
+        wavefront.history.append("Propagating using Matrix FT Coronagraph Method")
 
         # note: 0 is 'before first optical plane; 1 = 'after first plane and before second plane' and so on
         current_plane_index = 0
@@ -317,7 +292,7 @@ class MatrixFTCoronagraph(poppy_core.OpticalSystem):
                     metadet = poppy_core.Detector(optic.pixelscale, fov_pixels=optic.amplitude.shape[0],
                                                   name='Oversampled Occulter Plane')
                 else:
-                    metadet_pixelscale = ((wavelength / self.planes[0].pupil_diam).decompose()
+                    metadet_pixelscale = ((wavefront.wavelength / self.planes[0].pupil_diam).decompose()
                                           * u.radian).to(u.arcsec) / self.oversample / 2 / u.pixel
                     metadet = poppy_core.Detector(metadet_pixelscale, fov_arcsec=self.occulter_box * 2,
                                                   name='Oversampled Occulter Plane')
@@ -347,31 +322,13 @@ class MatrixFTCoronagraph(poppy_core.OpticalSystem):
                 _log.debug("normalizing at last plane to 1.0 total intensity")
 
             # Optional outputs:
-            if conf.enable_flux_tests: _log.debug("  Flux === " + str(wavefront.total_intensity))
+            if conf.enable_flux_tests:
+                _log.debug("  Flux === " + str(wavefront.total_intensity))
 
-            if retain_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
+            if return_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
                 intermediate_wfs.append(wavefront.copy())
-
             if display_intermediates:
-                if conf.enable_speed_tests:
-                    t0 = time.time()
-
-                if current_plane_index > 1:
-                    title = None
-                else:
-                    title = "propagating $\lambda=$ {:.3} $\mu$m".format(wavelength.to(u.micron).value)
-
-                wavefront.display(
-                    what='best',
-                    nrows=len(self.planes),
-                    row=wavefront.current_plane_index,
-                    colorbar=False,
-                    title=title
-                )
-
-                if conf.enable_speed_tests:
-                    t1 = time.time()
-                    _log.debug("\tTIME %f s\t for displaying the wavefront." % (t1 - t0))
+                wavefront._display_after_optic(optic)
 
         # prepare output arrays
         if normalize.lower() == 'last':
@@ -381,6 +338,7 @@ class MatrixFTCoronagraph(poppy_core.OpticalSystem):
             t_stop = time.time()
             _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop - t_start))
 
-        if (not retain_intermediates) & retain_final:  # return the full complex wavefront of the last plane.
-            intermediate_wfs = [wavefront]
-        return wavefront.as_fits(), intermediate_wfs
+        if return_intermediates:
+            return wavefront, intermediate_wfs
+        else:
+            return wavefront

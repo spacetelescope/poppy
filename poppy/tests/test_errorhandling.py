@@ -153,7 +153,7 @@ if _HAVE_PYTEST:
         inputs_and_errors = ((3, "Wavefronts can only be summed with other Wavefronts"),
                              (fw1, "Wavefronts can only be summed with other Wavefronts of the same class"),
                              (w3, "Wavefronts can only be added if they have the same pixelscale"),
-                             (w4, "Wavefronts can only be added if they have the same pixelscale"),
+                             (w4, "Wavefronts can only be added if they have equivalent units"),
                              (w5, "Wavefronts can only be added if they have the same size and shape"))
         for test_input, expected_error in inputs_and_errors:
             with pytest.raises(ValueError) as excinfo:

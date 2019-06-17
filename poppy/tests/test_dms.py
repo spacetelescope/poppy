@@ -41,6 +41,37 @@ def test_basic_continuous_dm():
     return psf_aberrated, psf_perf, osys
 
 
+def test_cont_dm_flips(display=False):
+    """ Test that we can flip a deformable mirror in X or Y
+    """
+
+    testdm1 = dms.ContinuousDeformableMirror(dm_shape=(5,5))
+    testdm2 = dms.ContinuousDeformableMirror(dm_shape=(5,5), flip_x=True)
+    testdm3 = dms.ContinuousDeformableMirror(dm_shape=(5,5), flip_y=True)
+
+    for t in [testdm1, testdm2, testdm3]:
+        t.set_actuator(0,2, 1e-6)
+        t.set_actuator(1,1, -0.5e-6)
+
+    w = poppy_core.Wavefront(npix=5)
+
+    if display:
+        import matplotlib.pyplot as plt
+        testdm1.display(what='both', npix=5)
+        testdm2.set_actuator(0,2, 1e-6)
+        plt.figure()
+        testdm2.display(what='both', npix=5)
+        plt.figure()
+        testdm3.display(what='both', npix=5)
+
+    opd_1 = testdm1.get_opd(w)
+    opd_2 = testdm2.get_opd(w)
+    opd_3 = testdm3.get_opd(w)
+
+    assert np.allclose(opd_1, opd_2[:, ::-1]), 'Problem with flip_x'
+    assert np.allclose(opd_1, opd_3[::-1]), 'Problem with flip_y'
+
+
 def test_basic_hex_dm():
     """ A simple test for the hex segmented deformable mirror code -
     can we move actuators, and does adding nonzero WFE result in decreased Strehl?"""

@@ -28,21 +28,17 @@ __all__ = ['WavefrontError', 'ParameterizedWFE', 'ZernikeWFE', 'SineWaveWFE',
         'StatisticalPSDWFE']
 
 
-def _accept_wavefront_or_meters(f):
+def _check_wavefront_arg(f):
     """Decorator that ensures the first positional method argument
-    is a poppy.Wavefront or a floating point number of meters
-    for a wavelength
+    is a poppy.Wavefront or FresnelWavefront
     """
 
     @wraps(f)
     def wrapper(*args, **kwargs):
         if not isinstance(args[1], BaseWavefront):
-            wave = Wavefront(wavelength=args[1])
-            new_args = (args[0],) + (wave,) + (args[2:])
-            return f(*new_args, **kwargs)
+            raise ValueError("The first argument must be a Wavefront or FresnelWavefront object.")
         else:
             return f(*args, **kwargs)
-
     return wrapper
 
 
@@ -61,8 +57,8 @@ class WavefrontError(AnalyticOpticalElement):
         # in general we will want to see phase rather than intensity at this plane
         self.wavefront_display_hint = 'phase'
 
-    @_accept_wavefront_or_meters
-    def get_opd(self, wave, units='meters'):
+    @_check_wavefront_arg
+    def get_opd(self, wave):
         """Construct the optical path difference array for a wavefront error source
         as evaluated across the pupil for an input wavefront `wave`
 
@@ -71,8 +67,6 @@ class WavefrontError(AnalyticOpticalElement):
         wave : Wavefront
             Wavefront object with a `coordinates` method that returns (y, x)
             coordinate arrays in meters in the pupil plane
-        units : 'meters' or 'waves'
-            The units of optical path difference (Default: meters)
         """
         raise NotImplementedError('Not implemented yet')
 
@@ -159,8 +153,8 @@ class ParameterizedWFE(WavefrontError):
         self._default_display_size = radius * 3
         super(ParameterizedWFE, self).__init__(name=name, **kwargs)
 
-    @_accept_wavefront_or_meters
-    def get_opd(self, wave, units='meters'):
+    @_check_wavefront_arg
+    def get_opd(self, wave):
         y, x = self.get_coordinates(wave)
         rho, theta = _wave_y_x_to_rho_theta(y, x, self.radius.to(u.meter).value)
 
@@ -174,12 +168,7 @@ class ParameterizedWFE(WavefrontError):
                 continue  # save the trouble of a multiply-and-add of zeros
             coefficient_in_m = coefficient.to(u.meter).value
             combined_distortion += coefficient_in_m * computed_terms[idx]
-        if units == 'meters':
-            return combined_distortion
-        elif units == 'waves':
-            return combined_distortion / wave.wavelength
-        else:
-            raise ValueError("'units' argument must be 'meters' or 'waves'")
+        return combined_distortion
 
 
 class ZernikeWFE(WavefrontError):
@@ -214,8 +203,8 @@ class ZernikeWFE(WavefrontError):
         kwargs.update({'name': name})
         super(ZernikeWFE, self).__init__(**kwargs)
 
-    @_accept_wavefront_or_meters
-    def get_opd(self, wave, units='meters'):
+    @_check_wavefront_arg
+    def get_opd(self, wave):
         """
         Parameters
         ----------
@@ -223,11 +212,6 @@ class ZernikeWFE(WavefrontError):
             Incoming Wavefront before this optic to set wavelength and
             scale, or a float giving the wavelength in meters
             for a temporary Wavefront used to compute the OPD.
-        units : 'meters' or 'waves'
-            Coefficients are supplied in `ZernikeWFE.coefficients` as
-            meters of OPD, but the resulting OPD can be converted to
-            waves based on the `Wavefront` wavelength or a supplied
-            wavelength value.
         """
 
         # the Zernike optic, being normalized on a circle, is
@@ -267,8 +251,6 @@ class ZernikeWFE(WavefrontError):
                 )
 
         combined_zernikes[aperture_intensity==0] = 0
-        if units == 'waves':
-            combined_zernikes /= wave.wavelength.to(u.meter).value
         return combined_zernikes
 
 
@@ -303,8 +285,8 @@ class SineWaveWFE(WavefrontError):
         # note, can't call this next one 'amplitude' since that's already a property
         self.sine_amplitude = amplitude
 
-    @_accept_wavefront_or_meters
-    def get_opd(self, wave, units='meters'):
+    @_check_wavefront_arg
+    def get_opd(self, wave):
         """
         Parameters
         ----------
@@ -312,11 +294,6 @@ class SineWaveWFE(WavefrontError):
             Incoming Wavefront before this optic to set wavelength and
             scale, or a float giving the wavelength in meters
             for a temporary Wavefront used to compute the OPD.
-        units : 'meters' or 'waves'
-            Coefficients are supplied as meters of OPD, but the
-            resulting OPD can be converted to
-            waves based on the `Wavefront` wavelength or a supplied
-            wavelength value.
         """
 
         y, x = self.get_coordinates(wave)  # in meters
@@ -324,8 +301,6 @@ class SineWaveWFE(WavefrontError):
         opd = self.sine_amplitude.to(u.meter).value * \
               np.sin(2 * np.pi * (x * self.sine_spatial_freq.to(1 / u.meter).value + self.sine_phase_offset))
 
-        if units == 'waves':
-            opd /= wave.wavelength.to(u.meter).value
         return opd
 
 
@@ -356,8 +331,8 @@ class StatisticalPSDWFE(WavefrontError):
         self.radius = radius
         self.seed = seed
 
-    @_accept_wavefront_or_meters
-    def get_opd(self, wave, units='meters'):
+    @_check_wavefront_arg
+    def get_opd(self, wave):
         """
         Parameters
         ----------
@@ -365,11 +340,6 @@ class StatisticalPSDWFE(WavefrontError):
             Incoming Wavefront before this optic to set wavelength and
             scale, or a float giving the wavelength in meters
             for a temporary Wavefront used to compute the OPD.
-        units : 'meters' or 'waves'
-            Coefficients are supplied as meters of OPD, but the
-            resulting OPD can be converted to
-            waves based on the `Wavefront` wavelength or a supplied
-            wavelength value.
         """
         y, x = self.get_coordinates(wave)
         rho, theta = _wave_y_x_to_rho_theta(y, x, self.radius.to(u.meter).value)
@@ -383,8 +353,5 @@ class StatisticalPSDWFE(WavefrontError):
 
         phase_screen -= np.mean(phase_screen)  # force zero-mean
         opd = phase_screen / np.std(phase_screen) * self.wfe.to(u.m).value  # normalize to wanted input rms wfe
-
-        if units == 'waves':
-            opd /= wave.wavelength.to(u.meter).value
 
         return opd
