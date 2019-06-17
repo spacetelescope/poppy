@@ -156,6 +156,8 @@ class BaseWavefront(ABC):
         sqrt_ti = np.sqrt(self.total_intensity)
         if sqrt_ti == 0:
             _log.warning("Total intensity is zero when trying to normalize the wavefront. Cannot normalize.")
+        elif not np.isfinite(sqrt_ti):
+            _log.warning("Total intensity is NaN or Inf when trying to normalize the wavefront. Cannot normalize.")
         else:
             self.wavefront /= sqrt_ti
 
@@ -1156,10 +1158,14 @@ class Wavefront(BaseWavefront):
         else:
             pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
 
-        y -= (shape[0] - 1) / 2.0
-        x -= (shape[1] - 1) / 2.0
-
-        return pixel_scale_y * y, pixel_scale_x * x
+        if accel_math._USE_NUMEXPR:
+            ny, nx = shape
+            return (ne.evaluate("pixel_scale_y * (y - (ny-1)/2)"),
+                    ne.evaluate("pixel_scale_x * (x - (nx-1)/2)") )
+        else:
+            y -= (shape[0] - 1) / 2.0
+            x -= (shape[1] - 1) / 2.0
+            return pixel_scale_y * y, pixel_scale_x * x
 
     @staticmethod
     def image_coordinates(shape, pixelscale, last_transform_type, image_centered):
@@ -2510,7 +2516,7 @@ class OpticalElement(object):
 
         # Evaluate the wavefront at the desired sampling and pixel scale.
         ampl = self.get_transmission(temp_wavefront)
-        opd = self.get_opd(temp_wavefront)
+        opd = self.get_opd(temp_wavefront).copy()
         opd[np.where(ampl == 0)] = np.nan
 
         # define a helper function for the actual plotting - we do it this way so

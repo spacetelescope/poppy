@@ -84,9 +84,9 @@ def test_SAMC(fft_oversample=4, samc_oversample=8, npix=512,
     else:
         raise NotImplementedError("Don't know what threshold to use for oversample="+str(oversample))
 
-    totdiff = np.abs(psf_sam[0].data.sum() - psf_fft[0].data.sum())
-    assert totdiff < thresh, "Total pixel value absolute difference summed overimages ({}) exceeds threshold ({}).".format(totdiff, thresh)
-
+    expected_total = 0.005615
+    assert np.abs(psf_sam[0].data.sum()-expected_total) < thresh, "Summed total of PSF intensity did not match expectations"
+    assert np.abs(psf_sam[0].data.sum()-expected_total)/expected_total < 0.003, "Summed total of PSF intensity was more than 0.3% away from expectation"
 
     # Check there are the expected number of intermediate planes, which for this
     # kind of propagation has some extras:

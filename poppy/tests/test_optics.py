@@ -36,7 +36,7 @@ def test_InverseTransmission():
         assert( np.all(  np.abs(optic.get_phasor(wave) - (1-inverted.get_phasor(wave))) < 1e-10 ))
 
     # vary 2d shape
-    for radius in np.arange(10, dtype=float)/10:
+    for radius in np.arange(1, 11, dtype=float)/10:
 
         optic = optics.CircularAperture(radius=radius)
         inverted = optics.InverseTransmission(optic)
@@ -205,17 +205,26 @@ def test_AnnularFieldStop():
 
     wave*= optic
     # Just check a handful of points that it goes from 0 to 1 back to 0
-    assert wave.intensity[50,50] == 0
-    assert wave.intensity[55,50] == 0
-    assert wave.intensity[60,50] == 1
-    assert wave.intensity[69,50] == 1
-    assert wave.intensity[75,50] == 0
-    assert wave.intensity[95,50] == 0
+    np.testing.assert_almost_equal( wave.intensity[50,50], 0)
+    np.testing.assert_almost_equal( wave.intensity[55,50], 0)
+    np.testing.assert_almost_equal( wave.intensity[60,50], 1)
+    np.testing.assert_almost_equal( wave.intensity[68,50], 1)
+    np.testing.assert_almost_equal( wave.intensity[75,50], 0)
+    np.testing.assert_almost_equal( wave.intensity[95,50], 0)
     # and check the area is approximately right
     expected_area = np.pi*(optic.radius_outer**2 - optic.radius_inner**2) * 100
     expected_area = expected_area.to(u.arcsec**2).value
+
+    # updated criteria for dealing with gray pixels
+    # sum of pixels should be close to this, and just a bit less than it
     area = wave.intensity.sum()
-    assert np.abs(expected_area-area) < 0.01*expected_area
+    assert expected_area-area < 0.05*expected_area
+    assert expected_area-area >0
+    # if we count the number of pixels that are significantly nonzero
+    # it should be a bit above the desired area
+    area_upper_bound = (wave.intensity > 0.01).sum()
+    assert area_upper_bound > expected_area
+    assert area_upper_bound < expected_area*1.1
 
 
 def test_BandLimitedOcculter(halfsize = 5) :
@@ -591,7 +600,6 @@ def test_GaussianAperture(display=False):
 def test_ThinLens(display=False):
     pupil_radius = 1
 
-    pupil = optics.CircularAperture(radius=pupil_radius)
     # let's add < 1 wave here so we don't have to worry about wrapping
     lens = optics.ThinLens(nwaves=0.5, reference_wavelength=1e-6, radius=pupil_radius)
     # n.b. npix is 99 so that there are an integer number of pixels per meter (hence multiple of 3)
@@ -599,11 +607,25 @@ def test_ThinLens(display=False):
     # Otherwise the strict test against half a wave min max doesn't work
     # because we're missing some (tiny but nonzero) part of the aperture
     wave = poppy_core.Wavefront(npix=99, diam=3.0, wavelength=1e-6)
-    wave *= pupil
     wave *= lens
 
-    assert np.allclose(wave.phase.max(),  np.pi/2)
-    assert np.allclose(wave.phase.min(), -np.pi/2)
+    # Now test the values at some precisely chosen pixels
+    y, x = wave.coordinates()
+    at_radius = np.where((x==1) & (y==0))
+    assert np.allclose(wave.phase[at_radius], -np.pi/2), "Didn't get -1/2 wave OPD at edge of optic"
+    assert len(at_radius[0]) > 0, "Array indices messed up - need to have a pixel at exactly (1,0)"
+
+    at_radius = np.where((x==0) & (y==1))
+    assert np.allclose(wave.phase[at_radius], -np.pi/2), "Didn't get -1/2 wave OPD at edge of optic"
+    assert len(at_radius[0]) > 0, "Array indices messed up - need to have a pixel at exactly (0,1)"
+
+
+    at_center = np.where((x==0) & (y==0))
+    assert np.allclose(wave.phase[at_center], np.pi/2), "Didn't get 1/2 wave OPD at center of optic"
+    assert len(at_radius[0]) > 0, "Array indices messed up - need to have a pixel at exactly (0,0)"
+
+    # TODO test intermediate pixel values between center and edge?
+
 
     # regression test to ensure null optical elements don't change ThinLens behavior
     # see https://github.com/mperrin/poppy/issues/14
@@ -640,6 +662,6 @@ def test_fixed_sampling_optic():
     optic= optics.HexagonAperture(side=1)
     wave = poppy_core.Wavefront(npix=100, diam=10.0, wavelength=1e-6) # 10x10 meter square
 
-    array_optic= optics.fixed_sampling_optic(optic, wave)
+    array_optic= optics.fixed_sampling_optic(optic, wave, oversample=1)
 
     assert np.allclose(array_optic.amplitude, optic.get_transmission(wave)), 'mismatch between original and fixed sampling version'

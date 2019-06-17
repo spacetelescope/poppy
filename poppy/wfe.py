@@ -198,7 +198,7 @@ class ZernikeWFE(WavefrontError):
         self.radius = radius
         self.aperture_stop = aperture_stop
         self.coefficients = coefficients
-        self.circular_aperture = CircularAperture(radius=self.radius, **kwargs)
+        self.circular_aperture = CircularAperture(radius=self.radius, gray_pixel=False, **kwargs)
         self._default_display_size = radius * 3
         kwargs.update({'name': name})
         super(ZernikeWFE, self).__init__(**kwargs)
@@ -250,7 +250,7 @@ class ZernikeWFE(WavefrontError):
                     noll_normalize=True
                 )
 
-        combined_zernikes *= aperture_intensity
+        combined_zernikes[aperture_intensity==0] = 0
         return combined_zernikes
 
 
