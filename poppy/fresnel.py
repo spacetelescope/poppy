@@ -1148,14 +1148,8 @@ class FresnelOpticalSystem(BaseOpticalSystem):
 
         for optic, distance in zip(self.planes, self.distances):
             # The actual propagation:
-            t0 = time.time()
             wavefront.propagate_to(optic, distance)
-            t1 = time.time()
             wavefront *= optic
-            t2 = time.time()
-            if poppy.conf.enable_speed_tests:
-                _log.debug("\tTIME for {}:  {:.4f} s propagation, {:.4f} s for optic".format(optic.name, t1-t0, t2-t1))
-
 
             # Normalize if appropriate:
             if normalize.lower() == 'first' and wavefront.current_plane_index == 1:  # set entrance plane to 1.
