@@ -318,6 +318,27 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
         return interpolated_surface
 
+    def _get_surface_arrays_with_orientation(self):
+        """ Return representations of the DM actuators and masks
+        possibly with flips horizontally or vertically
+        """
+        surface = self._surface
+        if self.flip_x:
+            surface = np.fliplr(surface)
+        if self.flip_y:
+            surface = np.flipud(surface)
+
+        if self.include_actuator_mask:
+            act_mask = self.actuator_mask
+            if self.flip_x:
+                act_mask = np.fliplr(act_mask)
+            if self.flip_y:
+                act_mask = np.flipud(act_mask)
+        else:
+            act_mask = None
+
+        return surface, act_mask
+
     def _get_surface_via_gaussian_influence_functions(self, wave):
         """ Infer a finely-sampled surface from simple Gaussian influence functions centered on
         each actuator.
@@ -338,18 +359,14 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         sigma = self.actuator_spacing.to(u.meter).value / np.sqrt((-np.log(crosstalk)))
 
         pixelscale = x[0, 1] - x[0, 0]  # scale of x,y
-        # boxsize = (3 * sigma) / pixelscale  # half size for subarray
 
         # check for flips
-        surface = self._surface
-        if self.flip_x:
-            surface = np.fliplr(surface)
-        if self.flip_y:
-            surface = np.flipud(surface)
+        surface, act_mask = self._get_surface_arrays_with_orientation()
 
         for yi, yc in enumerate(y_act):
             for xi, xc in enumerate(x_act):
-                if surface[yi, xi] == 0 or self.actuator_mask[yi,xi]==0: continue
+                if surface[yi, xi] == 0 or (self.include_actuator_mask and act_mask[yi,xi]==0):
+                    continue
 
                 # 2d Gaussian
                 if accel_math._USE_NUMEXPR:
@@ -372,17 +389,11 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         if not hasattr(self, '_act_ind_flat') or True:
             self._setup_actuator_indices(wave)
 
-        # Set physical DM surface trace
-
         # check for flips
-        surface = self._surface
-        if self.flip_x:
-            surface = np.fliplr(surface)
-        if self.flip_y:
-            surface = np.flipud(surface)
+        surface, act_mask = self._get_surface_arrays_with_orientation()
 
         if self.include_actuator_mask:
-            target_val = (surface * self.actuator_mask).ravel()
+            target_val = (surface * act_mask).ravel()
         else:
             target_val = self._surface.ravel()
 
