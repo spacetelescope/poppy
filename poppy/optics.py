@@ -59,12 +59,16 @@ class AnalyticOpticalElement(OpticalElement):
 
     """
 
-    def __init__(self, shift_x=None, shift_y=None, rotation=None, **kwargs):
+    def __init__(self, shift_x=None, shift_y=None, rotation=None,
+            inclination_x=None, inclination_y=None,
+            **kwargs):
         OpticalElement.__init__(self, **kwargs)
 
         if shift_x is not None: self.shift_x = shift_x
         if shift_y is not None: self.shift_y = shift_y
         if rotation is not None: self.rotation = rotation
+        if inclination_x is not None: self.inclination_x = inclination_x
+        if inclination_y is not None: self.inclination_y = inclination_y
 
         # self.shape = None  # no explicit shape required
         self.pixelscale = None
@@ -297,6 +301,11 @@ class AnalyticOpticalElement(OpticalElement):
             x -= float(self.shift_x)
         if hasattr(self, "shift_y"):
             y -= float(self.shift_y)
+        # inclination around X axis rescales Y, and vice versa:
+        if hasattr(self, "inclination_x"):
+            y /= np.cos(np.deg2rad(self.inclination_x))
+        if hasattr(self, "inclination_y"):
+            x /= np.cos(np.deg2rad(self.inclination_y))
         if hasattr(self, "rotation"):
             angle = np.deg2rad(self.rotation)
             xp = np.cos(angle) * x + np.sin(angle) * y

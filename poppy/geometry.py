@@ -10,6 +10,10 @@ from . import accel_math
 if accel_math._USE_NUMEXPR:
     import numexpr as ne
 
+import logging
+_log = logging.getLogger('poppy')
+
+
 # original code in pixwt.c by Marc Buie
 #    See http://www.boulder.swri.edu/~buie/idl/downloads/custom/32bit/pixwt.c
 #
