@@ -350,7 +350,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
         See also self._get_surface_via_convolution
         """
-        y, x = wave.coordinates()
+        y, x = self.get_coordinates(wave)
         y_act, x_act = self.get_act_coordinates(one_d=True)
 
         interpolated_surface = np.zeros(wave.shape)
@@ -430,7 +430,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         # FIXME this will need to become smarter about when to regenerate these.
         # for cases with different wave samplings.
         # For now will just regenerate this every time. Slower but strict.
-        y_wave, x_wave = wave.coordinates()
+        y_wave, x_wave = self.get_coordinates(wave)
         y_act, x_act = self.get_act_coordinates(one_d=True)
         N_act = self.numacross
 
