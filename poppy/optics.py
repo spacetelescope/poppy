@@ -72,6 +72,8 @@ class AnalyticOpticalElement(OpticalElement):
 
         if getattr(self, 'inclination_x', 0) != 0 and getattr(self, 'inclination_y', 0) != 0:
             warnings.warn("It is physically inconsistent to set inclinations on both X and Y at the same time.")
+        if np.abs(getattr(self, 'inclination_x', 0)) > 90 or np.abs(getattr(self, 'inclination_y', 0)) > 90:
+            warnings.warn("Inclinations should be within the range -90 to 90 degrees")
 
         # self.shape = None  # no explicit shape required
         self.pixelscale = None
