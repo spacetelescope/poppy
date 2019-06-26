@@ -612,9 +612,9 @@ class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
     """
 
     def __init__(self, rings=3, flattoflat=1.0 * u.m, gap=0.01 * u.m,
-                 name='HexDM', center=True):
+                 name='HexDM', center=True, **kwargs):
         optics.MultiHexagonAperture.__init__(self, name=name, rings=rings, flattoflat=flattoflat,
-                                             gap=gap, center=center)
+                                             gap=gap, center=center, **kwargs)
         self._surface = np.zeros((self._n_hexes_inside_ring(rings+1), 3))
 
         # see _setup_arrays for the following
