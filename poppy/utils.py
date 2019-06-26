@@ -1315,17 +1315,11 @@ class BackCompatibleQuantityInput(object):
 
     def __call__(self, wrapped_function):
         from astropy.utils.decorators import wraps
-
-        import warnings
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            from astropy.utils.compat import funcsigs
-            # TODO update this code to avoid the deprecated function, once
-            # we are running in only-python-3 mode
         from astropy.units import UnitsError, add_enabled_equivalencies, Quantity
+        import inspect
 
         # Extract the function signature for the function we are wrapping.
-        wrapped_signature = funcsigs.signature(wrapped_function)
+        wrapped_signature = inspect.signature(wrapped_function)
 
         # Define a new function to return in place of the wrapped one
         @wraps(wrapped_function)
@@ -1336,8 +1330,8 @@ class BackCompatibleQuantityInput(object):
             # Iterate through the parameters of the original signature
             for param in wrapped_signature.parameters.values():
                 # We do not support variable arguments (*args, **kwargs)
-                if param.kind in (funcsigs.Parameter.VAR_KEYWORD,
-                                  funcsigs.Parameter.VAR_POSITIONAL):
+                if param.kind in (inspect.Parameter.VAR_KEYWORD,
+                                  inspect.Parameter.VAR_POSITIONAL):
                     continue
                 # Catch the (never triggered) case where bind relied on a default value.
                 if param.name not in bound_args.arguments and param.default is not param.empty:
@@ -1357,7 +1351,7 @@ class BackCompatibleQuantityInput(object):
 
                 # If the target unit is empty, then no unit was specified so we
                 # move past it
-                if target_unit is not funcsigs.Parameter.empty:
+                if target_unit is not inspect.Parameter.empty:
                     if not isinstance(arg, Quantity):
                         # if we're going to make something a quantity it had better
                         # be compatible with float ndarray
