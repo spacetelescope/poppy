@@ -59,12 +59,21 @@ class AnalyticOpticalElement(OpticalElement):
 
     """
 
-    def __init__(self, shift_x=None, shift_y=None, rotation=None, **kwargs):
+    def __init__(self, shift_x=None, shift_y=None, rotation=None,
+            inclination_x=None, inclination_y=None,
+            **kwargs):
         OpticalElement.__init__(self, **kwargs)
 
         if shift_x is not None: self.shift_x = shift_x
         if shift_y is not None: self.shift_y = shift_y
         if rotation is not None: self.rotation = rotation
+        if inclination_x is not None: self.inclination_x = inclination_x
+        if inclination_y is not None: self.inclination_y = inclination_y
+
+        if getattr(self, 'inclination_x', 0) != 0 and getattr(self, 'inclination_y', 0) != 0:
+            warnings.warn("It is physically inconsistent to set inclinations on both X and Y at the same time.")
+        if np.abs(getattr(self, 'inclination_x', 0)) > 90 or np.abs(getattr(self, 'inclination_y', 0)) > 90:
+            warnings.warn("Inclinations should be within the range -90 to 90 degrees")
 
         # self.shape = None  # no explicit shape required
         self.pixelscale = None
@@ -285,11 +294,14 @@ class AnalyticOpticalElement(OpticalElement):
 
         Method: Calls the supplied wave object's coordinates() method,
         then checks for the existence of the following attributes:
-        "shift_x", "shift_y", "rotation"
+        "shift_x", "shift_y", "rotation", "inclination_x", "inclination_y"
         If any of them are present, then the coordinates are modified accordingly.
 
         Shifts are given in meters for pupil optics and arcseconds for image
-        optics.
+        optics. Rotations and inclinations are given in degrees.
+
+        For multiple transformations, the order of operations is:
+            shift, rotate, incline.
         """
 
         y, x = wave.coordinates()
@@ -301,9 +313,13 @@ class AnalyticOpticalElement(OpticalElement):
             angle = np.deg2rad(self.rotation)
             xp = np.cos(angle) * x + np.sin(angle) * y
             yp = -np.sin(angle) * x + np.cos(angle) * y
-
             x = xp
             y = yp
+        # inclination around X axis rescales Y, and vice versa:
+        if hasattr(self, "inclination_x"):
+            y /= np.cos(np.deg2rad(self.inclination_x))
+        if hasattr(self, "inclination_y"):
+            x /= np.cos(np.deg2rad(self.inclination_y))
 
         return y, x
 

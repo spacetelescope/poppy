@@ -123,6 +123,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         else:
             raise TypeError('Not sure how to use an influence function parameter of type ' + str(type(influence_func)))
 
+
     def _load_influence_fn(self, filename=None, hdulist=None):
         """ Load and verify an influence function provided by FITS file or HDUlist """
         import copy
@@ -287,7 +288,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         """
 
         if self.influence_type == 'from file':
-            interpolated_surface = self._get_surface_via_conv(wave)
+            interpolated_surface = self._get_surface_via_convolution(wave)
         else:
             # the following could be replaced with a higher fidelity model if needed
             interpolated_surface = self._get_surface_via_gaussian_influence_functions(wave)
@@ -317,6 +318,27 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
         return interpolated_surface
 
+    def _get_surface_arrays_with_orientation(self):
+        """ Return representations of the DM actuators and masks
+        possibly with flips horizontally or vertically
+        """
+        surface = self._surface
+        if self.flip_x:
+            surface = np.fliplr(surface)
+        if self.flip_y:
+            surface = np.flipud(surface)
+
+        if self.include_actuator_mask:
+            act_mask = self.actuator_mask
+            if self.flip_x:
+                act_mask = np.fliplr(act_mask)
+            if self.flip_y:
+                act_mask = np.flipud(act_mask)
+        else:
+            act_mask = None
+
+        return surface, act_mask
+
     def _get_surface_via_gaussian_influence_functions(self, wave):
         """ Infer a finely-sampled surface from simple Gaussian influence functions centered on
         each actuator.
@@ -326,9 +348,9 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
         Work in progress, oversimplified, not a high fidelity representation of the true influence function
 
-        See also self._get_surface_via_conv
+        See also self._get_surface_via_convolution
         """
-        y, x = wave.coordinates()
+        y, x = self.get_coordinates(wave)
         y_act, x_act = self.get_act_coordinates(one_d=True)
 
         interpolated_surface = np.zeros(wave.shape)
@@ -337,18 +359,14 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         sigma = self.actuator_spacing.to(u.meter).value / np.sqrt((-np.log(crosstalk)))
 
         pixelscale = x[0, 1] - x[0, 0]  # scale of x,y
-        # boxsize = (3 * sigma) / pixelscale  # half size for subarray
 
         # check for flips
-        surface = self._surface
-        if self.flip_x:
-            surface = np.fliplr(surface)
-        if self.flip_y:
-            surface = np.flipud(surface)
+        surface, act_mask = self._get_surface_arrays_with_orientation()
 
         for yi, yc in enumerate(y_act):
             for xi, xc in enumerate(x_act):
-                if surface[yi, xi] == 0: continue
+                if surface[yi, xi] == 0 or (self.include_actuator_mask and act_mask[yi,xi]==0):
+                    continue
 
                 # 2d Gaussian
                 if accel_math._USE_NUMEXPR:
@@ -360,7 +378,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
         return interpolated_surface
 
-    def _get_surface_via_conv(self, wave):
+    def _get_surface_via_convolution(self, wave):
         """ Infer the physical DM surface by convolving the actuator
             "picket fence" trace with the influence function.
 
@@ -371,22 +389,35 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         if not hasattr(self, '_act_ind_flat') or True:
             self._setup_actuator_indices(wave)
 
-        # Set physical DM surface trace
-
         # check for flips
-        surface = self._surface
-        if self.flip_x:
-            surface = np.fliplr(surface)
-        if self.flip_y:
-            surface = np.flipud(surface)
+        surface, act_mask = self._get_surface_arrays_with_orientation()
 
         if self.include_actuator_mask:
-            target_val = (surface * self.actuator_mask).ravel()
+            target_val = (surface * act_mask).ravel()
         else:
             target_val = self._surface.ravel()
 
-        self._surface_trace_flat[self._act_ind_flat] = target_val
+        # Compute the 'surface trace', i.e the values for each actuator, projected
+        # into the appropriate locations on the detector. For each actuator, we
+        # weight the surface value across a 2x2 square of pixels to account for subpixel
+        # positions of the actuators.
 
+        # First, determine DM actuator coordinates in fractional pixels:
+        dm_act_m = np.stack(self.get_act_coordinates())
+        center = (np.asarray(wave.shape)-1)/2  # need to be careful here re exact wave center
+        center.shape=(2,1,1)
+        dm_act_pix = dm_act_m / wave.pixelscale.to(u.m/u.pixel).value + center
+
+        # Then iterate over a 2x2 square of pixels, weighting linearly between adjacent pixels
+        # based on the subpixel offset for each actuator
+        fracpart, intpart = np.modf(dm_act_pix)
+        for ix in (0,1):
+            for iy in (0,1):
+                xweight = fracpart[1] if ix==1 else (1-fracpart[1])
+                yweight = fracpart[0] if iy==1 else (1-fracpart[0])
+                self._surface_trace_flat[self._act_ind_flat[0] + ix + iy*wave.shape[0]] = (xweight*yweight).flat*target_val
+
+        # Now we can convolve with the influence function to get the full continuous surface.
         influence_rescaled = self._get_rescaled_influence_func(wave.pixelscale)
         dm_surface = scipy.signal.fftconvolve(self._surface_trace_flat.reshape(wave.shape),
                                               influence_rescaled, mode='same')
@@ -399,14 +430,17 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         # FIXME this will need to become smarter about when to regenerate these.
         # for cases with different wave samplings.
         # For now will just regenerate this every time. Slower but strict.
-        # TODO - also consider the case where actuators are not spaced integer pixels apart...
-        # Eventually that may require more accurate handling here instead of rounding to integer pixels.
-        y_wave, x_wave = wave.coordinates()
+        y_wave, x_wave = self.get_coordinates(wave)
         y_act, x_act = self.get_act_coordinates(one_d=True)
         N_act = self.numacross
-        x_wave_ind_act = np.argmin(np.abs(x_act.reshape((N_act, 1)) *
-                                          np.ones((1, wave.shape[1]))
-                                          - x_wave[:N_act, :]), axis=1)
+
+        # Find integer pixel to the left & down (i.e. floor) for each actuator.
+        # This sets us up for the subpixel offsets inside
+        # _get_surface_via_convolution()
+        center = (np.asarray(wave.shape)-1)/2  # need to be careful here re exact wave center
+        dm_x_act_pix = x_act / wave.pixelscale.to(u.m/u.pixel).value + center[1]
+        x_wave_ind_act = np.asarray(np.floor(dm_x_act_pix), dtype=int)
+
         act_trace_row = np.zeros((1, wave.shape[1]), dtype='bool')
         act_trace_row[0, x_wave_ind_act] = 1
         act_trace_2d = act_trace_row.T * act_trace_row
@@ -578,9 +612,9 @@ class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
     """
 
     def __init__(self, rings=3, flattoflat=1.0 * u.m, gap=0.01 * u.m,
-                 name='HexDM', center=True):
+                 name='HexDM', center=True, **kwargs):
         optics.MultiHexagonAperture.__init__(self, name=name, rings=rings, flattoflat=flattoflat,
-                                             gap=gap, center=center)
+                                             gap=gap, center=center, **kwargs)
         self._surface = np.zeros((self._n_hexes_inside_ring(rings+1), 3))
 
         # see _setup_arrays for the following

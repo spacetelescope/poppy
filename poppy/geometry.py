@@ -10,6 +10,10 @@ from . import accel_math
 if accel_math._USE_NUMEXPR:
     import numexpr as ne
 
+import logging
+_log = logging.getLogger('poppy')
+
+
 # original code in pixwt.c by Marc Buie
 #    See http://www.boulder.swri.edu/~buie/idl/downloads/custom/32bit/pixwt.c
 #
@@ -200,7 +204,7 @@ def filled_circle_aa(shape, xcenter, ycenter, radius, xarray=None, yarray=None,
     area_per_pix = pixscale**2
 
     if np.abs(pixscale -1.0) > 0.01:
-        _log.warning('filled_circle_aa is not reliable for pixel scale <1')
+        _log.warning('filled_circle_aa may not yield exact results for grey pixels when pixel scale <1')
     border = np.where( np.abs(r-radius) < pixscale)
 
     weights = pixwt(xcenter, ycenter, radius, xarray[border], yarray[border])
