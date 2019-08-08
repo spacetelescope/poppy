@@ -536,7 +536,7 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
         Compute standard deviation in each radial bin, not average?
     normalize : string
         set to 'peak' to normalize peak intensity =1, or to 'total' to normalize total flux=1.
-        Default is no normalization.
+        Default is no normalization (i.e. retain whatever normalization was used in computing the PSF itself)
     pa_range : list of floats, optional
         Optional specification for [min, max] position angles to be included in the radial profile.
         I.e. calculate that profile only for some wedge, not the full image. Specify the PA in degrees
@@ -648,7 +648,7 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
 #    PSF evaluation functions
 #
 
-def measure_ee(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
+def measure_ee(HDUlist_or_filename=None, ext=0, center=None, binsize=None, normalize='None'):
     """ measure encircled energy vs radius and return as an interpolator
 
     Returns a function object which when called returns the Encircled Energy inside a given radius,
@@ -666,6 +666,9 @@ def measure_ee(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
         Coordinates (x,y) of PSF center. Default is image center.
     binsize:
         size of step for profile. Default is pixel size.
+   normalize : string
+        set to 'peak' to normalize peak intensity =1, or to 'total' to normalize total flux=1.
+        Default is no normalization (i.e. retain whatever normalization was used in computing the PSF itself)
 
     Returns
     --------
@@ -680,7 +683,8 @@ def measure_ee(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
 
     """
 
-    rr, radialprofile2, ee = radial_profile(HDUlist_or_filename, ext, ee=True, center=center, binsize=binsize)
+    rr, radialprofile2, ee = radial_profile(HDUlist_or_filename, ext, ee=True, center=center, binsize=binsize,
+                                            normalize=normalize)
 
     # append the zero at the center
     rr_ee = rr + (rr[1] - rr[0]) / 2.0  # add half a binsize to this, because the ee is measured inside the
@@ -693,7 +697,7 @@ def measure_ee(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     return ee_fn
 
 
-def measure_radius_at_ee(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
+def measure_radius_at_ee(HDUlist_or_filename=None, ext=0, center=None, binsize=None, normalize='None'):
     """ measure encircled energy vs radius and return as an interpolator
     Returns a function object which when called returns the radius for a given Encircled Energy. This is the
     inverse function of measure_ee
@@ -708,6 +712,9 @@ def measure_radius_at_ee(HDUlist_or_filename=None, ext=0, center=None, binsize=N
         Coordinates (x,y) of PSF center. Default is image center.
     binsize:
         size of step for profile. Default is pixel size.
+    normalize : string
+        set to 'peak' to normalize peak intensity =1, or to 'total' to normalize total flux=1.
+        Default is no normalization (i.e. retain whatever normalization was used in computing the PSF itself)
 
     Returns
     --------
@@ -720,7 +727,8 @@ def measure_radius_at_ee(HDUlist_or_filename=None, ext=0, center=None, binsize=N
     >>> print "The EE is 50% at {} arcsec".format(ee(0.5))
     """
 
-    rr, radialprofile2, ee = radial_profile(HDUlist_or_filename, ext, ee=True, center=center, binsize=binsize)
+    rr, radialprofile2, ee = radial_profile(HDUlist_or_filename, ext, ee=True, center=center, binsize=binsize,
+                                            normalize=normalize)
 
     # append the zero at the center
     rr_ee = rr + (rr[1] - rr[0]) / 2.0  # add half a binsize to this, because the EE is measured inside the

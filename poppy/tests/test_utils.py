@@ -166,7 +166,7 @@ def test_measure_FWHM(display=False, verbose=False):
         result = "Measured: {3:.4f} pixels; Desired: {0:.4f} pixels. Relative difference: {1:.4f}    Tolerance: {2:.4f}".format(desired_fwhm, reldiff, tolerance, meas_fwhm/pxscl)
         if verbose:
             print(result)
-        assert reldiff < tolerance, result 
+        assert reldiff < tolerance, result
 
     # Test on Poppy outputs too
     # We test both well sampled and barely sampled cases.
@@ -211,6 +211,17 @@ def test_measure_radius_at_ee():
     # The ee and rad functions should undo each other and yield the input value
     for i in [0.1, 0.5, 0.8]:
         np.testing.assert_almost_equal(i, ee(rad(i)), decimal=3, err_msg="Error: Values not equal")
+
+
+    # Repeat test with normalization to psf sum=1.
+    # This time we can go right up to 1.0, or at least arbitrarilyclose to it.
+    rad = utils.measure_radius_at_ee(psf, normalize='total')
+    ee = utils.measure_ee(psf, normalize='total')
+    for i in [0.1, 0.5,  0.9999]:
+        np.testing.assert_almost_equal(i, ee(rad(i)), decimal=3, err_msg="Error: Values not equal")
+
+
+
 
 @pytest.mark.skipif(pyfftw is None, reason="pyFFTW not found")
 def test_load_save_fftw_wisdom(tmpdir):
