@@ -5,6 +5,88 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+0.9.0
+-----
+
+.. _rel0.9.0:
+
+*2019 August 15*
+
+**New Functionality:**
+
+ * **Chaining together multiple propagations calculations:** Multiple `OpticalSystem` instances can now be chained together into a `CompoundOpticalSystem`. This includes mixed
+   propagations that are partially Fresnel and partially Fraunhofer; Wavefront objects will be cast between types as
+   needed. (:pr:`290` by :user:`mperrin`)
+ * **Gray pixel subsampling of apertures:** Implemented "gray pixel" sampling for circular apertures and stops, providing more precise models of aperture edges.
+   For circular apertures this is done  using a fast analytic geometry implementation adapted from open-source IDL code
+   originally by Marc Buie. (:pr:`325` by :user:`mperrin`, using Python code contributed by :user:`astrofitz`).
+   For subpixel / gray pixel sampling of other optics in general, a new function `fixed_sampling_optic` takes any
+   AnalyticOpticalElement and returns an equivalent ArrayOpticalElement with fixed sampling. This is useful for instance
+   for taking a computationally-slow optic such as MultiHexagonAperture and saving a discretized version for future
+   faster use. (:pr:`307` by :user:`mperrin`)
+ * **Modeling tilted optics:** New feature to model geometric projection (cosine scaling) of inclined optics, by setting an  `inclination_x` or
+   `inclination_y` attribute to the tilt angle in degrees. For instance `inclination_x=30` will tilt an optic by 30
+   degrees around the X axis, and thus compress its apparent size in the Y axis by cosine(30 deg). Note, this
+   transformation only applies the cosine scaling to the optic's appearance, and does *not* introduce wavefront for
+   tilt. (:pr:`329` by :user:`mperrin`)
+
+ * **Many improvements to the Continuous Deformable Mirror class**: 
+
+    * Enhance model of DM actuator influence functions for more precise subpixel spacing of DM actuators, rather than
+      pokes separated by integer pixel spacing. This applies to the 'convolution by influence function' method for
+      modeling DMs (:pr:`329` by :user:`mperrin`)
+    * Support distinct radii for the active controllable mirror size and the reflective mirror size (:pr:`293` by :user:`mperrin`)
+    * ContinuousDeformableMirror now supports `shift_x` and `shift_y` to translate / decenter the DM, consistent with
+      other optical element classes. (:pr:`307` by :user:`mperrin`)
+    * ContinuousDeformableMirror now also supports `flip_x` and `flip_y` attributes to flip its orientation along one or
+      both axes, as well as the new `inclination_x` and `inclination_y` attributes for geometric projection.
+
+ * **Improved models of certain kinds of wavefront error:**
+
+   * New class `StatisticalPSDWFE` that models random wavefront errors described by a power spectral density, as is
+     commonly used to specify and measure typical polishing residuals in optics. (:pr:`315` by :user:`ivalaginja`;
+     :pr:`317` by :user:`mperrin`)
+   * `FITSOpticalElement` can now support wavelength-independent phase maps defined in radians, for instance for modeling
+     Pancharatnam-Berry phase as used in certain vector coronagraph masks. (:pr:`306` by :user:`joseph-long`)
+
+ * `add_optic` in Fresnel systems can now insert optics at any index into an optical system, rather than just appending
+   at the end (:pr:`298` by :user:`sdwill`)
+
+**Software Infrastructure Updates and Internals:**
+
+ * PR :pr:`290` for CompoundOpticalSystem involved refactoring the Wavefront and FresnelWavefront classes to both be child classes of a new abstract base class BaseWavefront. This change should be transparent for most/all users and requires no changes in calling code.
+ * PR :pr:`306` for wavelength-independent phase subsequently required refactoring of the optical element display code to correctly handle all cases. As a result the display code internals were clarified and made more consistent. (:pr:`314` and :pr:`321`  by :user:`mperrin` with contributions from :user:`ivalaginja` and :user:`shanosborne`). Again this change should be transparent for users. 
+ * Removed deprecated / unused decorator function in WFE classes, making their `get_opd` function API consistent with the rest of poppy. (:pr:`322` by :user:`mperrin`)
+ * Accomodate some upstream changes in astropy (:pr:`294` by :user:`shanosborne`, :pr:`330` by :user:`mperrin`)
+ * The `poppy.Instrument._get_optical_system` function, which has heretofore been an internal method (private, starting with
+   underscore) of the Instrument class, has been promoted to a public part of the API as
+   `Instrument.get_optical_system()`.
+
+**Bug Fixes and Misc Improvements:**
+
+ * Correctly assign BUNIT keyword after rescaling OPDs (:issue:`285`, :pr:`286` by :user:`laurenmarietta`).
+ * New header keywords in output PSF files for `OPD_FILE` and `OPDSLICE` to more cleanly record the information
+   previously stored together in the `PUPILOPD` keyword (:pr:`316` by :user:`mperrin`)
+ * Update docs and example notebooks to replace deprecated function names with the current ones (:pr:`288` by :user:`corcoted`).
+ * Improvements in resampling wavefronts onto Detector instances, particularly in cases where the wavefront is already at the right plane so no propagation is needed. (Part of :pr:`290` by :user:`mperrin`, then further improved in :pr:`304` by :user:`sdwill`)
+ * Allow passthrough of "normalize" keyword to measure_ee and measure_radius_at_ee functions (:pr:`333` by
+   :user:`mperrin`; :issue:`332` by :user:`ariedel`)
+ * Fix `wavefront.as_fits` complex wavefront output option (:pr:`293` by :user:`mperrin`)
+ * Stricter checking for consistent wavefront type and size parameters when summing wavefronts (:pr:`313` and :pr:`326` by :user:`mperrin`)
+ * Fix an issue with MultiHexagonAperture in the specific case of 3 rings of hexes (:issue:`303` by :user:`LucasMarquis` and :user:`FredericCassaing`; :pr:`307` by :user:`mperrin`)
+ * Fix an issue with BaseWavefront class refactor (:pr:`311` by :user:`douglase` and :user:`jlumbres`)
+ * Fix an issue with indexing in HexSegmentedDeformableMirror when missing the center segment (:issue:`318` by :user:`ivalaginja`; :pr:`320` by :user:`mperrin`)
+ * Fix title display by OpticalElement.display function (:pr:`299` by :user:`shanosborne`)
+ * Fix display issue in SemiAnalyticCoronagraph class (:pr:`324` by :user:`mperrin`).
+ * Small improvements in some display labels (:pr:`307` by :user:`mperrin`)
+
+*Note*, the new functionality for gray pixel representation of circular apertures does not work precisely for elliptical
+apertures such as from inclined optics. You may see warnings about this in cases when you use `inclination_y` or
+`inclination_x` attributes on a circular aperture. This warning is generally benign; the calculation is still more
+accurate than it would be without the subpixel sampling, though not perfectly precise. This known issue will likely be
+improved upon in a future release. 
+
+
 0.8.0
 -----
 

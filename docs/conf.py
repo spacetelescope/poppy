@@ -71,6 +71,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.autosummary',
     'sphinx_automodapi.automodapi',
+    'sphinx_issues'
     ]
 numpydoc_show_class_members = False
 
@@ -106,6 +107,14 @@ rst_epilog += """
 """
 
 # -- Project information ------------------------------------------------------
+
+
+# Github integration via sphinx-issues plugin
+# See https://github.com/sloria/sphinx-issues
+
+# Github repo
+issues_github_path = "spacetelescope/poppy"
+
 
 # This does not *have* to match the package name, but typically does
 project = setup_cfg['package_name']
