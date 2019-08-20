@@ -452,16 +452,10 @@ class BaseWavefront(ABC):
 
         # prepare color maps and normalizations for intensity and phase
         if vmax is None:
-            if what == 'phase':
-                vmax = 0.25
-            else:
-                vmax = intens.max()
+            vmax = 0.25 if what == 'phase' else intens.max()
         if scale == 'linear':
             if vmin is None:
-                if what == 'phase':
-                    vmin = -0.25
-                else:
-                    vmin = 0
+                vmin = 0.25 if what == 'phase' else 0
             norm_inten = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
             cmap_inten = getattr(matplotlib.cm, conf.cmap_pupil_intensity)
             cmap_inten.set_bad('0.0')
@@ -473,7 +467,11 @@ class BaseWavefront(ABC):
             cmap_inten.set_bad(cmap_inten(0))
         cmap_phase = getattr(matplotlib.cm, conf.cmap_diverging)
         cmap_phase.set_bad('0.3')
-        norm_phase = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+        # note, can't currently set separate vmin and vmax for intensity and phase
+        # but we can apply here a prior that the phase is always in the range of
+        # -pi to +pi, and we should display with a balanced color scale.
+        vmx = np.clip(max(vmax, np.abs(vmin)), -np.pi, np.pi)
+        norm_phase = matplotlib.colors.Normalize(vmin=-vmx, vmax=vmx)
 
         def wrap_lines_title(title):
             # Helper fn to add line breaks in plot titles,
@@ -510,7 +508,7 @@ class BaseWavefront(ABC):
             if ax is None:
                 ax = plt.subplot(nr, nc, int(row))
             utils.imshow_with_mouseover(
-                phase / (np.pi * 2),
+                phase,
                 ax=ax,
                 extent=extent,
                 norm=norm_phase,
@@ -2579,7 +2577,7 @@ class OpticalElement(object):
                 default_title = "OPD"
                 is_opd = True
             else:
-                raise ValueError("Invalid value for 'what' parameter")
+                raise ValueError("Invalid value for 'what' parameter. Must be one of {'amplitude', 'intensity', 'opd', 'both'}.")
 
             # now we plot whichever was chosen...
             if ax is None:
