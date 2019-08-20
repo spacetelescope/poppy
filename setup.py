@@ -53,7 +53,7 @@ conf.read(['setup.cfg'])
 metadata = dict(conf.items('metadata'))
 
 PACKAGENAME = metadata.get('package_name', 'packagename')
-DESCRIPTION = metadata.get('description', 'Astropy affiliated package')
+DESCRIPTION = metadata.get('description', 'unknown')
 AUTHOR = metadata.get('author', '')
 AUTHOR_EMAIL = metadata.get('author_email', '')
 LICENSE = metadata.get('license', 'unknown')
@@ -70,7 +70,7 @@ LONG_DESCRIPTION = ast.get_docstring(module_ast)
 builtins._ASTROPY_PACKAGE_NAME_ = PACKAGENAME
 
 # VERSION should be PEP386 compatible (http://www.python.org/dev/peps/pep-0386)
-VERSION = '0.8.1dev'
+VERSION = '0.9.0dev'
 
 # Indicates if this version is a release version
 RELEASE = 'dev' not in VERSION

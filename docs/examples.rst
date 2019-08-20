@@ -16,6 +16,10 @@ if you first enable Python's logging mechanism to display log messages to screen
         import logging
         logging.basicConfig(level=logging.DEBUG)
 
+
+.. contents:: :local:
+
+
 A simple circular pupil
 --------------------------
 
@@ -286,3 +290,58 @@ options can be set directly in the initialization of such elements::
    :scale: 100%
    :align: center
    :alt: Sample calculation result
+
+
+Adjusting Display of Intermediate Wavefronts
+----------------------------------------------
+
+
+When calculating a wavefront, you can display each intermediate wavefront plane, which often helps to visualize what's happening in a given propagation calculation. This is done by setting `display_intermediates=True`::
+
+        psf = osys.calc_psf(display_intermediates=True)
+
+Poppy attempts to guess reasonable defaults for displaying each intermediate planes, but sometimes you may wish to override these defaults. This can be done by setting
+"display hint" attributes on the planes of your optical system. Available options include
+
+ * `wavefront_display_hint` = `"intensity"` or `"phase"` to set what kind of display is shown for the complex wavefront at that plane
+ * `wavefront_display_vmax_hint` and `wavefront_display_vmin_hint` to adjust the parameters of the display scale
+ * `wavefront_display_imagecrop` to adjust the cropping or zoom of how much of a wavefront is displayed (by default, 
+   pupil planes are not cropped, while image planes are cropped to 5 arcseconds to better show the details of the inner core region of a PSF).
+ * `display_annotate` can be set to an arbitrary function to be called in order to apply custom annotations, or any other plot adjustment outside of the scope of
+   the above display hints.
+
+For instance, here's a variation of the above coronagraph calculation with some of the display parameters adjusted::
+
+    radius = 6.5/2 * u.m
+    lyot_radius = 6.5/2.5 *u.m
+    pixelscale = 0.060 *u.arcsec/u.pixel
+    osys = poppy.OpticalSystem(oversample=4)
+    pupil = poppy.CircularAperture(radius=radius)
+
+    occulter = poppy.CircularOcculter(radius = 0.1*u.arcsec)
+    # adjust display size and color scale after the occulter
+    occulter.wavefront_display_imagecrop = 1.0
+    occulter.wavefront_display_vmin_hint=1e-6
+
+    lyotstop = poppy.CircularAperture(radius=lyot_radius)
+    # hint that we would like to see intensity rather than phase after Lyot stop
+    lyotstop.wavefront_display_hint='intensity'
+
+    osys.add_pupil( pupil)
+    osys.add_image( occulter)
+    osys.add_pupil( lyotstop)
+    osys.add_detector(pixelscale=pixelscale, fov_arcsec=2.0)
+    # you can also set hints onto optics in the planes list
+    osys.planes[-1].wavefront_display_vmin_hint =  1e-6   
+
+    plt.figure(figsize=(8,8))
+    psf = osys.calc_psf(wavelength = 1*u.micron, display_intermediates=True)
+
+.. image:: ./example_display_hints.png
+   :scale: 100%
+   :align: center
+   :alt: Sample calculation result
+
+
+
+

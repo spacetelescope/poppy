@@ -39,7 +39,7 @@ matrix:
         - python: 3.6
           env: SETUP_CMD='build_sphinx'
                CONDA_DEPENDENCIES='scipy matplotlib nbsphinx pandoc'
-               PIP_DEPENDENCIES='sphinx_rtd_theme stsci_rtd_theme sphinx-automodapi'
+               PIP_DEPENDENCIES='sphinx_rtd_theme stsci_rtd_theme sphinx-automodapi sphinx-issues'
 
 
         # Try Astropy development version
