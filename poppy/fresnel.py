@@ -51,8 +51,8 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
         self.z = z
         self._z_m = z.to(u.m).value
 
-    def get_phasor(self, wave):
-        """ return complex phasor for the quadratic phase
+    def get_opd(self, wave):
+        """ Return OPD representing a quadratic phase
 
         Parameters
         ----------
@@ -64,24 +64,18 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
         _log.debug("Applying spherical phase curvature ={0:0.2e}".format(self.z))
         _log.debug("Applying spherical lens phase ={0:0.2e}".format(1.0 / self.z))
         z = self._z_m  # numexpr can't evaluate self.
-        k = 2 * np.pi / wave.wavelength.to(u.m).value
         if (z == np.inf) | (z == -np.inf):
-            lens_phasor = 1 + 0j
-            _log.debug("lens_phasor:" + str(lens_phasor))
-            return lens_phasor
+            # Phasor should be 1
+            # OPD should be flat
+            _log.debug("infinite radius of curvature -> quad phase becomes 0")
+            return 0
         if accel_math._USE_NUMEXPR:
-            rsqd = ne.evaluate("(x ** 2 + y ** 2)")
-            # slight faster to evaluate in one line but advantage diminishes w/size
-            # also significantly faster to call numexpr here then call _exp
-            lens_phasor = ne.evaluate("exp(1.j * k * rsqd / (2.0 *z))")
-
+            opd = ne.evaluate("(x ** 2 + y ** 2) / (2.0 * z)")
         else:
-            rsqd = (x ** 2 + y ** 2)  # * u.m ** 2
-            lens_phasor = accel_math._exp(1.j * k * rsqd / (2.0 * z))
+            opd = (x ** 2 + y ** 2)  / (2.0 *z)
 
-        _log.debug("max_rsqd ={0:0.2e}".format(np.max(rsqd)))
+        return opd
 
-        return lens_phasor
 
 
 class _QuadPhaseShifted(QuadPhase):
