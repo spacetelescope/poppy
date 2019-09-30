@@ -1450,6 +1450,9 @@ class BaseOpticalSystem(ABC):
             What to save - phase, intensity, amplitude, complex, parts, all. Default is all.
         return_intermediates: bool, optional
             return intermediate wavefronts as well as PSF?
+        return_final: bool, optional
+            return the complex wavefront at the last surface propagation as well as the PSF.
+            Useful for getting complex PSF without memory usage of `return_intermediates`
         source : dict
             a dict containing 'wavelengths' and 'weights' list.
         normalize : string, optional
@@ -1468,6 +1471,9 @@ class BaseOpticalSystem(ABC):
             Only returned if `return_intermediates` is specified.
             A list of `poppy.Wavefront` objects representing the wavefront at intermediate optical planes.
             The 0th item is "before first optical plane", 1st is "after first plane and before second plane", and so on.
+        final_wfs : `poppy.Wavefront` object (optional)
+            Only returned if `return_final` is specified.
+           `poppy.Wavefront` objects representing the wavefront at the last of the optical planes.
         """
 
         tstart = time.time()
