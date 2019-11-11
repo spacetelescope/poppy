@@ -49,9 +49,9 @@ matrix:
         # Try Astropy & numpy minimum supported versions, 
         # and older Python versions
         - python: 3.5
-          env: ASTROPY_VERSION=2.0 NUMPY_VERSION=1.13 SETUP_CMD='test'
+          env: NUMPY_VERSION=1.13 SETUP_CMD='test'
         - python: 3.6
-          env: ASTROPY_VERSION=2.0 NUMPY_VERSION=1.13
+          env: NUMPY_VERSION=1.13
 
 install:
 
