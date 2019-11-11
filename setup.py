@@ -70,7 +70,7 @@ LONG_DESCRIPTION = ast.get_docstring(module_ast)
 builtins._ASTROPY_PACKAGE_NAME_ = PACKAGENAME
 
 # VERSION should be PEP386 compatible (http://www.python.org/dev/peps/pep-0386)
-VERSION = '0.9.0dev'
+VERSION = '0.9.0rc1'
 
 # Indicates if this version is a release version
 RELEASE = 'dev' not in VERSION
@@ -118,10 +118,10 @@ for root, dirs, files in os.walk(PACKAGENAME):
 package_info['package_data'][PACKAGENAME].extend(c_files)
 
 install_requires_packages = [
-      'numpy>=1.10.0',
-      'scipy>=0.14.0',
-      'matplotlib>=1.3.0',
-      'astropy>=1.3',
+      'numpy>=1.13.0',
+      'scipy>=1.0.0',
+      'matplotlib>=2.0.0',
+      'astropy>=2.0.0',
 ]
 
 
