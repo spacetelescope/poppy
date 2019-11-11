@@ -51,7 +51,7 @@ matrix:
         - python: 3.5
           env: NUMPY_VERSION=1.13 SETUP_CMD='test'
         - python: 3.6
-          env: NUMPY_VERSION=1.13
+          env: ASTROPY_VERSION=2.0 SETUP_CMD='TEST'
 
 install:
 
