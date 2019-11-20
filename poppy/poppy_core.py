@@ -2663,6 +2663,10 @@ class FITSOpticalElement(OpticalElement):
     and opd_index keyword parameters listed below, but the tuple interface is
     retained for back compatibility with existing code.
 
+    The FITS file header must provide information on the pixel scale, preferentially
+    via a PIXELSCL keyword, or else you must supply the pixel scale directly. See
+    more information just below in the parameter documentation for pixelscale.
+
 
     Parameters
     ----------
@@ -2702,7 +2706,9 @@ class FITSOpticalElement(OpticalElement):
         scipy.ndimage.interpolation.rotate function.
     pixelscale : optical str or float
         By default, poppy will attempt to determine the appropriate pixel scale
-        by examining the FITS header, checking keywords "PUPLSCAL" and 'PIXSCALE'
+        by examining the FITS header, checking keywords "PIXELSCL", "PUPLSCAL" and/or 'PIXSCALE'.
+        PIXELSCL is the default and should be preferred for new files; the latter two are
+        kept for back-compatibility with earlier format input files,
         for pupil and image planes respectively. If you would like to override
         and use a different keyword, provide that as a string here. Alternatively,
         you can just set a floating point value directly too (in meters/pixel
