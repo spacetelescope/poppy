@@ -121,7 +121,7 @@ install_requires_packages = [
       'numpy>=1.13.0',
       'scipy>=1.0.0',
       'matplotlib>=2.0.0',
-      'astropy>=2.0.0',
+      'astropy>=3.0.0',
 ]
 
 
