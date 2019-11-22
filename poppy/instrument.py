@@ -310,8 +310,6 @@ class Instrument(object):
         """
 
         nwavelengths = len(wavelengths)
-        if nwavelengths > 100:
-            raise ValueError("Maximum number of wavelengths exceeded. Cannot be more than 100.")
 
         # Set up cube and initialize structure based on PSF at first wavelength
         poppy_core._log.info("Starting multiwavelength data cube calculation.")
