@@ -22,6 +22,7 @@ except ImportError:
 from . import poppy_core
 from . import optics
 from . import utils
+from . import conf
 
 import logging
 
@@ -692,7 +693,10 @@ class Instrument(object):
         if local_options is None:
             local_options = self.options
         if 'jitter' not in local_options:
+            result[0].header['JITRTYPE'] = ('None', 'Type of jitter applied')
             return
+
+        if conf.enable_speed_tests: t0 = time.time()
 
         poppy_core._log.info("Calculating jitter using " + str(local_options['jitter']))
 
@@ -718,12 +722,17 @@ class Instrument(object):
 
             poppy_core._log.info("        resulting image peak drops to {0:.3f} of its previous value".format(strehl))
             result[0].header['JITRTYPE'] = ('Gaussian convolution', 'Type of jitter applied')
-            result[0].header['JITRSIGM'] = (sigma, 'Gaussian sigma for jitter [arcsec]')
+            result[0].header['JITRSIGM'] = (sigma, 'Gaussian sigma for jitter, per axis [arcsec]')
             result[0].header['JITRSTRL'] = (strehl, 'Strehl reduction from jitter ')
 
             result[0].data = out
         else:
             raise ValueError('Unknown jitter option value: ' + local_options['jitter'])
+
+        if conf.enable_speed_tests:
+            t1 = time.time()
+            _log.debug("\tTIME %f s\t for jitter model" % (t1 - t0))
+
 
     #####################################################
     # Display routines

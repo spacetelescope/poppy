@@ -10,7 +10,7 @@ For a list of contributors, see :ref:`about`.
 
 .. _rel0.9.0:
 
-*2019 August 15*
+*2019 Nov 25*
 
 **New Functionality:**
 
@@ -61,6 +61,7 @@ For a list of contributors, see :ref:`about`.
  * The `poppy.Instrument._get_optical_system` function, which has heretofore been an internal method (private, starting with
    underscore) of the Instrument class, has been promoted to a public part of the API as
    `Instrument.get_optical_system()`.
+ * Note, minimum supported versions of some upstream packages such as numpy and matplotlib have been updated.
 
 **Bug Fixes and Misc Improvements:**
 
