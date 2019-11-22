@@ -54,9 +54,9 @@ matrix:
 
         # Try older numpy versions
         - python: 3.6
-          env: NUMPY_VERSION=1.12
+          env: NUMPY_VERSION=1.13
         - python: 3.5
-          env: NUMPY_VERSION=1.11
+          env: NUMPY_VERSION=1.13
 
 install:
 
