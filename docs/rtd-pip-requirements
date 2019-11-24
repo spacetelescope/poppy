@@ -4,3 +4,4 @@ matplotlib
 Cython
 astropy-helpers
 astropy
+sphinx_issues
