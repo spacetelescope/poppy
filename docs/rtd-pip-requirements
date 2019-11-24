@@ -1,7 +1,9 @@
 stsci_rtd_theme
-numpy
+numpy >= 1.13
 matplotlib
 Cython
 astropy-helpers
 astropy
+sphinx-astropy
 sphinx_issues
+-e git+https://github.com/mperrin/poppy.git#egg=poppy
