@@ -10,7 +10,10 @@ import logging
 from . import utils
 from . import conf
 from . import accel_math
-from .version import version
+try:
+    from .version import version
+except ImportError:
+    version = ''
 from .poppy_core import OpticalElement, Wavefront, BaseWavefront, PlaneType, _RADIANStoARCSEC
 from .accel_math import _exp, _r, _float, _complex
 from . import geometry
