@@ -10,14 +10,6 @@ import logging
 from . import utils
 from . import conf
 from . import accel_math
-
-# We must try/except importing the poppy version because RTD will parse the package without
-# installing it (without a version file being created by setup.py).
-try:
-    from .version import version
-except ImportError:
-    version = ''
-
 from .poppy_core import OpticalElement, Wavefront, BaseWavefront, PlaneType, _RADIANStoARCSEC
 from .accel_math import _exp, _r, _float, _complex
 from . import geometry
@@ -251,6 +243,10 @@ class AnalyticOpticalElement(OpticalElement):
         See the sample() function for additional optional parameters.
 
         """
+        try:
+            from .version import version
+        except ImportError:
+            version = ''
 
         kwargs['return_scale'] = True
 
