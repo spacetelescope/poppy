@@ -6,3 +6,4 @@ astropy-helpers
 astropy
 sphinx-astropy
 sphinx_issues
+nbsphinx
