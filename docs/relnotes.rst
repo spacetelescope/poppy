@@ -5,6 +5,17 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+0.9.1
+-----
+
+.. _rel0.9.1:
+
+*2020 Date TBD*
+
+**New Functionality:**
+
+ * future changes go here
+
 0.9.0
 -----
 
