@@ -49,7 +49,7 @@ matrix:
         # Try Astropy & numpy minimum supported versions, 
         # and older Python versions
         - python: 3.5
-          env: NUMPY_VERSION=1.13 SETUP_CMD='test'
+          env: NUMPY_VERSION=1.13 ASTROPY_VERSION=3.2 SETUP_CMD='test'
 
 install:
 
