@@ -255,7 +255,7 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
                 orientation=colorbar_orientation
             )
         if scale.lower() == 'log':
-            ticks = np.logspace(np.log10(vmin), np.log10(vmax), np.log10(vmax / vmin) + 1)
+            ticks = np.logspace(np.log10(vmin), np.log10(vmax), int(np.round(np.log10(vmax / vmin) + 1)))
             if colorbar_orientation == 'horizontal' and vmax == 1e-1 and vmin == 1e-8:
                 ticks = [1e-8, 1e-6, 1e-4, 1e-2, 1e-1]  # looks better
             cb.set_ticks(ticks)
@@ -393,7 +393,7 @@ def display_psf_difference(hdulist_or_filename1=None, HDUlist_or_filename2=None,
 
     if colorbar:
         cb = plt.colorbar(ax.images[0], ax=ax, orientation=colorbar_orientation)
-        # ticks = np.logspace(np.log10(vmin), np.log10(vmax), np.log10(vmax/vmin)+1)
+        # ticks = np.logspace(np.log10(vmin), np.log10(vmax), int(np.round(np.log10(vmax/vmin)+1)))
         # if vmin == 1e-8 and vmax==1e-1:
         # ticks = [1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1]
         # ticks = [vmin, -0.5*vmax, 0, 0.5*vmax, vmax]
