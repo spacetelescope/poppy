@@ -1,9 +1,4 @@
-language: python
-
-python:
-    - 3.5
-    - 3.6
-    - 3.7
+language: c
 
 # Setting sudo to false opts in to Travis-CI container-based builds.
 sudo: false
@@ -14,6 +9,9 @@ env:
         - TOXENV=''
         - TOXARGS=''
         - TOXPOSARGS=''
+
+        - TOX_CMD='tox --'
+        - TOX_ARGS='--remote-data'
 
 matrix:
 
@@ -43,7 +41,7 @@ install:
 
 script:
    - conda info
-   - tox -e $TOXENV $TOXARGS -- $TOXPOSARGS
+   - $TOX_CMD $TOX_ARGS
 
 after_success:
    - codecov
