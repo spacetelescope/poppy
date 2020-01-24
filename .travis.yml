@@ -1,6 +1,8 @@
 language: python
 
 python:
+    - 3.5
+    - 3.6
     - 3.7
 
 # Setting sudo to false opts in to Travis-CI container-based builds.
@@ -28,8 +30,6 @@ matrix:
 
         # Try Astropy development version
         - env: TOXENV='py37-astrodev-test'
-        - python: 3.7
-          env: SETUP_CMD='test' ASTROPY_VERSION=development
 
         # Try Astropy & numpy minimum supported versions,
         # and older Python versions
@@ -43,7 +43,7 @@ install:
 
 script:
    - conda info
-   - $TOX_CMD $TOX_ARGS
+   - tox -e $TOXENV $TOXARGS -- $TOXPOSARGS
 
 after_success:
    - codecov
