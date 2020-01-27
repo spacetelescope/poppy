@@ -33,7 +33,7 @@ DOCS_HELP = """
 Note: building the documentation is no longer done using
 'python setup.py build_docs'. Instead you will need to run:
 
-    tox -e build_docs
+    tox -e docbuild
 
 If you don't already have tox installed, you can install it with:
 
