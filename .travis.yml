@@ -11,20 +11,20 @@ env:
         - TOXPOSARGS=''
 
         - TOX_CMD='tox --'
-        - TOX_ARGS='--remote-data'
+        - TOX_ARGS=''
 
 matrix:
 
     include:
         # do the actual tests.
         # Do a test in Python 3.7
-        - env: TOXENV='coverage' TOX_ARGS=''
+        - env: TOXENV='py37-coverage' TOX_ARGS=''
 
         # Check accelerated math version too
-          env: SETUP_CMD='test --coverage' PIP_DEPENDENCIES='numexpr'
+        - env: TOXENV='py37-numexpr-test'
 
         # Check for Sphinx doc build errors
-        - env: TOXENV='build_docs' TOX_ARGS=''
+        - env: TOXENV='py37-build_docs' TOX_ARGS=''
 
         # Try Astropy development version
         - env: TOXENV='py37-astrodev-test'
