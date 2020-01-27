@@ -120,9 +120,13 @@ __import__(setup_cfg['name'])
 package = sys.modules[setup_cfg['name']]
 
 # The short X.Y version.
-version = package.__version__.split('-', 1)[0]
-# The full version, including alpha/beta/rc tags.
-release = package.__version__
+try:
+    version = package.__version__.split('-', 1)[0]
+    # The full version, including alpha/beta/rc tags.
+    release = package.__version__
+except AttributeError:
+    version = 'dev'
+    release = 'dev'
 
 # -- Options for HTML output ---------------------------------------------------
 
