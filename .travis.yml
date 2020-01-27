@@ -27,11 +27,11 @@ matrix:
         - env: TOXENV='py37-build_docs' TOX_ARGS=''
 
         # Try Astropy development version
-        - env: TOXENV='py37-astrodev-test'
+        - env: TOXENV='py37-astropydev-test'
 
         # Try Astropy & numpy minimum supported versions,
         # and older Python versions
-        - env: TOXENV='py35-numpy113-test'
+        - env: TOXENV='py35-numpy113-astropy32-test'
 
 install:
     - git clone git://github.com/astropy/ci-helpers.git
