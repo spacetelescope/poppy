@@ -37,7 +37,7 @@ install:
     - git clone git://github.com/astropy/ci-helpers.git
     - source ci-helpers/travis/setup_conda.sh
     - pip install tox tox-conda>=0.2
-    - pip install codecov
+    - pip install --user codecov
 
 script:
    - conda info
