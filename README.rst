@@ -12,8 +12,8 @@ POPPY: Physical Optics Propagation in Python
    :target: https://travis-ci.org/spacetelescope/poppy
    :alt: Badge showing continuous integration test status
 
-.. image:: https://codecov.io/gh/codecov/example-python/branch/master/graph/badge.svg
-  :target: https://codecov.io/gh/codecov/example-python
+.. image:: https://codecov.io/gh/spacetelescope/poppy/branch/master/graph/badge.svg
+  :target: https://codecov.io/gh/spacetelescope/poppy
 
 .. image:: https://img.shields.io/badge/ascl-1602.018-blue.svg?colorB=262255
    :target: http://ascl.net/1602.018
