@@ -1,16 +1,16 @@
 [run]
-source = {packagename}
+source = poppy
 omit =
-   {packagename}/_astropy_init*
-   {packagename}/conftest*
-   {packagename}/cython_version*
-   {packagename}/setup_package*
-   {packagename}/*/setup_package*
-   {packagename}/*/*/setup_package*
-   {packagename}/tests/*
-   {packagename}/*/tests/*
-   {packagename}/*/*/tests/*
-   {packagename}/version*
+   poppy/_astropy_init*
+   poppy/conftest*
+   poppy/cython_version*
+   poppy/setup_package*
+   poppy/*/setup_package*
+   poppy/*/*/setup_package*
+   poppy/tests/*
+   poppy/*/tests/*
+   poppy/*/*/tests/*
+   poppy/version*
 
 [report]
 exclude_lines =
@@ -29,3 +29,14 @@ exclude_lines =
 
    # Ignore branches that don't pertain to this version of Python
    pragma: py{ignore_python_version}
+omit =
+   poppy/_astropy_init*
+   poppy/conftest*
+   poppy/cython_version*
+   poppy/setup_package*
+   poppy/*/setup_package*
+   poppy/*/*/setup_package*
+   poppy/tests/*
+   poppy/*/tests/*
+   poppy/*/*/tests/*
+   poppy/version*
