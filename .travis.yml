@@ -18,10 +18,10 @@ matrix:
     include:
         # do the actual tests.
         # Do a test in Python 3.7
-        - env: TOXENV='coverage' TOX_ARGS=''
+        - env: TOXENV='py37-cov'
 
         # Check accelerated math version too
-        - env: TOXENV='py37-numexpr-test'
+        - env: TOXENV='py37-numexpr-cov'
 
         # Check for Sphinx doc build errors
         - env: TOXENV='docbuild' TOX_ARGS=''
