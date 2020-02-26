@@ -511,7 +511,7 @@ def display_profiles(HDUlist_or_filename=None, ext=0, overplot=False, title=None
 
 
 def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stddev=False, binsize=None, maxradius=None,
-                   normalize='None', pa_range=None):
+                   normalize='None', pa_range=None, slice=0):
     """ Compute a radial profile of the image.
 
     This computes a discrete radial profile evaluated on the provided binsize. For a version
@@ -542,6 +542,9 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
         I.e. calculate that profile only for some wedge, not the full image. Specify the PA in degrees
         counterclockwise from +Y axis=0. Note that you can specify ranges across zero using negative numbers,
         such as pa_range=[-10,10].  The allowed PA range runs from -180 to 180 degrees.
+    slice: integer, optional
+        Slice into a datacube, for use on cubes computed by calc_datacube. Default 0 if a
+        cube is provided with no slice specified.
 
     Returns
     --------
@@ -558,7 +561,11 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
     else:
         raise ValueError("input must be a filename or HDUlist")
 
-    image = hdu_list[ext].data.copy()  # don't change normalization of actual input array, work with a copy!
+    if hdu_list[ext].header['NAXIS']==3:
+        # data cube, so pick out just one slice
+        image = hdu_list[ext].data[slice].copy()  # don't change normalization of actual input array, work with a copy!
+    else:
+        image = hdu_list[ext].data.copy()  # don't change normalization of actual input array, work with a copy!
 
     if normalize.lower() == 'peak':
         _log.debug("Calculating profile with PSF normalized to peak = 1")
@@ -569,8 +576,6 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
 
     pixelscale = hdu_list[ext].header['PIXELSCL']
 
-    if maxradius is not None:
-        raise NotImplemented("add max radius")
 
     if binsize is None:
         binsize = pixelscale
@@ -623,6 +628,12 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
         # for PA ranges < 45 deg or so, the innermost pixel that's valid in the mask may be
         # more than a pixel from the center. Therefore we have to include that offset here
         rr += binsize * np.floor(sr[0])
+
+
+    if maxradius is not None:
+        crop = rr < maxradius
+        rr = rr[crop]
+        radialprofile2 = radialprofile2[crop]
 
     if stddev:
         stddevs = np.zeros_like(radialprofile2)
