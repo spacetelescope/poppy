@@ -25,6 +25,7 @@ Gram-Schmidt orthonormalization process as applied to this case is
 import inspect
 from math import factorial
 import numpy as np
+import scipy
 
 import sys
 import logging
@@ -1170,7 +1171,7 @@ def opd_from_zernikes(coeffs, basis=zernike_basis_faster, aperture=None, outside
 
 
 def opd_expand_segments(opd, aperture=None, nterms=15, basis=None,
-                              iterations=2, verbose=False, **kwargs):
+                              iterations=2, verbose=False, ignore_border=None, **kwargs):
     """
     Expand OPD into a basis defined by segments, typically with piston, tip, & tilt of each.
 
@@ -1207,6 +1208,9 @@ def opd_expand_segments(opd, aperture=None, nterms=15, basis=None,
         of basis arrays given arguments `nterms`, `npix`, and `outside`.
         This should be an instance of Segment_Piston_Basis() or
         Segment_PTT_Basis(), or an equivalent.
+    ignore_border : int
+        Number of border pixels to ignore around each segment's edge. This can be useful to
+        avoid edge or interpolation artifacts in some circumstances.
 
     """
     if basis is None:
@@ -1242,6 +1246,13 @@ def opd_expand_segments(opd, aperture=None, nterms=15, basis=None,
             # The number of good pixels can vary per each segment
             # So we must determine an appropriate mask per each basis element
             this_seg_mask = apmask & np.isfinite(basis_set[i])
+
+            if ignore_border:
+                # erode off N pixels from around the edge of the segment mask before doing
+                # the fitting.
+                this_seg_mask = scipy.ndimage.morphology.binary_erosion(this_seg_mask,
+                        iterations=ignore_border)
+
             wgood = np.where(this_seg_mask)
             ngood = this_seg_mask.sum()
 
