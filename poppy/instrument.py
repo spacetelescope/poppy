@@ -310,7 +310,16 @@ class Instrument(object):
             you would supply in a call to calc_psf via the "monochromatic" option
         """
 
+        # Allow up to 10,000 wavelength slices. The number matters because FITS
+        # header keys can only have up to 8 characters. Backward-compatible.
         nwavelengths = len(wavelengths)
+        if nwavelengths < 100:
+            label_wl = lambda i: 'WAVELN{:02d}'.format(i)
+        elif nwavelengths < 10000:
+            label_wl = lambda i: 'WVLN{:04d}'.format(i)
+        else:
+            raise ValueError("Maximum number of wavelengths exceeded. "
+                             "Cannot be more than 10,000.")
 
         # Set up cube and initialize structure based on PSF at first wavelength
         poppy_core._log.info("Starting multiwavelength data cube calculation.")
@@ -320,7 +329,7 @@ class Instrument(object):
         for ext in range(len(psf)):
             cube[ext].data = np.zeros((nwavelengths, psf[ext].data.shape[0], psf[ext].data.shape[1]))
             cube[ext].data[0] = psf[ext].data
-            cube[ext].header['WAVELN00'] = wavelengths[0]
+            cube[ext].header[label_wl(0)] = wavelengths[0]
 
         # iterate rest of wavelengths
         for i in range(1, nwavelengths):
@@ -328,7 +337,7 @@ class Instrument(object):
             psf = self.calc_psf(*args, monochromatic=wl, **kwargs)
             for ext in range(len(psf)):
                 cube[ext].data[i] = psf[ext].data
-                cube[ext].header['WAVELN{:02d}'.format(i)] = wl
+                cube[ext].header[label_wl(i)] = wl
                 cube[ext].header.add_history("--- Cube Plane {} ---".format(i))
                 for h in psf[ext].header['HISTORY']:
                     cube[ext].header.add_history(h)
