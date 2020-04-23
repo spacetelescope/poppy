@@ -20,7 +20,7 @@ latest development version from git::
 Requirements
 --------------
 
-* Python 3.5, or more recent. Earlier versions of Python are no longer supported.
+* Python 3.6, or more recent. Earlier versions of Python are no longer supported.
 * The standard Python scientific stack: :py:mod:`numpy`, :py:mod:`scipy`,
   :py:mod:`matplotlib`
 * POPPY relies upon the `astropy
