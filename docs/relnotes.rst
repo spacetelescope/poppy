@@ -16,6 +16,10 @@ For a list of contributors, see :ref:`about`.
 
  * future changes go here
 
+**Software Infrastructure Updates and Internals:**
+
+ * The minimum Python version is now 3.6.
+
 0.9.0
 -----
 

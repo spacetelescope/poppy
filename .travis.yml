@@ -31,7 +31,7 @@ matrix:
 
         # Try Astropy & numpy minimum supported versions,
         # and older Python versions
-        - env: TOXENV='py35-legacy-test'
+        - env: TOXENV='py36-legacy-test'
 
 install:
     - git clone git://github.com/astropy/ci-helpers.git
