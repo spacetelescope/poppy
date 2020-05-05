@@ -820,7 +820,7 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
 
 class Segment_PTT_Basis(object):
     def __init__(self, rings=2, flattoflat=1*u.m, gap=1*u.cm, center=False,
-                pupil_diam=None, **kwargs):
+                 pupil_diam=None, **kwargs):
         """
         Eigenbasis of segment pistons, tips, tilts.
         (Or of pistons only using the Segment_Piston_Basis subclass.)
@@ -848,6 +848,9 @@ class Segment_PTT_Basis(object):
             Diameter of the array on which to generate the basis; by default
             this is chosen to circumscribe the multihex aperture given the
             specified segment and gap sizes and number of segments.
+
+        Additional keyword arguments to this function are passed through to the
+        HexSegmentedDeformableMirror callable.
 
         """
         # Internally this is implemented as a wrapper on HexDM which in turn is
