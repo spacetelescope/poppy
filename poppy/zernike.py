@@ -820,7 +820,7 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
 
 class Segment_PTT_Basis(object):
     def __init__(self, rings=2, flattoflat=1*u.m, gap=1*u.cm, center=False,
-                pupil_diam=None):
+                 pupil_diam=None, **kwargs):
         """
         Eigenbasis of segment pistons, tips, tilts.
         (Or of pistons only using the Segment_Piston_Basis subclass.)
@@ -849,14 +849,18 @@ class Segment_PTT_Basis(object):
             this is chosen to circumscribe the multihex aperture given the
             specified segment and gap sizes and number of segments.
 
+        Additional keyword arguments to this function are passed through to the
+        HexSegmentedDeformableMirror callable.
+
         """
         # Internally this is implemented as a wrapper on HexDM which in turn is
         # a wrapper on MultiHexagonAperture
         import poppy.dms
         self.hexdm = poppy.dms.HexSegmentedDeformableMirror(rings=rings,
-                                              flattoflat=flattoflat,
-                                              gap=gap,
-                                              center=center)
+                                                            flattoflat=flattoflat,
+                                                            gap=gap,
+                                                            center=center,
+                                                            **kwargs)
         if pupil_diam is not None:
             self.hexdm.pupil_diam = pupil_diam
         self.segmentlist = self.hexdm.segmentlist
@@ -1270,4 +1274,3 @@ def opd_expand_segments(opd, aperture=None, nterms=15, basis=None,
         if verbose:
             print("Iteration {}/{}: {}".format(count, iterations, coeffs))
     return coeffs
-
