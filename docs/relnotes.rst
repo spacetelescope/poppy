@@ -10,12 +10,12 @@ For a list of contributors, see :ref:`about`.
 
 .. _rel0.9.1:
 
-*2020 May 22*
+*2020 June 22*
 
 This is a minor release primarily for updates in packaging infrastructure, plus a handful of small enhancements related to datacubes, segmented apertures, and new functionality for subsampled optics.
 
 **New Functionality:**
- * Adds new `Subapertures` class for modeling subsampled optics (i.e. optics that have multiple spatially disjoint output beams). Adds `ShackHartmannWavefrontSensor` class to model that type of sensor. See `this notebook <>`_ for details and example codes. (:pr:`346` thanks to :user:`remorgan01` and :user:`douglase`)
+ * Adds new `Subapertures` class for modeling subsampled optics (i.e. optics that have multiple spatially disjoint output beams). Adds `ShackHartmannWavefrontSensor` class to model that type of sensor. See `this notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Shack%20Hartmann%20Wavefront%20Sensor%20Demo.ipynb>`_ for details and example codes. (:pr:`346` thanks to :user:`remorgan01` and :user:`douglase`)
 
 **Other enhancements and fixes:**
  * `calc_datacube` function now allows `nwavelengths>100`, removing a prior limitation of this function. (:pr:`351` by :user:`ojustino`)
