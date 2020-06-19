@@ -62,6 +62,7 @@ class AnalyticOpticalElement(OpticalElement):
             inclination_x=None, inclination_y=None,
             **kwargs):
         OpticalElement.__init__(self, **kwargs)
+        print("CI  test")
 
         if shift_x is not None: self.shift_x = shift_x
         if shift_y is not None: self.shift_y = shift_y
