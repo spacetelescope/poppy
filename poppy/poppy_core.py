@@ -1039,13 +1039,15 @@ class Wavefront(BaseWavefront):
         det_calc_size_pixels = det.fov_pixels.to(u.pixel).value * det.oversample
 
         mft = MatrixFourierTransform(centering='ADJUSTABLE', verbose=False)
+
+        pixelscale = det.pixelscale if det.pixelscale is not None else det.fov_arcsec/det.fov_pixels
         if not np.isscalar(det_fov_lam_d):  # hasattr(det_fov_lam_d,'__len__'):
             msg = '    Propagating w/ MFT: {:.4f}     fov=[{:.3f},{:.3f}] lam/D    npix={} x {}'.format(
-                det.pixelscale / det.oversample, det_fov_lam_d[0], det_fov_lam_d[1],
+                pixelscale / det.oversample, det_fov_lam_d[0], det_fov_lam_d[1],
                 det_calc_size_pixels[0], det_calc_size_pixels[1])
         else:
             msg = '    Propagating w/ MFT: {:.4f}     fov={:.3f} lam/D    npix={:d}'.format(
-                det.pixelscale / det.oversample, det_fov_lam_d, int(det_calc_size_pixels))
+                pixelscale / det.oversample, det_fov_lam_d, int(det_calc_size_pixels))
         _log.debug(msg)
         self.history.append(msg)
         det_offset = det.det_offset if hasattr(det, 'det_offset') else (0, 0)

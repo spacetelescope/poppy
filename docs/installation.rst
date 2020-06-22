@@ -20,7 +20,7 @@ latest development version from git::
 Requirements
 --------------
 
-* Python 3.5, or more recent. Earlier versions of Python are no longer supported.
+* Python 3.6, or more recent. Earlier versions of Python are no longer supported.
 * The standard Python scientific stack: :py:mod:`numpy`, :py:mod:`scipy`,
   :py:mod:`matplotlib`
 * POPPY relies upon the `astropy
@@ -73,16 +73,16 @@ Testing your installation of poppy
 ----------------------------------
 
 Poppy includes a suite of unit tests that exercise its functionality and verify
-outputs match expectations. You can optionally run this test suite to verify
-that your installation is working properly::
+outputs match expectations. If you have cloned the repository, you can optionally
+run this test suite to verify that your installation is working properly::
 
-   >>> import poppy
-   >>> poppy.test()
+   % cd poppy/tests/
+   % pytest
    ============================ test session starts =====================================
    Python 3.6.5, pytest-3.6.1, py-1.5.3, pluggy-0.6.0
    Running tests with Astropy version 3.0.3.
    ... [etc] ...
-   ================= 126 passed, 1 skipped, 1 xfailed in 524.68 seconds ==================
+   ================= 147 passed, 2 skipped, 1 xfailed in 173.92 seconds ==================
 
 Some tests may be automatically skipped depending on whether certain optional packaged are
 installed, and other tests in development may be marked "expected to fail" (``xfail``), but

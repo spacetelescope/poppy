@@ -274,7 +274,8 @@ def test_piston_basis(verbose=False):
     """ Test that we can create randomly-pistoned segments, and then
     re-determine the amounts of those pistons.
 
-    This tests both the segment
+    This tests both the segment piston baseis, and the segment basis
+    decomposition function.
     """
 
     segment_piston_basis = zernike.Segment_Piston_Basis(rings=2)
@@ -285,13 +286,15 @@ def test_piston_basis(verbose=False):
     aperture = segment_piston_basis.aperture()
     #aperture = np.asarray(pistoned_opd != 0, dtype=int)
 
-    results = zernike.opd_expand_segments(pistoned_opd, basis=segment_piston_basis, aperture=aperture, nterms=18, verbose=verbose)
+    for border_pad in [None, 5]:
+        results = zernike.opd_expand_segments(pistoned_opd, basis=segment_piston_basis,
+                aperture=aperture, nterms=18, verbose=verbose, ignore_border=border_pad)
 
-    if verbose:
-        print(random_pistons)
-        print(results)
+        if verbose:
+            print(random_pistons)
+            print(results)
 
-    assert np.allclose(random_pistons, results)
+        assert np.allclose(random_pistons, results)
 
     return random_pistons, results, pistoned_opd
 

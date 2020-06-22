@@ -45,6 +45,9 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
                 device is not oriented such that the origin is at lower left as seen in the
                 pupil.
 
+            include_factor_of_two : Bool
+                include the factor of two due to reflection in the OPD function (optional, default False)
+
             Additionally, the standard parameters for shift_x and shift_y can be accepted and
             will be handled by the **kwargs mechanism. Note, rotation is not yet supported for DMs,
             and shifts are currently rounded to integer pixels in the sampled wavefront, rather
@@ -65,6 +68,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
             """
 
     @utils.quantity_input(actuator_spacing=u.meter, radius=u.meter)
+
     def __init__(self, dm_shape=(10, 10), actuator_spacing=None,
                  influence_func=None, name='DM',
                  include_actuator_print_through=False,
@@ -72,6 +76,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
                  actuator_mask_file=None,
                  radius=1.0 * u.meter,
                  flip_x=False, flip_y=False,
+                 include_factor_of_two = False,
                  **kwargs
                  ):
 
@@ -111,6 +116,8 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
         if self.include_actuator_print_through:
             self._load_actuator_surface_file(actuator_print_through_file)
+
+        self.include_factor_of_two = include_factor_of_two
 
         if isinstance(influence_func, str):
             self.influence_type = "from file"
@@ -332,8 +339,11 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
                     pixscale_m = wave.pixelscale.to(u.m/u.pixel).value
                     shift_y_pix = int(np.round(self.shift_y /pixscale_m))
                     interpolated_surface = np.roll(interpolated_surface, shift_y_pix, axis=0)
+        
+        # account for DM being reflective (opitonal, governed by include_factor_of_two parameter)
+        coefficient = 2 if self.include_factor_of_two else 1
 
-        return interpolated_surface
+        return coefficient*interpolated_surface # note optional *2 coefficient to account for DM being reflective surface
 
     def _get_surface_arrays_with_orientation(self):
         """ Return representations of the DM actuators and masks
