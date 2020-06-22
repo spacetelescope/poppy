@@ -55,7 +55,7 @@ deploy:
   username: "__token__"
   password:
     secure: ehTNpPSitppZJINBslbzT6bT+/woUTqpO/TATvMxHr+Czv6AgXyX1OZ/XFbNQKTe1Uh+fmPgIeDCh4/21xvFye6jYx9SBu5NyGTFVnFx4Fg1eEGtIkqY113qcACZKfEW/L1yFltto77QSEZwQpVKfgWG6uj2g/0/FrcB8uS3/kFbMxzHbEwE2o/+ff9wDpEA57EOMVWOEqnR6cmQJJCqvVDBNigb9ncQuhMvn6A1u2twTHXLmmUnJJ5vT3h8UUK+9VX4Q2g32RznJUQOidVJ8CLNbcyF4hKhfDRQsO9/OUAbdpW5xj5kLE8r6bHEZ3NTQgr3ZNuAe7/GvMWLeB7wRy5O1FTV+1Tltgp4QzOX+sl460g1iAUus78NvLKRlid9QjjE9aiNYEqoyXJc1O50lm4jWe12qQ1Do8JJNJZX8H7KH/foRqAmTyEkS6jOOXmepLeVOzOP+IrVXHfFp5RJCbhsDjODoSR9IWWzkZsb4nNcUcoLTAnfqpPY5NDQateq5TUqV/tGUG9+fvqH8kZFte0l8qBNrj2mDwTBb1weurucIzCV1MJYTSsjZBkdcBypqrslllza0qYwFi0IEDl3lIX4rz7yN8eczswUzsxL5svgHFXdZEwUqyAnvF7E6qX498o6nWwSfgRrLI+QQGa/sM/PfJa4NEjbdnn5EXRzak0=
- on:
-     branch: stable
-     tags: true
- skip_existing: true
+  on:
+    branch: stable
+    tags: true
+  skip_existing: true
