@@ -829,7 +829,7 @@ def measure_fwhm(HDUlist_or_filename, ext=0, center=None, plot=False, threshold=
         raise ValueError("input must be a filename or HDUlist")
 
     image = HDUlist[ext].data.copy()  # don't change normalization of actual input array; work with a copy
-    image /= image.max()  # Normalize the copy to peak=1
+    image = image/image.max()  # Normalize the copy to peak=1
 
     pixelscale = HDUlist[ext].header['PIXELSCL']
 
