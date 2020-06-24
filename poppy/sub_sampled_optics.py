@@ -271,7 +271,7 @@ class Subapertures(poppy.OpticalElement):
                     intensity_array = sub_wf.as_fits()
                 else:
                     intensity_array = sub_wf.intensity
-                    self.centroid_list[:, i, j] = cent_function(intensity_array, **kwargs, relativeto=relativeto)
+                self.centroid_list[:, i, j] = cent_function(intensity_array, **kwargs, relativeto=relativeto)
 
         self._centroided_flag = True
         return self.centroid_list
