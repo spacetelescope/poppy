@@ -95,7 +95,7 @@ Example Jupyter Notebooks
 
    For more details and examples of code usage, consult the Jupyter
    notebook `Fresnel_Propagation_Demo
-   <https://github.com/spacetelescope/poppy/blob/master/notebooks/Fresnel_Propagation_Demo.ipynb>`_.
+   <https://github.com/spacetelescope/poppy/blob/stable/notebooks/Fresnel_Propagation_Demo.ipynb>`_.
    In addition to details on code usage, this includes a worked example of
    a Fresnel model of the Hubble Space Telescope.
 

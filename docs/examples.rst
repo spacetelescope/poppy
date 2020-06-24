@@ -7,7 +7,7 @@ Let's dive right in to some example code.
 
 
 (A runnable notebook version of this examples page is included in the `notebooks` subdirectory of the
-``poppy`` source, or is available from `here <https://github.com/spacetelescope/poppy/blob/master/notebooks/POPPY%20Examples.ipynb>`_.)
+``poppy`` source, or is available from `here <https://github.com/spacetelescope/poppy/blob/stable/notebooks/POPPY%20Examples.ipynb>`_.)
 
 
 For all of the following examples, you will have more informative text output when running the code
