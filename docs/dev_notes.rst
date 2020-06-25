@@ -35,7 +35,7 @@ To test that an Astroconda package builds, you will need ``conda-build``::
    $ conda install conda-build
 
 #. Fork (if needed) and clone https://github.com/astroconda/astroconda-contrib
-#. Edit `poppy/meta.yaml <https://github.com/astroconda/astroconda-contrib/blob/develop/poppy/meta.yaml>`_ to reflect the new ``version`` and ``git_tag``.
+#. Edit `poppy/meta.yaml <https://github.com/astroconda/astroconda-contrib/blob/master/poppy/meta.yaml>`_ to reflect the new ``version`` and ``git_tag``.
 #. Edit in the ``git_tag`` name from ``git tag`` in the PyPI release instructions (``v0.X.Y``).
 #. Verify that you can build the package from the astroconda-contrib directory: ``conda build -c http://ssb.stsci.edu/astroconda poppy``
 #. Commit your changes to a new branch and push to GitHub.
