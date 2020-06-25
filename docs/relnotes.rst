@@ -26,8 +26,8 @@ This is a minor release primarily for updates in packaging infrastructure, plus 
 
 **Software Infrastructure Updates and Internals:**
 
- * Removed dependency on the deprecated astropy-helpers package framework. (:pr:`349` by :user:`sosborne`). Fixes :issue:`355`.
- * Switched code coverage CI service to codecov.io. (:pr:`349` by :user:`sosborne`)
+ * Removed dependency on the deprecated astropy-helpers package framework. (:pr:`349` by :user:`shanosborne`). Fixes :issue:`355`.
+ * Switched code coverage CI service to codecov.io. (:pr:`349` by :user:`shanosborne`)
  * The minimum Python version is now 3.6. (:pr:`356` by :user:`mperrin`)
 
 0.9.0
