@@ -26,8 +26,8 @@ This is a minor release primarily for updates in packaging infrastructure, plus 
 
 **Software Infrastructure Updates and Internals:**
 
- * Removed dependency on the deprecated astropy-helpers package framework. (:pr:`349` by :user:`sosborne`). Fixes :issue:`355`.
- * Switched code coverage CI service to codecov.io. (:pr:`349` by :user:`sosborne`)
+ * Removed dependency on the deprecated astropy-helpers package framework. (:pr:`349` by :user:`shanosborne`). Fixes :issue:`355`.
+ * Switched code coverage CI service to codecov.io. (:pr:`349` by :user:`shanosborne`)
  * The minimum Python version is now 3.6. (:pr:`356` by :user:`mperrin`)
 
 0.9.0
@@ -203,7 +203,7 @@ improved upon in a future release.
 
  * New `PhysicalFresnelWavefront` class that uses physical units for the wavefront (e.g.
    volts/meter) and intensity (watts). See `this notebook
-   <https://github.com/spacetelescope/poppy/blob/master/notebooks/Physical%20Units%20Demo.ipynb>`_ for
+   <https://github.com/spacetelescope/poppy/blob/stable/notebooks/Physical%20Units%20Demo.ipynb>`_ for
    examples and further discussion.  (`#248 <https://github.com/spacetelescope/poppy/pull/248>`, @daphil).
  * `calc_psf` gains a new parameter to request returning the complex wavefront (`#234
    <https://github.com/spacetelescope/poppy/pull/234>`_,@douglase).
