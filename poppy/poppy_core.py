@@ -3258,7 +3258,8 @@ class Detector(OpticalElement):
             new_pixelscale = pixelscale
 
         # Case 3: pixelscale compatible with physical units. Treat it as such. Also, in
-        # this case, the user *must* specify a value for fov_pixels.
+        # this case, the user *must* specify a value for fov_pixels (since the other option
+        # would be fov_arcsec, and that would make no sense in this case).
         elif pixelscale.unit.is_equivalent(micron_per_pixel):
             new_pixelscale = pixelscale
             if fov_pixels is None:
@@ -3269,8 +3270,8 @@ class Detector(OpticalElement):
         # Case 4: some other units. Raise an error.
         else:
             raise ValueError("Argument '{0}' to function '{1}'"
-                             " must be a number (not '{2}'), and convertable to"
-                             " units=arcsec/pixel or micron/pixel.".format('pixelscale',
+                             " must be a number or quantity convertable to"
+                             " units=arcsec/pixel or micron/pixel. Note, make sure your pixelscale units are specified per pixel!".format('pixelscale',
                                                                            'Detector.__init__',
                                                                            pixelscale))
 
