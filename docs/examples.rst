@@ -1,7 +1,7 @@
 .. _examples:
 
-Examples
-============
+Example Code and Getting Started
+================================
 
 Let's dive right in to some example code. 
 
@@ -29,7 +29,7 @@ This is very simple, as it should be::
         osys.add_pupil( poppy.CircularAperture(radius=3))    # pupil radius in meters
         osys.add_detector(pixelscale=0.010, fov_arcsec=5.0)  # image plane coordinates in arcseconds
 
-        psf = osys.calc_psf(2e-6)                            # wavelength in microns
+        psf = osys.calc_psf(2e-6)                            # wavelength in meters
         poppy.display_psf(psf, title='The Airy Function')
 
 .. image:: ./example_airy.png
@@ -95,6 +95,48 @@ Defocus can be added using a lens::
         
 .. image:: ./example_defocus.png
    :scale: 50%
+   :align: center
+   :alt: Sample calculation result
+
+
+Specifying Quantities with Units
+--------------------------------
+
+Poppy makes use of the `astropy.units <https://docs.astropy.org/en/stable/units/>`_ framework, and many input parameters can be specified as quantities with units. ::
+
+    import astropy.units as u
+
+    psf = osys.calc_psf(wavelength=2e-6)     # bare numbers without units are interpreted by default as meters for lengths
+    psf = osys.calc_psf(wavelength=2*u.micron)
+    psf = osys.calc_psf(wavelength=2000*u.nm)     # These are all equivalent ways to specify the same wavelength
+
+Variables with angular dimensions for image plane elements can be specified as arcseconds by default, or other angular units if so desired ::
+
+    slit = poppy.RectangularFieldStop(width=0.5*u.arcsec, length=60*u.arcsec)    # Slit for a long slit spectrograph
+    slit = poppy.RectangularFieldStop(width=2.4*u.urad, length=1*u.arcmin)       # This works too
+
+Image plane detector pixel scales should be specified in units of `u.arcsec/u.pixel` or equivalent angular-per-pixel units. (In :ref:`fresnel` models, discussed later, detectors should be specified with physical pixel scales in `u.micron/u.pixel` or equivalent)
+
+
+
+
+
+Spectrograph Slit
+-----------------
+
+Let's model diffraction through a slit, as could be used to compute slit losses for instance.
+This example shows the use of astropy units and quantities for specifying input parameters::
+
+    osys = poppy.OpticalSystem()
+    osys.add_pupil(poppy.CircularAperture(radius=0.5*u.meter))
+    osys.add_image(poppy.RectangularFieldStop(width=0.5*u.arcsec, height=10*u.arcsec) )
+    osys.add_pupil(poppy.CircularAperture(radius=1*u.meter))   # reimaged pupil in spectrograph; typically would have a grating here
+    osys.add_detector(pixelscale=0.010*u.arcsec/u.pixel, fov_arcsec=5.0)
+
+    poppy.display_psf(psf, title='The Airy Function, through a spectrograph slit', vmax=1e-5, )
+
+.. image:: ./example_slit_airy.png
+   :scale: 100%
    :align: center
    :alt: Sample calculation result
 
