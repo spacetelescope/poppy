@@ -112,13 +112,13 @@ Poppy makes use of the `astropy.units <https://docs.astropy.org/en/stable/units/
 
 Variables with angular dimensions for image plane elements can be specified as arcseconds by default, or other angular units if so desired ::
 
-    slit = poppy.RectangularFieldStop(width=0.5*u.arcsec, length=60*u.arcsec)    # Slit for a long slit spectrograph
-    slit = poppy.RectangularFieldStop(width=2.4*u.urad, length=1*u.arcmin)       # This works too
+    slit = poppy.RectangularFieldStop(width=0.5*u.arcsec, height=60*u.arcsec)    # Slit for a long slit spectrograph
+    slit = poppy.RectangularFieldStop(width=0.5, height=60)                      # bare numbers without units are interpreted as arcsec in this case
+    slit = poppy.RectangularFieldStop(width=2.4*u.urad, height=1*u.arcmin)       # This works too; mix units and conversions are handled automatically
 
-Image plane detector pixel scales should be specified in units of `u.arcsec/u.pixel` or equivalent angular-per-pixel units. (In :ref:`fresnel` models, discussed later, detectors should be specified with physical pixel scales in `u.micron/u.pixel` or equivalent)
+Image plane detector pixel scales should be specified in units of `u.arcsec/u.pixel` or equivalent angular-per-pixel units. (In :ref:`fresnel` models, discussed later, detectors should be specified with physical pixel scales in `u.micron/u.pixel` or equivalent) ::
 
-
-
+    det = poppy.Detector(fov_pixels=1024, pixelscale=0.1*u.arcsec/u.pixel)
 
 
 Spectrograph Slit
@@ -132,6 +132,8 @@ This example shows the use of astropy units and quantities for specifying input 
     osys.add_image(poppy.RectangularFieldStop(width=0.5*u.arcsec, height=10*u.arcsec) )
     osys.add_pupil(poppy.CircularAperture(radius=1*u.meter))   # reimaged pupil in spectrograph; typically would have a grating here
     osys.add_detector(pixelscale=0.010*u.arcsec/u.pixel, fov_arcsec=5.0)
+
+    psf = osys.calc_psf(wavelength=2e-6)
 
     poppy.display_psf(psf, title='The Airy Function, through a spectrograph slit', vmax=1e-5, )
 
