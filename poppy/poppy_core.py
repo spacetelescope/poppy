@@ -1633,7 +1633,7 @@ class BaseOpticalSystem(ABC):
             utils.fftw_save_wisdom()
 
         # TODO update FITS header for oversampling here if detector is different from regular?
-        waves = np.asarray(wavelength)
+        waves = np.asarray([w.to(u.meter).value for w in wavelength])
         wts = np.asarray(weight)
         mnwave = (waves * wts).sum() / wts.sum()
         outfits[0].header['WAVELEN'] = (mnwave, 'Weighted mean wavelength in meters')
