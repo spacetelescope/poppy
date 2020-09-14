@@ -457,15 +457,15 @@ class BaseWavefront(ABC):
             if vmin is None:
                 vmin = 0.25 if what == 'phase' else 0
             norm_inten = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
-            cmap_inten = getattr(matplotlib.cm, conf.cmap_pupil_intensity)
+            cmap_inten = copy.copy(getattr(matplotlib.cm, conf.cmap_pupil_intensity))
             cmap_inten.set_bad('0.0')
         else:
             if vmin is None:
                 vmin = vmax * 1e-6
             norm_inten = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
-            cmap_inten = getattr(matplotlib.cm, conf.cmap_sequential)
+            cmap_inten = copy.copy(getattr(matplotlib.cm, conf.cmap_sequential))
             cmap_inten.set_bad(cmap_inten(0))
-        cmap_phase = getattr(matplotlib.cm, conf.cmap_diverging)
+        cmap_phase = copy.copy(getattr(matplotlib.cm, conf.cmap_diverging))
         cmap_phase.set_bad('0.3')
         # note, can't currently set separate vmin and vmax for intensity and phase
         # but we can apply here a prior that the phase is always in the range of
@@ -1602,7 +1602,7 @@ class BaseOpticalSystem(ABC):
             # Display WF if requested.
             #  Note - don't need to display here if we are showing all steps already
             if display and not display_intermediates:
-                cmap = getattr(matplotlib.cm, conf.cmap_sequential)
+                cmap = copy.copy(getattr(matplotlib.cm, conf.cmap_sequential))
                 cmap.set_bad('0.3')
                 halffov_x = outfits[0].header['PIXELSCL'] * outfits[0].data.shape[1] / 2
                 halffov_y = outfits[0].header['PIXELSCL'] * outfits[0].data.shape[0] / 2
@@ -2451,11 +2451,11 @@ class OpticalElement(object):
             colorbar_orientation = "horizontal" if nrows == 1 else 'vertical'
 
         if self.planetype is PlaneType.pupil:
-            cmap_amp = getattr(matplotlib.cm, conf.cmap_pupil_intensity)
+            cmap_amp = copy.copy(getattr(matplotlib.cm, conf.cmap_pupil_intensity))
         else:
-            cmap_amp = getattr(matplotlib.cm, conf.cmap_sequential)
+            cmap_amp = copy.copy(getattr(matplotlib.cm, conf.cmap_sequential))
         cmap_amp.set_bad('0.0')
-        cmap_opd = getattr(matplotlib.cm, conf.cmap_diverging)
+        cmap_opd = copy.copy(getattr(matplotlib.cm, conf.cmap_diverging))
         cmap_opd.set_bad('0.3')
         norm_amp = matplotlib.colors.Normalize(vmin=0, vmax=1)
 
