@@ -622,12 +622,14 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
     else:
         radialprofile2[0] = csim[0]  # otherwise if there's just one then just take it.
     radialprofile2[1:] = radialprofile
-    rr = np.arange(
-        len(radialprofile2)) * binsize + binsize * 0.5  # these should be centered in the bins, so add a half.
-    if pa_range is not None:
-        # for PA ranges < 45 deg or so, the innermost pixel that's valid in the mask may be
-        # more than a pixel from the center. Therefore we have to include that offset here
-        rr += binsize * np.floor(sr[0])
+
+    # Compute radius values corresponding to the measured points in the radial profile.
+    # including handling the case where the innermost pixel may be more
+    # than one pixel from the center. This can happen if pa_range is not None, since for
+    # small ranges < 45 deg or so the innermost pixel that's valid in the mask may be
+    # more than one pixel from the center. It can also happen if we are computing a
+    # radial profile centered on an offset source outside of the FOV.
+    rr = np.arange(ri.min(), ri.min()+len(radialprofile2)) * binsize + binsize * 0.5  # these should be centered in the bins, so add a half.
 
 
     if maxradius is not None:
