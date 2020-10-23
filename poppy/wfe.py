@@ -352,6 +352,144 @@ class StatisticalPSDWFE(WavefrontError):
         phase_screen = np.fft.ifftshift(np.fft.ifft2(np.fft.ifftshift(scaled))).real   # FT of scaled random PSD makes phase screen
 
         phase_screen -= np.mean(phase_screen)  # force zero-mean
-        opd = phase_screen / np.std(phase_screen) * self.wfe.to(u.m).value  # normalize to wanted input rms wfe
+        self.opd = phase_screen / np.std(phase_screen) * self.wfe.to(u.m).value  # normalize to wanted input rms wfe
 
-        return opd
+        return self.opd
+
+
+class PowerSpectrumWFE(WavefrontError):
+    """
+    Power spectrum PSD WFE class from characterizing and modeling 
+    optical surface power spectrum and applying optical noise.
+
+    Parameters
+    ----------
+    name : string
+        name of the optic
+    psd_parameters: list of array with various astropy quantities
+        Specifies the various PSD parameters with appropriate units, 
+        ordered according to which PSD model set. Follows the order:
+        [alpha, beta, outer_scale, inner_scale, surf_roughness]
+        TODO JL: insert the documentation for this when you finish.
+    psd_weight: iterable list of floats
+        Specifies the weight muliplier to set onto each model PSD
+    seed : integer
+        Seed for the random phase screen generator
+    apply_reflection: boolean
+        Applies 1/2 scale for the OPD as needed for reflection
+        Set to True if the PSD model does not account already for reflection.
+    screen_size: integer
+        Sets how large the PSD matrix will be calculated.
+        If None passed in, then code will default size to 4x wavefront's side.
+    wfe: astropy quantity
+        Optional. Use this to force the wfe RMS for opd surface.
+        If None passed, then the wfe RMS produced is what shows up in PSD calculation.
+    """
+
+    @utils.quantity_input(wfe=u.nm, radius=u.meter)
+    def __init__(self, name='Model PSD WFE', psd_parameters=None, psd_weight=None, seed=None, 
+                 apply_reflection=False, screen_size=None, wfe=None, **kwargs):
+
+        super().__init__(name=name, **kwargs)
+        self.psd_parameters = psd_parameters
+        self.seed = seed
+        self.apply_reflection = apply_reflection
+        self.screen_size = screen_size
+        self.wfe = wfe
+        
+        if psd_weight is None:
+            self.psd_weight = np.ones((len(psd_parameters))) # default to equal weights
+        else:
+            self.psd_weight = psd_weight
+        
+
+    @_check_wavefront_arg
+    def get_opd(self, wave):
+        """
+        Parameters
+        ----------
+        wave : poppy.Wavefront (or float)
+            Incoming Wavefront before this optic to set wavelength and
+            scale, or a float giving the wavelength in meters
+            for a temporary Wavefront used to compute the OPD.
+        """
+        
+        # check that screen size is at least larger than wavefront size
+        if self.screen_size is None:
+            self.screen_size = wave.shape[0]*4 # force set it 
+        elif self.screen_size < wave.shape[0]:
+            raise Exception('PSD screen size smaller than wavefront size, recommend at least 2x larger')
+        
+        # get pixelscale to calculate spatial frequency spacing
+        pixelscale_m = wave.pixelscale.to(u.meter / u.pixel) * u.pixel
+        dk = 1/(self.screen_size * pixelscale_m)
+        
+        # build spatial frequency map
+        cen = int(self.screen_size/2)
+        maskY, maskX = np.ogrid[-cen:cen, -cen:cen]
+        ky = maskY*dk
+        kx = maskX*dk
+        k_map = np.sqrt(kx**2 + ky**2)
+        
+        # calculate the PSD
+        psd = np.zeros_like(k_map.value) # initialize the total PSD matrix
+        for n in range(0, len(self.psd_weight)):
+            # loop-internal localized PSD variables
+            alpha = self.psd_parameters[n][0]
+            beta = self.psd_parameters[n][1]
+            outer_scale = self.psd_parameters[n][2]
+            inner_scale = self.psd_parameters[n][3]
+            surf_roughness = self.psd_parameters[n][4]
+            
+            # initialize loop-internal PSD matrix
+            psd_local = np.zeros_like(psd)
+            
+            # Calculate the PSD based on outer_scale presence
+            if outer_scale.value == 0: # skip out or else PSD explodes
+                # temporary overwrite of k_map at k=0 to stop div/0 problem
+                k_map[cen][cen] = 1*dk
+                # calculate PSD as normal
+                psd_local = (beta/((k_map**2)**(alpha/2)))
+                # overwrite PSD at k=0 to be 0 instead of the original infinity
+                psd_local[cen][cen] = 0*psd_local.unit
+                # return k_map to original state
+                k_map[cen][cen] = 0*dk
+            else:
+                if outer_scale.unit != (1/k_map.unit):
+                    outer_scale.to(1/k_map.unit)
+                psd_local = (beta / (((outer_scale**-2) + (k_map**2))**(alpha/2)))
+            
+            # apply inner_scale, if present (exponential multiplier for PSD)
+            if inner_scale != 0:
+                psd_local = psd_local * np.exp(-(k_map.value*inner_scale)**2) # the exponential needs to be unitless
+                
+            # apply surface roughness
+            psd_local = psd_local + surf_roughness.to(psd_local.unit)
+            
+            # apply as the sum with the weight of the PSD model
+            psd = psd + (self.psd_weight[n] * psd_local)
+            
+        # set the noise
+        np.random.seed(self.seed)   # if provided, set a seed for random number generator
+        rndm_noise = np.fft.fftshift(np.fft.fft2(np.random.normal(size=(self.screen_size, self.screen_size))))
+        
+        psd_scaled = (np.sqrt(psd/(pixelscale_m**2)) * rndm_noise).to(u.m)
+        opd = np.fft.ifft2(np.fft.ifftshift(psd_scaled)).real
+        
+        if self.apply_reflection == True:
+            opd = opd/2
+            
+        if self.screen_size > wave.shape[0]: # crop it down to the side
+            opd = utils.pad_or_crop_to_shape(array=opd, target_shape=wave.shape)
+            
+        # at this point, OPD is in units of meters although not declared
+        if self.wfe is not None:
+            rms = np.sqrt(np.mean(np.square(opd)))
+            opd = opd * (self.wfe.to(u.m).value/rms)
+        
+        self.opd = opd
+        return self.opd
+    
+    
+    
+    
