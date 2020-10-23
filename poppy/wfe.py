@@ -362,6 +362,12 @@ class PowerSpectrumWFE(WavefrontError):
     """
     Power spectrum PSD WFE class from characterizing and modeling 
     optical surface power spectrum and applying optical noise.
+    
+    References:
+    Males, Jared. MagAO-X Preliminary-Design Review, 
+        Section 5.1: Optics Specifications, Eqn 1
+        https://magao-x.org/docs/handbook/appendices/pdr/
+    Lumbres, et al. In Prep.
 
     Parameters
     ----------
@@ -371,7 +377,6 @@ class PowerSpectrumWFE(WavefrontError):
         Specifies the various PSD parameters with appropriate units, 
         ordered according to which PSD model set. Follows the order:
         [alpha, beta, outer_scale, inner_scale, surf_roughness]
-        TODO JL: insert the documentation for this when you finish.
     psd_weight: iterable list of floats
         Specifies the weight muliplier to set onto each model PSD
     seed : integer
@@ -417,7 +422,7 @@ class PowerSpectrumWFE(WavefrontError):
         
         # check that screen size is at least larger than wavefront size
         if self.screen_size is None:
-            self.screen_size = wave.shape[0]*4 # force set it 
+            self.screen_size = wave.shape[0]*4 # default 4, may change
         elif self.screen_size < wave.shape[0]:
             raise Exception('PSD screen size smaller than wavefront size, recommend at least 2x larger')
         
@@ -470,9 +475,10 @@ class PowerSpectrumWFE(WavefrontError):
             # apply as the sum with the weight of the PSD model
             psd = psd + (self.psd_weight[n] * psd_local)
             
-        # set the noise
-        np.random.seed(self.seed)   # if provided, set a seed for random number generator
-        rndm_noise = np.fft.fftshift(np.fft.fft2(np.random.normal(size=(self.screen_size, self.screen_size))))
+        # set the random noise
+        psd_random = np.random.RandomState()
+        psd_random.seed(self.seed)
+        rndm_noise = np.fft.fftshift(np.fft.fft2(psd_random.normal(size=(self.screen_size, self.screen_size))))
         
         psd_scaled = (np.sqrt(psd/(pixelscale_m**2)) * rndm_noise).to(u.m)
         opd = np.fft.ifft2(np.fft.ifftshift(psd_scaled)).real
