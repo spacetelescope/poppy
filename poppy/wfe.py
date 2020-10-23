@@ -345,8 +345,9 @@ class StatisticalPSDWFE(WavefrontError):
         rho, theta = _wave_y_x_to_rho_theta(y, x, self.radius.to(u.meter).value)
         psd = np.power(rho, -self.index)   # generate power-law PSD
 
-        np.random.seed(self.seed)   # if provided, set a seed for random number generator
-        rndm_phase = np.random.normal(size=(len(y), len(x)))   # generate random phase screen
+        psd_random_state = np.random.RandomState()
+        psd_random_state.seed(self.seed)   # if provided, set a seed for random number generator
+        rndm_phase = psd_random_state.normal(size=(len(y), len(x)))   # generate random phase screen
         rndm_psd = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(rndm_phase)))   # FT of random phase screen to get random PSD
         scaled = np.sqrt(psd) * rndm_psd    # scale random PSD by power-law PSD
         phase_screen = np.fft.ifftshift(np.fft.ifft2(np.fft.ifftshift(scaled))).real   # FT of scaled random PSD makes phase screen
