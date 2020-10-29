@@ -401,7 +401,11 @@ class PowerSpectrumWFE(WavefrontError):
         self.seed = seed
         self.apply_reflection = apply_reflection
         self.screen_size = screen_size
-        self.wfe = wfe
+        
+        if hasattr(wfe, 'unit') or wfe is None:
+            self.wfe = wfe
+        else:
+            self.wfe = wfe * u.m # default assume meters
         
         if psd_weight is None:
             self.psd_weight = np.ones((len(psd_parameters))) # default to equal weights
@@ -422,23 +426,23 @@ class PowerSpectrumWFE(WavefrontError):
         
         # check that screen size is at least larger than wavefront size
         if self.screen_size is None:
-            self.screen_size = wave.shape[0]*4 # default 4, may change
+            self.screen_size = wave.shape[0]*4 # default 4x, open for discussion
         elif self.screen_size < wave.shape[0]:
             raise Exception('PSD screen size smaller than wavefront size, recommend at least 2x larger')
         
         # get pixelscale to calculate spatial frequency spacing
-        pixelscale_m = wave.pixelscale.to(u.meter / u.pixel) * u.pixel
-        dk = 1/(self.screen_size * pixelscale_m)
+        pixelscale = wave.pixelscale * u.pixel # default setting is m/pix, force to meter only
+        dk = 1/(self.screen_size * pixelscale) # units: 1/m
         
         # build spatial frequency map
         cen = int(self.screen_size/2)
-        maskY, maskX = np.ogrid[-cen:cen, -cen:cen]
-        ky = maskY*dk
-        kx = maskX*dk
-        k_map = np.sqrt(kx**2 + ky**2)
+        maskY, maskX = np.mgrid[-cen:cen, -cen:cen]
+        ky = maskY*dk.value
+        kx = maskX*dk.value
+        k_map = np.sqrt(kx**2 + ky**2) # unitless for the math, but actually 1/m
         
         # calculate the PSD
-        psd = np.zeros_like(k_map.value) # initialize the total PSD matrix
+        psd = np.zeros_like(k_map) # initialize the total PSD matrix
         for n in range(0, len(self.psd_weight)):
             # loop-internal localized PSD variables
             alpha = self.psd_parameters[n][0]
@@ -447,49 +451,46 @@ class PowerSpectrumWFE(WavefrontError):
             inner_scale = self.psd_parameters[n][3]
             surf_roughness = self.psd_parameters[n][4]
             
+            # unit check
+            psd_units = beta.unit / ((dk.unit**2)**(alpha/2))
+            assert surf_roughness.unit == psd_units, "PSD parameter units are not consistent, please re-evaluate parameters."
+            surf_unit = (psd_units*(dk.unit**2))**(0.5)
+            
             # initialize loop-internal PSD matrix
             psd_local = np.zeros_like(psd)
             
-            # Calculate the PSD based on outer_scale presence
+            # Calculate the PSD equation denominator based on outer_scale presence
             if outer_scale.value == 0: # skip out or else PSD explodes
                 # temporary overwrite of k_map at k=0 to stop div/0 problem
-                k_map[cen][cen] = 1*dk
+                k_map[cen][cen] = 1*dk.value
                 # calculate PSD as normal
-                psd_local = (beta/((k_map**2)**(alpha/2)))
+                psd_denom = (k_map**2)**(alpha/2)
                 # overwrite PSD at k=0 to be 0 instead of the original infinity
-                psd_local[cen][cen] = 0*psd_local.unit
+                psd_denom[cen][cen] = 0*psd_denom #.unit #no units in any calculation!
                 # return k_map to original state
-                k_map[cen][cen] = 0*dk
+                k_map[cen][cen] = 0
             else:
-                if outer_scale.unit != (1/k_map.unit):
-                    outer_scale.to(1/k_map.unit)
-                psd_local = (beta / (((outer_scale**-2) + (k_map**2))**(alpha/2)))
+                psd_denom = ((outer_scale.value**(-2)) + (k_map**2))**(alpha/2) # unitless currently
             
-            # apply inner_scale, if present (exponential multiplier for PSD)
-            if inner_scale != 0:
-                psd_local = psd_local * np.exp(-(k_map.value*inner_scale)**2) # the exponential needs to be unitless
-                
-            # apply surface roughness
-            psd_local = psd_local + surf_roughness.to(psd_local.unit)
+            psd_local = (beta.value*np.exp(-((k_map*inner_scale)**2))/psd_denom) + surf_roughness.value
             
             # apply as the sum with the weight of the PSD model
-            psd = psd + (self.psd_weight[n] * psd_local)
-            
+            psd = psd + (self.psd_weight[n] * psd_local) # this should all be m2 m2, but stay unitless for all calculations
+        
         # set the random noise
         psd_random = np.random.RandomState()
         psd_random.seed(self.seed)
         rndm_noise = np.fft.fftshift(np.fft.fft2(psd_random.normal(size=(self.screen_size, self.screen_size))))
         
-        psd_scaled = (np.sqrt(psd/(pixelscale_m**2)) * rndm_noise).to(u.m)
-        opd = np.fft.ifft2(np.fft.ifftshift(psd_scaled)).real
+        psd_scaled = (np.sqrt(psd/(pixelscale.value**2)) * rndm_noise)
+        opd = ((np.fft.ifft2(np.fft.ifftshift(psd_scaled)).real*surf_unit).to(u.m)).value 
         
         if self.apply_reflection == True:
             opd = opd/2
             
-        if self.screen_size > wave.shape[0]: # crop it down to the side
+        if self.screen_size > wave.shape[0]: # crop to wave shape
             opd = utils.pad_or_crop_to_shape(array=opd, target_shape=wave.shape)
             
-        # at this point, OPD is in units of meters although not declared
         if self.wfe is not None:
             rms = np.sqrt(np.mean(np.square(opd)))
             opd = opd * (self.wfe.to(u.m).value/rms)
