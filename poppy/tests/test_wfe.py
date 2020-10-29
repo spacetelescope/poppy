@@ -239,7 +239,7 @@ def test_PowerSpectrumWFE(plot=False):
 
     # psd parameter data from header
     alpha = hdr['alpha']
-    beta = hdr['beta'] * (pixelscale.value**2) * (surf_ref.unit**2) / (opt_diam.unit***(alpha-2))
+    beta = hdr['beta'] * (pixelscale.value**2) * (surf_ref.unit**2) / (opt_diam.unit**(alpha-2))
     # beta value in header has been normalized, needs to be backsolved
     outer_scale = hdr['os'] * opt_diam.unit # sometimes labeled as L0
     inner_scale = hdr['is'] # sometimes labeled lo
