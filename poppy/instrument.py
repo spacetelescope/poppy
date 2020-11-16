@@ -259,7 +259,7 @@ class Instrument(object):
 
         # ---- now at last, actually do the PSF calc:
         #  instantiate an optical system using the current parameters
-        self.optsys = self._get_optical_system(fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
+        self.optsys = self.get_optical_system(fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
                                                fft_oversample=fft_oversample, detector_oversample=detector_oversample,
                                                options=local_options)
         self._check_for_aliasing(wavelens)
@@ -759,7 +759,7 @@ class Instrument(object):
         # (specifically auto-selected pupils based on filter selection)
         wavelengths, _ = self._get_weights(nlambda=1)
         self._validate_config(wavelengths=wavelengths)
-        optsys = self._get_optical_system()
+        optsys = self.get_optical_system()
         optsys.display(what='both')
         if old_no_sam is not None:
             self.options['no_sam'] = old_no_sam
