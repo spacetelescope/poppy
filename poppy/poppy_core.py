@@ -962,7 +962,7 @@ class Wavefront(BaseWavefront):
 
         """
         if self.oversample > 1 and not self.ispadded:  # add padding for oversampling, if necessary
-            assert self.oversample == optic.oversample
+            assert self.oversample == optic.oversample, "Unexpected sampling inconsistency in _propagate_fft!"
             self.wavefront = utils.pad_to_oversample(self.wavefront, self.oversample)
             self.ispadded = True
             if optic.verbose:
@@ -2472,7 +2472,7 @@ class OpticalElement(object):
                 units = "\n".join(textwrap.wrap(units, 20))
 
         ## Create a wavefront object to use when evaluating/sampling the optic.
-        if self.pixelscale is not None:
+        if self.pixelscale is not None and self.shape is not None:
             # This optic has an inherent sampling.  The display wavefront's sampling is
             # irrelevant; we get the native pixel scale opd and amplitude regardless and
             # display that.
