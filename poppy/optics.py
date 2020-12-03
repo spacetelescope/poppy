@@ -19,13 +19,13 @@ if accel_math._USE_NUMEXPR:
 
 _log = logging.getLogger('poppy')
 
-__all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'InverseTransmission',
+__all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'ScalarOpticalPathDifference', 'InverseTransmission',
            'BandLimitedCoron', 'BandLimitedCoronagraph', 'IdealFQPM', 'CircularPhaseMask', 'RectangularFieldStop', 'SquareFieldStop',
            'AnnularFieldStop', 'HexagonFieldStop',
            'CircularOcculter', 'BarOcculter', 'FQPM_FFT_aligner', 'CircularAperture',
            'HexagonAperture', 'MultiHexagonAperture', 'NgonAperture', 'RectangleAperture',
-           'SquareAperture', 'SecondaryObscuration', 'AsymmetricSecondaryObscuration',
-           'ThinLens', 'GaussianAperture', 'KnifeEdge', 'CompoundAnalyticOptic', 'fixed_sampling_optic']
+           'SquareAperture', 'SecondaryObscuration', 'LetterFAperture', 'AsymmetricSecondaryObscuration',
+           'ThinLens',  'GaussianAperture', 'KnifeEdge', 'TiltOpticalPathDifference', 'CompoundAnalyticOptic', 'fixed_sampling_optic']
 
 
 # ------ Generic Analytic elements -----
@@ -346,6 +346,20 @@ class ScalarTransmission(AnalyticOpticalElement):
         res.fill(self.transmission)
         return res
 
+class ScalarOpticalPathDifference(AnalyticOpticalElement):
+    """Uniform and constant optical path difference
+
+    """
+    @utils.quantity_input(opd=u.meter)
+    def __init__(self, name=None, opd=1.0*u.micron, **kwargs):
+        if name is None: name = f'Constant OPD, {opd}'
+        super().__init__(name=name, **kwargs)
+        self.opd = opd
+
+    def get_opd(self, wave):
+        res = np.empty(wave.shape, dtype=_float())
+        res.fill(self.opd.to(u.meter).value)
+        return res
 
 class ScalarOpticalPathDifference(AnalyticOpticalElement):
     """Uniform and constant optical path difference
@@ -933,7 +947,7 @@ class BarOcculter(AnalyticImagePlaneElement):
         return self.transmission
 
 
-# ------ Analytic Pupil or Intermedian Plane elements (coordinates in meters) -----
+# ------ Analytic Pupil or Intermediate Plane elements (coordinates in meters) -----
 
 class FQPM_FFT_aligner(AnalyticOpticalElement):
     """  Helper class for modeling FQPMs accurately
@@ -973,7 +987,7 @@ class FQPM_FFT_aligner(AnalyticOpticalElement):
         assert wave.planetype != PlaneType.image, "This optic does not work on image planes"
 
         fft_im_pixelscale = wave.wavelength / wave.diam / wave.oversample * u.radian
-        required_offset = -fft_im_pixelscale * 0.5
+        required_offset = fft_im_pixelscale * 0.5
         if self.direction == 'backward':
             required_offset *= -1
             wave._image_centered = 'pixel'
@@ -989,6 +1003,8 @@ class ParityTestAperture(AnalyticOpticalElement):
     """ Defines a circular pupil aperture with boxes cut out.
     This is mostly a test aperture, which has no symmetry and thus can be used to
     test the various Fourier transform algorithms and sign conventions.
+
+    See also LetterFAperture
 
     Parameters
     ----------
@@ -1043,6 +1059,39 @@ class ParityTestAperture(AnalyticOpticalElement):
         self.transmission[w_box1] = 0
         self.transmission[w_box2] = 0
 
+        return self.transmission
+
+
+class LetterFAperture(AnalyticOpticalElement):
+    """ Define a capital letter F aperture. This is sometimes useful for
+    disambiguating pupil orientations. See also AsymmetricParityTestAperture.
+    """
+
+    def __init__(self, name=None, radius=1.0 * u.meter, pad_factor=1.5, **kwargs):
+        if name is None: name = f"Letter F Parity Test Aperture, radius={radius}"
+        super().__init__(name=name, planetype=PlaneType.pupil, **kwargs)
+        self.radius = radius
+        # for creating input wavefronts - let's pad a bit:
+        self.pupil_diam = pad_factor * 2 * self.radius
+        self.wavefront_display_hint = 'intensity'  # preferred display for wavefronts at this plane
+
+    def get_transmission(self, wave):
+        """ Compute the transmission inside/outside of the aperture.
+        """
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
+            raise ValueError("LetterFAperture get_opd must be called with a Wavefront "
+                             "to define the spacing")
+        assert (wave.planetype != PlaneType.image)
+
+        radius = self.radius.to(u.meter).value
+        y, x = self.get_coordinates(wave)
+        yr = y / radius
+        xr = x / radius
+
+        self.transmission = np.zeros(wave.shape, dtype=float)
+        self.transmission[(xr < 0) & (xr > -0.5) & (np.abs(yr) < 1)] = 1
+        self.transmission[(xr > 0) & (xr < 0.75) & (np.abs(yr - 0.75) < 0.25)] = 1
+        self.transmission[(xr > 0) & (xr < 0.5) & (np.abs(yr) < 0.25)] = 1
         return self.transmission
 
 
@@ -1650,9 +1699,14 @@ class ThinLens(CircularAperture):
     The sign convention adopted is the usual for lenses: a "positive" lens
     is converging (i.e. convex), a "negative" lens is diverging (i.e. concave).
 
+    Recall the sign convention choice that the OPD is positive if the aberrated wavefront
+    leads the ideal unaberrated wavefront; a converging wavefront leads at its outer edges
+    relative to a flat wavefront.
+
     In other words, a positive number of waves of defocus indicates a
-    lens with positive OPD at the center, and negative at its rim.
-    (Note, this is opposite the sign convention for Zernike defocus)
+    lens with more positive OPD at the edges than at the center.
+
+    NOTE - this sign convention was different in prior versions of poppy < 1.0.
 
     Parameters
     -------------
@@ -1687,16 +1741,13 @@ class ThinLens(CircularAperture):
         # rather than center-to-peak
         defocus_zernike = ((2 * r_norm ** 2 - 1) *
                            (0.5 * self.nwaves * self.reference_wavelength.to(u.meter).value))
-
-        # add negative sign here to get desired sign convention
-        opd = -defocus_zernike
+        opd = defocus_zernike
 
         # the thin lens is explicitly also a circular aperture:
-        # we use the aperture instensity here to mask the OPD we return, in
+        # we use the aperture intensity here to mask the OPD we return, in
         # order to avoid bogus values outside the aperture
         aperture_intensity = CircularAperture.get_transmission(self, wave)
         opd[aperture_intensity==0] = 0
-
 
         return opd
 
@@ -1760,6 +1811,41 @@ class GaussianAperture(AnalyticOpticalElement):
         transmission = np.exp((- (r / self.w.to(u.meter).value) ** 2))
 
         return transmission
+
+
+class TiltOpticalPathDifference(AnalyticOpticalElement):
+    """A simple tilt in OPD.
+
+    With the sign convention used in poppy, a wavefront that is positively increasing
+    in the +X direction will deflect the beam in the -X direction, and so on.
+
+    Parameters
+    ----------
+    tilt_angle : angle, as an astropy unit
+        Angle of the tilt
+    rotation : float
+        Position angle, in degrees, for the direction in which the beam should be tilted
+
+    use the rotation parameter (available for any AnalyticOpticalElement)
+    to adjust the position angle of the tilt
+
+    """
+    def __init__(self, name='Tilt', tilt_angle=0.1 * u.arcsec, rotation=0, **kwargs):
+        self.tilt_angle=tilt_angle
+        super().__init__(name=name, rotation=0, **kwargs)
+
+    def get_opd(self, wave):
+        # Get local coordinates for this wave; note this will implicitly include any
+        # rotation.
+        y, x = self.get_coordinates(wave)
+
+        # SIGN CONVENTION: an OPD or wavefront increasing in the -y direction will deflect the beam
+        # into the +y direction, and vice versa.
+        angle = self.tilt_angle.to_value(u.radian)
+        opd = y * -angle
+
+        return opd
+
 
 
 # ------ generic analytic optics ------

@@ -587,8 +587,11 @@ def test_MFT_FFT_equivalence(display=False, displaycrop=None):
     mft = matrixDFT.MatrixFourierTransform(centering=centering)
     mftout = mft.perform(imgin, nlamD, npix)
 
-    fftout = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(imgin))) / np.sqrt(imgin.shape[0] * imgin.shape[1])
-
+    # SIGN CONVENTION: with our adopted sign conventions, forward propagation requires an inverse fft
+    # This differs from behavior in versions of poppy prior to 1.0.
+    # Further, note that the numpy normalization convention includes 1/n for the inverse transform and 1 for
+    # the forward transform, while we want to more symmetrically apply 1/sqrt(n) in both directions.
+    fftout = np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(imgin))) * np.sqrt(imgin.shape[0] * imgin.shape[1])
 
     norm_factor = abs(mftout).sum()
 

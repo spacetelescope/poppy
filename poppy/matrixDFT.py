@@ -23,6 +23,15 @@
     you replace "fast calculations on very large arrays" with "relatively slow
     calculations on much smaller ones". 
 
+    Sign Conventions
+    ----------------
+    With the sign conventions adopted in poppy (increased optical path length causes the wavefront to lag, and
+    corresponds to a negative wavefront error), it is the case that we want a positive sign in the
+    exponential for the forward transformation (like the sign of an inverse FFT in numpy convention), and
+    a negative sign in the exponential for the backward transformation (like the sign of the forward FFT
+    in numpy convention). See the Sign Conventions notebook for further discussion.
+
+
     Example
     -------
     mf = matrixDFT.MatrixFourierTransform()
@@ -38,6 +47,8 @@
     2012-09-26: minor big fixes
     2015-01-21: Eliminate redundant code paths, correct parity flip,
                 PEP8 formatting pass (except variable names)-- J. Long
+    2020-12-01: Sign convention change, for disambiguation and consistency
+                with other optical modeling packages including JWST WAS. - M. Perrin
 
 """
 
@@ -195,14 +206,16 @@ def matrix_dft(plane, nlamD, npix,
     XU = np.outer(Xs, Us)
     YV = np.outer(Ys, Vs)
 
+    # SIGN CONVENTION: plus signs in exponent for basic forward propagation, with
+    # phase increasing with time. This convention differs from prior poppy version < 1.0
     if inverse:
-        expYV = np.exp(-2.0 * np.pi * -1j * YV).T
-        expXU = np.exp(-2.0 * np.pi * -1j * XU)
+        expYV = np.exp(-2.0 * np.pi * 1j * YV).T
+        expXU = np.exp(-2.0 * np.pi * 1j * XU)
         t1 = np.dot(expYV, plane)
         t2 = np.dot(t1, expXU)
     else:
-        expXU = np.exp(-2.0 * np.pi * 1j * XU)
-        expYV = np.exp(-2.0 * np.pi * 1j * YV).T
+        expXU = np.exp(-2.0 * np.pi * -1j * XU)
+        expYV = np.exp(-2.0 * np.pi * -1j * YV).T
         t1 = np.dot(expYV, plane)
         t2 = np.dot(t1, expXU)
 
@@ -352,15 +365,17 @@ def matrix_dft_numexpr(plane, nlamD, npix,
     XU = np.outer(Xs, Us)
     YV = np.outer(Ys, Vs)
 
-    pi = np.pi
+    two_pi_i = 2*np.pi*1j
+    # SIGN CONVENTION: plus signs in exponent for basic forward propagation, with
+    # phase increasing with time. This convention differs from prior poppy version < 1.0
     if inverse:
-        expYV = ne.evaluate("exp(-2.0 * pi * -1j * YV)").T
-        expXU = ne.evaluate("exp(-2.0 * pi * -1j * XU)")
+        expYV = ne.evaluate("exp(-two_pi_i * YV)").T
+        expXU = ne.evaluate("exp(-two_pi_i * XU)")
         t1 = np.dot(expYV, plane)
         t2 = np.dot(t1, expXU)
     else:
-        expYV = ne.evaluate("exp(-2.0 * pi * 1j * YV)").T
-        expXU = ne.evaluate("exp(-2.0 * pi * 1j * XU)")
+        expYV = ne.evaluate("exp(two_pi_i * YV)").T
+        expXU = ne.evaluate("exp(two_pi_i * XU)")
         t1 = np.dot(expYV, plane)
         t2 = np.dot(t1, expXU)
 

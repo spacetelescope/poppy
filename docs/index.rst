@@ -56,6 +56,7 @@ Contents
   relnotes.rst
   overview.rst
   examples.rst
+  sign_conventions.rst
   available_optics.ipynb
   wfe.rst
   coronagraphs.rst

@@ -340,9 +340,13 @@ class BaseWavefront(ABC):
         Parameters
         ----------
         what : string
-           What to display. Must be one of {intensity, phase, best}.
+           What to display. Must be one of {intensity, phase, wfe, best, 'both'}.
+           'intensity' shows the wavefront intensity,  'wfe' shows the wavefront
+           error in meters or microns, 'phase' is similar to 'wfe' but shows wavefront
+           phase in radians at the given wavelength.
            'Best' implies to display the phase if there is nonzero OPD,
            or else display the intensity for a perfect pupil.
+           'both' will show two panels, for the wavefront intensity and wavefront error.
         nrows : int
             Number of rows to display in current figure (used for
             showing steps in a calculation)
@@ -513,7 +517,7 @@ class BaseWavefront(ABC):
             plot_axes = [ax]
             to_return = ax
         elif what == 'phase':
-            # Display phase in waves.
+            # Display wavefront phase in radians.
             if ax is None:
                 ax = plt.subplot(nr, nc, int(row))
             utils.imshow_with_mouseover(
@@ -529,7 +533,39 @@ class BaseWavefront(ABC):
             plt.title(title)
             plt.xlabel(unit_label)
             if colorbar:
-                plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
+                plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8, label='Phase [radians]')
+
+            plot_axes = [ax]
+            to_return = ax
+
+        elif what == 'wfe':
+            # Display wavefront error in meters of optical path difference.
+            # Show units of nanometers, for convenience
+
+            # Set up WFE arrays, similar to how we set up phase and amp
+            wfe = self.wfe.to(u.nanometer).value.copy()
+            if self.planetype == PlaneType.pupil and self.ispadded and not showpadding:
+                wfe = utils.removePadding(wfe, self.oversample)
+            wfe[np.where(intens < mean_intens / 100)] = np.nan
+            vmx = np.nanmax(np.abs(wfe))
+            norm_wfe = matplotlib.colors.Normalize(vmin=-vmx, vmax=vmx)
+
+            if ax is None:
+                ax = plt.subplot(nr, nc, int(row))
+            utils.imshow_with_mouseover(
+                wfe,
+                ax=ax,
+                extent=extent,
+                norm=norm_wfe,
+                cmap=cmap_phase,
+                origin='lower'
+            )
+            if title is None:
+                title = wrap_lines_title("WFE " + self.location)
+            plt.title(title)
+            plt.xlabel(unit)
+            if colorbar:
+                plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8, label='WFE [nm]')
 
             plot_axes = [ax]
             to_return = ax
@@ -660,6 +696,11 @@ class BaseWavefront(ABC):
     def phase(self):
         """Phase of the wavefront, in radians"""
         return np.angle(self.wavefront)
+
+    @property
+    def wfe(self):
+        """Wavefront error of the wavefront, in meters"""
+        return self.phase * (self.wavelength/(2*np.pi))
 
     @property
     def shape(self):
@@ -798,7 +839,11 @@ class BaseWavefront(ABC):
             U -= (npix - 1) / 2.0
             U *= pixelscale
 
-            tiltphasor = np.exp(2.0j * np.pi * (U * xangle_rad + V * yangle_rad) / self.wavelength.to(u.meter).value)
+            # SIGN CONVENTION: Following Wyant and Creath:
+            #     Tilt in a wavefront affects the image by causing a shift of its center location in the Gaussian
+            #     image plane. A tilt causing a positive OPD change in the +x direction will cause the image to
+            #     shift in the -x direction
+            tiltphasor = np.exp(-2.0j * np.pi * (U * xangle_rad + V * yangle_rad) / self.wavelength.to(u.meter).value)
             self.wavefront *= tiltphasor
             self.history.append("Tilted wavefront by "
                                 "X={:2.2}, Y={:2.2} arcsec".format(Xangle, Yangle))
