@@ -56,9 +56,9 @@ Contents
   relnotes.rst
   overview.rst
   examples.rst
-  sign_conventions.rst
   available_optics.ipynb
   wfe.rst
+  sign_conventions_for_coordinates_and_phase.ipynb
   coronagraphs.rst
   fresnel.rst
   options.rst
