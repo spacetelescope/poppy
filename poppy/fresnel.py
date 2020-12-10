@@ -415,7 +415,7 @@ class FresnelWavefront(BaseWavefront):
         Y, X :  array_like
             Wavefront coordinates in either meters or arcseconds for pupil and image, respectively
         """
-        # Override parent class method to provide one that's comparatible with
+        # Override parent class method to provide one that's compatible with
         # FFT indexing conventions. Centered one one pixel not on the middle
         # of the array.
         # This function is intentionally distinct from the regular Wavefront.coordinates(), and behaves
@@ -670,10 +670,12 @@ class FresnelWavefront(BaseWavefront):
 
         self *= _QuadPhaseShifted(dz)
 
+        # SIGN CONVENTION: forward FFTs want a positive sign in the complex exponential, which
+        # numpy implements as an inverse fft
         if dz > 0:
-            self._fft()
-        else:
             self._inv_fft()
+        else:
+            self._fft()
 
         self.pixelscale = self.wavelength * np.abs(dz) / (self.n * u.pixel * self.pixelscale) / u.pixel
         self.z += dz
@@ -709,10 +711,12 @@ class FresnelWavefront(BaseWavefront):
             _log.error("Spherical to Waist propagation stopped, no change in distance.")
             return
 
+        # SIGN CONVENTION: forward FFTs want a positive sign in the complex exponential, which
+        # numpy implements as an inverse fft
         if dz > 0 * u.meter:
-            self._fft()
-        else:
             self._inv_fft()
+        else:
+            self._fft()
 
         # update to new pixel scale before applying curvature
         self.pixelscale = self.wavelength * np.abs(dz) / (self.n * u.pixel * self.pixelscale) / u.pixel
@@ -767,7 +771,7 @@ class FresnelWavefront(BaseWavefront):
                 self._propagate_ptp(delta_z)
             else:
                 # Plane wave to spherical. First use PTP to the waist, then WTS to Spherical
-                _log.debug('  Plane to Spherical, inside Z_R to outside Z_R')
+                _log.debug('  Plane to Spherical Regime, inside Z_R to outside Z_R')
                 _log.debug('  Starting Pixelscale: {}'.format(self.pixelscale))
                 self._propagate_ptp(self.z_w0 - self.z)
                 if display_intermed:
