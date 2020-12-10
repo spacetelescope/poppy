@@ -513,7 +513,7 @@ class BaseWavefront(ABC):
             ax.set_title(title)
             ax.set_xlabel(unit_label)
             if colorbar:
-                plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
+                plt.colorbar(ax.images[0], ax=ax, orientation='vertical', shrink=0.8)
             plot_axes = [ax]
             to_return = ax
         elif what == 'phase':
@@ -530,10 +530,10 @@ class BaseWavefront(ABC):
             )
             if title is None:
                 title = wrap_lines_title("Phase " + self.location)
-            plt.title(title)
-            plt.xlabel(unit_label)
+            ax.set_title(title)
+            ax.set_xlabel(unit_label)
             if colorbar:
-                plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8, label='Phase [radians]')
+                plt.colorbar(ax.images[0], ax=ax, orientation='vertical', shrink=0.8, label='Phase [radians]')
 
             plot_axes = [ax]
             to_return = ax
@@ -562,10 +562,10 @@ class BaseWavefront(ABC):
             )
             if title is None:
                 title = wrap_lines_title("WFE " + self.location)
-            plt.title(title)
-            plt.xlabel(unit)
+            ax.set_title(title)
+            ax.set_xlabel(unit)
             if colorbar:
-                plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8, label='WFE [nm]')
+                plt.colorbar(ax.images[0], ax=ax, orientation='vertical', shrink=0.8, label='WFE [nm]')
 
             plot_axes = [ax]
             to_return = ax
@@ -573,20 +573,20 @@ class BaseWavefront(ABC):
         elif what == 'both':
             ax1 = plt.subplot(nrows, 2, (row * 2) - 1)
             plt.imshow(amp, extent=extent, cmap=cmap_inten, norm=norm_inten, origin='lower')
-            plt.title("Wavefront amplitude")
-            plt.ylabel(unit_label)
-            plt.xlabel(unit_label)
+            ax1.set_title("Wavefront amplitude")
+            ax1.set_ylabel(unit)
+            ax1.set_xlabel(unit)
 
             if colorbar:
-                plt.colorbar(orientation='vertical', shrink=0.8)
+                plt.colorbar(orientation='vertical', ax=ax1, shrink=0.8)
 
             ax2 = plt.subplot(nrows, 2, row * 2)
             plt.imshow(phase, extent=extent, cmap=cmap_phase, norm=norm_phase, origin='lower')
             if colorbar:
-                plt.colorbar(orientation='vertical', shrink=0.8)
+                plt.colorbar(orientation='vertical', ax=ax2, shrink=0.8)
 
-            plt.xlabel(unit_label)
-            plt.title("Wavefront phase [radians]")
+            ax2.set_xlabel(unit)
+            ax2.set_title("Wavefront phase [radians]")
 
             plot_axes = [ax1, ax2]
             to_return = (ax1, ax2)
@@ -607,7 +607,7 @@ class BaseWavefront(ABC):
             ax.set_title(title)
             ax.set_xlabel(unit_label)
             if colorbar:
-                plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
+                plt.colorbar(ax.images[0], ax=ax, orientation='vertical', shrink=0.8)
             plot_axes = [ax]
             to_return = ax
         else:
@@ -2602,12 +2602,12 @@ class OpticalElement(object):
             utils.imshow_with_mouseover(plot_array, ax=ax, extent=extent, cmap=cmap, norm=norm,
                                     origin='lower')
 
-            plt.title(title)
-            plt.ylabel(units)
+            ax.set_title(title)
+            ax.set_ylabel(units)
             ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
             ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
             if colorbar:
-                cb = plt.colorbar(ax.images[0], orientation=colorbar_orientation, ticks=cb_values)
+                cb = plt.colorbar(mappable=ax.images[0], ax=ax, orientation=colorbar_orientation, ticks=cb_values)
                 cb.set_label(cb_label)
             if crosshairs:
                 ax.axhline(0, ls=":", color='k')
