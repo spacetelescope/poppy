@@ -1064,7 +1064,8 @@ class ParityTestAperture(AnalyticOpticalElement):
 
 class LetterFAperture(AnalyticOpticalElement):
     """ Define a capital letter F aperture. This is sometimes useful for
-    disambiguating pupil orientations. See also AsymmetricParityTestAperture.
+    disambiguating pupil orientations. See also AsymmetricParityTestAperture
+    and LetterFOpticalPathDifference.
     """
 
     def __init__(self, name=None, radius=1.0 * u.meter, pad_factor=1.5, **kwargs):
@@ -1094,6 +1095,37 @@ class LetterFAperture(AnalyticOpticalElement):
         self.transmission[(xr >= 0) & (xr < 0.5) & (np.abs(yr) < 0.25)] = 1
         return self.transmission
 
+class LetterFOpticalPathDifference(AnalyticOpticalElement):
+    """ Define a capital letter F in OPD. This is sometimes useful for
+    disambiguating pupil orientations. See also LetterFAperture.
+    """
+
+    def __init__(self, name=None, radius=1.0 * u.meter, pad_factor=1.5, opd=1*u.micron, **kwargs):
+        if name is None: name = f"Letter F Parity Test Aperture, radius={radius}"
+        super().__init__(name=name, planetype=PlaneType.pupil, **kwargs)
+        self.radius = radius
+        self._opd_amount = opd.to_value(u.m)
+        # for creating input wavefronts - let's pad a bit:
+        self.pupil_diam = pad_factor * 2 * self.radius
+        self.wavefront_display_hint = 'intensity'  # preferred display for wavefronts at this plane
+
+    def get_opd(self, wave):
+        """ Compute the OPD inside/outside of the aperture.
+        """
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
+            raise ValueError("LetterFAperture get_opd must be called with a Wavefront "
+                             "to define the spacing")
+
+        radius = self.radius.to(u.meter).value
+        y, x = self.get_coordinates(wave)
+        yr = y / radius
+        xr = x / radius
+
+        self.opd = np.zeros(wave.shape, dtype=float)
+        self.opd[(xr <  0) & (xr > -0.5) & (np.abs(yr) < 1)] = self._opd_amount
+        self.opd[(xr >= 0) & (xr < 0.75) & (np.abs(yr - 0.75) < 0.25)] = self._opd_amount
+        self.opd[(xr >= 0) & (xr < 0.5) & (np.abs(yr) < 0.25)] = self._opd_amount
+        return self.opd
 
 class CircularAperture(AnalyticOpticalElement):
     """ Defines an ideal circular pupil aperture

@@ -500,6 +500,10 @@ class FresnelWavefront(BaseWavefront):
         Implements the direct propagation algorithm as described in Andersen & Enmark (2011). Works best for
         far field propagation. Not part of the Gaussian beam propagation method.
 
+        This algorithm was implemented early on as a cross-check for the main propagate_fresnel pathway which
+        uses the angular spectrum method. In most cases you should use that; calling this method is not
+        recommended in general for most use cases, unless you have a particular reason to do so.
+
         Parameters
         ----------
         z :  float or Astropy.Quantity length
@@ -531,6 +535,10 @@ class FresnelWavefront(BaseWavefront):
             result = accel_math._ifftshift(result)
             result *= self.pixelscale.to(u.m / u.pix).value ** 2 * self.n ** 2
         result *= quadphase_2nd
+        # FIXME there is some inconsistency in the flux normalization here, possibly with the pixelscale scaling
+        # As a result this function does not properly conserve energy (i.e. conserve total intensity)
+        # Ideally this should be debugged but is not a priority to do so right now.
+        _log.warning("caution, propagate_direct normalization does not preserve flux.")
 
         self.pixelscale = self.wavelength * abs(z) / s / u.pix
         self.wavefront = result
@@ -670,8 +678,8 @@ class FresnelWavefront(BaseWavefront):
 
         self *= _QuadPhaseShifted(dz)
 
-        # SIGN CONVENTION: forward FFTs want a positive sign in the complex exponential, which
-        # numpy implements as an inverse fft
+        # SIGN CONVENTION: forward optical propagations want a positive sign in the complex exponential, which
+        # numpy implements as an "inverse" FFT
         if dz > 0:
             self._inv_fft()
         else:
@@ -711,8 +719,8 @@ class FresnelWavefront(BaseWavefront):
             _log.error("Spherical to Waist propagation stopped, no change in distance.")
             return
 
-        # SIGN CONVENTION: forward FFTs want a positive sign in the complex exponential, which
-        # numpy implements as an inverse fft
+        # SIGN CONVENTION: forward optical propagations want a positive sign in the complex exponential, which
+        # numpy implements as an "inverse" FFT
         if dz > 0 * u.meter:
             self._inv_fft()
         else:

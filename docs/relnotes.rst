@@ -18,15 +18,15 @@ For a list of contributors, see :ref:`about`.
 
     This release includes optical algorithm updates after a thorough audit and cross-check of sign conventions for phase and wavefront error, disambiguating some portions of the
     sign conventions and code to ensure consistency with several other relevant optical modeling packages. Poppy now strictly follows the sign conventions as advocated in e.g.
-    Wyant and Creath's `Basic Wavefront Aberration Theory for Optical Metrology <https://ui.adsabs.harvard.edu/abs/1992aooe...11....2W/abstract>_` (or see `here <https://wp.optics.arizona.edu/jcwyant/wp-content/uploads/sites/13/2016/08/03-BasicAberrations_and_Optical_Testing.pdf>_`), consistent with conventions widely used in optical metrology and other optical modeling tools such as Code V.
+    Wyant and Creath's `Basic Wavefront Aberration Theory for Optical Metrology <https://ui.adsabs.harvard.edu/abs/1992aooe...11....2W/abstract>_` (or see `here <https://wp.optics.arizona.edu/jcwyant/wp-content/uploads/sites/13/2016/08/03-BasicAberrations_and_Optical_Testing.pdf>_`). This makes poppy consistent with the convention more widely used in optical metrology and other optical software such as Code V; however this is not consistent with some other reference such as Goodman's classic text _Fourier Optics_.
 
-    As a result, *this is a partially back-incompatible release*, with
-    changes in the signs of complex exponentials in the Fourier propagation calculations. Depending on your use case this may result in changes in output PSFs or
-    different signs from prior results.
+    To achieve that consistency, *this is a partially back-incompatible release*, with
+    changes in the signs of complex exponentials in some Fourier propagation calculations. Depending on your use case this may result in some changes in output PSFs or
+    different signs or orientationsfrom prior results.
 
     See :ref:`sign_conventions` for details and discussion. Many thanks to Derek
     Sabatke (Ball Aerospace), Alden Jurling and Tom Zielinski (NASA GSFC), and
-    Randal Telfer (STScI) for invaluable discussions and aid in sorting through these
+    Randal Telfer (STScI) for invaluable discussions and aid in getting these
     details onto a more rigorous footing.
 
 **Other enhancements and fixes:**
