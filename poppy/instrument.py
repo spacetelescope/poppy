@@ -53,7 +53,7 @@ class Instrument(object):
 
     You will at a minimum want to override the following class methods:
 
-        * _get_optical_system
+        * get_optical_system
         * _get_filter_list
         * _get_default_nlambda
         * _get_default_fov
@@ -259,7 +259,7 @@ class Instrument(object):
 
         # ---- now at last, actually do the PSF calc:
         #  instantiate an optical system using the current parameters
-        self.optsys = self._get_optical_system(fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
+        self.optsys = self.get_optical_system(fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
                                                fft_oversample=fft_oversample, detector_oversample=detector_oversample,
                                                options=local_options)
         self._check_for_aliasing(wavelens)
@@ -498,7 +498,7 @@ class Instrument(object):
         """
         pass
 
-    def _get_optical_system(self, fft_oversample=2, detector_oversample=None, fov_arcsec=2, fov_pixels=None,
+    def get_optical_system(self, fft_oversample=2, detector_oversample=None, fov_arcsec=2, fov_pixels=None,
                             options=None):
         """ Return an OpticalSystem instance corresponding to the instrument as currently configured.
 
@@ -615,13 +615,17 @@ class Instrument(object):
 
         return optsys
 
-    def get_optical_system(self, *args, **kwargs):
+    def _get_optical_system(self, *args, **kwargs):
         """ Return an OpticalSystem instance corresponding to the instrument as currently configured.
 
         """
         # Note, this has historically been an internal private API function (starting with an underscore)
         # As of version 0.9 it is promoted to a public part of the API for the Instrument class and subclasses.
-        return self._get_optical_system(*args, **kwargs)
+        # Here we ensure the prior version works, back compatibly.
+        import warnings
+        warnings.warn("_get_optical_system is deprecated; use get_optical_system (without leading underscore) instead.",
+                      warnings.DeprecationWarning)
+        return self.get_optical_system(*args, **kwargs)
 
     def _check_for_aliasing(self, wavelengths):
         """ Check for spatial frequency aliasing and warn if the
@@ -759,7 +763,7 @@ class Instrument(object):
         # (specifically auto-selected pupils based on filter selection)
         wavelengths, _ = self._get_weights(nlambda=1)
         self._validate_config(wavelengths=wavelengths)
-        optsys = self._get_optical_system()
+        optsys = self.get_optical_system()
         optsys.display(what='both')
         if old_no_sam is not None:
             self.options['no_sam'] = old_no_sam

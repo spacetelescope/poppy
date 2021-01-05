@@ -57,6 +57,19 @@ def test_scalar_transmission():
         assert( np.all(optic.get_phasor(wave) == transmission))
 
 
+def test_scalar_opd():
+    """ Verify this adjusts the wavefront intensity appropriately """
+    wave = poppy_core.Wavefront(npix=100, wavelength=wavelength)
+
+    for opd in [1.0*u.micron, 1.0e-7*u.m, 0.0*u.m]:
+
+        optic = optics.ScalarOpticalPathDifference(opd=opd)
+        assert np.all(optic.get_opd(wave) == opd.to_value(u.m)), "OPD value not as expected"
+
+    # Also test with bare floats, which should be interpreted as meters
+    optic = optics.ScalarOpticalPathDifference(opd=2e-6)
+    assert np.all(optic.get_opd(wave) == 2e-6), "OPD value not as expected"
+
 
 def test_roundtrip_through_FITS():
     """ Verify we can make an analytic element, turn it into a FITS file and back,
