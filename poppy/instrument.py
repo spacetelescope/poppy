@@ -498,7 +498,7 @@ class Instrument(object):
         """
         pass
 
-    def _get_optical_system(self, fft_oversample=2, detector_oversample=None, fov_arcsec=2, fov_pixels=None,
+    def get_optical_system(self, fft_oversample=2, detector_oversample=None, fov_arcsec=2, fov_pixels=None,
                             options=None):
         """ Return an OpticalSystem instance corresponding to the instrument as currently configured.
 
@@ -615,13 +615,17 @@ class Instrument(object):
 
         return optsys
 
-    def get_optical_system(self, *args, **kwargs):
+    def _get_optical_system(self, *args, **kwargs):
         """ Return an OpticalSystem instance corresponding to the instrument as currently configured.
 
         """
         # Note, this has historically been an internal private API function (starting with an underscore)
         # As of version 0.9 it is promoted to a public part of the API for the Instrument class and subclasses.
-        return self._get_optical_system(*args, **kwargs)
+        # Here we ensure the prior version works, back compatibly.
+        import warnings
+        warnings.warn("_get_optical_system is deprecated; use get_optical_system (without leading underscore) instead.",
+                      warnings.DeprecationWarning)
+        return self.get_optical_system(*args, **kwargs)
 
     def _check_for_aliasing(self, wavelengths):
         """ Check for spatial frequency aliasing and warn if the
