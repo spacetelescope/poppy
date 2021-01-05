@@ -256,47 +256,6 @@ def test_fov_size_pixels():
     assert psf[0].data.shape[1] == 200
 
 
-
-###    EXPECTED TO FAIL RIGHT NOW - Offsets don't work yet.
-###    See https://github.com/mperrin/poppy/issues/40
-import pytest
-@pytest.mark.xfail
-def test_fov_offset(scale=1.0):
-    """ Test offsetting the field of view of a Detector
-    This is distinct from offsetting the source! """
-    from ..utils import measure_centroid
-
-    size=100
-    pixscale = 0.1
-
-    # A PSF created on-axis with no offset
-    osys = poppy_core.OpticalSystem("test", oversample=2)
-    pupil = optics.CircularAperture(radius=6.5/2)
-    osys.add_pupil(pupil)
-    osys.add_detector(pixelscale=pixscale, fov_pixels=size, oversample=1)
-    psf1 = osys.calc_psf()
-    # The measured centroid should put it in the center of the array
-    cent1 = measure_centroid(psf1, relativeto='center')
-    poppy_core._log.info("On-axis PSF (no offset) centroid is:" + str(cent1))
-    assert(abs(cent1[0]-0) < 1e-5)
-    assert(abs(cent1[1]-0) < 1e-5)
-
-    # Now create an equivalent PSF but offset the axes by 1 pixel in the first axis
-    osys2 = poppy_core.OpticalSystem("test", oversample=2)
-    osys2.add_pupil(pupil)
-    osys2.add_detector(pixelscale=pixscale, fov_pixels=size, oversample=1, offset=(pixscale*scale,0))
-    psf2 = osys2.calc_psf()
-    # Its centroid shouldbe offset by a pixel
-    poppy_core._log.info("Offset PSF (by ({0},0) pixels ) centroid is: {1}".format(str(scale), str(cent1)))
-    cent2 = measure_centroid(psf2, relativeto='center')
-    assert(abs(cent2[0]-scale) < 1e-5)
-    assert(abs(cent2[1]-0) < 1e-5)
-
-
-    # and do the same thing in the second axis (after the above works)
-
-
-
 def test_inverse_MFT():
     """
     Verify basic functionality of the Inverse MFT code.
