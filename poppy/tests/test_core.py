@@ -361,21 +361,43 @@ def test_return_complex():
 def test_displays():
     # Right now doesn't check the outputs are as expected in any way
     # TODO consider doing that? But it's hard given variations in matplotlib version etc
+
+    # As a result this just tests that the code runs to completion, without any assessment
+    # of the correctness of the output displays.
     import poppy
     import matplotlib.pyplot as plt
 
     osys = poppy.OpticalSystem()
     osys.add_pupil(poppy.CircularAperture())
-    osys.add_detector(fov_pixels=128, pixelscale=0.01)
+    osys.add_detector(fov_pixels=128, pixelscale=0.01*u.arcsec/u.pixel)
 
+    # Test optical system display
+    # This implicitly exercises the optical element display paths, too
     osys.display()
 
+    # Test PSF calculation with intermediate wavefronts
     plt.figure()
     psf = osys.calc_psf(display_intermediates=True)
 
+    # Test PSF display
     plt.figure()
-    #psf = osys.calc_psf(display_intermediates=True)
     poppy.display_psf(psf)
+
+    # Test PSF display with other units too
+    poppy.display_psf(psf, angular_coordinate_unit=u.urad)
+
+    # Test PSF calculation with intermediate wavefronts and other units
+    plt.figure()
+    psf = osys.calc_psf(display_intermediates=True)
+    osys2 = poppy.OpticalSystem()
+    osys2.add_pupil(poppy.CircularAperture())
+    osys2.add_detector(fov_pixels=128, pixelscale=0.05*u.urad/u.pixel)
+    psf2, waves = osys.calc_psf(display_intermediates=True, return_intermediates=True)
+
+    # Test wavefront display, implicitly including other units
+    waves[-1].display()
+
+    plt.close('all')
 
 
 def test_rotation_in_OpticalSystem(display=False, npix=1024):
@@ -519,6 +541,11 @@ def test_Detector_pixelscale_units():
     # Or scale in arcsec, and fov in arcsec:
     test_det = poppy_core.Detector(pixelscale=0.01 * u.arcsec / u.pixel, fov_arcsec=10)
     assert test_det.pixelscale == 0.01 * u.arcsec / u.pixel
+    assert test_det.shape == (1000, 1000)
+
+    # Or scale in microradians, and fov in milliradians (converted to arcsec, since the fov_arcsec parameter needs arcsec):
+    test_det = poppy_core.Detector(pixelscale=1 * u.urad / u.pixel, fov_arcsec=(1*u.mrad).to_value(u.arcsec))
+    assert test_det.pixelscale == 1 * u.urad / u.pixel
     assert test_det.shape == (1000, 1000)
 
     # It also works to leave the scale unspecified in unit, which is interpreted as arcsec
