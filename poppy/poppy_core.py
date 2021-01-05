@@ -2294,6 +2294,12 @@ class OpticalElement(object):
 
     def get_opd(self, wave):
         """ Return the optical path difference, given a wavelength.
+            
+            In this base class instance, the wavefront parameter 'wave' is not used, 
+             and the .opd attribute of the optic is returned directly.
+             Subclasses may change this behavior, for instance to evaluate
+             optical aberrations on the sampling defined for that wavefront, 
+             or to compute the wavelength-dependent aberrations of a refractive optic.
 
         Parameters
         ----------
