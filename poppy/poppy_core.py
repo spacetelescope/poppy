@@ -563,7 +563,7 @@ class BaseWavefront(ABC):
             if title is None:
                 title = wrap_lines_title("WFE " + self.location)
             ax.set_title(title)
-            ax.set_xlabel(unit)
+            ax.set_xlabel(unit_label)
             if colorbar:
                 plt.colorbar(ax.images[0], ax=ax, orientation='vertical', shrink=0.8, label='WFE [nm]')
 
@@ -574,8 +574,8 @@ class BaseWavefront(ABC):
             ax1 = plt.subplot(nrows, 2, (row * 2) - 1)
             plt.imshow(amp, extent=extent, cmap=cmap_inten, norm=norm_inten, origin='lower')
             ax1.set_title("Wavefront amplitude")
-            ax1.set_ylabel(unit)
-            ax1.set_xlabel(unit)
+            ax1.set_ylabel(unit_label)
+            ax1.set_xlabel(unit_label)
 
             if colorbar:
                 plt.colorbar(orientation='vertical', ax=ax1, shrink=0.8)
@@ -585,7 +585,7 @@ class BaseWavefront(ABC):
             if colorbar:
                 plt.colorbar(orientation='vertical', ax=ax2, shrink=0.8)
 
-            ax2.set_xlabel(unit)
+            ax2.set_xlabel(unit_label)
             ax2.set_title("Wavefront phase [radians]")
 
             plot_axes = [ax1, ax2]

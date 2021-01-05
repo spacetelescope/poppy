@@ -30,14 +30,14 @@ def test_wfe_and_opd_have_consistent_signs():
 
 def test_wavefront_tilt_sign_and_direction(plot=False, npix=128):
     """ Test that tilt with increasing WFE towards the +X direction moves the PSF in the -X direction
+    Fraunhofer propagation version
 
     See also test_core.test_source_offsets_in_OpticalSystem
-
     """
     # Create a wavefront and apply a tilt
     wave = poppy.Wavefront(diam=1*u.m, npix=npix)
     wave *= poppy.CircularAperture(radius=0.5*u.m)
-        
+
     tilt_angle = -0.2    # must be a negative number (for -X direction shift), and within the FOV
 
     wave.tilt(Xangle=tilt_angle)  # for this function, the input is the desired direction for the image to tilt.
@@ -62,6 +62,11 @@ def test_wavefront_tilt_sign_and_direction(plot=False, npix=128):
     assert np.allclose(((cen[1]-(n-1)/2)*u.pixel*wave.pixelscale).to_value(u.arcsec), tilt_angle), "PSF offset did not match expected amount"
 
 def test_wavefront_tilt_sign_and_direction_fresnel(plot=False, npix=128):
+    """ Test that tilt with increasing WFE towards the +X direction moves the PSF in the -X direction
+    Fresnel propagation version
+
+    See also test_core.test_source_offsets_in_OpticalSystem
+    """
     # Create a wavefront and apply a tilt
     wave = poppy.FresnelWavefront(beam_radius=0.5 * u.m, npix=npix, oversample=8)
     wave *= poppy.CircularAperture(radius=0.5 * u.m)
@@ -140,8 +145,6 @@ def test_lens_wfe_sign(plot=False):
         plt.title("Cut along X axis")
 
 
-# Test: Tilts of segments in a segmented DM have the expected effects
-#       Implemented in the Sign Conventions notebook, could be moved here but not yet done.
 
 # Test: a negative weak lens produces images (before focus) that have consistent orientation with the exit pupil
 #       a positive weak lens produces images (after focus) that have the opposite orientation as the exit pupil
@@ -231,3 +234,33 @@ def test_pupil_orientations_before_and_after_focus_fresnel(plot=False, npix_pupi
     assert brighter_top_half(wave1.intensity) and brighter_left_half(wave1.intensity), "Image with negative lens (before focus) should have same orientation as the pupil "
     assert (not brighter_top_half(wave2.intensity)) and (not brighter_left_half(wave2.intensity)), "Image with positive lens (after focus) should have opposite orientation as the pupil "
 
+# Test: Tilts of segments in a segmented DM have the expected effects
+def test_segment_tilt_sign_and_direction(display=False):
+    hexdm = poppy.HexSegmentedDeformableMirror(flattoflat=0.5 * u.m, rings=1)
+
+    osys2 = poppy.OpticalSystem(pupil_diameter=2 * u.m, npix=128, oversample=1)
+    osys2.add_pupil(poppy.MultiHexagonAperture(flattoflat=0.5 * u.m, rings=1, center=True))
+    osys2.add_pupil(hexdm)
+    osys2.add_detector(0.10, fov_arcsec=10)
+
+    psf_ref = osys2.calc_psf()  # reference, with no tilts
+
+    hexdm.set_actuator(0, 0.2 * u.micron, 0, 0)  # piston
+    hexdm.set_actuator(1, 0, 2 * u.arcsec, 0)  # tip
+    hexdm.set_actuator(2, 0, 0, 1 * u.arcsec)  # tilt
+
+    if display:
+        hexdm.display(what='opd', colorbar_orientation='vertical', opd_vmax=2e-6)
+        plt.figure(figsize=(14, 5))
+        plt.suptitle("Segment tilt sign test (Fraunhofer propagation)", fontweight='bold')
+
+    psf2 = osys2.calc_psf(display_intermediates=display)
+
+    diff_psf = psf2[0].data - psf_ref[0].data
+
+    if display:
+        plt.figure()
+        poppy.display_psf_difference(psf2, psf_ref)
+
+    assert brighter_left_half(diff_psf), 'Tilting a segment with +X tilt WFE should move its PSF to -X'
+    assert not brighter_top_half(diff_psf), 'Tilting a segment with +Y tilt WFE should move its PSF to -Y'
