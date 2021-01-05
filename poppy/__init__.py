@@ -128,6 +128,7 @@ from . import fresnel
 from . import physical_wavefront
 from . import wfe
 from . import dms
+from . import active_optics
 
 from .poppy_core import *
 from .utils import *
