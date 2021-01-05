@@ -333,7 +333,8 @@ class BaseWavefront(ABC):
     def display(self, what='intensity', nrows=1, row=1, showpadding=False,
                 imagecrop=None, pupilcrop=None,
                 colorbar=False, crosshairs=False, ax=None, title=None, vmin=None,
-                vmax=None, scale=None, use_angular_coordinates=None):
+                vmax=None, scale=None, use_angular_coordinates=None,
+                angular_coordinate_unit=u.arcsec):
         """Display wavefront on screen
 
         Parameters
@@ -359,7 +360,8 @@ class BaseWavefront(ABC):
         imagecrop : float, optional
             Crop the displayed image to a smaller region than the full array.
             For image planes in angular coordinates, this is given in units of
-            arcseconds. The default is 5, so only the innermost 5x5 arcsecond
+            arcseconds (unless you specify an angular_coordinate_unit parameter to
+            choose another unit). The default is 5, so only the innermost 5x5 arcsecond
             region will be shown. This default may be changed in the
             POPPY config file. If the image size is < 5 arcsec then the
             entire image is displayed.
@@ -378,12 +380,14 @@ class BaseWavefront(ABC):
         ax : matplotlib Axes, optional
             axes to display into. If not set, will create new axes.
         use_angular_coordinates : bool, optional
-            Should the axes be labeled in angular units of arcseconds?
+            Should the axes be labeled in angular units, e.g. arcseconds?
             This is used by FresnelWavefront, where non-angular
             coordinates are possible everywhere. When using Fraunhofer
             propagation, this should be left as None so that the
             coordinates are inferred from the planetype attribute.
             (Default: None, infer coordinates from planetype)
+        angular_coordinate_unit : astropy unit
+            Unit to use for angular coordinates display; default is arcsecond.
 
         Returns
         -------
@@ -413,6 +417,16 @@ class BaseWavefront(ABC):
             y = utils.removePadding(y, self.oversample)
             x = utils.removePadding(x, self.oversample)
 
+        if use_angular_coordinates is None:
+            use_angular_coordinates = self.planetype == PlaneType.image
+        if use_angular_coordinates and angular_coordinate_unit != u.arcsec:
+            # Update pixel coordinates for non-arcsecond pixel scales, if requested
+            x *= (1*u.arcsec).to_value(angular_coordinate_unit)
+            y *= (1*u.arcsec).to_value(angular_coordinate_unit)
+
+        pixelscale_unit = angular_coordinate_unit/u.pixel if use_angular_coordinates else u.m/u.pixel
+        unit_label = str(pixelscale_unit*u.pixel)
+
         # extent specifications need to include the *full* data region, including the half pixel
         # on either side outside of the pixel center coordinates.  And remember to swap Y and X.
         # Recall that for matplotlib,
@@ -422,13 +436,8 @@ class BaseWavefront(ABC):
         # outside of those pixels.
         # This is needed to get the coordinates right when displaying very small arrays
 
-        halfpix = self.pixelscale.value * 0.5
+        halfpix = self.pixelscale.to_value(pixelscale_unit) * 0.5
         extent = [x.min() - halfpix, x.max() + halfpix, y.min() - halfpix, y.max() + halfpix]
-
-        if use_angular_coordinates is None:
-            use_angular_coordinates = self.planetype == PlaneType.image
-
-        unit = 'arcsec' if use_angular_coordinates else 'm'
 
         # implement semi-intellegent selection of what to display, if the user wants
         if what == 'best':
@@ -498,7 +507,7 @@ class BaseWavefront(ABC):
             if title is None:
                 title = wrap_lines_title("Intensity " + self.location)
             ax.set_title(title)
-            ax.set_xlabel(unit)
+            ax.set_xlabel(unit_label)
             if colorbar:
                 plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
             plot_axes = [ax]
@@ -518,7 +527,7 @@ class BaseWavefront(ABC):
             if title is None:
                 title = wrap_lines_title("Phase " + self.location)
             plt.title(title)
-            plt.xlabel(unit)
+            plt.xlabel(unit_label)
             if colorbar:
                 plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
 
@@ -529,8 +538,8 @@ class BaseWavefront(ABC):
             ax1 = plt.subplot(nrows, 2, (row * 2) - 1)
             plt.imshow(amp, extent=extent, cmap=cmap_inten, norm=norm_inten, origin='lower')
             plt.title("Wavefront amplitude")
-            plt.ylabel(unit)
-            plt.xlabel(unit)
+            plt.ylabel(unit_label)
+            plt.xlabel(unit_label)
 
             if colorbar:
                 plt.colorbar(orientation='vertical', shrink=0.8)
@@ -540,7 +549,7 @@ class BaseWavefront(ABC):
             if colorbar:
                 plt.colorbar(orientation='vertical', shrink=0.8)
 
-            plt.xlabel(unit)
+            plt.xlabel(unit_label)
             plt.title("Wavefront phase [radians]")
 
             plot_axes = [ax1, ax2]
@@ -560,7 +569,7 @@ class BaseWavefront(ABC):
             if title is None:
                 title = wrap_lines_title("Amplitude " + self.location)
             ax.set_title(title)
-            ax.set_xlabel(unit)
+            ax.set_xlabel(unit_label)
             if colorbar:
                 plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
             plot_axes = [ax]
@@ -575,13 +584,19 @@ class BaseWavefront(ABC):
                 ax.axhline(0, ls=":", color='white')
                 ax.axvline(0, ls=":", color='white')
 
-            if use_angular_coordinates:
-                if imagecrop is None:
-                    imagecrop = conf.default_image_display_fov
+            if use_angular_coordinates and imagecrop is None:
+                # the value from the configuration is implicitly in arcseconds
+                imagecrop = conf.default_image_display_fov * u.arcsec
 
             if imagecrop is not None:
-                cropsize_x = min((imagecrop / 2, intens.shape[1] / 2. * self.pixelscale.value))
-                cropsize_y = min((imagecrop / 2, intens.shape[0] / 2. * self.pixelscale.value))
+                # this is either a bare float, in which case interpret it as arcseconds or meters depending on the mode,
+                # else a quantity already in either angular or pixel units.
+                if not isinstance(imagecrop, u.Quantity):
+                    imagecrop *= u.arcsec if use_angular_coordinates else u.meter
+                imagecrop_value = imagecrop.to_value(pixelscale_unit*u.pixel)
+
+                cropsize_x = min((imagecrop_value / 2, intens.shape[1] / 2. * self.pixelscale.to_value(pixelscale_unit)))
+                cropsize_y = min((imagecrop_value / 2, intens.shape[0] / 2. * self.pixelscale.to_value(pixelscale_unit)))
                 ax.set_xbound(-cropsize_x, cropsize_x)
                 ax.set_ybound(-cropsize_y, cropsize_y)
 

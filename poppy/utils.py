@@ -17,6 +17,7 @@ import scipy.ndimage
 import warnings
 
 from astropy import config
+import astropy.units as u
 
 import astropy.io.fits as fits
 
@@ -88,7 +89,8 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
                 adjust_for_oversampling=False, normalize='None',
                 crosshairs=False, markcentroid=False, colorbar=True,
                 colorbar_orientation='vertical', pixelscale='PIXELSCL',
-                ax=None, return_ax=False, interpolation=None, cube_slice=None):
+                ax=None, return_ax=False, interpolation=None, cube_slice=None,
+                angular_coordinate_unit=u.arcsec):
     """Display nicely a PSF from a given hdulist or filename
 
     This is extensively configurable. In addition to making an attractive display, for
@@ -147,6 +149,8 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
     cube_slice : int or None
         if input PSF is a datacube from calc_datacube, which slice
         of the cube should be displayed?
+    angular_coordinate_unit : astropy Unit
+        Coordinate unit to use for axes display. Default is arcseconds.
     """
     if isinstance(HDUlist_or_filename, str):
         hdulist = fits.open(HDUlist_or_filename)
@@ -197,10 +201,16 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
         pixelscale = hdulist[ext].header[pixelscale]
     else:
         pixelscale = float(pixelscale)
+
+    if angular_coordinate_unit != u.arcsec:
+        coordinate_rescale = (1*u.arcsec).to_value(angular_coordinate_unit)
+        pixelscale *= coordinate_rescale
+    else:
+        coordinate_rescale = 1
     halffov_x = pixelscale * psf_array_shape[1] / 2.0
     halffov_y = pixelscale * psf_array_shape[0] / 2.0
 
-    unit = "arcsec"
+    unit_label = str(angular_coordinate_unit)
     extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
 
     if cmap is None:
@@ -215,10 +225,13 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
         interpolation=interpolation,
         origin='lower'
     )
+    ax.set_xlabel(unit_label)
 
     if markcentroid:
         _log.info("measuring centroid to mark on plot...")
         ceny, cenx = measure_centroid(hdulist, ext=ext, units='arcsec', relativeto='center', boxsize=20, threshold=0.1)
+        ceny *= coordinate_rescale  # if display coordinate unit isn't arcseconds, rescale the centroid accordingly
+        cenx *= coordinate_rescale
         ax.plot(cenx, ceny, 'k+', markersize=15, markeredgewidth=1)
         _log.info("centroid: (%f, %f) " % (cenx, ceny))
 
