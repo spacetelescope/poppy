@@ -1050,16 +1050,10 @@ class Wavefront(BaseWavefront):
                 pixelscale / det.oversample, det_fov_lam_d, int(det_calc_size_pixels))
         _log.debug(msg)
         self.history.append(msg)
-        det_offset = det.det_offset if hasattr(det, 'det_offset') else (0, 0)
 
         _log.debug('      MFT method = ' + mft.centering)
 
-        # det_offset controls how to shift the PSF.
-        # it gives the coordinates (X, Y) relative to the exact center of the array
-        # for the location of the phase center of a converging perfect spherical wavefront.
-        # This is where a perfect PSF would be centered. Of course any tilts, comas, etc, from the OPD
-        # will probably shift it off elsewhere for an entirely different reason, too.
-        self.wavefront = mft.perform(self.wavefront, det_fov_lam_d, det_calc_size_pixels, offset=det_offset)
+        self.wavefront = mft.perform(self.wavefront, det_fov_lam_d, det_calc_size_pixels)
         _log.debug("     Result wavefront: at={0} shape={1} ".format(
             self.location, str(self.shape)))
         self._last_transform_type = 'MFT'
@@ -1125,7 +1119,6 @@ class Wavefront(BaseWavefront):
             msg_pixscale, msg_det_fov, pupil_npix)
         _log.debug(msg)
         self.history.append(msg)
-        # det_offset = (0,0)  # det_offset not supported for InvMFT (yet...)
 
         self.wavefront = mft.inverse(self.wavefront, det_fov_lam_d, pupil_npix)
         self._last_transform_type = 'InvMFT'
@@ -3182,19 +3175,13 @@ class Detector(OpticalElement):
     oversample : int
         Oversampling factor beyond the detector pixel scale. The returned array will
         have sampling that much finer than the specified pixelscale.
-    offset : tuple (X,Y)
-        Offset for the detector center relative to a hypothetical off-axis PSF.
-        Specifying this lets you pick a different sub-region for the detector
-        to compute, if for some reason you are computing a small subarray
-        around an off-axis source. (Has not been tested!)
-
     """
 
     # Note, pixelscale argument is intentionally not included in the quantity_input decorator; that is
     # specially handled. See the _handle_pixelscale_units_flexibly method
     @utils.quantity_input(fov_pixels=u.pixel, fov_arcsec=u.arcsec)
     def __init__(self, pixelscale=1 * (u.arcsec / u.pixel), fov_pixels=None, fov_arcsec=None, oversample=1,
-                 name="Detector", offset=None,
+                 name="Detector",
                  **kwargs):
         OpticalElement.__init__(self, name=name, planetype=PlaneType.detector, **kwargs)
         self.pixelscale = self._handle_pixelscale_units_flexibly(pixelscale, fov_pixels)
@@ -3212,12 +3199,6 @@ class Detector(OpticalElement):
             self.fov_arcsec = self.fov_pixels * self.pixelscale
         if np.any(self.fov_pixels <= 0):
             raise ValueError("FOV in pixels must be a positive quantity. Invalid: " + str(self.fov_pixels))
-
-        if offset is not None:
-            try:
-                self.det_offset = np.asarray(offset)[0:2]
-            except IndexError:
-                raise ValueError("The offset parameter must be a 2-element iterable")
 
         self.amplitude = 1
         self.opd = 0
