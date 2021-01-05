@@ -53,7 +53,7 @@ class Instrument(object):
 
     You will at a minimum want to override the following class methods:
 
-        * _get_optical_system
+        * get_optical_system
         * _get_filter_list
         * _get_default_nlambda
         * _get_default_fov
