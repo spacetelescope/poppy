@@ -346,13 +346,16 @@ class ScalarTransmission(AnalyticOpticalElement):
         res.fill(self.transmission)
         return res
 
+
 class ScalarOpticalPathDifference(AnalyticOpticalElement):
     """Uniform and constant optical path difference
 
     """
     @utils.quantity_input(opd=u.meter)
     def __init__(self, name=None, opd=1.0*u.micron, **kwargs):
-        if name is None: name = f'Constant OPD, {opd}'
+        if name is None:
+            name = f'Constant OPD, {opd}'
+
         super().__init__(name=name, **kwargs)
         self.opd = opd
 
@@ -361,19 +364,6 @@ class ScalarOpticalPathDifference(AnalyticOpticalElement):
         res.fill(self.opd.to(u.meter).value)
         return res
 
-class ScalarOpticalPathDifference(AnalyticOpticalElement):
-    """Uniform and constant optical path difference
-
-    """
-    @utils.quantity_input(opd=u.meter)
-    def __init__(self, name=None, opd=1.0*u.micron, **kwargs):
-        AnalyticOpticalElement.__init__(self, name=name, **kwargs)
-        self.opd = opd
-
-    def get_opd(self, wave):
-        res = np.empty(wave.shape, dtype=_float())
-        res.fill(self.opd.to(u.meter).value)
-        return res
 
 class InverseTransmission(AnalyticOpticalElement):
     """ Given any arbitrary OpticalElement with transmission T(x,y)
