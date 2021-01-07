@@ -429,7 +429,7 @@ def test_ObscuredCircularAperture_Airy(display=False):
         pl.title("Analytic")
         pl.subplot(142)
         #ax2=pl.imshow(numeric[0].data, norm=norm)
-        utils.display_PSF(numeric, vmin=1e-6, vmax=1e-2, colorbar=False)
+        utils.display_psf(numeric, vmin=1e-6, vmax=1e-2, colorbar=False)
         pl.title("Numeric")
         pl.subplot(143)
         ax2=pl.imshow(numeric[0].data-analytic, norm=norm)
@@ -470,9 +470,9 @@ def test_CompoundAnalyticOptic(display=False):
         from poppy import utils
         plt.figure()
         plt.subplot(1, 2, 1)
-        utils.display_PSF(psf_separate, title='From Separate Optics (and)')
+        utils.display_psf(psf_separate, title='From Separate Optics (and)')
         plt.subplot(1, 2, 2)
-        utils.display_PSF(psf_compound, title='From Compound Optics (and)')
+        utils.display_psf(psf_compound, title='From Compound Optics (and)')
 
     difference = psf_compound[0].data - psf_separate[0].data
 
@@ -517,9 +517,9 @@ def test_CompoundAnalyticOptic(display=False):
         plt.figure()
         ints_compound[0].display(title='Compound wave[0] (or)')
         plt.figure()
-        utils.display_PSF(psf_separate, title='From Separate Optics (or)')
+        utils.display_psf(psf_separate, title='From Separate Optics (or)')
         plt.figure()
-        utils.display_PSF(psf_compound, title='From Compound Optics (or)')
+        utils.display_psf(psf_compound, title='From Compound Optics (or)')
 
     #check transmission of OpticalElement objects
     # PASSES commit 1e4709b
@@ -573,7 +573,7 @@ def test_AsymmetricObscuredAperture(display=False):
         #norm = LogNorm(vmin=1e-6, vmax=1e-2)
 
         #ax2=pl.imshow(numeric[0].data, norm=norm)
-        utils.display_PSF(numeric, vmin=1e-8, vmax=1e-2, colorbar=False)
+        utils.display_psf(numeric, vmin=1e-8, vmax=1e-2, colorbar=False)
         #pl.title("Numeric")
 
 def test_GaussianAperture(display=False):
@@ -667,8 +667,8 @@ def test_ThinLens(display=False):
 
     if display:
         import poppy
-        poppy.display_PSF(psf)
-        poppy.display_PSF(psf2)
+        poppy.display_psf(psf)
+        poppy.display_psf(psf2)
 
     assert np.allclose(psf[0].data,psf2[0].data), (
         "ThinLens shouldn't be affected by null optical elements! Introducing extra image planes "

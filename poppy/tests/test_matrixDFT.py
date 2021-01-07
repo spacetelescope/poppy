@@ -351,7 +351,7 @@ def test_DFT_rect_fov_sampling(fov_npix = (500,1000), pixelscale=0.03, display=F
 
     if display:
         plt.subplot(311)
-        poppy.display_PSF(psf)
+        poppy.display_psf(psf)
 
         plt.subplot(312)
         plt.semilogy(cut_h, label='horizontal')
@@ -677,11 +677,11 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(display=False):
         import poppy
         plt.figure(figsize=(15,4))
         plt.subplot(131)
-        poppy.display_PSF(fftpsf, title="FFT PSF")
+        poppy.display_psf(fftpsf, title="FFT PSF")
         plt.subplot(132)
-        poppy.display_PSF(mftpsf, title='MFT PSF')
+        poppy.display_psf(mftpsf, title='MFT PSF')
         plt.subplot(133)
-        poppy.display_PSF_difference(fftpsf, mftpsf, title='Diff FFT-MFT')
+        poppy.display_psf_difference(fftpsf, mftpsf, title='Diff FFT-MFT')
 
 
 
