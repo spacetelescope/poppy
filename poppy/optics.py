@@ -979,9 +979,9 @@ class FQPM_FFT_aligner(AnalyticOpticalElement):
         fft_im_pixelscale = wave.wavelength / wave.diam / wave.oversample * u.radian
         required_offset = fft_im_pixelscale * 0.5
         if self.direction == 'backward':
-            required_offset *= -1
             wave._image_centered = 'pixel'
         else:
+            required_offset *= -1  # changed in poppy 1.0 for sign convention update
             wave._image_centered = 'corner'
         wave.tilt(required_offset, required_offset)
 

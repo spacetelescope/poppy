@@ -1031,7 +1031,12 @@ class Wavefront(BaseWavefront):
 
         # Set up for computation - figure out direction & normalization
         if self.planetype == PlaneType.pupil and optic.planetype == PlaneType.image:
-            fft_forward = True
+            # SIGN CONVENTION: plus signs in exponent for basic forward propagation, with
+            # phase increasing with time. This convention differs from prior poppy version < 1.0.
+            # A "forward propagation" in the optical sense therefore corresponds to what numpy labels
+            # as an "inverse" FFT.
+            propagation_forward=True
+            fft_forward = False
 
             # (pre-)update state:
             self.planetype = PlaneType.image
@@ -1040,7 +1045,12 @@ class Wavefront(BaseWavefront):
             self.history.append('   FFT {},  to IMAGE plane  scale={:.4f}'.format(self.wavefront.shape, self.pixelscale))
 
         elif self.planetype == PlaneType.image and optic.planetype == PlaneType.pupil:
-            fft_forward = False
+            # SIGN CONVENTION: plus signs in exponent for basic forward propagation, with
+            # phase increasing with time. This convention differs from prior poppy version < 1.0.
+            # A "backwards propagation" in the optical sense therefore corresponds to what numpy labels
+            # as an "forward" FFT.
+            propagation_forward=False
+            fft_forward = True
 
             # (pre-)update state:
             self.planetype = PlaneType.pupil
@@ -1053,7 +1063,7 @@ class Wavefront(BaseWavefront):
 
         self.wavefront = accel_math.fft_2d(self.wavefront, forward=fft_forward)
 
-        if fft_forward:
+        if propagation_forward:
             # FFT produces pixel-centered images by default, unless the _image_centered param
             # has already been set by an FQPM_FFT_aligner class
             if self._image_centered != 'corner':
