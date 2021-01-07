@@ -636,13 +636,17 @@ def test_MFT_FFT_equivalence(display=False, displaycrop=None):
 
         return mftout, fftout
 
-def test_MFT_FFT_equivalence_in_OpticalSystem(display=False):
+def test_MFT_FFT_equivalence_in_OpticalSystem(display=False, source_offset=1):
     """ Test that propagating Wavefronts through an OpticalSystem
     using an MFT and an FFT give equivalent results.
 
     This is a somewhat higher level test that involves all the
     Wavefront class's _propagateTo() machinery, which is not
-    tested in the above function. Hence the two closely related tests."""
+    tested in the above function. Hence the two closely related tests.
+
+    This test now includes a source offset, to test equivalnce of handling for
+    nonzero WFE, in this case for tilts.
+    """
 
 
     # Note that the Detector class and Wavefront propagation always uses
@@ -661,6 +665,8 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(display=False):
     fftsys = poppy_core.OpticalSystem(oversample=1)
     fftsys.add_pupil(pup511)
     fftsys.add_image()
+    fftsys.source_offset_r = source_offset
+    fftsys.source_offset_theta = 90
 
     fftpsf, fftplanes = fftsys.calc_psf(display=False, return_intermediates=True)
 
@@ -669,6 +675,8 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(display=False):
     mftsys = poppy_core.OpticalSystem(oversample=1)
     mftsys.add_pupil(pup511)
     mftsys.add_detector(pixelscale=fftplanes[1].pixelscale , fov_pixels=fftplanes[1].shape, oversample=1) #, offset=(pixscale/2, pixscale/2))
+    mftsys.source_offset_r = source_offset
+    mftsys.source_offset_theta = 90
 
     mftpsf, mftplanes = mftsys.calc_psf(display=False, return_intermediates=True)
 
