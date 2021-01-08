@@ -271,8 +271,14 @@ class Subapertures(poppy.OpticalElement):
                     intensity_array = sub_wf.as_fits()
                 else:
                     intensity_array = sub_wf.intensity
-                self.centroid_list[:, i, j] = cent_function(intensity_array, **kwargs, relativeto=relativeto)
 
+                '''
+                note, if fwcentroid gives index error at this step try the following steps: 
+                - make sure the incident wavefront array is larger than the shack hartmann lenslet array
+                - make sure the incident wavefront array is sampled appropriately considering the lenslet pitch and pixel pitch chosen
+                - try adjusting the boxsize in the centroid function by adding "boxsize = #" to the call to cent_function below
+                '''
+                self.centroid_list[:, i, j] = cent_function(intensity_array, **kwargs, relativeto=relativeto)
         self._centroided_flag = True
         return self.centroid_list
 
@@ -328,8 +334,7 @@ class ShackHartmannWavefrontSensor(Subapertures):
         if circular:
             aperture = poppy.CircularAperture(radius=self.lenslet_pitch/2, planetype=PlaneType.pupil)
         else:
-            ap_keywords = {"size": self.lenslet_pitch, "planetype": PlaneType.pupil}
-            aperture = poppy.SquareAperture(size=self.lenslet_pitch, planetype=PlaneType.pupil)
+            aperture=poppy.SquareAperture(size=self.lenslet_pitch)
 
         optic_array = np.array([[aperture, aperture],[aperture, aperture]])
 
