@@ -333,7 +333,7 @@ class BaseWavefront(ABC):
     def display(self, what='intensity', nrows=1, row=1, showpadding=False,
                 imagecrop=None, pupilcrop=None,
                 colorbar=False, crosshairs=False, ax=None, title=None, vmin=None,
-                vmax=None, scale=None, use_angular_coordinates=None,
+                vmax=None, vmax_wfe=None, scale=None, use_angular_coordinates=None,
                 angular_coordinate_unit=u.arcsec):
         """Display wavefront on screen
 
@@ -358,6 +358,12 @@ class BaseWavefront(ABC):
             to [0, intens.max()] for linear (scale='linear') intensity plots,
             [1e-6*intens.max(), intens.max()] for logarithmic (scale='log') intensity
             plots, and [-0.25, 0.25] waves for phase plots.
+        vmax_wfe : float
+            Max value to display for phase or wfe, *if* distinct from vmax for intensity
+            for the case of what='both'. In other words you can use this to separately set
+            the min/max scales for the two plots. The minimum scale for wfe will be
+            set to the negative of this to ensure a balanced display scale symmetric around zero.
+            This parameter is ignored if the 'what' parameter is not equal to 'both'.
         scale : string
             'log' or 'linear', to define the desired display scale type for
             intensity. Default is log for image planes, linear otherwise.
@@ -480,10 +486,13 @@ class BaseWavefront(ABC):
             cmap_inten.set_bad(cmap_inten(0))
         cmap_phase = copy.copy(getattr(matplotlib.cm, conf.cmap_diverging))
         cmap_phase.set_bad('0.3')
-        # note, can't currently set separate vmin and vmax for intensity and phase
-        # but we can apply here a prior that the phase is always in the range of
-        # -pi to +pi, and we should display with a balanced color scale.
-        vmx = np.clip(max(vmax, np.abs(vmin)), -np.pi, np.pi)
+
+        if what == 'both':
+            vmx = vmax_wfe if vmax_wfe is not None else np.clip(max(vmax, np.abs(vmin)), -np.pi, np.pi)
+        else:
+            # we can apply here a prior that the phase is always in the range of
+            # -pi to +pi, and we should display with a balanced color scale.
+            vmx = np.clip(max(vmax, np.abs(vmin)), -np.pi, np.pi)
         norm_phase = matplotlib.colors.Normalize(vmin=-vmx, vmax=vmx)
 
         def wrap_lines_title(title):
@@ -583,10 +592,10 @@ class BaseWavefront(ABC):
             ax2 = plt.subplot(nrows, 2, row * 2)
             plt.imshow(phase, extent=extent, cmap=cmap_phase, norm=norm_phase, origin='lower')
             if colorbar:
-                plt.colorbar(orientation='vertical', ax=ax2, shrink=0.8)
+                plt.colorbar(orientation='vertical', ax=ax2, shrink=0.8, label='Phase [radians]')
 
             ax2.set_xlabel(unit_label)
-            ax2.set_title("Wavefront phase [radians]")
+            ax2.set_title("Wavefront phase")
 
             plot_axes = [ax1, ax2]
             to_return = (ax1, ax2)
@@ -2602,12 +2611,12 @@ class OpticalElement(object):
                 cmap = cmap_opd
                 norm = norm_opd
                 cb_values = np.array([-1, -0.5, 0, 0.5, 1]) * opd_vmax_m
-                cb_label = 'meters'
+                cb_label = 'OPD [meters]'
             else:
                 cmap = cmap_amp
                 norm = norm_amp
                 cb_values = [0, 0.25, 0.5, 0.75, 1.0]
-                cb_label = 'Fraction'
+                cb_label = 'Transmission amplitude'
 
             utils.imshow_with_mouseover(plot_array, ax=ax, extent=extent, cmap=cmap, norm=norm,
                                     origin='lower')
