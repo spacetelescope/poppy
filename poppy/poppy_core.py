@@ -333,7 +333,8 @@ class BaseWavefront(ABC):
     def display(self, what='intensity', nrows=1, row=1, showpadding=False,
                 imagecrop=None, pupilcrop=None,
                 colorbar=False, crosshairs=False, ax=None, title=None, vmin=None,
-                vmax=None, scale=None, use_angular_coordinates=None):
+                vmax=None, scale=None, use_angular_coordinates=None,
+                angular_coordinate_unit=u.arcsec):
         """Display wavefront on screen
 
         Parameters
@@ -359,7 +360,8 @@ class BaseWavefront(ABC):
         imagecrop : float, optional
             Crop the displayed image to a smaller region than the full array.
             For image planes in angular coordinates, this is given in units of
-            arcseconds. The default is 5, so only the innermost 5x5 arcsecond
+            arcseconds (unless you specify an angular_coordinate_unit parameter to
+            choose another unit). The default is 5, so only the innermost 5x5 arcsecond
             region will be shown. This default may be changed in the
             POPPY config file. If the image size is < 5 arcsec then the
             entire image is displayed.
@@ -378,12 +380,14 @@ class BaseWavefront(ABC):
         ax : matplotlib Axes, optional
             axes to display into. If not set, will create new axes.
         use_angular_coordinates : bool, optional
-            Should the axes be labeled in angular units of arcseconds?
+            Should the axes be labeled in angular units, e.g. arcseconds?
             This is used by FresnelWavefront, where non-angular
             coordinates are possible everywhere. When using Fraunhofer
             propagation, this should be left as None so that the
             coordinates are inferred from the planetype attribute.
             (Default: None, infer coordinates from planetype)
+        angular_coordinate_unit : astropy unit
+            Unit to use for angular coordinates display; default is arcsecond.
 
         Returns
         -------
@@ -413,6 +417,16 @@ class BaseWavefront(ABC):
             y = utils.removePadding(y, self.oversample)
             x = utils.removePadding(x, self.oversample)
 
+        if use_angular_coordinates is None:
+            use_angular_coordinates = self.planetype == PlaneType.image
+        if use_angular_coordinates and angular_coordinate_unit != u.arcsec:
+            # Update pixel coordinates for non-arcsecond pixel scales, if requested
+            x *= (1*u.arcsec).to_value(angular_coordinate_unit)
+            y *= (1*u.arcsec).to_value(angular_coordinate_unit)
+
+        pixelscale_unit = angular_coordinate_unit/u.pixel if use_angular_coordinates else u.m/u.pixel
+        unit_label = str(pixelscale_unit*u.pixel)
+
         # extent specifications need to include the *full* data region, including the half pixel
         # on either side outside of the pixel center coordinates.  And remember to swap Y and X.
         # Recall that for matplotlib,
@@ -422,13 +436,8 @@ class BaseWavefront(ABC):
         # outside of those pixels.
         # This is needed to get the coordinates right when displaying very small arrays
 
-        halfpix = self.pixelscale.value * 0.5
+        halfpix = self.pixelscale.to_value(pixelscale_unit) * 0.5
         extent = [x.min() - halfpix, x.max() + halfpix, y.min() - halfpix, y.max() + halfpix]
-
-        if use_angular_coordinates is None:
-            use_angular_coordinates = self.planetype == PlaneType.image
-
-        unit = 'arcsec' if use_angular_coordinates else 'm'
 
         # implement semi-intellegent selection of what to display, if the user wants
         if what == 'best':
@@ -457,15 +466,15 @@ class BaseWavefront(ABC):
             if vmin is None:
                 vmin = 0.25 if what == 'phase' else 0
             norm_inten = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
-            cmap_inten = getattr(matplotlib.cm, conf.cmap_pupil_intensity)
+            cmap_inten = copy.copy(getattr(matplotlib.cm, conf.cmap_pupil_intensity))
             cmap_inten.set_bad('0.0')
         else:
             if vmin is None:
                 vmin = vmax * 1e-6
             norm_inten = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
-            cmap_inten = getattr(matplotlib.cm, conf.cmap_sequential)
+            cmap_inten = copy.copy(getattr(matplotlib.cm, conf.cmap_sequential))
             cmap_inten.set_bad(cmap_inten(0))
-        cmap_phase = getattr(matplotlib.cm, conf.cmap_diverging)
+        cmap_phase = copy.copy(getattr(matplotlib.cm, conf.cmap_diverging))
         cmap_phase.set_bad('0.3')
         # note, can't currently set separate vmin and vmax for intensity and phase
         # but we can apply here a prior that the phase is always in the range of
@@ -498,7 +507,7 @@ class BaseWavefront(ABC):
             if title is None:
                 title = wrap_lines_title("Intensity " + self.location)
             ax.set_title(title)
-            ax.set_xlabel(unit)
+            ax.set_xlabel(unit_label)
             if colorbar:
                 plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
             plot_axes = [ax]
@@ -518,7 +527,7 @@ class BaseWavefront(ABC):
             if title is None:
                 title = wrap_lines_title("Phase " + self.location)
             plt.title(title)
-            plt.xlabel(unit)
+            plt.xlabel(unit_label)
             if colorbar:
                 plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
 
@@ -529,8 +538,8 @@ class BaseWavefront(ABC):
             ax1 = plt.subplot(nrows, 2, (row * 2) - 1)
             plt.imshow(amp, extent=extent, cmap=cmap_inten, norm=norm_inten, origin='lower')
             plt.title("Wavefront amplitude")
-            plt.ylabel(unit)
-            plt.xlabel(unit)
+            plt.ylabel(unit_label)
+            plt.xlabel(unit_label)
 
             if colorbar:
                 plt.colorbar(orientation='vertical', shrink=0.8)
@@ -540,7 +549,7 @@ class BaseWavefront(ABC):
             if colorbar:
                 plt.colorbar(orientation='vertical', shrink=0.8)
 
-            plt.xlabel(unit)
+            plt.xlabel(unit_label)
             plt.title("Wavefront phase [radians]")
 
             plot_axes = [ax1, ax2]
@@ -560,7 +569,7 @@ class BaseWavefront(ABC):
             if title is None:
                 title = wrap_lines_title("Amplitude " + self.location)
             ax.set_title(title)
-            ax.set_xlabel(unit)
+            ax.set_xlabel(unit_label)
             if colorbar:
                 plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
             plot_axes = [ax]
@@ -575,13 +584,19 @@ class BaseWavefront(ABC):
                 ax.axhline(0, ls=":", color='white')
                 ax.axvline(0, ls=":", color='white')
 
-            if use_angular_coordinates:
-                if imagecrop is None:
-                    imagecrop = conf.default_image_display_fov
+            if use_angular_coordinates and imagecrop is None:
+                # the value from the configuration is implicitly in arcseconds
+                imagecrop = conf.default_image_display_fov * u.arcsec
 
             if imagecrop is not None:
-                cropsize_x = min((imagecrop / 2, intens.shape[1] / 2. * self.pixelscale.value))
-                cropsize_y = min((imagecrop / 2, intens.shape[0] / 2. * self.pixelscale.value))
+                # this is either a bare float, in which case interpret it as arcseconds or meters depending on the mode,
+                # else a quantity already in either angular or pixel units.
+                if not isinstance(imagecrop, u.Quantity):
+                    imagecrop *= u.arcsec if use_angular_coordinates else u.meter
+                imagecrop_value = imagecrop.to_value(pixelscale_unit*u.pixel)
+
+                cropsize_x = min((imagecrop_value / 2, intens.shape[1] / 2. * self.pixelscale.to_value(pixelscale_unit)))
+                cropsize_y = min((imagecrop_value / 2, intens.shape[0] / 2. * self.pixelscale.to_value(pixelscale_unit)))
                 ax.set_xbound(-cropsize_x, cropsize_x)
                 ax.set_ybound(-cropsize_y, cropsize_y)
 
@@ -962,7 +977,7 @@ class Wavefront(BaseWavefront):
 
         """
         if self.oversample > 1 and not self.ispadded:  # add padding for oversampling, if necessary
-            assert self.oversample == optic.oversample
+            assert self.oversample == optic.oversample, "Unexpected sampling inconsistency in _propagate_fft!"
             self.wavefront = utils.pad_to_oversample(self.wavefront, self.oversample)
             self.ispadded = True
             if optic.verbose:
@@ -1039,25 +1054,21 @@ class Wavefront(BaseWavefront):
         det_calc_size_pixels = det.fov_pixels.to(u.pixel).value * det.oversample
 
         mft = MatrixFourierTransform(centering='ADJUSTABLE', verbose=False)
+
+        pixelscale = det.pixelscale if det.pixelscale is not None else det.fov_arcsec/det.fov_pixels
         if not np.isscalar(det_fov_lam_d):  # hasattr(det_fov_lam_d,'__len__'):
             msg = '    Propagating w/ MFT: {:.4f}     fov=[{:.3f},{:.3f}] lam/D    npix={} x {}'.format(
-                det.pixelscale / det.oversample, det_fov_lam_d[0], det_fov_lam_d[1],
+                pixelscale / det.oversample, det_fov_lam_d[0], det_fov_lam_d[1],
                 det_calc_size_pixels[0], det_calc_size_pixels[1])
         else:
             msg = '    Propagating w/ MFT: {:.4f}     fov={:.3f} lam/D    npix={:d}'.format(
-                det.pixelscale / det.oversample, det_fov_lam_d, int(det_calc_size_pixels))
+                pixelscale / det.oversample, det_fov_lam_d, int(det_calc_size_pixels))
         _log.debug(msg)
         self.history.append(msg)
-        det_offset = det.det_offset if hasattr(det, 'det_offset') else (0, 0)
 
         _log.debug('      MFT method = ' + mft.centering)
 
-        # det_offset controls how to shift the PSF.
-        # it gives the coordinates (X, Y) relative to the exact center of the array
-        # for the location of the phase center of a converging perfect spherical wavefront.
-        # This is where a perfect PSF would be centered. Of course any tilts, comas, etc, from the OPD
-        # will probably shift it off elsewhere for an entirely different reason, too.
-        self.wavefront = mft.perform(self.wavefront, det_fov_lam_d, det_calc_size_pixels, offset=det_offset)
+        self.wavefront = mft.perform(self.wavefront, det_fov_lam_d, det_calc_size_pixels)
         _log.debug("     Result wavefront: at={0} shape={1} ".format(
             self.location, str(self.shape)))
         self._last_transform_type = 'MFT'
@@ -1123,7 +1134,6 @@ class Wavefront(BaseWavefront):
             msg_pixscale, msg_det_fov, pupil_npix)
         _log.debug(msg)
         self.history.append(msg)
-        # det_offset = (0,0)  # det_offset not supported for InvMFT (yet...)
 
         self.wavefront = mft.inverse(self.wavefront, det_fov_lam_d, pupil_npix)
         self._last_transform_type = 'InvMFT'
@@ -1600,7 +1610,7 @@ class BaseOpticalSystem(ABC):
             # Display WF if requested.
             #  Note - don't need to display here if we are showing all steps already
             if display and not display_intermediates:
-                cmap = getattr(matplotlib.cm, conf.cmap_sequential)
+                cmap = copy.copy(getattr(matplotlib.cm, conf.cmap_sequential))
                 cmap.set_bad('0.3')
                 halffov_x = outfits[0].header['PIXELSCL'] * outfits[0].data.shape[1] / 2
                 halffov_y = outfits[0].header['PIXELSCL'] * outfits[0].data.shape[0] / 2
@@ -1631,7 +1641,7 @@ class BaseOpticalSystem(ABC):
             utils.fftw_save_wisdom()
 
         # TODO update FITS header for oversampling here if detector is different from regular?
-        waves = np.asarray(wavelength)
+        waves = np.asarray([w.to_value(u.meter) for w in wavelength])
         wts = np.asarray(weight)
         mnwave = (waves * wts).sum() / wts.sum()
         outfits[0].header['WAVELEN'] = (mnwave, 'Weighted mean wavelength in meters')
@@ -2299,6 +2309,12 @@ class OpticalElement(object):
 
     def get_opd(self, wave):
         """ Return the optical path difference, given a wavelength.
+            
+            In this base class instance, the wavefront parameter 'wave' is not used, 
+             and the .opd attribute of the optic is returned directly.
+             Subclasses may change this behavior, for instance to evaluate
+             optical aberrations on the sampling defined for that wavefront, 
+             or to compute the wavelength-dependent aberrations of a refractive optic.
 
         Parameters
         ----------
@@ -2449,11 +2465,11 @@ class OpticalElement(object):
             colorbar_orientation = "horizontal" if nrows == 1 else 'vertical'
 
         if self.planetype is PlaneType.pupil:
-            cmap_amp = getattr(matplotlib.cm, conf.cmap_pupil_intensity)
+            cmap_amp = copy.copy(getattr(matplotlib.cm, conf.cmap_pupil_intensity))
         else:
-            cmap_amp = getattr(matplotlib.cm, conf.cmap_sequential)
+            cmap_amp = copy.copy(getattr(matplotlib.cm, conf.cmap_sequential))
         cmap_amp.set_bad('0.0')
-        cmap_opd = getattr(matplotlib.cm, conf.cmap_diverging)
+        cmap_opd = copy.copy(getattr(matplotlib.cm, conf.cmap_diverging))
         cmap_opd.set_bad('0.3')
         norm_amp = matplotlib.colors.Normalize(vmin=0, vmax=1)
 
@@ -2470,7 +2486,7 @@ class OpticalElement(object):
                 units = "\n".join(textwrap.wrap(units, 20))
 
         ## Create a wavefront object to use when evaluating/sampling the optic.
-        if self.pixelscale is not None:
+        if self.pixelscale is not None and self.shape is not None:
             # This optic has an inherent sampling.  The display wavefront's sampling is
             # irrelevant; we get the native pixel scale opd and amplitude regardless and
             # display that.
@@ -3180,19 +3196,13 @@ class Detector(OpticalElement):
     oversample : int
         Oversampling factor beyond the detector pixel scale. The returned array will
         have sampling that much finer than the specified pixelscale.
-    offset : tuple (X,Y)
-        Offset for the detector center relative to a hypothetical off-axis PSF.
-        Specifying this lets you pick a different sub-region for the detector
-        to compute, if for some reason you are computing a small subarray
-        around an off-axis source. (Has not been tested!)
-
     """
 
     # Note, pixelscale argument is intentionally not included in the quantity_input decorator; that is
     # specially handled. See the _handle_pixelscale_units_flexibly method
     @utils.quantity_input(fov_pixels=u.pixel, fov_arcsec=u.arcsec)
     def __init__(self, pixelscale=1 * (u.arcsec / u.pixel), fov_pixels=None, fov_arcsec=None, oversample=1,
-                 name="Detector", offset=None,
+                 name="Detector",
                  **kwargs):
         OpticalElement.__init__(self, name=name, planetype=PlaneType.detector, **kwargs)
         self.pixelscale = self._handle_pixelscale_units_flexibly(pixelscale, fov_pixels)
@@ -3210,12 +3220,6 @@ class Detector(OpticalElement):
             self.fov_arcsec = self.fov_pixels * self.pixelscale
         if np.any(self.fov_pixels <= 0):
             raise ValueError("FOV in pixels must be a positive quantity. Invalid: " + str(self.fov_pixels))
-
-        if offset is not None:
-            try:
-                self.det_offset = np.asarray(offset)[0:2]
-            except IndexError:
-                raise ValueError("The offset parameter must be a 2-element iterable")
 
         self.amplitude = 1
         self.opd = 0
@@ -3256,7 +3260,8 @@ class Detector(OpticalElement):
             new_pixelscale = pixelscale
 
         # Case 3: pixelscale compatible with physical units. Treat it as such. Also, in
-        # this case, the user *must* specify a value for fov_pixels.
+        # this case, the user *must* specify a value for fov_pixels (since the other option
+        # would be fov_arcsec, and that would make no sense in this case).
         elif pixelscale.unit.is_equivalent(micron_per_pixel):
             new_pixelscale = pixelscale
             if fov_pixels is None:
@@ -3267,8 +3272,8 @@ class Detector(OpticalElement):
         # Case 4: some other units. Raise an error.
         else:
             raise ValueError("Argument '{0}' to function '{1}'"
-                             " must be a number (not '{2}'), and convertable to"
-                             " units=arcsec/pixel or micron/pixel.".format('pixelscale',
+                             " must be a number or quantity convertable to"
+                             " units=arcsec/pixel or micron/pixel. Note, make sure your pixelscale units are specified per pixel!".format('pixelscale',
                                                                            'Detector.__init__',
                                                                            pixelscale))
 

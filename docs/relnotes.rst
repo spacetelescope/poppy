@@ -10,11 +10,25 @@ For a list of contributors, see :ref:`about`.
 
 .. _rel0.9.1:
 
-*2020 Date TBD*
+*2020 June 22*
+
+This is a minor release primarily for updates in packaging infrastructure, plus a handful of small enhancements related to datacubes, segmented apertures, and new functionality for subsampled optics.
 
 **New Functionality:**
+ * Adds new `Subapertures` class for modeling subsampled optics (i.e. optics that have multiple spatially disjoint output beams). Adds `ShackHartmannWavefrontSensor` class to model that type of sensor. See `this notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Shack%20Hartmann%20Wavefront%20Sensor%20Demo.ipynb>`_ for details and example codes. (:pr:`346` thanks to :user:`remorgan01` and :user:`douglase`)
 
- * future changes go here
+**Other enhancements and fixes:**
+ * `calc_datacube` function now allows `nwavelengths>100`, removing a prior limitation of this function. (:pr:`351` by :user:`ojustino`)
+ * `radial_profile` function can now be applied to datacubes, with a `slice` keyword to specify which slice of the cube should be examined. (:pr:`352` by :user:`mperrin`)
+ * Improved the Zernike basis expansion function for segmented apertures, `opd_expand_segments`, to allow optional masking out of pixels at the segment borders. This can be useful in some circumstances for avoiding edge effects from partially illuminated pixels or interpolation artifacts when evaluating Zernike or hexike coefficients per segment. (:pr:`353` by :user:`mperrin`)
+ * Allows `Segmented_PTT_Basis` to pass through keyword arguments to parent class `MultiHexagonAperture`, in particular for selecting/excluding particular segments from the apreture geometry. (:pr:`357` by :user:`kjbrooks`)
+ * Fix a log string formatting bug encountered in MFT propagation under certain conditions (:pr:`360` by :user:`mperrin`)
+
+**Software Infrastructure Updates and Internals:**
+
+ * Removed dependency on the deprecated astropy-helpers package framework. (:pr:`349` by :user:`shanosborne`). Fixes :issue:`355`.
+ * Switched code coverage CI service to codecov.io. (:pr:`349` by :user:`shanosborne`)
+ * The minimum Python version is now 3.6. (:pr:`356` by :user:`mperrin`)
 
 0.9.0
 -----
@@ -189,7 +203,7 @@ improved upon in a future release.
 
  * New `PhysicalFresnelWavefront` class that uses physical units for the wavefront (e.g.
    volts/meter) and intensity (watts). See `this notebook
-   <https://github.com/spacetelescope/poppy/blob/master/notebooks/Physical%20Units%20Demo.ipynb>`_ for
+   <https://github.com/spacetelescope/poppy/blob/stable/notebooks/Physical%20Units%20Demo.ipynb>`_ for
    examples and further discussion.  (`#248 <https://github.com/spacetelescope/poppy/pull/248>`, @daphil).
  * `calc_psf` gains a new parameter to request returning the complex wavefront (`#234
    <https://github.com/spacetelescope/poppy/pull/234>`_,@douglase).

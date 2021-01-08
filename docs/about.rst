@@ -45,6 +45,9 @@ Direct contributors to POPPY code
  * Scott Will (:user:`sdwill`)
  * Iva Laginja (:user:`ivalaginja`)
  * Mike Fitzgerald (:user:`astrofitz`)
+ * Keira Brooks (:user:`kjbrooks`)
+ * Justin Otor (:user:`ojustino`)
+ * Rachel Morgan (:user:`remorgan01`)
 
 Indirect Contributors (algorithms, advice, ideas, inspirations)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -72,8 +75,8 @@ Contributors via Astropy Affiliated Package Template
  * Brigitta Sipocz
 
 
-This work was supported in part by the JWST mission, a joint effort of NASA,
-ESA, and CSA, and by the WFIRST Phase-A mission development project. STScI
+This work has been supported in part by the JWST mission, a joint effort of NASA,
+ESA, and CSA, and by the Nancy Grace Roman Space Telescope (formerly WFIRST) mission development project. STScI
 is operated on behalf of NASA by the Association of Universities for Research
 in Astronomy.
 

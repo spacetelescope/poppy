@@ -108,3 +108,30 @@ def test_basic_hex_dm():
 
     return psf_aberrated, psf_perf, osys
 
+
+def test_hex_dm_rotation(npix=128, ptt = (0, 1e-6, 0), plot=False):
+    """
+    Verify the hexagonally segmented DM can be rotated without introducing unexpected errors in the
+    OPD models. Verify rotating the DM also rotates the OPD accordingly, and does not change its values.
+
+	npix : number of pixels for test OPD evaluation
+	ptt : piston, tip, tilt for segment move for use in test OPD evaluation
+    plot : make optional plots
+    """
+    dm = dms.HexSegmentedDeformableMirror(rings=2, rotation=0)
+    dm.set_actuator(1, *ptt )
+
+    ref_opd = dm.sample(what='opd', npix=npix)
+
+    for rot in [90, -90, 180]:
+        dm = dms.HexSegmentedDeformableMirror(rings=2, rotation=rot)
+        dm.set_actuator(1, *ptt )
+        opd = dm.sample(what='opd', npix=npix)
+
+        assert np.allclose(opd.max(), ref_opd.max()), f"OPD max pixel changed unexpectedly for rotation = {rot}"
+        nrotations = rot//90
+        assert np.allclose(np.rot90(opd, k=nrotations), ref_opd), f"OPD rotation not as expected for rotation = {rot}, k={nrotations}"
+
+        if plot:
+            plt.figure()
+            dm.display(what='opd', npix=npix, opd_vmax=1e-6, title=f'DM with {rot} rotation', colorbar_orientation='vertical')

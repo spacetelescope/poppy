@@ -1,7 +1,4 @@
-language: python
-
-python:
-    - 3.7
+language: c
 
 # Setting sudo to false opts in to Travis-CI container-based builds.
 sudo: false
@@ -9,80 +6,56 @@ sudo: false
 
 env:
     global:
-        # The following versions are the 'default' for tests, unless
-        # overridden underneath. They are defined here in order to save having
-        # to repeat them for all configurations.
-        - NUMPY_VERSION=stable
-        - ASTROPY_VERSION=stable
-        - SETUP_CMD='test'
-        - PIP_DEPENDENCIES=''
-        - CONDA_DEPENDENCIES='scipy matplotlib'
+        - TOXENV=''
+        - TOXARGS=''
+        - TOXPOSARGS=''
 
-        # For headless testing of code that imports PyPlot:
-        - MPLBACKEND=Agg
-    matrix:
-        # Make sure that egg_info works without dependencies
-        - SETUP_CMD='egg_info'
+        - TOX_CMD='tox --'
+        - TOX_ARGS=''
 
 matrix:
+
     include:
         # do the actual tests.
-        # Do a coverage test in Python 3.
-        - python: 3.7
-          env: SETUP_CMD='test --coverage'
+        # Do a test in Python 3.7
+        - env: TOXENV='py37-cov'
 
         # Check accelerated math version too
-        - python: 3.7
-          env: SETUP_CMD='test --coverage' PIP_DEPENDENCIES='numexpr'
+        - env: TOXENV='py37-numexpr-cov'
 
         # Check for Sphinx doc build errors
-        - python: 3.7
-          env: SETUP_CMD='build_sphinx'
-               CONDA_DEPENDENCIES='scipy matplotlib nbsphinx pandoc'
-               PIP_DEPENDENCIES='sphinx_rtd_theme stsci_rtd_theme sphinx-automodapi sphinx-issues'
-
+        - env: TOXENV='docbuild' TOX_ARGS=''
 
         # Try Astropy development version
-        - python: 3.7
-          env: SETUP_CMD='test' ASTROPY_VERSION=development
+        - env: TOXENV='py37-astropydev-test'
 
-        # Try Astropy & numpy minimum supported versions, 
+        # Try Astropy & numpy minimum supported versions,
         # and older Python versions
-        - python: 3.5
-          env: NUMPY_VERSION=1.13 SETUP_CMD='test'
+        - env: TOXENV='py36-legacy-test'
 
 install:
-
-    # We now use the ci-helpers package to set up our testing environment.
-    # This is done by using Miniconda and then using conda and pip to install
-    # dependencies. Which dependencies are installed using conda and pip is
-    # determined by the CONDA_DEPENDENCIES and PIP_DEPENDENCIES variables,
-    # which should be space-delimited lists of package names. See the README
-    # in https://github.com/astropy/ci-helpers for information about the full
-    # list of environment variables that can be used to customize your
-    # environment. In some cases, ci-helpers may not offer enough flexibility
-    # in how to install a package, in which case you can have additional
-    # commands in the install: section below.
-
     - git clone git://github.com/astropy/ci-helpers.git
-    - source ci-helpers/travis/setup_conda_$TRAVIS_OS_NAME.sh
-
-    # As described above, using ci-helpers, you should be able to set up an
-    # environment with dependencies installed using conda and pip, but in some
-    # cases this may not provide enough flexibility in how to install a
-    # specific dependency (and it will not be able to install non-Python
-    # dependencies). Therefore, you can also include commands below (as
-    # well as at the start of the install section or in the before_install
-    # section if they are needed before setting up conda) to install any
-    # other dependencies.
+    - source ci-helpers/travis/setup_conda.sh
+    - pip install tox tox-conda>=0.2
+    - pip install --user codecov
 
 script:
-   - python setup.py $SETUP_CMD
+   - conda info
+   - $TOX_CMD $TOX_ARGS
 
 after_success:
-    # coveralls.io integration
-    - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls --rcfile='poppy/tests/coveragerc'; fi
+   - codecov
 
 notifications:
   email:
-    - mperrin@stsci.edu
+  - mperrin@stsci.edu
+
+deploy:
+  provider: pypi
+  username: "__token__"
+  password:
+    secure: ehTNpPSitppZJINBslbzT6bT+/woUTqpO/TATvMxHr+Czv6AgXyX1OZ/XFbNQKTe1Uh+fmPgIeDCh4/21xvFye6jYx9SBu5NyGTFVnFx4Fg1eEGtIkqY113qcACZKfEW/L1yFltto77QSEZwQpVKfgWG6uj2g/0/FrcB8uS3/kFbMxzHbEwE2o/+ff9wDpEA57EOMVWOEqnR6cmQJJCqvVDBNigb9ncQuhMvn6A1u2twTHXLmmUnJJ5vT3h8UUK+9VX4Q2g32RznJUQOidVJ8CLNbcyF4hKhfDRQsO9/OUAbdpW5xj5kLE8r6bHEZ3NTQgr3ZNuAe7/GvMWLeB7wRy5O1FTV+1Tltgp4QzOX+sl460g1iAUus78NvLKRlid9QjjE9aiNYEqoyXJc1O50lm4jWe12qQ1Do8JJNJZX8H7KH/foRqAmTyEkS6jOOXmepLeVOzOP+IrVXHfFp5RJCbhsDjODoSR9IWWzkZsb4nNcUcoLTAnfqpPY5NDQateq5TUqV/tGUG9+fvqH8kZFte0l8qBNrj2mDwTBb1weurucIzCV1MJYTSsjZBkdcBypqrslllza0qYwFi0IEDl3lIX4rz7yN8eczswUzsxL5svgHFXdZEwUqyAnvF7E6qX498o6nWwSfgRrLI+QQGa/sM/PfJa4NEjbdnn5EXRzak0=
+  on:
+    branch: stable
+    tags: true
+  skip_existing: true

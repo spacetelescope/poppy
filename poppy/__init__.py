@@ -13,18 +13,17 @@ and other NASA missions.
 
 Documentation can be found online at https://poppy-optics.readthedocs.io/
 """
-
-# Affiliated packages may add whatever they like to this file, but
-# should keep this content at the top.
-# ----------------------------------------------------------------------------
-# make use of astropy affiliate framework to set __version__, __githash__, and
-# add the test() helper function
-from ._astropy_init import *
-# ----------------------------------------------------------------------------
-
 # Enforce Python version check during package import.
 # This is the same check as the one at the top of setup.py
+import os
 import sys
+from warnings import warn
+from astropy import config as _config
+
+try:
+    from .version import version as __version__
+except ImportError:
+    __version__ = ''
 
 __minimum_python_version__ = "3.5"
 
@@ -33,9 +32,6 @@ class UnsupportedPythonError(Exception):
 
 if sys.version_info < tuple((int(val) for val in __minimum_python_version__.split('.'))):
     raise UnsupportedPythonError("poppy does not support Python < {}".format(__minimum_python_version__))
-
-
-from astropy import config as _config
 
 
 class Conf(_config.ConfigNamespace):
@@ -104,6 +100,24 @@ class Conf(_config.ConfigNamespace):
 
 conf = Conf()
 
+config_dir = os.path.dirname(__file__)
+config_template = os.path.join(config_dir, __package__ + ".cfg")
+if os.path.isfile(config_template):
+    try:
+        _config.configuration.update_default_config(
+            __package__, config_dir, version=__version__)
+    except TypeError as orig_error:
+        try:
+            _config.configuration.update_default_config(
+                __package__, config_dir)
+        except _config.configuration.ConfigurationDefaultMissingError as e:
+            wmsg = (e.args[0] + " Cannot install default profile. If you are "
+                                "importing from source, this is expected.")
+            warn(_config.configuration.ConfigurationDefaultMissingWarning(wmsg))
+            del e
+        except:
+            raise orig_error
+
 from . import poppy_core
 from . import utils
 from . import optics
@@ -128,4 +142,4 @@ from .instrument import Instrument
 #if accel_math._FFTW_AVAILABLE:
 #    utils.fftw_load_wisdom()
 
-__all__ = ['conf', 'Instrument'] + utils.__all__ + poppy_core.__all__ + optics.__all__ + fresnel.__all__ + wfe.__all__
+__all__ = ['conf', 'Instrument', '__version__'] + utils.__all__ + poppy_core.__all__ + optics.__all__ + fresnel.__all__ + wfe.__all__

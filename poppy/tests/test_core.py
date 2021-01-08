@@ -256,47 +256,6 @@ def test_fov_size_pixels():
     assert psf[0].data.shape[1] == 200
 
 
-
-###    EXPECTED TO FAIL RIGHT NOW - Offsets don't work yet.
-###    See https://github.com/mperrin/poppy/issues/40
-import pytest
-@pytest.mark.xfail
-def test_fov_offset(scale=1.0):
-    """ Test offsetting the field of view of a Detector
-    This is distinct from offsetting the source! """
-    from ..utils import measure_centroid
-
-    size=100
-    pixscale = 0.1
-
-    # A PSF created on-axis with no offset
-    osys = poppy_core.OpticalSystem("test", oversample=2)
-    pupil = optics.CircularAperture(radius=6.5/2)
-    osys.add_pupil(pupil)
-    osys.add_detector(pixelscale=pixscale, fov_pixels=size, oversample=1)
-    psf1 = osys.calc_psf()
-    # The measured centroid should put it in the center of the array
-    cent1 = measure_centroid(psf1, relativeto='center')
-    poppy_core._log.info("On-axis PSF (no offset) centroid is:" + str(cent1))
-    assert(abs(cent1[0]-0) < 1e-5)
-    assert(abs(cent1[1]-0) < 1e-5)
-
-    # Now create an equivalent PSF but offset the axes by 1 pixel in the first axis
-    osys2 = poppy_core.OpticalSystem("test", oversample=2)
-    osys2.add_pupil(pupil)
-    osys2.add_detector(pixelscale=pixscale, fov_pixels=size, oversample=1, offset=(pixscale*scale,0))
-    psf2 = osys2.calc_psf()
-    # Its centroid shouldbe offset by a pixel
-    poppy_core._log.info("Offset PSF (by ({0},0) pixels ) centroid is: {1}".format(str(scale), str(cent1)))
-    cent2 = measure_centroid(psf2, relativeto='center')
-    assert(abs(cent2[0]-scale) < 1e-5)
-    assert(abs(cent2[1]-0) < 1e-5)
-
-
-    # and do the same thing in the second axis (after the above works)
-
-
-
 def test_inverse_MFT():
     """
     Verify basic functionality of the Inverse MFT code.
@@ -402,21 +361,43 @@ def test_return_complex():
 def test_displays():
     # Right now doesn't check the outputs are as expected in any way
     # TODO consider doing that? But it's hard given variations in matplotlib version etc
+
+    # As a result this just tests that the code runs to completion, without any assessment
+    # of the correctness of the output displays.
     import poppy
     import matplotlib.pyplot as plt
 
     osys = poppy.OpticalSystem()
     osys.add_pupil(poppy.CircularAperture())
-    osys.add_detector(fov_pixels=128, pixelscale=0.01)
+    osys.add_detector(fov_pixels=128, pixelscale=0.01*u.arcsec/u.pixel)
 
+    # Test optical system display
+    # This implicitly exercises the optical element display paths, too
     osys.display()
 
+    # Test PSF calculation with intermediate wavefronts
     plt.figure()
     psf = osys.calc_psf(display_intermediates=True)
 
+    # Test PSF display
     plt.figure()
-    #psf = osys.calc_psf(display_intermediates=True)
     poppy.display_psf(psf)
+
+    # Test PSF display with other units too
+    poppy.display_psf(psf, angular_coordinate_unit=u.urad)
+
+    # Test PSF calculation with intermediate wavefronts and other units
+    plt.figure()
+    psf = osys.calc_psf(display_intermediates=True)
+    osys2 = poppy.OpticalSystem()
+    osys2.add_pupil(poppy.CircularAperture())
+    osys2.add_detector(fov_pixels=128, pixelscale=0.05*u.urad/u.pixel)
+    psf2, waves = osys.calc_psf(display_intermediates=True, return_intermediates=True)
+
+    # Test wavefront display, implicitly including other units
+    waves[-1].display()
+
+    plt.close('all')
 
 
 def test_rotation_in_OpticalSystem(display=False, npix=1024):
@@ -560,6 +541,11 @@ def test_Detector_pixelscale_units():
     # Or scale in arcsec, and fov in arcsec:
     test_det = poppy_core.Detector(pixelscale=0.01 * u.arcsec / u.pixel, fov_arcsec=10)
     assert test_det.pixelscale == 0.01 * u.arcsec / u.pixel
+    assert test_det.shape == (1000, 1000)
+
+    # Or scale in microradians, and fov in milliradians (converted to arcsec, since the fov_arcsec parameter needs arcsec):
+    test_det = poppy_core.Detector(pixelscale=1 * u.urad / u.pixel, fov_arcsec=(1*u.mrad).to_value(u.arcsec))
+    assert test_det.pixelscale == 1 * u.urad / u.pixel
     assert test_det.shape == (1000, 1000)
 
     # It also works to leave the scale unspecified in unit, which is interpreted as arcsec

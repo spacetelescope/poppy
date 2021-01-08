@@ -38,7 +38,7 @@ Summary
 
 .. admonition:: Quickstart IPython Notebook
 
-       This documentation is complemented by an `IPython Notebook quickstart tutorial <http://nbviewer.ipython.org/github/spacetelescope/poppy/blob/master/notebooks/POPPY_tutorial.ipynb>`_.
+       This documentation is complemented by an `IPython Notebook quickstart tutorial <http://nbviewer.ipython.org/github/spacetelescope/poppy/blob/stable/notebooks/POPPY_tutorial.ipynb>`_.
 
        Downloading and running that notebook is a great way to get started using POPPY. The documentation following here provides greater details on the algorithms and API.
 
@@ -67,6 +67,7 @@ Contents
   about.rst
   performance.rst
   fft_optimization.rst
+  dev_notes.rst
 
 
 Getting Help

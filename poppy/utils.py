@@ -17,6 +17,7 @@ import scipy.ndimage
 import warnings
 
 from astropy import config
+import astropy.units as u
 
 import astropy.io.fits as fits
 
@@ -88,7 +89,8 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
                 adjust_for_oversampling=False, normalize='None',
                 crosshairs=False, markcentroid=False, colorbar=True,
                 colorbar_orientation='vertical', pixelscale='PIXELSCL',
-                ax=None, return_ax=False, interpolation=None, cube_slice=None):
+                ax=None, return_ax=False, interpolation=None, cube_slice=None,
+                angular_coordinate_unit=u.arcsec):
     """Display nicely a PSF from a given hdulist or filename
 
     This is extensively configurable. In addition to making an attractive display, for
@@ -147,6 +149,8 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
     cube_slice : int or None
         if input PSF is a datacube from calc_datacube, which slice
         of the cube should be displayed?
+    angular_coordinate_unit : astropy Unit
+        Coordinate unit to use for axes display. Default is arcseconds.
     """
     if isinstance(HDUlist_or_filename, str):
         hdulist = fits.open(HDUlist_or_filename)
@@ -197,10 +201,16 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
         pixelscale = hdulist[ext].header[pixelscale]
     else:
         pixelscale = float(pixelscale)
+
+    if angular_coordinate_unit != u.arcsec:
+        coordinate_rescale = (1*u.arcsec).to_value(angular_coordinate_unit)
+        pixelscale *= coordinate_rescale
+    else:
+        coordinate_rescale = 1
     halffov_x = pixelscale * psf_array_shape[1] / 2.0
     halffov_y = pixelscale * psf_array_shape[0] / 2.0
 
-    unit = "arcsec"
+    unit_label = str(angular_coordinate_unit)
     extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
 
     if cmap is None:
@@ -215,10 +225,13 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
         interpolation=interpolation,
         origin='lower'
     )
+    ax.set_xlabel(unit_label)
 
     if markcentroid:
         _log.info("measuring centroid to mark on plot...")
         ceny, cenx = measure_centroid(hdulist, ext=ext, units='arcsec', relativeto='center', boxsize=20, threshold=0.1)
+        ceny *= coordinate_rescale  # if display coordinate unit isn't arcseconds, rescale the centroid accordingly
+        cenx *= coordinate_rescale
         ax.plot(cenx, ceny, 'k+', markersize=15, markeredgewidth=1)
         _log.info("centroid: (%f, %f) " % (cenx, ceny))
 
@@ -255,7 +268,7 @@ def display_psf(HDUlist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
                 orientation=colorbar_orientation
             )
         if scale.lower() == 'log':
-            ticks = np.logspace(np.log10(vmin), np.log10(vmax), np.log10(vmax / vmin) + 1)
+            ticks = np.logspace(np.log10(vmin), np.log10(vmax), int(np.round(np.log10(vmax / vmin) + 1)))
             if colorbar_orientation == 'horizontal' and vmax == 1e-1 and vmin == 1e-8:
                 ticks = [1e-8, 1e-6, 1e-4, 1e-2, 1e-1]  # looks better
             cb.set_ticks(ticks)
@@ -393,7 +406,7 @@ def display_psf_difference(hdulist_or_filename1=None, HDUlist_or_filename2=None,
 
     if colorbar:
         cb = plt.colorbar(ax.images[0], ax=ax, orientation=colorbar_orientation)
-        # ticks = np.logspace(np.log10(vmin), np.log10(vmax), np.log10(vmax/vmin)+1)
+        # ticks = np.logspace(np.log10(vmin), np.log10(vmax), int(np.round(np.log10(vmax/vmin)+1)))
         # if vmin == 1e-8 and vmax==1e-1:
         # ticks = [1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1]
         # ticks = [vmin, -0.5*vmax, 0, 0.5*vmax, vmax]
@@ -511,7 +524,7 @@ def display_profiles(HDUlist_or_filename=None, ext=0, overplot=False, title=None
 
 
 def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stddev=False, binsize=None, maxradius=None,
-                   normalize='None', pa_range=None):
+                   normalize='None', pa_range=None, slice=0):
     """ Compute a radial profile of the image.
 
     This computes a discrete radial profile evaluated on the provided binsize. For a version
@@ -542,6 +555,9 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
         I.e. calculate that profile only for some wedge, not the full image. Specify the PA in degrees
         counterclockwise from +Y axis=0. Note that you can specify ranges across zero using negative numbers,
         such as pa_range=[-10,10].  The allowed PA range runs from -180 to 180 degrees.
+    slice: integer, optional
+        Slice into a datacube, for use on cubes computed by calc_datacube. Default 0 if a
+        cube is provided with no slice specified.
 
     Returns
     --------
@@ -558,7 +574,11 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
     else:
         raise ValueError("input must be a filename or HDUlist")
 
-    image = hdu_list[ext].data.copy()  # don't change normalization of actual input array, work with a copy!
+    if hdu_list[ext].header['NAXIS']==3:
+        # data cube, so pick out just one slice
+        image = hdu_list[ext].data[slice].copy()  # don't change normalization of actual input array, work with a copy!
+    else:
+        image = hdu_list[ext].data.copy()  # don't change normalization of actual input array, work with a copy!
 
     if normalize.lower() == 'peak':
         _log.debug("Calculating profile with PSF normalized to peak = 1")
@@ -569,8 +589,6 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
 
     pixelscale = hdu_list[ext].header['PIXELSCL']
 
-    if maxradius is not None:
-        raise NotImplemented("add max radius")
 
     if binsize is None:
         binsize = pixelscale
@@ -617,12 +635,20 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
     else:
         radialprofile2[0] = csim[0]  # otherwise if there's just one then just take it.
     radialprofile2[1:] = radialprofile
-    rr = np.arange(
-        len(radialprofile2)) * binsize + binsize * 0.5  # these should be centered in the bins, so add a half.
-    if pa_range is not None:
-        # for PA ranges < 45 deg or so, the innermost pixel that's valid in the mask may be
-        # more than a pixel from the center. Therefore we have to include that offset here
-        rr += binsize * np.floor(sr[0])
+
+    # Compute radius values corresponding to the measured points in the radial profile.
+    # including handling the case where the innermost pixel may be more
+    # than one pixel from the center. This can happen if pa_range is not None, since for
+    # small ranges < 45 deg or so the innermost pixel that's valid in the mask may be
+    # more than one pixel from the center. It can also happen if we are computing a
+    # radial profile centered on an offset source outside of the FOV.
+    rr = np.arange(ri.min(), ri.min()+len(radialprofile2)) * binsize + binsize * 0.5  # these should be centered in the bins, so add a half.
+
+
+    if maxradius is not None:
+        crop = rr < maxradius
+        rr = rr[crop]
+        radialprofile2 = radialprofile2[crop]
 
     if stddev:
         stddevs = np.zeros_like(radialprofile2)
@@ -818,7 +844,7 @@ def measure_fwhm(HDUlist_or_filename, ext=0, center=None, plot=False, threshold=
         raise ValueError("input must be a filename or HDUlist")
 
     image = HDUlist[ext].data.copy()  # don't change normalization of actual input array; work with a copy
-    image /= image.max()  # Normalize the copy to peak=1
+    image = image/image.max()  # Normalize the copy to peak=1
 
     pixelscale = HDUlist[ext].header['PIXELSCL']
 

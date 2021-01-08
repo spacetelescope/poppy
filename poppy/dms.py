@@ -741,7 +741,7 @@ class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
         self._seg_mask = self.transmission
         self._transmission = np.asarray(self._seg_mask != 0, dtype=float)
 
-        y, x = poppy_core.Wavefront.pupil_coordinates((npix, npix), pixelscale)
+        y, x = self.get_coordinates((wave))
 
         for i in self.segmentlist:
             wseg = np.where(self._seg_mask == i+1)
