@@ -494,14 +494,15 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
             act_trace_col[y_wave_ind_act, 0] = 1
             act_trace_2d = act_trace_col * act_trace_row
         else:
-            raise NotImplementedError("DMs with rotation do not work correctly for convolution method. Use Gaussian method for now if you need a rotated DM.")
-            # Possibly clip x_wave_ind_act and y_wave_ind_act to the allowable range?
+            self._tmp = (y_wave, x_wave, y_act, x_act, wave )
+            # Depending on the amount of rotation, some actuators may have rotated outside of the wavefront array
+            acts_in_pupil = ((0 < x_wave_ind_act) & (x_wave_ind_act < wave.shape[1]) &
+                             (0 < y_wave_ind_act) & (y_wave_ind_act < wave.shape[0]))
             act_trace_2d = np.zeros(wave.shape, dtype='bool')
-            y_wave_ind_act = y_wave_ind_act.clip(0, wave.shape[0]-1)
-            x_wave_ind_act = x_wave_ind_act.clip(0, wave.shape[1]-1)
-            for y, x in zip(y_wave_ind_act.ravel(), x_wave_ind_act.ravel()):
+            for y, x in zip(y_wave_ind_act[acts_in_pupil], x_wave_ind_act[acts_in_pupil]):
                 act_trace_2d[y, x] = 1
 
+        self._act_trace_2d = act_trace_2d
 
         act_trace_flat = act_trace_2d.ravel()
         self._act_ind_flat = np.nonzero(act_trace_flat)  # 1-d indices of actuator centers in wavefront space
