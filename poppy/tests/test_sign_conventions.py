@@ -99,9 +99,8 @@ def test_wavefront_tilt_sign_and_direction_fresnel(plot=False, npix=128):
     cen = poppy.measure_centroid(wave.as_fits())
     assert np.allclose(cen[0], nominal_cen), "Tilt in X should not displace the PSF in Y"
     assert cen[1] < nominal_cen, "WFE tilt increasing to +X should displace the PSF to -X"
-    assert np.allclose((cen[1] - nominal_cen) * u.pixel * wave.pixelscale,
-                       (tilt_angle * u.arcsec).to_value(
-                           u.radian) * focal_length), "PSF offset distance did not match expected amount"
+    assert np.allclose(((cen[1] - nominal_cen) * u.pixel * wave.pixelscale).to_value(u.m),
+                       ((tilt_angle * u.arcsec).to_value( u.radian) * focal_length).to_value(u.m)), "PSF offset distance did not match expected amount"
 
 
 # Test: A positive lens has positive WFE
