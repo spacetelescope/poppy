@@ -863,7 +863,7 @@ class Instrument(object):
 
         if monochromatic is not None:
             poppy_core._log.info("Monochromatic calculation requested.")
-            return ([monochromatic] * units.AA, np.asarray([1]))
+            return (np.asarray([monochromatic]), np.asarray([1]))
 
         elif _HAS_STSYNPHOT and (isinstance(source, SourceSpectrum) or source is None):
             """ Given a SourceSpectrum object, perform synthetic photometry for
