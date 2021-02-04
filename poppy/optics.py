@@ -347,6 +347,20 @@ class ScalarTransmission(AnalyticOpticalElement):
         return res
 
 
+class ScalarOpticalPathDifference(AnalyticOpticalElement):
+    """Uniform and constant optical path difference
+
+    """
+    @utils.quantity_input(opd=u.meter)
+    def __init__(self, name=None, opd=1.0*u.micron, **kwargs):
+        AnalyticOpticalElement.__init__(self, name=name, **kwargs)
+        self.opd = opd
+
+    def get_opd(self, wave):
+        res = np.empty(wave.shape, dtype=_float())
+        res.fill(self.opd.to(u.meter).value)
+        return res
+
 class InverseTransmission(AnalyticOpticalElement):
     """ Given any arbitrary OpticalElement with transmission T(x,y)
     return the inverse transmission 1 - T(x,y)
@@ -1876,8 +1890,18 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
 
     def get_opd(self, wave):
         opd = np.zeros(wave.shape, dtype=_float())
-        for optic in self.opticslist:
-            opd += optic.get_opd(wave)
+
+        if self.mergemode == 'and':
+            for optic in self.opticslist:
+                opd += optic.get_opd(wave)
+        elif self.mergemode == "or":
+            for optic in self.opticslist:
+                # spatially disjoint optics; each only contributes OPD to where it has nonzero transmission.
+                trans = optic.get_transmission(wave)
+                opd[trans != 0] += optic.get_opd(wave)[trans != 0]
+        else:
+            raise ValueError("mergemode must be either 'and' or 'or'.")
+
         self.opd = opd
         return self.opd
 
