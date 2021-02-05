@@ -13,12 +13,14 @@ env:
         - TOX_CMD='tox --'
         - TOX_ARGS=''
 
+        - PYSYN_CDBS="https://ssb.stsci.edu/trds"
+
 matrix:
 
     include:
         # do the actual tests.
         # Do a test in Python 3.7
-        - env: TOXENV='py37-cov'
+        - env: TOXENV='py37-syn-cov'
 
         # Check accelerated math version too
         - env: TOXENV='py37-numexpr-cov'
