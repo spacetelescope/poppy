@@ -16,7 +16,7 @@ except ImportError:
 
 PYTEST_HEADER_MODULES['Astropy'] = 'astropy'
 PYTEST_HEADER_MODULES['synphot'] = 'synphot'
-PYTEST_HEADER_MODULES['stsynphot'] = 'synphot'
+PYTEST_HEADER_MODULES['stsynphot'] = 'stsynphot'
 
 TESTED_VERSIONS['poppy'] = __version__
 
