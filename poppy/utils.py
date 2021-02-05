@@ -704,8 +704,8 @@ def measure_ee(HDUlist_or_filename=None, ext=0, center=None, binsize=None, norma
 
     Examples
     --------
-    >>> ee = measure_ee("someimage.fits")
-    >>> print "The EE at 0.5 arcsec is ", ee(0.5)
+    >>> ee = measure_ee("someimage.fits")  # doctest: +SKIP
+    >>> print("The EE at 0.5 arcsec is ", ee(0.5))  # doctest: +SKIP
 
     """
 
@@ -749,8 +749,8 @@ def measure_radius_at_ee(HDUlist_or_filename=None, ext=0, center=None, binsize=N
 
     Examples
     --------
-    >>> ee = measure_radius_at_ee("someimage.fits")
-    >>> print "The EE is 50% at {} arcsec".format(ee(0.5))
+    >>> ee = measure_radius_at_ee("someimage.fits")  # doctest: +SKIP
+    >>> print("The EE is 50% at {} arcsec".format(ee(0.5)))  # doctest: +SKIP
     """
 
     rr, radialprofile2, ee = radial_profile(HDUlist_or_filename, ext, ee=True, center=center, binsize=binsize,
@@ -791,9 +791,9 @@ def measure_radial(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
 
     Examples
     --------
-    >>> rp = measure_radial("someimage.fits")
+    >>> rp = measure_radial("someimage.fits")  # doctest: +SKIP
     >>> radius = np.linspace(0, 5.0, 100)
-    >>> plot(radius, rp(radius), label="PSF")
+    >>> plot(radius, rp(radius), label="PSF")  # doctest: +SKIP
 
     """
 

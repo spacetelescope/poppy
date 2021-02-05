@@ -1,4 +1,4 @@
-# 
+#
 #  Test functions for matrix DFT code
 #
 #
@@ -556,7 +556,7 @@ def test_parity_MFT_forward_inverse(display = False):
     absdiff = (np.abs(p0[0].data - p2[0].data))
     maxabsdiff = np.max(absdiff)
     # TODO this test could be more stringent if we used a better aperture
-    # which is band-limited in the FFT so you don't get all the 
+    # which is band-limited in the FFT so you don't get all the
     # Gibbs effect ringing after these two FFTs.
     assert (maxabsdiff < 1e-6)
 
@@ -633,7 +633,7 @@ def test_MFT_FFT_equivalence(display=False, displaycrop=None):
 
         return mftout, fftout
 
-def test_MFT_FFT_equivalence_in_OpticalSystem(display=False):
+def test_MFT_FFT_equivalence_in_OpticalSystem(tmpdir, display=False):
     """ Test that propagating Wavefronts through an OpticalSystem
     using an MFT and an FFT give equivalent results.
 
@@ -650,7 +650,8 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(display=False):
     # its input wavefront. The easiest way to do this is to discretize
     # an AnalyticOpticalElement onto a specific grid.
 
-    fits511 = optics.ParityTestAperture().to_fits('test.fits', wavelength=1e-6, npix=511)
+    fn = str(tmpdir / "test.fits")
+    fits511 = optics.ParityTestAperture().to_fits(fn, wavelength=1e-6, npix=511)
     pup511 = poppy_core.FITSOpticalElement(transmission=fits511)
 
 
@@ -683,4 +684,3 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(display=False):
 
 
     assert( np.all(  np.abs(mftpsf[0].data-fftpsf[0].data) < 1e-10 ))
-

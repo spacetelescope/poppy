@@ -443,9 +443,9 @@ def test_ArrayOpticalElement():
     assert np.allclose(ar.amplitude, y), "Couldn't set amplitude transmission"
     assert ar.pixelscale == 1*u.meter/u.pixel
 
-def test_FITSOpticalElement(tempdir='./'):
+def test_FITSOpticalElement(tmpdir):
     circ_fits = poppy.CircularAperture().to_fits(grid_size=3, npix=10)
-    fn = tempdir+"circle.fits"
+    fn = str(tmpdir / "circle.fits")
     circ_fits.writeto(fn, overwrite=True)
 
     # Test passing aperture via file on disk
@@ -464,7 +464,7 @@ def test_FITSOpticalElement(tempdir='./'):
     circ_mask = circ_fits[0].data
     circ_fits[0].data = np.stack([circ_mask, rect_mask])
     circ_fits[0].header['BUNIT'] = 'nm' # need unit for OPD
-    fn2 = tempdir+"cube.fits"
+    fn2 = str(tmpdir / "cube.fits")
     circ_fits.writeto(fn2, overwrite=True)
 
     # Test passing OPD as cube, with slice default, units of nanometers

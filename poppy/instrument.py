@@ -919,7 +919,7 @@ class Instrument(object):
                 else:
                     binset = np.linspace(wave - deltawave, wave + deltawave,
                                          30)  # what wavelens to use when integrating across the sub-band?
-                    result = Observation(source, box, binset=binset).effstim('counts', area=jwst_area)
+                    result = Observation(source, box, binset=binset).effstim('count', area=jwst_area)
                 effstims.append(result)
 
             effstims = units.Quantity(effstims)
@@ -940,7 +940,7 @@ class Instrument(object):
 
         else:  # Fallback simple code for if we don't have stsynphot.
             poppy_core._log.warning(
-                "stsynphot unavailable (or invalid source supplied)!   Assuming flat # of counts versus wavelength.")
+                "stsynphot unavailable (or invalid source supplied)! Assuming flat # of counts versus wavelength.")
             # compute a source spectrum weighted by the desired filter curves.
             # The existing FITS files all have wavelength in ANGSTROMS since that is the stsynphot convention...
             filterfile = self._filters[self.filter].filename
