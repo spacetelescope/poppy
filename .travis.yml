@@ -29,13 +29,12 @@ matrix:
         # Try Astropy development version
         - env: TOXENV='py38-astropydev-test'
 
+        # Try latest versions of all dependencies
+        - env: TOXENV='py38-latest-test'
+
         # Try Astropy & numpy minimum supported versions,
         # and older Python versions
         - env: TOXENV='py36-legacy-test'
-
-    allow_failures:
-        # Try latest versions of all dependencies
-        - env: TOXENV='py38-latest-test'
 
 install:
     - git clone git://github.com/astropy/ci-helpers.git
