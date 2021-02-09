@@ -815,6 +815,13 @@ class BaseWavefront(ABC):
             Angle to rotate, in degrees counterclockwise.
 
         """
+
+        if self.ispadded:
+            # pupil plane is padded - trim out the zeros since it's not needed in the rotation
+            # If needed in later steps, the padding will be re-added automatically
+            self.wavefront = utils.removePadding(self.wavefront, self.oversample)
+            self.ispadded = False
+
         # self.wavefront = scipy.ndimage.interpolation.rotate(self.wavefront, angle, reshape=False)
         # Huh, the ndimage rotate function does not work for complex numbers. That's weird.
         # so let's treat the real and imaginary parts individually
@@ -2052,6 +2059,9 @@ class OpticalSystem(BaseOpticalSystem):
 
         # note: 0 is 'before first optical plane; 1 = 'after first plane and before second plane' and so on
         for optic in self.planes:
+
+            if conf.enable_speed_tests:
+                s0 = time.time()
             # The actual propagation:
             wavefront.propagate_to(optic)
             wavefront *= optic
@@ -2078,6 +2088,10 @@ class OpticalSystem(BaseOpticalSystem):
             # Optional outputs:
             if conf.enable_flux_tests:
                 _log.debug("  Flux === " + str(wavefront.total_intensity))
+
+            if conf.enable_speed_tests:
+                s1 = time.time()
+                _log.debug(f"\tTIME {s1 - s0:.4f} s\t for propagating past optic '{optic.name}'.")
 
             if return_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
                 intermediate_wfs.append(wavefront.copy())

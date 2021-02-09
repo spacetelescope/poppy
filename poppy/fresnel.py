@@ -1141,6 +1141,10 @@ class FresnelOpticalSystem(BaseOpticalSystem):
         intermediate_wfs = []
 
         for optic, distance in zip(self.planes, self.distances):
+
+            if poppy.conf.enable_speed_tests:
+                s0 = time.time()
+
             # The actual propagation:
             wavefront.propagate_to(optic, distance)
             wavefront *= optic
@@ -1170,6 +1174,10 @@ class FresnelOpticalSystem(BaseOpticalSystem):
 
             if return_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
                 intermediate_wfs.append(wavefront.copy())
+
+            if poppy.conf.enable_speed_tests:
+                s1 = time.time()
+                _log.debug(f"\tTIME {s1-s0:.4f} s\t for propagating past optic '{optic.name}'.")
 
             if display_intermediates:
                 if poppy.conf.enable_speed_tests:
