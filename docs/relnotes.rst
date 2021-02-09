@@ -5,14 +5,14 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
-1.0.0
+0.9.2
 -----
 
-.. _rel1.0.0:
+.. _rel0.9.2:
 
-*2021 Jan TBD*
+*2021 Feb 10*
 
-Release summary sentence here. 
+This release includes several updated optical element classes, bug fixes, and improved documentation. This is intended as a maintenance release shortly before v 1.0 which will introduce some backwards-incompatible changes. 
 
 **New Functionality:**
  * New OpticalElement classes for ScalarOpticalPathDifference, LetterFAperture, and LetterFOpticalPathDifference. (:pr:`386` by :user:`mperrin`)
@@ -36,8 +36,6 @@ Release summary sentence here.
  * Minor doc string clarification for get_opd (:pr:`381` by :user:`douglase`)
  * Remove unused parameter to Detector class (:pr:`385` by :user:`mperrin`)
 
-
-ADD fanpeng-kong, spacegal-spiff TO CONTRIBUTORS
 
 
 0.9.1
