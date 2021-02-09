@@ -33,6 +33,10 @@ matrix:
         # and older Python versions
         - env: TOXENV='py36-legacy-test'
 
+    allow_failures:
+        # Try latest versions of all dependencies
+        - env: TOXENV='py38-latest-test'
+
 install:
     - git clone git://github.com/astropy/ci-helpers.git
     - source ci-helpers/travis/setup_conda.sh
