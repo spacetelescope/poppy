@@ -44,9 +44,14 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
                 Flip the orientation of the X or Y axes of the DM actuators. Useful if your
                 device is not oriented such that the origin is at lower left as seen in the
                 pupil.
-
             include_factor_of_two : Bool
-                include the factor of two due to reflection in the OPD function (optional, default False)
+                include the factor of two due to reflection in the OPD function (optional, default False).
+                If this is set False (default), actuator commands are interpreted as being in units of
+                desired wavefront error directly; the returned WFE will be directly proportional to the requested
+                values (convolved with the actuator response function etc).
+                If this is set to True, then the actuator commands are interpreted as being in physical surface
+                units, and the WFE is therefore a factor of two larger. The returned WFE will be twice the
+                amplitude of the requested values (convolved with the actuator response function etc.)
 
             Additionally, the standard parameters for shift_x and shift_y can be accepted and
             will be handled by the **kwargs mechanism. Note, rotation is not yet supported for DMs,
@@ -340,7 +345,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
                     shift_y_pix = int(np.round(self.shift_y /pixscale_m))
                     interpolated_surface = np.roll(interpolated_surface, shift_y_pix, axis=0)
         
-        # account for DM being reflective (opitonal, governed by include_factor_of_two parameter)
+        # account for DM being reflective (optional, governed by include_factor_of_two parameter)
         coefficient = 2 if self.include_factor_of_two else 1
 
         return coefficient*interpolated_surface # note optional *2 coefficient to account for DM being reflective surface
@@ -671,10 +676,24 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
     """ Hexagonally segmented DM. Each actuator is controlalble in piston, tip, and tilt
 
+            Parameters
+            ----------
+            rings, flattoflat, gap, center : various
+                All keywords for defining the segmented aperture geometry are inherited from
+                the MultiHexagonAperture class. See that class for details.
+
+             include_factor_of_two : Bool
+                include the factor of two due to reflection in the OPD function (optional, default False).
+                If this is set False (default), actuator commands are interpreted as being in units of
+                desired wavefront error directly; the returned WFE will be directly proportional to the requested
+                values (convolved with the actuator response function etc).
+                If this is set to True, then the actuator commands are interpreted as being in physical surface
+                units, and the WFE is therefore a factor of two larger. The returned WFE will be twice the
+                amplitude of the requested values (convolved with the actuator response function etc.)
     """
 
     def __init__(self, rings=3, flattoflat=1.0 * u.m, gap=0.01 * u.m,
-                 name='HexDM', center=True, **kwargs):
+                 name='HexDM', center=True, include_factor_of_two=False, **kwargs):
         optics.MultiHexagonAperture.__init__(self, name=name, rings=rings, flattoflat=flattoflat,
                                              gap=gap, center=center, **kwargs)
         self._surface = np.zeros((self._n_hexes_inside_ring(rings+1), 3))
@@ -682,6 +701,8 @@ class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
         # see _setup_arrays for the following
         self._last_npix = np.nan
         self._last_pixelscale = np.nan * u.meter / u.pixel
+
+        self.include_factor_of_two = include_factor_of_two
 
     @property
     def dm_shape(self):
@@ -761,6 +782,11 @@ class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
             self.opd[wseg] = (self._surface[i, 0] +
                               self._surface[i, 1] * self._seg_x[wseg] +
                               self._surface[i, 2] * self._seg_y[wseg])
+
+        # account for DM being reflective (optional, governed by include_factor_of_two parameter)
+        if self.include_factor_of_two:
+            self.opd *= 2
+
         return self.opd
 
     def get_transmission(self, wave):
