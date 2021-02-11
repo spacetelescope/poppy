@@ -24,17 +24,20 @@ The Team
 POPPY is developed primarily by a team of astronomers at the `Space Telescope
 Science Insitute <http://www.stsci.edu/>`_, but is open to contributions from
 scientists and software developers around the world. Development takes place
-on Github at http://github.com/spacetelescope/poppy . See that page for the most up-to-date
+on Github at http://github.com/spacetelescope/poppy. See that page for the most up-to-date
 list of contributors. 
 
 Direct contributors to POPPY code
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
  * Marshall Perrin (:user:`mperrin`)
- * Joseph Long (:user:`josephoenix`)
  * Ewan Douglas (:user:`douglase`)
+ * Joseph Long (:user:`josephoenix`)
  * Shannon Osborne (:user:`shanosborne`)
  * Neil Zimmerman (:user:`neilzim`)
+ * Robel Geda (:user:`robelgeda`)
+ * Scott Will (:user:`sdwill`)
+ * Iva Laginja (:user:`ivalaginja`)
  * Anand Sivaramakrishnan (:user:`anand0xff`)
  * Maciek Grochowicz (:user:`maciekgroch`)
  * Phillip Springer (:user:`daphil`)
@@ -42,12 +45,12 @@ Direct contributors to POPPY code
  * Kyle Douglass (:user:`kmdouglas`)
  * Christine Slocum (:user:`cslocum`)
  * Matt Mechtley (:user:`mmechtley`)
- * Scott Will (:user:`sdwill`)
- * Iva Laginja (:user:`ivalaginja`)
  * Mike Fitzgerald (:user:`astrofitz`)
  * Keira Brooks (:user:`kjbrooks`)
  * Justin Otor (:user:`ojustino`)
  * Rachel Morgan (:user:`remorgan01`)
+ * Fanpeng Kong (:user:`fanpeng-kong`)
+ * Kim Ward-Duong (:user:`spacegal-spiff`)
 
 Indirect Contributors (algorithms, advice, ideas, inspirations)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -85,7 +88,7 @@ in Astronomy.
 License
 -----------------
 
-Copyright (C) 2010-2017 Association of Universities for Research in Astronomy (AURA)
+Copyright (C) 2010-2021 Association of Universities for Research in Astronomy (AURA)
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
