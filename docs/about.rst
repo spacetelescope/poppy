@@ -24,7 +24,7 @@ The Team
 POPPY is developed primarily by a team of astronomers at the `Space Telescope
 Science Insitute <http://www.stsci.edu/>`_, but is open to contributions from
 scientists and software developers around the world. Development takes place
-on Github at http://github.com/spacetelescope/poppy . See that page for the most up-to-date
+on Github at http://github.com/spacetelescope/poppy. See that page for the most up-to-date
 list of contributors. 
 
 Direct contributors to POPPY code
@@ -88,7 +88,7 @@ in Astronomy.
 License
 -----------------
 
-Copyright (C) 2010-2017 Association of Universities for Research in Astronomy (AURA)
+Copyright (C) 2010-2021 Association of Universities for Research in Astronomy (AURA)
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
