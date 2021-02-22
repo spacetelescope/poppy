@@ -23,7 +23,7 @@ __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'ScalarOpticalPathDif
            'BandLimitedCoron', 'BandLimitedCoronagraph', 'IdealFQPM', 'CircularPhaseMask', 'RectangularFieldStop', 'SquareFieldStop',
            'AnnularFieldStop', 'HexagonFieldStop',
            'CircularOcculter', 'BarOcculter', 'FQPM_FFT_aligner', 'CircularAperture',
-           'HexagonAperture', 'MultiHexagonAperture', 'NgonAperture', 'RectangleAperture',
+           'HexagonAperture', 'MultiHexagonAperture', 'NgonAperture', 'multiCircularAperture', 'RectangleAperture',
            'SquareAperture', 'SecondaryObscuration', 'LetterFAperture', 'AsymmetricSecondaryObscuration',
            'ThinLens',  'GaussianAperture', 'KnifeEdge', 'TiltOpticalPathDifference', 'CompoundAnalyticOptic', 'fixed_sampling_optic']
 
@@ -1487,6 +1487,172 @@ class NgonAperture(AnalyticOpticalElement):
             pts = np.asarray(list(zip(x[row], y[row])))
             ok = matplotlib.path.Path(vertices).contains_points(pts)
             self.transmission[row][ok] = 1.0
+
+        return self.transmission
+
+class multiCircularAperture(AnalyticOpticalElement):
+    """ Defines a circularly segmented aperture in close compact configuration
+    
+    Parameters
+    ----------
+    name : string
+        descriptive name
+    rings : integer
+         The number of rings of hexagons to include, not counting the central segment
+    subPupilRadius : float, optional
+        radius of the circular sub-apertures in meters, default is 1 meters
+    gap: float, otional
+        Gap between adjacent segments, in meters. Default is 0.01 m = 1 cm
+    center : bool, optional
+        should the central segment be included? Default is True.
+    segmentlist : list of ints, optional
+        This allows one to specify that only a subset of segments are present, for a
+        partially populated segmented telescope, non-redundant segment set, etc.
+        Segments are numbered from 0 for the center segment, 1 for the segment immediately
+        above it, and then clockwise around each ring.
+        For example, segmentlist=[1,3,5] would make an aperture of 3 segments.
+    gray_pixel : bool, optional
+        Apply gray pixel approximation to return fractional transmission for
+        edge pixels that are only partially within this aperture? default : True
+    
+    """
+    
+    @utils.quantity_input(segRadius=u.meter, gap=u.meter)
+    def __init__(self, name = "multiCirc",rings = 1, segRadius = 1.0, gap = 0.01, 
+                 segmentList = None, center = True,gray_pixel = True, **kwargs):
+        self.segRadius = segRadius
+        self.segDiameter = 2*segRadius
+        self.rings = rings
+        self.gap = gap
+        
+        AnalyticOpticalElement.__init__(self, name=name, planetype=PlaneType.pupil,**kwargs)
+        
+        self.pupil_diam = (self.segDiameter+ self.gap) * (2 * self.rings + 1)
+
+        # make a list of all the segments included in this hex aperture
+        if segmentList is not None:
+            self.segmentList = segmentList
+        else:
+            self.segmentList = list(range(self._n_aper_inside_ring(self.rings + 1)))
+            if not center:
+                self.segmentList.remove(0)  # remove center segment 0
+                
+        self._use_gray_pixel = bool(gray_pixel)
+        
+    def _n_aper_in_ring(self, n):
+        """ How many hexagons in ring N? """
+        return 1 if n == 0 else 6 * n
+        
+    def _n_aper_inside_ring(self, n):
+        """ How many apertures interior to ring N, not counting N?"""
+        return sum([self._n_aper_in_ring(i) for i in range(n)])
+    
+    def _aper_in_ring(self, aper_index):
+        """ What aper is a given hexagon in?"""
+        if aper_index == 0:
+            return 0
+        for i in range(100):
+            if self._n_aper_inside_ring(i) <= aper_index < self._n_aper_inside_ring(i + 1):
+                return i
+        raise ValueError("Loop exceeded! MultiCircularAperture is limited to <100 rings of apertures.")
+        
+    def _aper_radius(self, aper_index):
+        """ Radius of a given hexagon from the center """
+        ring = self._aper_in_ring(aper_index)
+        if ring <= 1:
+            return (self.segDiameter + self.gap) * ring
+        
+    def _aper_center(self, aper_index):
+        """ Center coordinates of a given hexagon
+        counting clockwise around each ring
+        Returns y, x coords
+        """
+        ring = self._aper_in_ring(aper_index)
+
+        # handle degenerate case of center segment
+        # to avoid div by 0 in the main code below
+        if ring == 0:
+            return 0, 0
+
+        # now count around from the starting point:
+        index_in_ring = aper_index - self._n_aper_inside_ring(ring) + 1  # 1-based
+        angle_per_aper = 2 * np.pi / self._n_aper_in_ring(ring)  # angle in radians
+
+        # Now figure out what the radius is:
+        segDiameter = self.segDiameter.to(u.meter).value
+        gap = self.gap.to(u.meter).value
+
+        radius = (segDiameter + gap) * ring  # JWST 'B' segments, aka corners
+        if np.mod(index_in_ring, ring) == 1:
+            angle = angle_per_aper * (index_in_ring - 1)
+            ypos = radius * np.cos(angle)
+            xpos = radius * np.sin(angle)
+        else:
+            # find position of previous 'B' type segment.
+            last_B_angle = ((index_in_ring - 1) // ring) * ring * angle_per_aper
+            ypos0 = radius * np.cos(last_B_angle)
+            xpos0 = radius * np.sin(last_B_angle)
+
+            # count around from that corner
+            da = (segDiameter + gap) * np.cos(30 * np.pi / 180)
+            db = (segDiameter + gap) * np.sin(30 * np.pi / 180)
+
+            whichside = (index_in_ring - 1) // ring  # which of the sides are we on?
+            if whichside == 0:
+                dx, dy = da, -db
+            elif whichside == 1:
+                dx, dy = 0, -(segDiameter + gap)
+            elif whichside == 2:
+                dx, dy = -da, -db
+            elif whichside == 3:
+                dx, dy = -da, db
+            elif whichside == 4:
+                dx, dy = 0, (segDiameter + gap)
+            elif whichside == 5:
+                dx, dy = da, db
+
+            xpos = xpos0 + dx * np.mod(index_in_ring - 1, ring)
+            ypos = ypos0 + dy * np.mod(index_in_ring - 1, ring)
+
+        return ypos, xpos
+    
+    def get_transmission(self, wave):
+        """ Compute the transmission inside/outside of the occulter.
+        """
+        if not isinstance(wave, BaseWavefront):
+            raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
+        assert (wave.planetype != PlaneType.image)
+
+        self.transmission = np.zeros(wave.shape, dtype=_float())
+
+        for i in self.segmentList:
+            self._one_aperture(wave, i)
+
+        return self.transmission
+
+    def _one_aperture(self, wave, index, value=1):
+        """ Draw one circular aperture into the self.transmission array """
+
+        y, x = self.get_coordinates(wave)
+        segRadius = self.segRadius.to(u.meter).value
+
+        ceny, cenx = self._aper_center(index)
+
+        y -= ceny
+        x -= cenx
+        
+        if self._use_gray_pixel:
+            pixscale = wave.pixelscale.to(u.meter/u.pixel).value
+            tmpTransmission = geometry.filled_circle_aa(wave.shape, 0, 0, segRadius/pixscale, x/pixscale, y/pixscale)
+            self.transmission += tmpTransmission 
+        else:
+            r = _r(x, y)
+            del x
+            del y
+
+            w_inside = np.where(r < segRadius)
+            del r
+            self.transmission[w_inside] = value
 
         return self.transmission
 
