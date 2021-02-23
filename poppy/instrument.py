@@ -709,7 +709,7 @@ class Instrument(object):
             result[0].header['JITRTYPE'] = ('None', 'Type of jitter applied')
             return
 
-        if conf.enable_speed_tests: t0 = time.time()
+        if conf.enable_speed_tests: t0 = time.time()  # pragma: no cover
 
         poppy_core._log.info("Calculating jitter using " + str(local_options['jitter']))
 
@@ -742,7 +742,7 @@ class Instrument(object):
         else:
             raise ValueError('Unknown jitter option value: ' + local_options['jitter'])
 
-        if conf.enable_speed_tests:
+        if conf.enable_speed_tests: # pragma: no cover
             t1 = time.time()
             _log.debug("\tTIME %f s\t for jitter model" % (t1 - t0))
 
