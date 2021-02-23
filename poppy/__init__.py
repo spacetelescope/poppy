@@ -61,6 +61,8 @@ class Conf(_config.ConfigNamespace):
     autosave_fftw_wisdom = _config.ConfigItem(True, 'Should POPPY ' +
                                               'automatically save and reload FFTW ' +
                                               '"wisdom" for improved speed?')
+    use_mkl = _config.ConfigItem(True, "Use Intel MKL for FFTs (assuming it is available). "
+                                       "This has highest priority for CPU-based FFT over other FFT options, if multiple are set True.")
 
     use_cuda = _config.ConfigItem(True, 'Use cuda for FFTs on GPU (assuming it' +
             'is available)?')

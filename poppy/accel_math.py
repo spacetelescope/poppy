@@ -31,6 +31,14 @@ except ImportError:
     ne = None
     _NUMEXPR_AVAILABLE = False
 
+
+try:
+    import mkl_fft
+    _MKLFFT_AVAILABLE = True
+except ImportError:
+    _MKLFFT_AVAILABLE = False
+
+
 try:
     # try to import CUDA packages to see if they are available
     import pyculib
@@ -55,16 +63,18 @@ _USE_CUDA = (conf.use_cuda and _CUDA_AVAILABLE)
 _USE_OPENCL = (conf.use_opencl and _OPENCL_AVAILABLE)
 _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
 _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
+_USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE)
 
 
 def update_math_settings():
     """ Update the module-level math flags, based on user settings
     """
-    global _USE_CUDA, _USE_OPENCL, _USE_NUMEXPR, _USE_FFTW
+    global _USE_CUDA, _USE_OPENCL, _USE_NUMEXPR, _USE_FFTW, _USE_MKL
     _USE_CUDA = (conf.use_cuda and _CUDA_AVAILABLE)
     _USE_OPENCL = (conf.use_opencl and _OPENCL_AVAILABLE)
     _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
     _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
+    _USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE)
 
 
 def _float():
@@ -190,6 +200,8 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         method = 'pyculib (CUDA GPU)'
     elif _USE_OPENCL:
         method = 'pyopencl (OpenCL GPU)'
+    elif _USE_MKL:
+        method = 'mkl_fft'
     elif _USE_FFTW:
         method = 'pyfftw'
     else:
@@ -232,6 +244,13 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         event.wait()
         wavefront[:] = wf_on_gpu.get()
         del wf_on_gpu
+
+    elif _USE_MKL:
+        # Intel MKL is a drop-in replacement for numpy fft but much faster
+        do_fft = mkl_fft.fft2 if forward else mkl_fft.ifft2
+        if normalization is None:
+            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
+        wavefront = do_fft(wavefront)
 
     elif _USE_FFTW:
         FFT_direction = 'forward' if forward else 'backward' # back compatible for use in _FFTW_INIT
