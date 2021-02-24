@@ -1519,7 +1519,7 @@ class multiCircularAperture(AnalyticOpticalElement):
     
     @utils.quantity_input(segRadius=u.meter, gap=u.meter)
     def __init__(self, name = "multiCirc",rings = 1, segRadius = 1.0, gap = 0.01, 
-                 segmentList = None, center = True,gray_pixel = True, **kwargs):
+                 segmentlist = None, center = True,gray_pixel = True, **kwargs):
         self.segRadius = segRadius
         self.segDiameter = 2*segRadius
         self.rings = rings
@@ -1530,12 +1530,12 @@ class multiCircularAperture(AnalyticOpticalElement):
         self.pupil_diam = (self.segDiameter+ self.gap) * (2 * self.rings + 1)
 
         # make a list of all the segments included in this hex aperture
-        if segmentList is not None:
-            self.segmentList = segmentList
+        if segmentlist is not None:
+            self.segmentlist = segmentlist
         else:
-            self.segmentList = list(range(self._n_aper_inside_ring(self.rings + 1)))
+            self.segmentlist = list(range(self._n_aper_inside_ring(self.rings + 1)))
             if not center:
-                self.segmentList.remove(0)  # remove center segment 0
+                self.segmentlist.remove(0)  # remove center segment 0
                 
         self._use_gray_pixel = bool(gray_pixel)
         
@@ -1625,7 +1625,7 @@ class multiCircularAperture(AnalyticOpticalElement):
 
         self.transmission = np.zeros(wave.shape, dtype=_float())
 
-        for i in self.segmentList:
+        for i in self.segmentlist:
             self._one_aperture(wave, i)
 
         return self.transmission
