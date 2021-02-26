@@ -14,8 +14,7 @@ latest development version from git::
    % pip install -e .
 
 .. note::
-   Users at STScI may also access POPPY through the standard `SSB software
-   distributions <http://ssb.stsci.edu/ssb_software.shtml>`__.
+   Users may also access POPPY with ``conda`` through the `AstroConda channel <https://astroconda.readthedocs.io/en/latest/>`__.
 
 Requirements
 --------------
