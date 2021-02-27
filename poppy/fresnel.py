@@ -12,8 +12,10 @@ if accel_math._USE_NUMEXPR:
     import numexpr as ne
     pi = np.pi  # needed for evaluation inside numexpr strings.
 
-_log = logging.getLogger('poppy')
+from .accel_math import _float, _complex
+from . import conf
 
+_log = logging.getLogger('poppy')
 
 __all__ = ['QuadPhase', 'QuadraticLens', 'FresnelWavefront', 'FresnelOpticalSystem']
 
@@ -75,8 +77,6 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
             opd = (x ** 2 + y ** 2)  / (2.0 *z)
 
         return opd
-
-
 
 class _QuadPhaseShifted(QuadPhase):
     """
@@ -168,7 +168,7 @@ class ConicLens(poppy.optics.CircularAperture):
 class FresnelWavefront(BaseWavefront):
     angular_coordinates = False
     """Should coordinates be expressed in arcseconds instead of meters at the current plane? """
-
+    
     @u.quantity_input(beam_radius=u.m)
     def __init__(self,
                  beam_radius,
@@ -1098,9 +1098,9 @@ class FresnelOpticalSystem(BaseOpticalSystem):
         self.distances.append(distance)
         if self.verbose:
             _log.info("Added detector: {0} after separation: {1:.2e} ".format(self.planes[-1].name, distance))
-
+    
     @utils.quantity_input(wavelength=u.meter)
-    def input_wavefront(self, wavelength=1e-6 * u.meter):
+    def input_wavefront(self, wavelength=1e-6 * u.meter, inwave=None):
         """Create a Wavefront object suitable for sending through a given optical system.
 
         Uses self.source_offset to assign an off-axis tilt, if requested.
@@ -1118,16 +1118,24 @@ class FresnelOpticalSystem(BaseOpticalSystem):
 
         """
         oversample = int(np.round(1 / self.beam_ratio))
-        inwave = FresnelWavefront(self.pupil_diameter / 2, wavelength=wavelength,
-                                  npix=self.npix, oversample=oversample)
+        if isinstance(inwave, poppy.FresnelWavefront) :
+            _log.info('Using user-defined wavefront for the input wavefront.')
+            inwave = inwave
+        elif inwave==None:
+            _log.info('No input wavefront provided, generating input wavefront.' )
+            inwave = FresnelWavefront(self.pupil_diameter / 2, wavelength=wavelength,
+                                      npix=self.npix, oversample=oversample)
+        else:
+            raise ValueError("Input wavefront must be a FresnelWavefront() object when using FresnelOpticalSystem() or None.")
+ 
         _log.debug(
-            "Creating input wavefront with wavelength={0} microns,"
+            "Input wavefront created with wavelength={0} microns,"
             "npix={1}, diam={3}, pixel scale={2}".format(
                 wavelength.to(u.micron).value, self.npix, self.pupil_diameter / (self.npix * u.pixel), self.pupil_diameter
             ))
         inwave._display_hint_expected_nplanes = len(self)     # For displaying a multi-step calculation nicely
         return inwave
-
+    
     def propagate(self,
                   wavefront,
                   normalize='none',
@@ -1195,10 +1203,323 @@ class FresnelOpticalSystem(BaseOpticalSystem):
         res = (str(self) +
                "\n\tEntrance pupil diam:  {0}\tnpix: {1}\tBeam ratio:{2}".format(self.pupil_diameter, self.npix,
                                                                                  self.beam_ratio))
-
         for optic, distance in zip(self.planes, self.distances):
             if distance != 0:
                 res += "\n\tPropagation distance:  {0}".format(distance)
             res += "\n\t" + str(optic)
 
         print(res)
+        
+    @utils.quantity_input(wavelength=u.meter)
+    def calc_psf(self, wavelength=1e-6,
+                 weight=None,
+                 save_intermediates=False,
+                 save_intermediates_what='all',
+                 display=False,
+                 return_intermediates=False,
+                 return_final=False,
+                 source=None,
+                 normalize='first',
+                 display_intermediates=False,
+                 inwave=None):
+        
+        """Calculate a PSF, either multi-wavelength or monochromatic.
+
+        The wavelength coverage computed will be:
+        - multi-wavelength PSF over some weighted sum of wavelengths (if you provide a `source` argument)
+        - monochromatic (if you provide just a `wavelength` argument)
+
+        Parameters
+        ----------
+        wavelength : float or Astropy.Quantity, optional
+            wavelength in meters, or some other length unit if specified as an astropy.Quantity. Either
+            scalar for monochromatic calculation or list or ndarray for multiwavelength calculation.
+        weight : float, optional
+            weight by which to multiply each wavelength. Must have same length as
+            wavelength parameter. Defaults to 1s if not specified.
+        save_intermediates : bool, optional
+            whether to output intermediate optical planes to disk. Default is False
+        save_intermediate_what : string, optional
+            What to save - phase, intensity, amplitude, complex, parts, all. Default is all.
+        return_intermediates: bool, optional
+            return intermediate wavefronts as well as PSF?
+        return_final: bool, optional
+            return the complex wavefront at the last surface propagation as well as the PSF.
+            Useful for getting complex PSF without memory usage of `return_intermediates`
+        source : dict
+            a dict containing 'wavelengths' and 'weights' list.
+        normalize : string, optional
+            How to normalize the PSF. See the documentation for propagate_mono() for details.
+        display : bool, optional
+            whether to plot the results when finished or not.
+        display_intermediates: bool, optional
+            Display intermediate optical planes? Default is False. This option is incompatible with
+            parallel calculations using `multiprocessing`. (If calculating in parallel, it will have no effect.)
+
+        Returns
+        -------
+        outfits :
+            a fits.HDUList
+        intermediate_wfs : list of `poppy.Wavefront` objects (optional)
+            Only returned if `return_intermediates` is specified.
+            A list of `poppy.Wavefront` objects representing the wavefront at intermediate optical planes.
+            The 0th item is "before first optical plane", 1st is "after first plane and before second plane", and so on.
+        final_wfs : `poppy.Wavefront` object (optional)
+            Only returned if `return_final` is specified.
+           `poppy.Wavefront` objects representing the wavefront at the last of the optical planes.
+        """
+
+        tstart = time.time()
+        if source is not None:
+            wavelength = source['wavelengths']
+            weight = source['weights']
+
+            # Make sure the wavelength is unit-y
+            if not isinstance(wavelength, u.Quantity):
+                wavelength = np.asarray(wavelength) * u.meter
+
+        # ensure wavelength is a quantity which is iterable:
+        # (the check for a quantity of type length is applied in the decorator)
+        if np.isscalar(wavelength.value):
+            wavelength = np.asarray([wavelength.value], dtype=_float()) * wavelength.unit
+
+        if weight is None:
+            weight = [1.0] * len(wavelength)
+
+        if len(tuple(wavelength)) != len(tuple(weight)):
+            raise ValueError("Input source has different number of weights and wavelengths...")
+
+        # loop over wavelengths
+        if self.verbose:
+            _log.info("Calculating PSF with %d wavelengths" % (len(wavelength)))
+        outfits = None
+        intermediate_wfs = None
+        if save_intermediates or return_intermediates:
+            _log.info("User requested saving intermediate wavefronts in call to poppy.calc_psf")
+            retain_intermediates = True
+        else:
+            retain_intermediates = False
+
+        normwts = np.asarray(weight, dtype=_float())
+        normwts /= normwts.sum()
+
+        _USE_FFTW = (conf.use_fftw and accel_math._FFTW_AVAILABLE)
+        if _USE_FFTW:
+            utils.fftw_load_wisdom()
+
+        if conf.use_multiprocessing and len(wavelength) > 1:  # ######## Parallellized computation ############
+            # Avoid a Mac OS incompatibility that can lead to hard-to-reproduce crashes.
+            # see issues #23 and #176
+
+            if _USE_FFTW:
+                _log.warning('IMPORTANT WARNING: Python multiprocessing and fftw3 do not appear to play well together. '
+                             'This may crash intermittently')
+                _log.warning('   We suggest you set poppy.conf.use_fftw to False if you want to use multiprocessing().')
+            if display:
+                _log.warning('Display during calculations is not supported for multiprocessing mode. '
+                             'Please set poppy.conf.use_multiprocessing = False if you want to use display=True.')
+                _log.warning('(Plot the returned PSF with poppy.utils.display_psf.)')
+
+            if return_intermediates:
+                _log.warning('Memory usage warning: When preserving intermediate  planes in multiprocessing mode, '
+                             'memory usage scales with the number of planes times number of wavelengths. Disable '
+                             'use_multiprocessing if you are running out of memory.')
+            if save_intermediates:
+                _log.warning('Saving intermediate steps does not take advantage of multiprocess parallelism. '
+                             'Set save_intermediates=False for improved speed.')
+
+            # do *NOT* just blindly try to create as many processes as one has CPUs, or one per wavelength either
+            # This is a memory-intensive task so that can end up swapping to disk and thrashing IO
+            nproc = conf.n_processes if conf.n_processes > 1 \
+                else utils.estimate_optimal_nprocesses(self, nwavelengths=len(wavelength))
+            nproc = min(nproc, len(wavelength))  # never try more processes than wavelengths.
+            # be sure to cast nproc to int below; will fail if given a float even if of integer value
+
+            # Use forkserver method (requires Python >= 3.4) for more robustness, instead of just Pool
+            # Resolves https://github.com/mperrin/poppy/issues/23
+            ctx = multiprocessing.get_context('forkserver')
+            pool = ctx.Pool(int(nproc))
+
+            # build a single iterable containing the required function arguments
+            _log.info("Beginning multiprocessor job using {0} processes".format(nproc))
+            worker_arguments = [(self, wlen, retain_intermediates, return_final, normalize, _USE_FFTW)
+                                for wlen in wavelength]
+            results = pool.map(_wrap_propagate_for_multiprocessing, worker_arguments)
+            _log.info("Finished multiprocessor job")
+            pool.close()
+
+            # Sum all the results up into one array, using the weights
+            outfits, intermediate_wfs = results[0]
+            outfits[0].data *= normwts[0]
+            for idx, wavefront in enumerate(intermediate_wfs):
+                intermediate_wfs[idx] *= normwts[0]
+            _log.info("got results for wavelength channel {} / {} ({:g} meters)".format(
+                0, len(tuple(wavelength)), wavelength[0]))
+            for i in range(1, len(normwts)):
+                mono_psf, mono_intermediate_wfs = results[i]
+                wave_weight = normwts[i]
+                _log.info("got results for wavelength channel {} / {} ({:g} meters)".format(
+                    i, len(tuple(wavelength)), wavelength[i]))
+                outfits[0].data += mono_psf[0].data * wave_weight
+                for idx, wavefront in enumerate(mono_intermediate_wfs):
+                    intermediate_wfs[idx] += wavefront * wave_weight
+            outfits[0].header.add_history("Multiwavelength PSF calc using {} processes completed.".format(nproc))
+
+        else:  # ######### single-threaded computations (may still use multi cores if FFTW enabled ######
+            if display:
+                plt.clf()
+            for wlen, wave_weight in zip(wavelength, normwts):
+                mono_psf, mono_intermediate_wfs = self.propagate_mono(
+                    wlen,
+                    retain_intermediates=retain_intermediates,
+                    retain_final=return_final,
+                    display_intermediates=display_intermediates,
+                    normalize=normalize,
+                    inwave=inwave
+                )
+
+                if outfits is None:
+                    # for the first wavelength processed, set up the arrays where we accumulate the output
+                    outfits = mono_psf
+                    outfits[0].data *= wave_weight
+                    intermediate_wfs = mono_intermediate_wfs
+                    for wavefront in intermediate_wfs:
+                        wavefront *= wave_weight  # modifies Wavefront in-place
+                else:
+                    # for subsequent wavelengths, scale and add the data to the existing arrays
+                    outfits[0].data += mono_psf[0].data * wave_weight
+                    for idx, wavefront in enumerate(mono_intermediate_wfs):
+                        intermediate_wfs[idx] += wavefront * wave_weight
+
+            # Display WF if requested.
+            #  Note - don't need to display here if we are showing all steps already
+            if display and not display_intermediates:
+                cmap = getattr(matplotlib.cm, conf.cmap_sequential)
+                cmap.set_bad('0.3')
+                halffov_x = outfits[0].header['PIXELSCL'] * outfits[0].data.shape[1] / 2
+                halffov_y = outfits[0].header['PIXELSCL'] * outfits[0].data.shape[0] / 2
+                extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
+                unit = "arcsec"
+                vmax = outfits[0].data.max()
+                vmin = vmax / 1e4
+                norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)  # vmin=1e-8,vmax=1e-1)
+                plt.xlabel(unit)
+
+                utils.imshow_with_mouseover(outfits[0].data, extent=extent, norm=norm, cmap=cmap,
+                                            origin='lower')
+
+        if save_intermediates:
+            _log.info('Saving intermediate wavefronts:')
+            for idx, wavefront in enumerate(intermediate_wfs):
+                filename = 'wavefront_plane_{:03d}.fits'.format(idx)
+                wavefront.writeto(filename, what=save_intermediates_what)
+                _log.info('  saved {} to {} ({} / {})'.format(save_intermediates_what, filename,
+                                                              idx, len(intermediate_wfs)))
+
+        tstop = time.time()
+        tdelta = tstop - tstart
+        _log.info("  Calculation completed in {0:.3f} s".format(tdelta))
+        outfits[0].header.add_history("Calculation completed in {0:.3f} seconds".format(tdelta))
+
+        if _USE_FFTW and conf.autosave_fftw_wisdom:
+            utils.fftw_save_wisdom()
+
+        # TODO update FITS header for oversampling here if detector is different from regular?
+        waves = np.asarray(wavelength)
+        wts = np.asarray(weight)
+        mnwave = (waves * wts).sum() / wts.sum()
+        outfits[0].header['WAVELEN'] = (mnwave, 'Weighted mean wavelength in meters')
+        outfits[0].header['NWAVES'] = (waves.size, 'Number of wavelengths used in calculation')
+        for i in range(waves.size):
+            outfits[0].header['WAVE' + str(i)] = (waves[i], "Wavelength " + str(i))
+            outfits[0].header['WGHT' + str(i)] = (wts[i], "Wavelength weight " + str(i))
+        ffttype = "pyFFTW" if _USE_FFTW else "numpy.fft"
+        outfits[0].header['FFTTYPE'] = (ffttype, 'Algorithm for FFTs: numpy or fftw')
+        outfits[0].header['NORMALIZ'] = (normalize, 'PSF normalization method')
+
+        if self.verbose:
+            _log.info("PSF Calculation completed.")
+
+        if return_intermediates | return_final:
+            return outfits, intermediate_wfs
+
+        else:
+            return outfits
+        
+    @utils.quantity_input(wavelength=u.meter)
+    def propagate_mono(self,
+                       wavelength=1e-6 * u.meter,
+                       normalize='first',
+                       retain_intermediates=False,
+                       retain_final=False,
+                       display_intermediates=False,
+                       inwave=None):
+            
+        """Propagate a monochromatic wavefront through the optical system. Called from within `calc_psf`.
+        Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s (empty if
+        `retain_intermediates=False`).
+
+        Parameters
+        ----------
+        wavelength : float
+            Wavelength in meters
+        normalize : string, {'first', 'last'}
+            how to normalize the wavefront?
+            * 'first' = set total flux = 1 after the first optic, presumably a pupil
+            * 'last' = set total flux = 1 after the entire optical system.
+            * 'exit_pupil' = set total flux = 1 at the last pupil of the optical system.
+            * 'first=2' = set total flux = 2 after the first optic (used for debugging only)
+        display_intermediates : bool
+            Should intermediate steps in the calculation be displayed on screen? Default: False.
+        retain_intermediates : bool
+            Should intermediate steps in the calculation be retained? Default: False.
+            If True, the second return value of the method will be a list of `poppy.Wavefront` objects
+            representing intermediate optical planes from the calculation.
+        retain_final : bool
+            Should the final complex wavefront be retained? Default: False.
+            If True, the second return value of the method will be a single element list
+            (for consistency with retain intermediates) containing a `poppy.Wavefront` object
+            representing the final optical plane from the calculation.
+            Overridden by retain_intermediates.
+
+        Returns
+        -------
+        final_wf : fits.HDUList
+            The final result of the monochromatic propagation as a FITS HDUList
+        intermediate_wfs : list
+            A list of `poppy.Wavefront` objects representing the wavefront at intermediate optical planes.
+            The 0th item is "before first optical plane", 1st is "after first plane and before second plane", and so on.
+            (n.b. This will be empty if `retain_intermediates` is False and singular if retain_final is True.)
+        """
+
+        if conf.enable_speed_tests:
+            t_start = time.time()
+        if self.verbose:
+            _log.info(" Propagating wavelength = {0:g}".format(wavelength))
+        
+        wavefront = self.input_wavefront(wavelength, inwave=inwave)  
+
+        kwargs = {'normalize': normalize,
+                  'display_intermediates': display_intermediates,
+                  'return_intermediates': retain_intermediates}
+
+        # Is there a more elegant way to handle optional return quantities?
+        # without making them mandatory.
+        if retain_intermediates:
+            wavefront, intermediate_wfs = self.propagate(wavefront, **kwargs)
+        else:
+            wavefront = self.propagate(wavefront, **kwargs)
+            intermediate_wfs = []
+
+        if (not retain_intermediates) & retain_final:  # return the full complex wavefront of the last plane.
+            intermediate_wfs = [wavefront]
+
+        if conf.enable_speed_tests:
+            t_stop = time.time()
+            _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop - t_start))
+
+        return wavefront.as_fits(), intermediate_wfs
+        
+        
+        
+        
