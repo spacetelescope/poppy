@@ -5,6 +5,34 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+1.0.0
+-----
+
+.. _rel1.0.0:
+
+*Date TBD*
+
+.. admonition:: Changes and Clarifications in Signs for Wavefront Error and Phase
+
+    **Some sign conventions for wavefront error and optical phase have changed in this version of poppy**
+
+    This release includes optical algorithm updates after a thorough audit and cross-check of sign conventions for phase and wavefront error, disambiguating portions of the
+    sign conventions and code to ensure consistency with several other relevant optical modeling packages. Poppy now strictly follows the sign conventions as advocated in e.g.
+    Wyant and Creath's `Basic Wavefront Aberration Theory for Optical Metrology <https://ui.adsabs.harvard.edu/abs/1992aooe...11....2W/abstract>_` (or see `here <https://wp.optics.arizona.edu/jcwyant/wp-content/uploads/sites/13/2016/08/03-BasicAberrations_and_Optical_Testing.pdf>_`). This makes poppy consistent with the convention more widely used in optical metrology and other optical software such as Code V; however this is not consistent with some other reference such as Goodman's classic text _Fourier Optics_.
+
+    To achieve that consistency, *this is a partially back-incompatible release*, with
+    changes in the signs of complex exponentials in some Fourier propagation calculations. Depending on your use case this may result in some changes in output PSFs or
+    different signs or orientations from prior results.
+
+    See :ref:`sign_conventions` for details, discussion, and demonstration. Many thanks to Derek
+    Sabatke (Ball Aerospace), Matthew Bergkoetter Alden Jurling and Tom Zielinski (NASA GSFC), and
+    Randal Telfer (STScI) for invaluable discussions and aid in getting these
+    details onto a more rigorous footing.
+
+**Other enhancements and fixes:**
+ * Wavefront instances gain a `.wfe` attribute for the wavefront error in meters (computed from phase, so it will wrap if wavefront error exceeds +- 0.5 waves), and the wavefront display method can display wfe as well as intensity and phase.
+
+
 0.9.2
 -----
 
