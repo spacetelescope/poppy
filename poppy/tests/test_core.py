@@ -14,6 +14,8 @@ import poppy
 from .. import poppy_core
 from .. import optics
 
+import matplotlib.pyplot as plt
+
 ####### Test Common Infrastructre #######
 
 def check_wavefront(filename_or_hdulist, slice=0, ext=0, test='nearzero', comment=""):
@@ -141,7 +143,7 @@ def test_CircularAperture_Airy(display=False):
         pl.title("Analytic")
         pl.subplot(142)
         #ax2=pl.imshow(numeric[0].data, norm=norm)
-        utils.display_PSF(numeric, vmin=1e-6, vmax=1e-2, colorbar=False)
+        utils.display_psf(numeric, vmin=1e-6, vmax=1e-2, colorbar=False)
         pl.title("Numeric")
         pl.subplot(143)
         ax2=pl.imshow(numeric[0].data-analytic, norm=norm)
@@ -516,6 +518,55 @@ def test_OPD_in_waves_for_FITSOpticalElement():
         psf = osys.calc_psf(wavelength=prefactor * u.um)
         assert np.isclose(center_pixel_value, psf[0].data[1,1])
 
+### OpticalSystem tests and related
+
+def test_source_offsets_in_OpticalSystem(npix=128, fov_size=1):
+    """Test source offsets within the field move in the expected
+    directions and by the expected amounts
+
+    Parameters:
+    ----------
+    npix : int
+        number of pixels
+    fov_size :
+        fov size in arcsec (pretty much arbitrary)
+    """
+
+    if npix < 110:
+        raise ValueError("npix < 110 results in too few pixels for fwcentroid to work properly.")
+
+    pixscale = fov_size / npix
+    center_coords = np.asarray((npix - 1, npix - 1)) / 2
+
+    osys = poppy.OpticalSystem(oversample=1)
+    osys.add_pupil(poppy.CircularAperture(radius=1.0))
+    osys.add_detector(pixelscale=pixscale, fov_pixels=npix)
+
+    # a PSF with no offset should be centered
+    psf0 = osys.calc_psf()
+    cen = poppy.measure_centroid(psf0)
+    assert np.allclose(cen, center_coords), "PSF with no source offset should be centered"
+
+    # Compute a PSF with the source offset towards PA=0 (+Y), still within the FOV
+    osys.source_offset_r = 0.3 * fov_size
+
+    # Shift to PA=0 should move in +Y
+    osys.source_offset_theta = 0
+    psf1 = osys.calc_psf()
+    cen = poppy.measure_centroid(psf1)
+    assert np.allclose((cen[0] - center_coords[0]) * pixscale, osys.source_offset_r,
+                       rtol=0.1), "Measured centroid in Y did not match expected offset"
+    assert np.allclose(cen[1], center_coords[1], rtol=0.1), "Measured centroid in X should not shift for this test case"
+
+    # Shift to PA=90 should move in -X
+    osys.source_offset_theta = 90
+    psf2 = osys.calc_psf()
+    cen = poppy.measure_centroid(psf2)
+    assert np.allclose((cen[1] - center_coords[1]) * pixscale, -osys.source_offset_r,
+                       rtol=0.1), "Measured centroid in X did not match expected offset"
+    assert np.allclose(cen[0], center_coords[0], rtol=0.1), "Measured centroid in Y should not shift for this test case"
+
+
 ### Detector class unit test ###
 
 try:
@@ -586,7 +637,6 @@ def test_Detector_pixelscale_units():
 
 # Tests for CompoundOpticalSystem
 
-
 def test_CompoundOpticalSystem():
     """ Verify basic functionality of concatenating optical systems
     """
@@ -619,3 +669,77 @@ def test_CompoundOpticalSystem():
 
     # check the planes
     assert len(cosys.planes) == len(osys1.planes)+len(osys2.planes)
+
+# Tests for the inwave argument
+
+def test_inwave_fraunhoffer(display_fig=False):
+    '''Verify basic functionality of the inwave kwarg for a basic OpticalSystem()'''
+    npix=512
+    oversample=4
+    diam=2.4*u.m
+    lambda_m = 0.5e-6*u.m
+    # calculate the Fraunhofer diffraction pattern
+    hst = poppy.OpticalSystem(pupil_diameter=diam, npix=npix, oversample=oversample)
+    hst.add_pupil(poppy.CircularAperture(radius=diam.value/2))
+    hst.add_pupil(poppy.SecondaryObscuration(secondary_radius=0.396,
+                  support_width=0.0264,
+                  support_angle_offset=45.0))
+    hst.add_image(poppy.ScalarTransmission(planetype=poppy_core.PlaneType.image, name='focus'))
+    
+    plt.figure(figsize=(9,3))
+    psf1,wfs1 = hst.calc_psf(wavelength=lambda_m, display_intermediates=display_fig, return_intermediates=True)
+    
+    # now test the system by inputting a wavefront first
+    wfin = poppy.Wavefront(wavelength=lambda_m, npix=npix,
+                           diam=diam, oversample=oversample)
+    plt.figure(figsize=(9,3))
+    psf2,wfs2 = hst.calc_psf(wavelength=lambda_m, display_intermediates=display_fig, return_intermediates=True, 
+                             inwave=wfin)
+    
+    wf = wfs1[-1].wavefront
+    wf_no_in = wfs2[-1].wavefront
+    
+    assert np.allclose(wf, wf_no_in), 'Results differ unexpectedly when using inwave argument in OpticalSystem().'
+
+def test_inwave_fresnel(display_fig=False):
+    '''Verify basic functionality of the inwave kwarg for a basic FresnelOpticalSystem()'''
+    npix=256
+    oversample=2
+    # HST example - Following example in PROPER Manual V2.0 page 49.
+    lambda_m = 0.5e-6*u.m
+    diam = 2.4 * u.m
+    fl_pri = 5.52085 * u.m
+    d_pri_sec = 4.907028205 * u.m
+    fl_sec = -0.6790325 * u.m
+    d_sec_to_focus = 6.3919974 * u.m
+    
+    m1 = poppy.QuadraticLens(fl_pri, name='Primary')
+    m2 = poppy.QuadraticLens(fl_sec, name='Secondary')
+    
+    hst = poppy.FresnelOpticalSystem(pupil_diameter=diam, npix=npix, beam_ratio=1/oversample)
+    hst.add_optic(poppy.CircularAperture(radius=diam.value/2))
+    hst.add_optic(poppy.SecondaryObscuration(secondary_radius=0.396,
+                                     support_width=0.0264,
+                                     support_angle_offset=45.0))
+    hst.add_optic(m1)
+    hst.add_optic(m2, distance=d_pri_sec)
+    hst.add_optic(poppy.ScalarTransmission(planetype=poppy_core.PlaneType.image, name='focus'), distance=d_sec_to_focus)
+    
+    plt.figure(figsize=(12,8))
+    psf1, wfs1 = hst.calc_psf(wavelength=lambda_m, display_intermediates=display_fig, return_intermediates=True)
+    
+    # now test the system by inputting a wavefront first
+    wfin = poppy.FresnelWavefront(beam_radius=diam/2, wavelength=lambda_m, 
+                                  npix=npix, oversample=oversample)
+    plt.figure(figsize=(12,8))
+    psf2, wfs2 = hst.calc_psf(wavelength=lambda_m, display_intermediates=display_fig, return_intermediates=True, 
+                              inwave=wfin)
+    
+    wf = wfs1[-1].wavefront
+    wf_no_in = wfs2[-1].wavefront
+    
+    assert np.allclose(wf, wf_no_in), 'Results differ unexpectedly when using inwave argument for FresnelOpticalSystem().'
+
+
+
+
