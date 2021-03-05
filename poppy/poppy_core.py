@@ -2238,14 +2238,14 @@ class CompoundOpticalSystem(OpticalSystem):
         return np.sum([len(optsys) for optsys in self.optsyslist])
 
     @utils.quantity_input(wavelength=u.meter)
-    def input_wavefront(self, wavelength=1e-6 * u.meter):
+    def input_wavefront(self, wavelength=1e-6 * u.meter, inwave=None):
         """ Create input wavefront for a CompoundOpticalSystem
 
         Input wavefronts for a compound system are defined by the first OpticalSystem in the list.
         We tweak the _display_hint_expected_planes to reflect the full compound system however.
 
         """
-        inwave = self.optsyslist[0].input_wavefront(wavelength)
+        inwave = self.optsyslist[0].input_wavefront(wavelength, inwave=inwave)
         inwave._display_hint_expected_nplanes = len(self)     # For displaying a multi-step calculation nicely
         return inwave
 
