@@ -1503,8 +1503,7 @@ class BaseOpticalSystem(ABC):
                  return_final=False,
                  source=None,
                  normalize='first',
-                 display_intermediates=False,
-                 inwave=None):
+                 display_intermediates=False):
         """Calculate a PSF, either multi-wavelength or monochromatic.
 
         The wavelength coverage computed will be:
@@ -1656,8 +1655,7 @@ class BaseOpticalSystem(ABC):
                     retain_intermediates=retain_intermediates,
                     retain_final=return_final,
                     display_intermediates=display_intermediates,
-                    normalize=normalize,
-                    inwave=inwave
+                    normalize=normalize
                 )
 
                 if outfits is None:
@@ -1734,8 +1732,7 @@ class BaseOpticalSystem(ABC):
                        normalize='first',
                        retain_intermediates=False,
                        retain_final=False,
-                       display_intermediates=False,
-                       inwave=None):
+                       display_intermediates=False):
         """Propagate a monochromatic wavefront through the optical system. Called from within `calc_psf`.
         Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s (empty if
         `retain_intermediates=False`).
@@ -1777,8 +1774,7 @@ class BaseOpticalSystem(ABC):
             t_start = time.time()
         if self.verbose:
             _log.info(" Propagating wavelength = {0:g}".format(wavelength))
-            
-        wavefront = self.input_wavefront(wavelength, inwave=inwave)
+        wavefront = self.input_wavefront(wavelength)
 
         kwargs = {'normalize': normalize,
                   'display_intermediates': display_intermediates,
@@ -1992,7 +1988,7 @@ class OpticalSystem(BaseOpticalSystem):
 
     # methods for dealing with wavefronts:
     @utils.quantity_input(wavelength=u.meter)
-    def input_wavefront(self, wavelength=1e-6 * u.meter, inwave=None):
+    def input_wavefront(self, wavelength=1e-6 * u.meter):
         """Create a Wavefront object suitable for sending through a given optical system, based on
         the size of the first optical plane, assumed to be a pupil.
 
@@ -2046,17 +2042,9 @@ class OpticalSystem(BaseOpticalSystem):
         if isinstance(diam, u.Quantity):
             diam = diam.to(u.m).value
 
-        if isinstance(inwave, Wavefront):
-            _log.info('Using user-defined Wavefront() for the input wavefront of the OpticalSystem().')
-            inwave = inwave
-        elif inwave==None:
-            _log.info('No input wavefront provided, generating Wavefront() input.')
-            inwave = Wavefront(wavelength=wavelength, npix=npix,
-                               diam=diam, oversample=self.oversample)
-        else:
-            raise ValueError("Input wavefront must be a Wavefront() object when using OpticalSystem() or None.")
-
-        _log.debug("Input wavefront created with wavelength={}, npix={:d}, diam={:.3g}, pixel scale={:.3g} meters/pixel".format(
+        inwave = Wavefront(wavelength=wavelength, npix=npix,
+                           diam=diam, oversample=self.oversample)
+        _log.debug("Creating input wavefront with wavelength={}, npix={:d}, diam={:.3g}, pixel scale={:.3g} meters/pixel".format(
             wavelength, npix, diam, diam / npix))
 
         if np.abs(self.source_offset_r) > 0:
@@ -2238,14 +2226,14 @@ class CompoundOpticalSystem(OpticalSystem):
         return np.sum([len(optsys) for optsys in self.optsyslist])
 
     @utils.quantity_input(wavelength=u.meter)
-    def input_wavefront(self, wavelength=1e-6 * u.meter, inwave=None):
+    def input_wavefront(self, wavelength=1e-6 * u.meter):
         """ Create input wavefront for a CompoundOpticalSystem
 
         Input wavefronts for a compound system are defined by the first OpticalSystem in the list.
         We tweak the _display_hint_expected_planes to reflect the full compound system however.
 
         """
-        inwave = self.optsyslist[0].input_wavefront(wavelength, inwave=inwave)
+        inwave = self.optsyslist[0].input_wavefront(wavelength)
         inwave._display_hint_expected_nplanes = len(self)     # For displaying a multi-step calculation nicely
         return inwave
 

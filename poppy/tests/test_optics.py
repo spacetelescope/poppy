@@ -429,7 +429,7 @@ def test_ObscuredCircularAperture_Airy(display=False):
         pl.title("Analytic")
         pl.subplot(142)
         #ax2=pl.imshow(numeric[0].data, norm=norm)
-        utils.display_PSF(numeric, vmin=1e-6, vmax=1e-2, colorbar=False)
+        utils.display_psf(numeric, vmin=1e-6, vmax=1e-2, colorbar=False)
         pl.title("Numeric")
         pl.subplot(143)
         ax2=pl.imshow(numeric[0].data-analytic, norm=norm)
@@ -470,9 +470,9 @@ def test_CompoundAnalyticOptic(display=False):
         from poppy import utils
         plt.figure()
         plt.subplot(1, 2, 1)
-        utils.display_PSF(psf_separate, title='From Separate Optics (and)')
+        utils.display_psf(psf_separate, title='From Separate Optics (and)')
         plt.subplot(1, 2, 2)
-        utils.display_PSF(psf_compound, title='From Compound Optics (and)')
+        utils.display_psf(psf_compound, title='From Compound Optics (and)')
 
     difference = psf_compound[0].data - psf_separate[0].data
 
@@ -517,9 +517,9 @@ def test_CompoundAnalyticOptic(display=False):
         plt.figure()
         ints_compound[0].display(title='Compound wave[0] (or)')
         plt.figure()
-        utils.display_PSF(psf_separate, title='From Separate Optics (or)')
+        utils.display_psf(psf_separate, title='From Separate Optics (or)')
         plt.figure()
-        utils.display_PSF(psf_compound, title='From Compound Optics (or)')
+        utils.display_psf(psf_compound, title='From Compound Optics (or)')
 
     #check transmission of OpticalElement objects
     # PASSES commit 1e4709b
@@ -573,7 +573,7 @@ def test_AsymmetricObscuredAperture(display=False):
         #norm = LogNorm(vmin=1e-6, vmax=1e-2)
 
         #ax2=pl.imshow(numeric[0].data, norm=norm)
-        utils.display_PSF(numeric, vmin=1e-8, vmax=1e-2, colorbar=False)
+        utils.display_psf(numeric, vmin=1e-8, vmax=1e-2, colorbar=False)
         #pl.title("Numeric")
 
 def test_GaussianAperture(display=False):
@@ -611,6 +611,10 @@ def test_GaussianAperture(display=False):
 
 
 def test_ThinLens(display=False):
+    """ Test that a +0.5 wave lens creates +0.5 waves of OPD
+
+
+    """
     pupil_radius = 1
 
     # let's add < 1 wave here so we don't have to worry about wrapping
@@ -625,20 +629,20 @@ def test_ThinLens(display=False):
     # Now test the values at some precisely chosen pixels
     y, x = wave.coordinates()
     at_radius = np.where((x==1) & (y==0))
-    assert np.allclose(wave.phase[at_radius], -np.pi/2), "Didn't get -1/2 wave OPD at edge of optic"
+    assert np.allclose(wave.phase[at_radius], np.pi/2), "Didn't get 1/2 wave OPD at edge of optic"
     assert len(at_radius[0]) > 0, "Array indices messed up - need to have a pixel at exactly (1,0)"
 
     at_radius = np.where((x==0) & (y==1))
-    assert np.allclose(wave.phase[at_radius], -np.pi/2), "Didn't get -1/2 wave OPD at edge of optic"
+    assert np.allclose(wave.phase[at_radius], np.pi/2), "Didn't get 1/2 wave OPD at edge of optic"
     assert len(at_radius[0]) > 0, "Array indices messed up - need to have a pixel at exactly (0,1)"
 
 
     at_center = np.where((x==0) & (y==0))
-    assert np.allclose(wave.phase[at_center], np.pi/2), "Didn't get 1/2 wave OPD at center of optic"
+    assert np.allclose(wave.phase[at_center], -np.pi/2), "Didn't get -1/2 wave OPD at center of optic"
     assert len(at_radius[0]) > 0, "Array indices messed up - need to have a pixel at exactly (0,0)"
 
     # TODO test intermediate pixel values between center and edge?
-
+    #   OK - This is now tested in test_sign_conventions.test_lens_wfe_sign
 
     # regression test to ensure null optical elements don't change ThinLens behavior
     # see https://github.com/mperrin/poppy/issues/14
@@ -663,8 +667,8 @@ def test_ThinLens(display=False):
 
     if display:
         import poppy
-        poppy.display_PSF(psf)
-        poppy.display_PSF(psf2)
+        poppy.display_psf(psf)
+        poppy.display_psf(psf2)
 
     assert np.allclose(psf[0].data,psf2[0].data), (
         "ThinLens shouldn't be affected by null optical elements! Introducing extra image planes "

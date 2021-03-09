@@ -12,10 +12,8 @@ if accel_math._USE_NUMEXPR:
     import numexpr as ne
     pi = np.pi  # needed for evaluation inside numexpr strings.
 
-from .accel_math import _float, _complex
-from . import conf
-
 _log = logging.getLogger('poppy')
+
 
 __all__ = ['QuadPhase', 'QuadraticLens', 'FresnelWavefront', 'FresnelOpticalSystem']
 
@@ -77,6 +75,8 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
             opd = (x ** 2 + y ** 2)  / (2.0 *z)
 
         return opd
+
+
 
 class _QuadPhaseShifted(QuadPhase):
     """
@@ -168,7 +168,7 @@ class ConicLens(poppy.optics.CircularAperture):
 class FresnelWavefront(BaseWavefront):
     angular_coordinates = False
     """Should coordinates be expressed in arcseconds instead of meters at the current plane? """
-    
+
     @u.quantity_input(beam_radius=u.m)
     def __init__(self,
                  beam_radius,
@@ -1110,9 +1110,9 @@ class FresnelOpticalSystem(BaseOpticalSystem):
         self.distances.append(distance)
         if self.verbose:
             _log.info("Added detector: {0} after separation: {1:.2e} ".format(self.planes[-1].name, distance))
-    
+
     @utils.quantity_input(wavelength=u.meter)
-    def input_wavefront(self, wavelength=1e-6 * u.meter, inwave=None):
+    def input_wavefront(self, wavelength=1e-6 * u.meter):
         """Create a Wavefront object suitable for sending through a given optical system.
 
         Uses self.source_offset to assign an off-axis tilt, if requested.
@@ -1130,21 +1130,16 @@ class FresnelOpticalSystem(BaseOpticalSystem):
 
         """
         oversample = int(np.round(1 / self.beam_ratio))
-        if isinstance(inwave, poppy.FresnelWavefront) :
-            _log.info('Using user-defined FresnelWavefront() for the input wavefront of the FresnelOpticalSystem().')
-            inwave = inwave
-        elif inwave==None:
-            _log.info('No input wavefront provided, generating FresnelWavefront() input.')
-            inwave = FresnelWavefront(self.pupil_diameter / 2, wavelength=wavelength,
-                                      npix=self.npix, oversample=oversample)
-        else:
-            raise ValueError("Input wavefront must be a FresnelWavefront() object when using FresnelOpticalSystem() or None.")
-
-        _log.debug("Input wavefront created with wavelength={0} microns, npix={1}, diam={3}, pixel scale={2}".format(
-            wavelength.to(u.micron).value, self.npix, self.pupil_diameter / (self.npix * u.pixel), self.pupil_diameter))
+        inwave = FresnelWavefront(self.pupil_diameter / 2, wavelength=wavelength,
+                                  npix=self.npix, oversample=oversample)
+        _log.debug(
+            "Creating input wavefront with wavelength={0} microns,"
+            "npix={1}, diam={3}, pixel scale={2}".format(
+                wavelength.to(u.micron).value, self.npix, self.pupil_diameter / (self.npix * u.pixel), self.pupil_diameter
+            ))
         inwave._display_hint_expected_nplanes = len(self)     # For displaying a multi-step calculation nicely
         return inwave
-    
+
     def propagate(self,
                   wavefront,
                   normalize='none',
@@ -1212,13 +1207,10 @@ class FresnelOpticalSystem(BaseOpticalSystem):
         res = (str(self) +
                "\n\tEntrance pupil diam:  {0}\tnpix: {1}\tBeam ratio:{2}".format(self.pupil_diameter, self.npix,
                                                                                  self.beam_ratio))
+
         for optic, distance in zip(self.planes, self.distances):
             if distance != 0:
                 res += "\n\tPropagation distance:  {0}".format(distance)
             res += "\n\t" + str(optic)
 
         print(res)
-        
-        
-        
-        
