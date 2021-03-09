@@ -872,8 +872,9 @@ class Instrument(object):
             Because this calculation is kind of slow, cache results for reuse in the frequent
             case where one is computing many PSFs for the same spectral source.
             """
+            import synphot
             from synphot import SpectralElement, Observation
-            from synphot.models import Box1D, BlackBodyNorm1D
+            from synphot.models import Box1D, BlackBodyNorm1D, Empirical1D
 
             poppy_core._log.debug(
                 "Calculating spectral weights using stsynphot, nlambda=%d, source=%s" % (nlambda, str(source)))
@@ -894,6 +895,16 @@ class Instrument(object):
             band = self._get_synphot_bandpass(self.filter)
             band_wave = band.waveset
             band_thru = band(band_wave)
+
+            # Update source to ensure that it covers the entire filter
+            if band_wave.value.min() < source.waveset.value.min() or \
+                    band_wave.value.max() > source.waveset.value.max():
+                source_meta = source.meta
+                wave, wave_str = synphot.utils.generate_wavelengths(band_wave.value.min(), band_wave.value.max(),
+                                                                    wave_unit=units.angstrom, log=False)
+                source = synphot.SourceSpectrum(Empirical1D, points=wave, lookup_table=source(wave))
+                source.meta.update(source_meta)
+
             # choose reasonable min and max wavelengths
             w_above10 = np.where(band_thru > 0.10 * band_thru.max())
 
@@ -919,6 +930,7 @@ class Instrument(object):
                 else:
                     binset = np.linspace(wave - deltawave, wave + deltawave,
                                          30)  # what wavelens to use when integrating across the sub-band?
+                    binset = binset[binset >= 0]  # remove any negative values
                     result = Observation(source, box, binset=binset).effstim('count', area=jwst_area)
                 effstims.append(result)
 
