@@ -46,7 +46,7 @@ def test_nonsquare_detector_values(oversample=1, pixelscale=0.010, wavelength=1e
             osys.add_pupil(circ)
             osys.add_detector(pixelscale=pixelscale, fov_arcsec=fov_arcsec) 
             psf = osys.calc_psf(wavelength=wavelength)
-            #poppy.utils.display_PSF(psf)
+            #poppy.utils.display_psf(psf)
 
             results.append(psf[0].data)
 

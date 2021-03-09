@@ -43,10 +43,12 @@ def test_fft_normalization():
 
     poppy_core._log.info('TEST: wavelen = {0}, radius = {1}'.format(wavelen, radius))
 
+    psf, waves = osys.calc_psf(wavelength=2.0e-6, normalize='first', return_intermediates=True)
 
-    # Expected value here is 0.9977
-    psf = osys.calc_psf(wavelength=2.0e-6, normalize='first')
+    for i in range(3):
+        assert np.isclose(waves[i].total_intensity, 1.0), f'intensity was not conserved for plane {i}'
 
+    # Expected value here is 0.9977, limited by FOV size as the aperture
     poppy_core._log.info('TEST: Computed PSF of circular aperture')
     poppy_core._log.info('TEST: PSF total intensity sum is {0}'.format(psf[0].data.sum()))
     poppy_core._log.info('TEST:  Expected value is 0.9977 ')

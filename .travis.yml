@@ -19,8 +19,8 @@ matrix:
 
     include:
         # do the actual tests.
-        # Do a test in Python 3.7
-        - env: TOXENV='py37-syn-cov'
+        # Do a test in Python 3.8
+        - env: TOXENV='py38-syn-cov'
 
         # Check accelerated math version too
         - env: TOXENV='py37-numexpr-cov'
@@ -29,7 +29,10 @@ matrix:
         - env: TOXENV='docbuild' TOX_ARGS=''
 
         # Try Astropy development version
-        - env: TOXENV='py37-astropydev-test'
+        - env: TOXENV='py38-astropydev-test'
+
+        # Try latest versions of all dependencies
+        - env: TOXENV='py38-latest-test'
 
         # Try Astropy & numpy minimum supported versions,
         # and older Python versions

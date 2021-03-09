@@ -23,11 +23,10 @@ def test_ZernikeAberration(display=False):
     # The ThinLens class is a subclass of CircularAperture so it automatically applies
     # pupil aperture shape as well as the wavefront
 
+    # Sign convention: should be consistent, positive Thin Lens and positive Zernike WFE are equivalent
     zern_wave = poppy_core.Wavefront(npix=NPIX, diam=DIAM, wavelength=WAVELENGTH)
-    # need a negative sign in the following b/c of different sign conventions for
-    # zernikes vs "positive" and "negative" lenses.
     zernike_lens = wfe.ZernikeWFE(
-        coefficients=[0, 0, 0, -NWAVES * WAVELENGTH / (2 * np.sqrt(3))],
+        coefficients=[0, 0, 0, NWAVES * WAVELENGTH / (2 * np.sqrt(3))],
         radius=RADIUS
     )
     zern_wave *= zernike_lens

@@ -167,12 +167,17 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
     -----------
     forward : bool
         set to True for forward FFT, False for inverse fft
+        SIGN CONVENTION: Note, forward optical propagation requires an inverse FFT, and
+        vice versa. This is to have a positive sign in the exponent for forward propagations.
+        See sign convention documentation.
     normalization : float, optional
         Normalization factor. Defaults to 1./wavefront.shape[0] for forward,
         and wavefront.shape[0] for inverse. Use this only if you need a non-default
         behavior.
     fftshift : bool
-        apply FFT shift after forwards FFT or before inverse FFT?
+        apply FFT shift after forwards propagation or before inverse propagation?
+        SIGN CONVENTION: Note, that means after an inverse FFT or before a forward
+        FFT. This differs from the behavior of poppy versions < 1.0.
 
     """
     ## To use a fast FFT, it must both be enabled and the library itself has to be present
@@ -197,7 +202,12 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
     _log.debug("using {2} FFT of {0} array, FFT_direction={1}".format(
         str(wavefront.shape), 'forward' if forward else 'backward', method))
 
-    if (not forward) and fftshift: #inverse shift before backwards FFTs
+    if (forward) and fftshift: # shift before backwards propagations (using forward FFT)
+        # This needs to be an ifftshift, for machine-precision equivalence to MFT
+        # as tested by test_MFT_FFT_equivalence_in_OpticalSystem; ifftshift and fftshift are
+        # precisely equivalent for even-sized arrays but differ by 1 pixel offset for odd-sized
+        # arrays. The use of ifftshift here ensures the PSF is correctly centered in the center pixel
+        # for odd-sized arrays.
         wavefront = _ifftshift(wavefront)
 
     t1 = time.time()
@@ -265,7 +275,9 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         wavefront = do_fft(wavefront)
     t2 = time.time()
 
-    if forward and fftshift:
+    if (not forward) and fftshift:  # shift after forwards propagations (using inverse FFT)
+        # This needs to be a fftshift here, since we use ifftshift above
+        # See comment above in this function.
         wavefront = _fftshift(wavefront)
 
     wavefront *= normalization

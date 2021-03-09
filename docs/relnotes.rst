@@ -5,6 +5,70 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+1.0.0
+-----
+
+.. _rel1.0.0:
+
+*Date TBD*
+
+.. admonition:: Changes and Clarifications in Signs for Wavefront Error and Phase
+
+    **Some sign conventions for wavefront error and optical phase have changed in this version of poppy**
+
+    This release includes optical algorithm updates after a thorough audit and cross-check of sign conventions for phase and wavefront error, disambiguating portions of the
+    sign conventions and code to ensure consistency with several other relevant optical modeling packages. Poppy now strictly follows the sign conventions as advocated in e.g.
+    Wyant and Creath's `Basic Wavefront Aberration Theory for Optical Metrology <https://ui.adsabs.harvard.edu/abs/1992aooe...11....2W/abstract>_` (or see `here <https://wp.optics.arizona.edu/jcwyant/wp-content/uploads/sites/13/2016/08/03-BasicAberrations_and_Optical_Testing.pdf>_`). This makes poppy consistent with the convention more widely used in optical metrology and other optical software such as Code V; however this is not consistent with some other reference such as Goodman's classic text _Fourier Optics_.
+
+    To achieve that consistency, *this is a partially back-incompatible release*, with
+    changes in the signs of complex exponentials in some Fourier propagation calculations. Depending on your use case this may result in some changes in output PSFs or
+    different signs or orientations from prior results.
+
+    See :ref:`sign_conventions` for details, discussion, and demonstration. Many thanks to Derek
+    Sabatke (Ball Aerospace), Matthew Bergkoetter Alden Jurling and Tom Zielinski (NASA GSFC), and
+    Randal Telfer (STScI) for invaluable discussions and aid in getting these
+    details onto a more rigorous footing.
+
+**Other enhancements and fixes:**
+ * Wavefront instances gain a `.wfe` attribute for the wavefront error in meters (computed from phase, so it will wrap if wavefront error exceeds +- 0.5 waves), and the wavefront display method can display wfe as well as intensity and phase.
+
+
+0.9.2
+-----
+
+.. _rel0.9.2:
+
+*2021 Feb 11*
+
+This release includes several updated optical element classes, bug fixes, and improved documentation. This is intended as a maintenance release shortly before v 1.0 which will introduce some backwards-incompatible changes. 
+
+**New Functionality:**
+ * New OpticalElement classes for ScalarOpticalPathDifference, LetterFAperture, and LetterFOpticalPathDifference. (:pr:`386` by :user:`mperrin`)
+ * Improved `radial_profile` function to allow measurement of partial profiles for sources offset outside the FOV (:pr:`380` by :user:`mperrin`)
+ * Improved the CompoundAnalyticOptic class to correctly handle OPDS for compound optics with multiple non-overlapping apertures. (:pr:`386` by :user:`mperrin`)
+
+**Other enhancements and fixes:**
+ * The ShackHartmannWavefrontSensor class was refactored and improved . (:pr:`369` by :user:`fanpeng-kong`). And a unit test case for this class was added (:pr:`376` by :user:`remorgan123` in collaboration with :user:`douglase`)
+ * Expanded documentation and example code for usage of astropy Units. (:pr:`374`, :pr:`378` by :user:`mperrin`; with thanks to :user:`keflavich’ and  :user:`mcbeth`)
+* Made the HexagonalSegmentedDeformableMirror class consistent with ContinuousDeformableMirror in having an 'include_factor_of_two' parameter, for control in physical surface versus wavefront error units
+ * Bug fix for influence functions of rotated hexagonally segmented deformable mirrors. (:pr:`371` by :user:`mperrin`)
+ * Bug fix for FWHM measurement on integer data type images. (:pr:`368` by :user:`kjbrooks`)
+ * Bug fix for StatisticalPSDWFE to avoid side effects from changing global numpy random generator state. (:pr:`377` by :user:`ivalaginja`)
+ * Bug fix for image display in cases using angular coordinates in units other than arc seconds. (:pr:`378` by :user:`mperrin`; with thanks to :user:`mcbeth`)
+
+
+**Software Infrastructure Updates and Internals:**
+ * The minimum numpy version is now 1.16. (:pr:`356` by :user:`mperrin`)
+ * The main branches were renamed/relabeled to ’stable’  (rather than ‘master’) and ‘develop’. (:pr:`361`, :pr:`370` by :user:`mperrin`)
+ * Updates to Travis CI settings. (:pr:`367`, :pr:`395` by :user:`shanosborne`)
+ * Avoid deprecated modification of matplotlib colormaps (:pr:`379` by :user:`spacegal-spiff`)
+ * Minor doc string clarification for get_opd (:pr:`381` by :user:`douglase`)
+ * Remove unused parameter to Detector class (:pr:`385` by :user:`mperrin`)
+ * Updates to meet STScI INS's JWST Software Standards (:pr:`390` by :user:`shanosborne`)
+ * Use Github's Dependabot to test and update dependencies (:pr:`391: by :user:`shanosborne`)
+
+
+
 0.9.1
 -----
 
