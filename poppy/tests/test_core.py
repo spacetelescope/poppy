@@ -14,6 +14,8 @@ import poppy
 from .. import poppy_core
 from .. import optics
 
+import matplotlib.pyplot as plt
+
 ####### Test Common Infrastructre #######
 
 def check_wavefront(filename_or_hdulist, slice=0, ext=0, test='nearzero', comment=""):
