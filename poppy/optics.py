@@ -23,10 +23,9 @@ __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'ScalarOpticalPathDif
            'BandLimitedCoron', 'BandLimitedCoronagraph', 'IdealFQPM', 'CircularPhaseMask', 'RectangularFieldStop', 'SquareFieldStop',
            'AnnularFieldStop', 'HexagonFieldStop',
            'CircularOcculter', 'BarOcculter', 'FQPM_FFT_aligner', 'CircularAperture',
-           'HexagonAperture', 'MultiHexagonAperture', 'NgonAperture', 'multiCircularAperture', 'RectangleAperture',
+           'HexagonAperture', 'MultiHexagonAperture', 'NgonAperture', 'MultiCircularAperture', 'RectangleAperture',
            'SquareAperture', 'SecondaryObscuration', 'LetterFAperture', 'AsymmetricSecondaryObscuration',
            'ThinLens',  'GaussianAperture', 'KnifeEdge', 'TiltOpticalPathDifference', 'CompoundAnalyticOptic', 'fixed_sampling_optic']
-
 
 # ------ Generic Analytic elements -----
 
@@ -1490,7 +1489,7 @@ class NgonAperture(AnalyticOpticalElement):
 
         return self.transmission
 
-class multiCircularAperture(AnalyticOpticalElement):
+class MultiCircularAperture(AnalyticOpticalElement):
     """ Defines a circularly segmented aperture in close compact configuration
     
     Parameters
