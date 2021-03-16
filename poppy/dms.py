@@ -795,7 +795,7 @@ class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
         self._setup_arrays(wave.shape[0], wave.pixelscale, wave=wave)
         return self._transmission
 
-class CircularSegmentedDeformableMirror(optics.multiCircularAperture):
+class CircularSegmentedDeformableMirror(optics.MultiCircularAperture):
     
     """
     Circularly segmented DM. Each actuator is controlalble in piston, tip, and tilt (and any zernike term)
@@ -819,7 +819,7 @@ class CircularSegmentedDeformableMirror(optics.multiCircularAperture):
     def __init__(self, rings=1, segRadius=1.0 * u.m, gap=0.01 * u.m,
                  name='CircSegDM', center=True, include_factor_of_two=False, **kwargs):
         #FIXME ? using grey pixel does not work. something in the geometry module generate a true divide error
-        optics.multiCircularAperture.__init__(self, name=name, rings=rings, segRadius=segRadius,
+        optics.MultiCircularAperture.__init__(self, name=name, rings=rings, segRadius=segRadius,
                                              gap=gap, center=center, gray_pixel = False, **kwargs)
         self._surface = np.zeros((self._n_aper_inside_ring(rings+1), 3))
 
