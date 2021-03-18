@@ -1,6 +1,7 @@
 include README.rst
 include setup.cfg
 include pyproject.toml
+include LICENSE.md
 
 recursive-include docs *
 recursive-include licenses *
