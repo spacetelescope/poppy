@@ -21,7 +21,7 @@ matrix:
         - env: TOXENV='py38-cov'
 
         # Check accelerated math version too
-        - env: TOXENV='py37-numexpr-cov'
+        - env: TOXENV='py37-numexpr-mkl-cov'
 
         # Check for Sphinx doc build errors
         - env: TOXENV='docbuild' TOX_ARGS=''
