@@ -7,6 +7,7 @@ import scipy.ndimage.interpolation
 import scipy.signal
 import astropy.io.fits as fits
 import astropy.units as u
+from abc import ABC, abstractmethod
 
 from . import utils, accel_math, poppy_core, optics
 
@@ -673,30 +674,13 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
             raise NotImplementedError("Display of influence functions from files not yet written.")
 
 
-class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
-    """ Hexagonally segmented DM. Each actuator is controlalble in piston, tip, and tilt
 
-            Parameters
-            ----------
-            rings, flattoflat, gap, center : various
-                All keywords for defining the segmented aperture geometry are inherited from
-                the MultiHexagonAperture class. See that class for details.
-
-             include_factor_of_two : Bool
-                include the factor of two due to reflection in the OPD function (optional, default False).
-                If this is set False (default), actuator commands are interpreted as being in units of
-                desired wavefront error directly; the returned WFE will be directly proportional to the requested
-                values (convolved with the actuator response function etc).
-                If this is set to True, then the actuator commands are interpreted as being in physical surface
-                units, and the WFE is therefore a factor of two larger. The returned WFE will be twice the
-                amplitude of the requested values (convolved with the actuator response function etc.)
+class SegmentedDeformableMirror(ABC):
+    """ Abstract class for segmented DMs.
+    See below for subclasses for hexagonal and circular apertures.
     """
-
-    def __init__(self, rings=3, flattoflat=1.0 * u.m, gap=0.01 * u.m,
-                 name='HexDM', center=True, include_factor_of_two=False, **kwargs):
-        optics.MultiHexagonAperture.__init__(self, name=name, rings=rings, flattoflat=flattoflat,
-                                             gap=gap, center=center, **kwargs)
-        self._surface = np.zeros((self._n_hexes_inside_ring(rings+1), 3))
+    def __init__(self, rings=1, include_factor_of_two=False):
+        self._surface = np.zeros((self._n_aper_inside_ring(rings + 1), 3))
 
         # see _setup_arrays for the following
         self._last_npix = np.nan
@@ -759,132 +743,7 @@ class HexSegmentedDeformableMirror(optics.MultiHexagonAperture):
 
         self.transmission = np.zeros((npix, npix))
         for i in self.segmentlist:
-            self._one_hexagon(wave, i, value=i+1)
-        self._seg_mask = self.transmission
-        self._transmission = np.asarray(self._seg_mask != 0, dtype=float)
-
-        y, x = self.get_coordinates((wave))
-
-        for i in self.segmentlist:
-            wseg = np.where(self._seg_mask == i+1)
-            self._seg_indices[i] = wseg
-            ceny, cenx = self._hex_center(i)
-            self._seg_x[wseg] = x[wseg] - cenx
-            self._seg_y[wseg] = y[wseg] - ceny
-
-    def get_opd(self, wave):
-        """ Return OPD  - Faster version with caching"""
-        self._setup_arrays(wave.shape[0], wave.pixelscale, wave=wave)
-
-        self.opd = np.zeros(wave.shape)
-        for i in self.segmentlist:
-            wseg = self._seg_indices[i]
-            self.opd[wseg] = (self._surface[i, 0] +
-                              self._surface[i, 1] * self._seg_x[wseg] +
-                              self._surface[i, 2] * self._seg_y[wseg])
-
-        # account for DM being reflective (optional, governed by include_factor_of_two parameter)
-        if self.include_factor_of_two:
-            self.opd *= 2
-
-        return self.opd
-
-    def get_transmission(self, wave):
-        """ Return transmission - Faster version with caching"""
-        # return optics.MultiHexagonAperture.get_transmission(self,wave)
-        self._setup_arrays(wave.shape[0], wave.pixelscale, wave=wave)
-        return self._transmission
-
-class CircularSegmentedDeformableMirror(optics.MultiCircularAperture):
-    
-    """
-    Circularly segmented DM. Each actuator is controlalble in piston, tip, and tilt (and any zernike term)
-
-            Parameters
-            ----------
-            rings, segRadius, gap, center : various
-                All keywords for defining the segmented aperture geometry are inherited from
-                the MultiHexagonAperture class. See that class for details.
-
-             include_factor_of_two : Bool
-                include the factor of two due to reflection in the OPD function (optional, default False).
-                If this is set False (default), actuator commands are interpreted as being in units of
-                desired wavefront error directly; the returned WFE will be directly proportional to the requested
-                values (convolved with the actuator response function etc).
-                If this is set to True, then the actuator commands are interpreted as being in physical surface
-                units, and the WFE is therefore a factor of two larger. The returned WFE will be twice the
-                amplitude of the requested values (convolved with the actuator response function etc.)
-    """
-    
-    def __init__(self, rings=1, segRadius=1.0 * u.m, gap=0.01 * u.m,
-                 name='CircSegDM', center=True, include_factor_of_two=False, **kwargs):
-        #FIXME ? using grey pixel does not work. something in the geometry module generate a true divide error
-        optics.MultiCircularAperture.__init__(self, name=name, rings=rings, segRadius=segRadius,
-                                             gap=gap, center=center, gray_pixel = False, **kwargs)
-        self._surface = np.zeros((self._n_aper_inside_ring(rings+1), 3))
-
-        # see _setup_arrays for the following
-        self._last_npix = np.nan
-        self._last_pixelscale = np.nan * u.meter / u.pixel
-
-        self.include_factor_of_two = include_factor_of_two
-
-    @property
-    def dm_shape(self):
-        """ DM actuator geometry - i.e. how many actuators """
-        return len(self.segmentlist)
-
-    @property
-    def surface(self):
-        """ The surface shape of the deformable mirror, in
-        **meters**. This is the commanded shape, input to the DM.
-        See the .opd property for the output. """
-        return self._surface
-
-    def flatten(self):
-        """Flatten the DM by setting all actuators to zero piston"""
-        self._surface[:] = 0
-
-    @utils.quantity_input(piston=u.meter, tip=u.radian, tilt=u.radian)
-    def set_actuator(self, segnum, piston, tip, tilt):
-        """ Set an individual actuator of the DM.
-        Parameters
-        -------------
-        segnum : integer
-            Index of the actuator you wish to control
-        piston, tip, tilt : floats or astropy Quantities
-            Piston (in meters or other length units) and tip and tilt
-            (in radians or other angular units)
-        """
-
-        if segnum not in self.segmentlist:
-            raise ValueError("Segment {} is not present for this DM instance.".format(segnum))
-        self._surface[segnum] = [piston.to(u.meter).value,
-                                 tip.to(u.radian).value,
-                                 tilt.to(u.radian).value]
-
-    def _setup_arrays(self, npix, pixelscale, wave=None):
-        """ Set up the arrays to compute an OPD into.
-        This is relatively slow, but we only need to do this once for
-        each size of input array. A simple caching mechanism avoids
-        unnecessary recomputations.
-
-        """
-        # Don't recompute if values unchanged.
-        if (npix == self._last_npix) and (pixelscale == self._last_pixelscale):
-            return
-        else:
-            self._last_npix = npix
-            self._last_pixelscale = pixelscale
-
-        self._seg_mask = np.zeros((npix, npix))
-        self._seg_x = np.zeros((npix, npix))
-        self._seg_y = np.zeros((npix, npix))
-        self._seg_indices = dict()
-
-        self.transmission = np.zeros((npix, npix))
-        for i in self.segmentlist:
-            self._one_aperture(wave, i, value=i+1)
+            self._one_aperture(wave, i, value=i + 1)
         self._seg_mask = self.transmission
         self._transmission = np.asarray(self._seg_mask != 0, dtype=float)
 
@@ -916,6 +775,61 @@ class CircularSegmentedDeformableMirror(optics.MultiCircularAperture):
 
     def get_transmission(self, wave):
         """ Return transmission - Faster version with caching"""
-        # return optics.MultiHexagonAperture.get_transmission(self,wave)
         self._setup_arrays(wave.shape[0], wave.pixelscale, wave=wave)
         return self._transmission
+
+
+# note, must inherit first from SegmentedDeformableMirror to get correct method resolution order
+class HexSegmentedDeformableMirror(SegmentedDeformableMirror, optics.MultiHexagonAperture, ):
+    """ Hexagonally segmented DM. Each actuator is controllable in piston, tip, and tilt
+
+            Parameters
+            ----------
+            rings, flattoflat, gap, center : various
+                All keywords for defining the segmented aperture geometry are inherited from
+                the MultiHexagonAperture class. See that class for details.
+
+             include_factor_of_two : Bool
+                include the factor of two due to reflection in the OPD function (optional, default False).
+                If this is set False (default), actuator commands are interpreted as being in units of
+                desired wavefront error directly; the returned WFE will be directly proportional to the requested
+                values (convolved with the actuator response function etc).
+                If this is set to True, then the actuator commands are interpreted as being in physical surface
+                units, and the WFE is therefore a factor of two larger. The returned WFE will be twice the
+                amplitude of the requested values (convolved with the actuator response function etc.)
+    """
+
+    def __init__(self, rings=3, flattoflat=1.0 * u.m, gap=0.01 * u.m,
+                 name='HexDM', center=True, include_factor_of_two=False, **kwargs):
+        optics.MultiHexagonAperture.__init__(self, name=name, rings=rings, flattoflat=flattoflat,
+                                             gap=gap, center=center, **kwargs)
+        SegmentedDeformableMirror.__init__(self, rings=rings, include_factor_of_two=include_factor_of_two)
+
+
+
+# note, must inherit first from SegmentedDeformableMirror to get correct method resolution order
+class CircularSegmentedDeformableMirror(SegmentedDeformableMirror, optics.MultiCircularAperture):
+    """ Circularly segmented DM. Each actuator is controllable in piston, tip, and tilt (and any zernike term)
+
+            Parameters
+            ----------
+            rings, segment_radius, gap, center : various
+                All keywords for defining the segmented aperture geometry are inherited from
+                the MultiCircularperture class. See that class for details.
+
+             include_factor_of_two : Bool
+                include the factor of two due to reflection in the OPD function (optional, default False).
+                If this is set False (default), actuator commands are interpreted as being in units of
+                desired wavefront error directly; the returned WFE will be directly proportional to the requested
+                values (convolved with the actuator response function etc).
+                If this is set to True, then the actuator commands are interpreted as being in physical surface
+                units, and the WFE is therefore a factor of two larger. The returned WFE will be twice the
+                amplitude of the requested values (convolved with the actuator response function etc.)
+    """
+    
+    def __init__(self, rings=1, segment_radius=1.0 * u.m, gap=0.01 * u.m,
+                 name='CircSegDM', center=True, include_factor_of_two=False, **kwargs):
+        #FIXME ? using grey pixel does not work. something in the geometry module generate a true divide error
+        optics.MultiCircularAperture.__init__(self, name=name, rings=rings, segment_radius=segment_radius,
+                                              gap=gap, center=center, gray_pixel = False, **kwargs)
+        SegmentedDeformableMirror.__init__(self, rings=rings, include_factor_of_two=include_factor_of_two)
