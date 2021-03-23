@@ -538,6 +538,26 @@ def test_fits_rot90_vs_ndimagerotate_consistency(plot=False):
         axes[1].imshow(opt2.amplitude)
         axes[1].set_title("ndimage rotate(89.9999)")
 
+def test_analytic_vs_FITS_rotation_consistency(plot=False):
+    """Test that rotating an AnalyticOpticalElement vs
+    rotating a discretized version as a FITSOpticalElement
+    are consistent in rotation direction (counterclockwise)
+    and amount"""
+    opt1 = poppy.optics.LetterFAperture(rotation=90)
+
+    letterf_hdu = poppy.optics.LetterFAperture().to_fits(npix=128)
+    opt2 = poppy.FITSOpticalElement(transmission=letterf_hdu,
+                                    rotation=90)
+
+    if plot:
+        opt1.display()
+        plt.figure()
+        opt2.display()
+
+    array1 = opt1.sample(npix=128)
+    array2 = opt2.amplitude
+    assert np.allclose(array1, array2)
+
 ### OpticalSystem tests and related
 
 def test_source_offsets_in_OpticalSystem(npix=128, fov_size=1):
