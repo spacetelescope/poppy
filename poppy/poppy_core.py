@@ -869,6 +869,13 @@ class BaseWavefront(ABC):
             Angle to rotate, in degrees counterclockwise.
 
         """
+
+        if self.ispadded:
+            # pupil plane is padded - trim out the zeros since it's not needed in the rotation
+            # If needed in later steps, the padding will be re-added automatically
+            self.wavefront = utils.removePadding(self.wavefront, self.oversample)
+            self.ispadded = False
+
         # self.wavefront = scipy.ndimage.interpolation.rotate(self.wavefront, angle, reshape=False)
         # Huh, the ndimage rotate function does not work for complex numbers. That's weird.
         # so let's treat the real and imaginary parts individually
@@ -1068,7 +1075,7 @@ class Wavefront(BaseWavefront):
 
         # do FFT
         if conf.enable_flux_tests: _log.debug("\tPre-FFT total intensity: " + str(self.total_intensity))
-        if conf.enable_speed_tests: t0 = time.time()
+        if conf.enable_speed_tests: t0 = time.time()  # pragma: no cover
 
         self.wavefront = accel_math.fft_2d(self.wavefront, forward=fft_forward)
 
@@ -1080,7 +1087,7 @@ class Wavefront(BaseWavefront):
 
         self._last_transform_type = 'FFT'
 
-        if conf.enable_speed_tests:
+        if conf.enable_speed_tests:  # pragma: no cover
             t1 = time.time()
             _log.debug("\tTIME %f s\t for the FFT" % (t1 - t0))
 
@@ -1773,7 +1780,7 @@ class BaseOpticalSystem(ABC):
             (n.b. This will be empty if `retain_intermediates` is False and singular if retain_final is True.)
         """
 
-        if conf.enable_speed_tests:
+        if conf.enable_speed_tests:  # pragma: no cover
             t_start = time.time()
         if self.verbose:
             _log.info(" Propagating wavelength = {0:g}".format(wavelength))
@@ -1795,7 +1802,7 @@ class BaseOpticalSystem(ABC):
         if (not retain_intermediates) & retain_final:  # return the full complex wavefront of the last plane.
             intermediate_wfs = [wavefront]
 
-        if conf.enable_speed_tests:
+        if conf.enable_speed_tests:  # pragma: no cover
             t_stop = time.time()
             _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop - t_start))
 
@@ -2046,17 +2053,15 @@ class OpticalSystem(BaseOpticalSystem):
         if isinstance(diam, u.Quantity):
             diam = diam.to(u.m).value
 
-        if isinstance(inwave, Wavefront):
-            _log.info('Using user-defined Wavefront() for the input wavefront of the OpticalSystem().')
-            inwave = inwave
-        elif inwave==None:
-            _log.info('No input wavefront provided, generating Wavefront() input.')
+        if inwave is None:
             inwave = Wavefront(wavelength=wavelength, npix=npix,
                                diam=diam, oversample=self.oversample)
+        elif isinstance(inwave, Wavefront):
+            _log.info('Using user-defined Wavefront() for the input wavefront of the OpticalSystem().')
         else:
-            raise ValueError("Input wavefront must be a Wavefront() object when using OpticalSystem() or None.")
+            raise ValueError("Input wavefront must be a Wavefront() object or None, when using OpticalSystem().")
 
-        _log.debug("Input wavefront created with wavelength={}, npix={:d}, diam={:.3g}, pixel scale={:.3g} meters/pixel".format(
+        _log.debug("Input wavefront has wavelength={}, npix={:d}, diam={:.3g}, pixel scale={:.3g} meters/pixel".format(
             wavelength, npix, diam, diam / npix))
 
         if np.abs(self.source_offset_r) > 0:
@@ -2128,6 +2133,9 @@ class OpticalSystem(BaseOpticalSystem):
 
         # note: 0 is 'before first optical plane; 1 = 'after first plane and before second plane' and so on
         for optic in self.planes:
+
+            if conf.enable_speed_tests:  # pragma: no cover
+                s0 = time.time()
             # The actual propagation:
             wavefront.propagate_to(optic)
             wavefront *= optic
@@ -2154,6 +2162,10 @@ class OpticalSystem(BaseOpticalSystem):
             # Optional outputs:
             if conf.enable_flux_tests:
                 _log.debug("  Flux === " + str(wavefront.total_intensity))
+
+            if conf.enable_speed_tests:  # pragma: no cover
+                s1 = time.time()
+                _log.debug(f"\tTIME {s1 - s0:.4f} s\t for propagating past optic '{optic.name}'.")
 
             if return_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
                 intermediate_wfs.append(wavefront.copy())

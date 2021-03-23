@@ -12,9 +12,6 @@ if accel_math._USE_NUMEXPR:
     import numexpr as ne
     pi = np.pi  # needed for evaluation inside numexpr strings.
 
-from .accel_math import _float, _complex
-from . import conf
-
 _log = logging.getLogger('poppy')
 
 
@@ -1133,17 +1130,15 @@ class FresnelOpticalSystem(BaseOpticalSystem):
 
         """
         oversample = int(np.round(1 / self.beam_ratio))
-        if isinstance(inwave, poppy.FresnelWavefront) :
-            _log.info('Using user-defined FresnelWavefront() for the input wavefront of the FresnelOpticalSystem().')
-            inwave = inwave
-        elif inwave==None:
-            _log.info('No input wavefront provided, generating FresnelWavefront() input.')
+        if inwave is None:
             inwave = FresnelWavefront(self.pupil_diameter / 2, wavelength=wavelength,
                                       npix=self.npix, oversample=oversample)
+        elif isinstance(inwave, poppy.FresnelWavefront):
+            _log.info('Using user-defined FresnelWavefront() for the input wavefront of the FresnelOpticalSystem().')
         else:
-            raise ValueError("Input wavefront must be a FresnelWavefront() object when using FresnelOpticalSystem() or None.")
+            raise ValueError("Input wavefront must be a FresnelWavefront() object or None, when using FresnelOpticalSystem().")
 
-        _log.debug("Input wavefront created with wavelength={0} microns, npix={1}, diam={3}, pixel scale={2}".format(
+        _log.debug("Input wavefront has wavelength={0} microns, npix={1}, diam={3}, pixel scale={2}".format(
             wavelength.to(u.micron).value, self.npix, self.pupil_diameter / (self.npix * u.pixel), self.pupil_diameter))
         inwave._display_hint_expected_nplanes = len(self)     # For displaying a multi-step calculation nicely
         return inwave
@@ -1161,6 +1156,10 @@ class FresnelOpticalSystem(BaseOpticalSystem):
         intermediate_wfs = []
 
         for optic, distance in zip(self.planes, self.distances):
+
+            if poppy.conf.enable_speed_tests:  # pragma: no cover
+                s0 = time.time()
+
             # The actual propagation:
             wavefront.propagate_to(optic, distance)
             wavefront *= optic
@@ -1191,17 +1190,21 @@ class FresnelOpticalSystem(BaseOpticalSystem):
             if return_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
                 intermediate_wfs.append(wavefront.copy())
 
+            if poppy.conf.enable_speed_tests:  # pragma: no cover
+                s1 = time.time()
+                _log.debug(f"\tTIME {s1-s0:.4f} s\t for propagating past optic '{optic.name}'.")
+
             if display_intermediates:
-                if poppy.conf.enable_speed_tests:
+                if poppy.conf.enable_speed_tests:  # pragma: no cover
                     t0 = time.time()
 
                 wavefront._display_after_optic(optic)
 
-                if poppy.conf.enable_speed_tests:
+                if poppy.conf.enable_speed_tests:  # pragma: no cover
                     t1 = time.time()
                     _log.debug("\tTIME %f s\t for displaying the wavefront." % (t1 - t0))
 
-        if poppy.conf.enable_speed_tests:
+        if poppy.conf.enable_speed_tests: # pragma: no cover
             t_stop = time.time()
             _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop - t_start))
 

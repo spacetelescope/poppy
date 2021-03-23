@@ -674,10 +674,10 @@ def test_CompoundOpticalSystem():
 
 # Tests for the inwave argument
 
-def test_inwave_fraunhoffer(display_fig=False):
+def test_inwave_fraunhoffer(plot=False):
     '''Verify basic functionality of the inwave kwarg for a basic OpticalSystem()'''
-    npix=512
-    oversample=4
+    npix=128
+    oversample=2
     diam=2.4*u.m
     lambda_m = 0.5e-6*u.m
     # calculate the Fraunhofer diffraction pattern
@@ -687,60 +687,21 @@ def test_inwave_fraunhoffer(display_fig=False):
                   support_width=0.0264,
                   support_angle_offset=45.0))
     hst.add_image(poppy.ScalarTransmission(planetype=poppy_core.PlaneType.image, name='focus'))
-    
-    plt.figure(figsize=(9,3))
-    psf1,wfs1 = hst.calc_psf(wavelength=lambda_m, display_intermediates=display_fig, return_intermediates=True)
+
+    if plot:
+        plt.figure(figsize=(9,3))
+    psf1,wfs1 = hst.calc_psf(wavelength=lambda_m, display_intermediates=plot, return_intermediates=True)
     
     # now test the system by inputting a wavefront first
     wfin = poppy.Wavefront(wavelength=lambda_m, npix=npix,
                            diam=diam, oversample=oversample)
-    plt.figure(figsize=(9,3))
-    psf2,wfs2 = hst.calc_psf(wavelength=lambda_m, display_intermediates=display_fig, return_intermediates=True, 
+    if plot:
+        plt.figure(figsize=(9,3))
+    psf2,wfs2 = hst.calc_psf(wavelength=lambda_m, display_intermediates=plot, return_intermediates=True,
                              inwave=wfin)
     
     wf = wfs1[-1].wavefront
     wf_no_in = wfs2[-1].wavefront
     
     assert np.allclose(wf, wf_no_in), 'Results differ unexpectedly when using inwave argument in OpticalSystem().'
-
-def test_inwave_fresnel(display_fig=False):
-    '''Verify basic functionality of the inwave kwarg for a basic FresnelOpticalSystem()'''
-    npix=256
-    oversample=2
-    # HST example - Following example in PROPER Manual V2.0 page 49.
-    lambda_m = 0.5e-6*u.m
-    diam = 2.4 * u.m
-    fl_pri = 5.52085 * u.m
-    d_pri_sec = 4.907028205 * u.m
-    fl_sec = -0.6790325 * u.m
-    d_sec_to_focus = 6.3919974 * u.m
-    
-    m1 = poppy.QuadraticLens(fl_pri, name='Primary')
-    m2 = poppy.QuadraticLens(fl_sec, name='Secondary')
-    
-    hst = poppy.FresnelOpticalSystem(pupil_diameter=diam, npix=npix, beam_ratio=1/oversample)
-    hst.add_optic(poppy.CircularAperture(radius=diam.value/2))
-    hst.add_optic(poppy.SecondaryObscuration(secondary_radius=0.396,
-                                     support_width=0.0264,
-                                     support_angle_offset=45.0))
-    hst.add_optic(m1)
-    hst.add_optic(m2, distance=d_pri_sec)
-    hst.add_optic(poppy.ScalarTransmission(planetype=poppy_core.PlaneType.image, name='focus'), distance=d_sec_to_focus)
-    
-    plt.figure(figsize=(12,8))
-    psf1, wfs1 = hst.calc_psf(wavelength=lambda_m, display_intermediates=display_fig, return_intermediates=True)
-    
-    # now test the system by inputting a wavefront first
-    wfin = poppy.FresnelWavefront(beam_radius=diam/2, wavelength=lambda_m, 
-                                  npix=npix, oversample=oversample)
-    plt.figure(figsize=(12,8))
-    psf2, wfs2 = hst.calc_psf(wavelength=lambda_m, display_intermediates=display_fig, return_intermediates=True, 
-                              inwave=wfin)
-    
-    wf = wfs1[-1].wavefront
-    wf_no_in = wfs2[-1].wavefront
-    
-    assert np.allclose(wf, wf_no_in), 'Results differ unexpectedly when using inwave argument for FresnelOpticalSystem().'
-
-
 
