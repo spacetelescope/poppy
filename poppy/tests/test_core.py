@@ -5,6 +5,8 @@ import numpy as np
 from astropy.io import fits
 import astropy.units as u
 import pytest
+import matplotlib.pyplot as plt
+
 try:
     import scipy
 except ImportError:
@@ -365,7 +367,6 @@ def test_displays():
     # As a result this just tests that the code runs to completion, without any assessment
     # of the correctness of the output displays.
     import poppy
-    import matplotlib.pyplot as plt
 
     osys = poppy.OpticalSystem()
     osys.add_pupil(poppy.CircularAperture())
@@ -403,8 +404,8 @@ def test_displays():
 def test_rotation_in_OpticalSystem(display=False, npix=1024):
     """ Test that rotation planes within an OpticalSystem work as
     expected to rotate the wavefront. We can get equivalent results
-    by rotating an Optic a given amount, or rotating the wavefront
-    in the opposite direction.
+    by rotating an Optic a given amount counterclockwise, or rotating the wavefront
+    in the same direction.
     """
 
     angles_and_tolerances = ((90, 1e-8), (45, 3e-7))
@@ -413,23 +414,24 @@ def test_rotation_in_OpticalSystem(display=False, npix=1024):
         osys = poppy.OpticalSystem(npix=npix)
         osys.add_pupil(poppy.optics.ParityTestAperture(rotation=angle))
         osys.add_detector(fov_pixels=128, pixelscale=0.01)
+        psf1 = osys.calc_psf()
 
-        if display: plt.figure()
-        psf1 = osys.calc_psf(display=display)
-        if display: plt.title("Optic rotated {} deg".format(angle))
+        osys2 = poppy.OpticalSystem(npix=npix)
+        osys2.add_pupil(poppy.optics.ParityTestAperture())
+        osys2.add_rotation(angle=angle)  # note, same sign here.
+        osys2.add_detector(fov_pixels=128, pixelscale=0.01)
+        psf2 = osys2.calc_psf()
 
-
-        osys = poppy.OpticalSystem(npix=npix)
-        osys.add_pupil(poppy.optics.ParityTestAperture())
-        osys.add_rotation(angle=-angle)  # note, opposite sign here.
-        osys.add_detector(fov_pixels=128, pixelscale=0.01)
-        if display: plt.figure()
-        psf2 = osys.calc_psf(display=display)
-        if display: plt.title("Wavefront rotated {} deg".format(angle))
-
+        if display:
+            fig, axes = plt.subplots(figsize=(16, 5), ncols=2)
+            poppy.display_psf(psf1, ax=axes[0])
+            axes[0].set_title("Optic rotated {} deg".format(angle))
+            poppy.display_psf(psf2, ax=axes[1])
+            axes[1].set_title("Wavefront rotated {} deg".format(angle))
 
         assert np.allclose(psf1[0].data, psf2[0].data, atol=atol), ("PSFs did not agree "
-            "within the requested tolerance")
+                                                                    f"within the requested tolerance, for angle={angle}."
+                                                                    f"Max |difference| = {np.max(np.abs(psf1[0].data - psf2[0].data))}")
 
 ### Tests for OpticalElements defined in poppy_core###
 
@@ -515,6 +517,26 @@ def test_OPD_in_waves_for_FITSOpticalElement():
         osys.add_detector(prefactor * 0.01 * u.arcsec / u.pixel, fov_pixels=3)
         psf = osys.calc_psf(wavelength=prefactor * u.um)
         assert np.isclose(center_pixel_value, psf[0].data[1,1])
+
+def test_fits_rot90_vs_ndimagerotate_consistency(plot=False):
+    """Test that rotating a FITS HDUList via either of the two
+    methods yields consistent results. This compares an exact
+    90 degree rotation and an interpolating not-quite-90-deg rotation.
+    Both methods should rotate counterclockwise and consistently.
+    """
+    letterf_hdu = poppy.optics.LetterFAperture().to_fits(npix=128)
+    opt1 = poppy.FITSOpticalElement(transmission=letterf_hdu,
+                                   rotation=90)
+    opt2 = poppy.FITSOpticalElement(transmission=letterf_hdu,
+                                   rotation=89.99999)
+    assert np.allclose(opt1.amplitude, opt2.amplitude, atol=1e-5)
+
+    if plot:
+        fig, axes = plt.subplots(figsize=(10, 5), ncols=2)
+        axes[0].imshow(opt1.amplitude)
+        axes[0].set_title("Rot90")
+        axes[1].imshow(opt2.amplitude)
+        axes[1].set_title("ndimage rotate(89.9999)")
 
 ### OpticalSystem tests and related
 
