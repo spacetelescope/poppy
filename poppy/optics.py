@@ -496,22 +496,22 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
             # Also add in the opaque border of the coronagraph mask holder.
             if self.sigma > 4:
                 # MASK210R has one in the corner and one half in the other corner
-                wnd = np.where(
+                wnd = (
                     (y > 5) &
                     (
                             ((x < -5) & (x > -10)) |
                             ((x > 7.5) & (x < 12.5))
                     )
                 )
-                wborder = np.where((np.abs(y) > 10) | (x < -10))  # left end of mask holder
+                wborder = ((np.abs(y) > 10) | (x < -10))  # left end of mask holder
             else:
                 # the others have two halves on in each corner.
-                wnd = np.where(
+                wnd = (
                     (y > 5) &
                     (np.abs(x) > 7.5) &
                     (np.abs(x) < 12.5)
                 )
-                wborder = np.where(np.abs(y) > 10)
+                wborder = (np.abs(y) > 10)
 
             self.transmission[wnd] = np.sqrt(1e-3)
             self.transmission[wborder] = 0
@@ -555,38 +555,37 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
             sigmar.clip(np.finfo(sigmar.dtype).tiny, out=sigmar)  # avoid divide by zero -> NaNs
             self.transmission = (1 - (np.sin(sigmar) / sigmar) ** 2)
             # the bar should truncate at +- 10 arcsec:
-            woutside = np.where(np.abs(x) > 10)
-            self.transmission[woutside] = 1.0
+            self.transmission[np.abs(x) > 10] = 1.0
 
             # add in the ND squares. Note the positions are not exactly the same in the two wedges.
             # See the figures in Krist et al. of how the 6 ND squares are spaced among the 5
             # corongraph regions. Also add in the opaque border of the coronagraph mask holder.
             if np.abs(self.wavelength - 2.1e-6) < 0.1e-6:
                 # half ND square on each side
-                wnd = np.where(
+                wnd = (
                     (y > 5) &
                     (
                             ((x < -5) & (x > -10)) |
                             ((x > 7.5) & (x < 12.5))
                     )
                 )
-                wborder = np.where(np.abs(y) > 10)
+                wborder = (np.abs(y) > 10)
             elif np.abs(self.wavelength - 4.6e-6) < 0.1e-6:
-                wnd = np.where(
+                wnd = (
                     (y > 5) &
                     (
                             ((x < -7.5) & (x > -12.5)) |
                             (x > 5)
                     )
                 )
-                wborder = np.where((np.abs(y) > 10) | (x > 10))  # right end of mask holder
+                wborder = ((np.abs(y) > 10) | (x > 10))  # right end of mask holder
 
             self.transmission[wnd] = np.sqrt(1e-3)
             self.transmission[wborder] = 0
 
         if not np.isfinite(self.transmission.sum()):
             _log.warning("There are NaNs in the BLC mask - correcting to zero. (DEBUG LATER?)")
-            self.transmission[np.where(np.isfinite(self.transmission) == False)] = 0
+            self.transmission[ np.isnan(self.transmission) ] = 0
         return self.transmission
 
 BandLimitedCoron=BandLimitedCoronagraph # Back compatibility for old name.
@@ -717,14 +716,11 @@ class RectangularFieldStop(AnalyticImagePlaneElement):
 
         y, x = self.get_coordinates(wave)
 
-        w_outside = np.where(
-            (abs(y) > (self.height.to(u.arcsec).value / 2)) |
-            (abs(x) > (self.width.to(u.arcsec).value / 2))
+        w_inside = (
+            (abs(y) <= (self.height.to(u.arcsec).value / 2)) &
+            (abs(x) <= (self.width.to(u.arcsec).value / 2))
         )
-        del x  # for large arrays, cleanup very promptly, before allocating self.transmission
-        del y
-        self.transmission = np.ones(wave.shape, dtype=_float())
-        self.transmission[w_outside] = 0
+        self.transmission = w_inside.astype(_float())
 
         return self.transmission
 
@@ -809,16 +805,16 @@ class HexagonFieldStop(AnalyticImagePlaneElement):
 
         self.transmission = np.zeros(wave.shape, dtype=_float())
 
-        w_rect = np.where(
+        w_rect = (
             (np.abs(x) <= 0.5 * side) &
             (absy <= np.sqrt(3) / 2 * side)
         )
-        w_left_tri = np.where(
+        w_left_tri = (
             (x <= -0.5 * side) &
             (x >= -1 * side) &
             (absy <= (x + 1 * side) * np.sqrt(3))
         )
-        w_right_tri = np.where(
+        w_right_tri = (
             (x >= 0.5 * side) &
             (x <= 1 * side) &
             (absy <= (1 * side - x) * np.sqrt(3))
@@ -928,8 +924,8 @@ class BarOcculter(AnalyticImagePlaneElement):
 
         y, x = self.get_coordinates(wave)
 
-        w_inside = np.where( (np.abs(x) <= self.width.to(u.arcsec).value / 2) &
-                             (np.abs(y) <= self.height.to(u.arcsec).value / 2) )
+        w_inside = ( (np.abs(x) <= self.width.to(u.arcsec).value / 2) &
+                     (np.abs(y) <= self.height.to(u.arcsec).value / 2) )
 
         self.transmission = np.ones(wave.shape, dtype=_float())
         self.transmission[w_inside] = 0
@@ -1032,16 +1028,16 @@ class ParityTestAperture(AnalyticOpticalElement):
         y, x = self.get_coordinates(wave)
         r = _r(x, y)
 
-        w_outside = np.where(r > radius)
+        w_outside = (r > radius)
         self.transmission = np.ones(wave.shape, dtype=_float())
         self.transmission[w_outside] = 0
 
-        w_box1 = np.where(
+        w_box1 = (
             (r > (radius * 0.5)) &
             (np.abs(x) < radius * 0.1) &
             (y < 0)
         )
-        w_box2 = np.where(
+        w_box2 = (
             (r > (radius * 0.75)) &
             (np.abs(y) < radius * 0.2) &
             (x < 0)
@@ -1167,13 +1163,7 @@ class CircularAperture(AnalyticOpticalElement):
             self.transmission = geometry.filled_circle_aa(wave.shape, 0, 0, radius/pixscale, x/pixscale, y/pixscale)
         else:
             r = _r(x, y)
-            del x
-            del y
-
-            w_outside = np.where(r > radius)
-            del r
-            self.transmission = np.ones(wave.shape, dtype=_float())
-            self.transmission[w_outside] = 0
+            self.transmission = (r<=radius).astype(_float())
         return self.transmission
 
 
@@ -1236,16 +1226,16 @@ class HexagonAperture(AnalyticOpticalElement):
 
         self.transmission = np.zeros(wave.shape, dtype=_float())
 
-        w_rect = np.where(
+        w_rect = (
             (np.abs(x) <= 0.5 * side) &
             (absy <= np.sqrt(3) / 2 * side)
         )
-        w_left_tri = np.where(
+        w_left_tri = (
             (x <= -0.5 * side) &
             (x >= -1 * side) &
             (absy <= (x + 1 * side) * np.sqrt(3))
         )
-        w_right_tri = np.where(
+        w_right_tri = (
             (x >= 0.5 * side) &
             (x <= 1 * side) &
             (absy <= (1 * side - x) * np.sqrt(3))
@@ -1423,16 +1413,16 @@ class MultiHexagonAperture(AnalyticOpticalElement):
         x -= cenx
         absy = np.abs(y)
 
-        w_rect = np.where(
+        w_rect = (
             (np.abs(x) <= 0.5 * side) &
             (absy <= np.sqrt(3) / 2 * side)
         )
-        w_left_tri = np.where(
+        w_left_tri = (
             (x <= -0.5 * side) &
             (x >= -1 * side) &
             (absy <= (x + 1 * side) * np.sqrt(3))
         )
-        w_right_tri = np.where(
+        w_right_tri = (
             (x >= 0.5 * side) &
             (x <= 1 * side) &
             (absy <= (1 * side - x) * np.sqrt(3))
@@ -1526,15 +1516,12 @@ class RectangleAperture(AnalyticOpticalElement):
 
         y, x = self.get_coordinates(wave)
 
-        w_outside = np.where(
-            (abs(y) > (self.height.to(u.meter).value / 2)) |
-            (abs(x) > (self.width.to(u.meter).value / 2))
+        w_inside = (
+            (abs(y) <= (self.height.to(u.meter).value / 2)) &
+            (abs(x) <= (self.width.to(u.meter).value / 2))
         )
-        del y
-        del x
 
-        self.transmission = np.ones(wave.shape, dtype=_float())
-        self.transmission[w_outside] = 0
+        self.transmission = w_inside.astype(dtype=_float())
         return self.transmission
 
 

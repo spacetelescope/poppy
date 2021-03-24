@@ -245,8 +245,7 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
     if not np.all(rho.shape == theta.shape):
         raise ValueError('The rho and theta arrays do not have consistent shape.')
 
-    aperture = np.ones(rho.shape)
-    aperture[np.where(rho > 1)] = 0.0  # this is the aperture mask
+    aperture = (rho <= 1)
 
     if m == 0:
         if n == 0:
@@ -261,7 +260,7 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
         norm_coeff = np.sqrt(2) * np.sqrt(n + 1) if noll_normalize else 1
         zernike_result = norm_coeff * R(n, m, rho) * np.sin(np.abs(m) * theta) * aperture
 
-    zernike_result[np.where(rho > 1)] = outside
+    zernike_result[(rho > 1)] = outside
     return zernike_result
 
 
@@ -489,9 +488,9 @@ def hex_aperture(npix=1024, rho=None, theta=None, vertical=False, outside=0):
     absy = np.abs(y)
 
     aperture = np.full(x.shape, outside)
-    w_rect = np.where((np.abs(x) <= 0.5) & (np.abs(y) <= np.sqrt(3) / 2))
-    w_left_tri = np.where((x <= -0.5) & (x >= -1) & (absy <= (x + 1) * np.sqrt(3)))
-    w_right_tri = np.where((x >= 0.5) & (x <= 1) & (absy <= (1 - x) * np.sqrt(3)))
+    w_rect = ((np.abs(x) <= 0.5) & (np.abs(y) <= np.sqrt(3) / 2))
+    w_left_tri = ((x <= -0.5) & (x >= -1) & (absy <= (x + 1) * np.sqrt(3)))
+    w_right_tri = ((x >= 0.5) & (x <= 1) & (absy <= (1 - x) * np.sqrt(3)))
     aperture[w_rect] = 1
     aperture[w_left_tri] = 1
     aperture[w_right_tri] = 1
@@ -1009,10 +1008,9 @@ def opd_expand(opd, aperture=None, nterms=15, basis=zernike_basis,
         **kwargs
     )
 
-    wgood = np.where(apmask)
     ngood = apmask.sum()
 
-    coeffs = [(opd * b)[wgood].sum() / ngood
+    coeffs = [(opd * b)[apmask].sum() / ngood
               for b in basis_set]
 
     return coeffs
@@ -1083,7 +1081,7 @@ def opd_expand_nonorthonormal(opd, aperture=None, nterms=15, basis=zernike_basis
         **kwargs
     )
 
-    wgood = np.where(apmask & np.isfinite(basis_set[1]))
+    wgood = (apmask & np.isfinite(basis_set[1]))
     ngood = apmask.sum()
 
     coeffs = np.zeros(nterms)

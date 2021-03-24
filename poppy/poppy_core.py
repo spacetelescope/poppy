@@ -416,7 +416,7 @@ class BaseWavefront(ABC):
         # areas with particularly low intensity
         phase = self.phase.copy()
         mean_intens = np.mean(intens[intens != 0])
-        phase[np.where(intens < mean_intens / 100)] = np.nan
+        phase[intens < mean_intens / 100] = np.nan
         amp = self.amplitude
 
         y, x = self.coordinates()
@@ -453,7 +453,7 @@ class BaseWavefront(ABC):
         if what == 'best':
             if self.planetype == PlaneType.image:
                 what = 'intensity'  # always show intensity for image planes
-            elif phase[np.where(np.isfinite(phase))].sum() == 0:
+            elif phase[(np.isfinite(phase))].sum() == 0:
                 what = 'intensity'  # for perfect pupils
             # FIXME re-implement this in some better way that doesn't depend on
             # optic positioning in the plot grid!
@@ -555,7 +555,7 @@ class BaseWavefront(ABC):
             wfe = self.wfe.to(u.nanometer).value.copy()
             if self.planetype == PlaneType.pupil and self.ispadded and not showpadding:
                 wfe = utils.removePadding(wfe, self.oversample)
-            wfe[np.where(intens < mean_intens / 100)] = np.nan
+            wfe[intens < mean_intens / 100] = np.nan
             vmx = np.nanmax(np.abs(wfe))
             norm_wfe = matplotlib.colors.Normalize(vmin=-vmx, vmax=vmx)
 
@@ -2615,7 +2615,7 @@ class OpticalElement(object):
         # Evaluate the wavefront at the desired sampling and pixel scale.
         ampl = self.get_transmission(temp_wavefront)
         opd = self.get_opd(temp_wavefront).copy()
-        opd[np.where(ampl == 0)] = np.nan
+        opd[(ampl == 0)] = np.nan
 
         # define a helper function for the actual plotting - we do it this way so
         # we can call it twice if the 'both' option is chosen. This avoids the complexities of the

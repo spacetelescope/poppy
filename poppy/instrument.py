@@ -887,7 +887,7 @@ class Instrument(object):
             poppy_core._log.info("Computing wavelength weights using synthetic photometry for %s..." % self.filter)
             band = self._get_synphot_bandpass(self.filter)
             # choose reasonable min and max wavelengths
-            w_above10 = np.where(band.throughput > 0.10 * band.throughput.max())
+            w_above10 = (band.throughput > 0.10 * band.throughput.max())
 
             minwave = band.wave[w_above10].min()
             maxwave = band.wave[w_above10].max()
@@ -956,8 +956,7 @@ class Instrument(object):
 
             poppy_core._log.warning(
                 "CAUTION: Just interpolating rather than integrating filter profile, over {0} steps".format(nlambda))
-            wtrans = np.where(throughputs > 0.4)
-            lrange = wavelengths[wtrans] * 1e-10  # convert from Angstroms to Meters
+            lrange = wavelengths[throughputs > 0.4] * 1e-10  # convert from Angstroms to Meters
             # get evenly spaced points within the range of allowed lambdas, centered on each bin
             lambd = np.linspace(np.min(lrange), np.max(lrange), nlambda, endpoint=False) + (
                     np.max(lrange) - np.min(lrange)) / (2 * nlambda)
