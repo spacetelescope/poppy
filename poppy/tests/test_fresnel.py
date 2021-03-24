@@ -169,7 +169,7 @@ def test_Circular_Aperture_PTP_long(display=False, npix=512, display_proper=Fals
 
     # also let's test that the output is centered on the array as expected.
     # the peak pixel should be at the coordinates (0,0)
-    assert inten[np.where((y==0) & (x==0))] == inten.max()
+    assert inten[((y==0) & (x==0))] == inten.max()
 
     # and the image should be symmetric if you flip in X or Y
     # (approximately but not perfectly to machine precision
