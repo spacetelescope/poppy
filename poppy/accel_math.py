@@ -399,14 +399,14 @@ tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
     print("Timing performance of FFT for {npix} x {npix}, {complextype}, with {iterations} iterations".format(
         npix=npix, iterations=iterations, complextype=complextype))
 
-    defaults = (poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda,
+    defaults = (poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda,
             poppy.conf.use_opencl, poppy.conf.double_precision)
     poppy.conf.double_precision = double_precision
 
     # Time baseline performance in numpy
     print("Timing performance in plain numpy:")
 
-    poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda, poppy.conf.use_opencl = (False, False, False, False)
+    poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda, poppy.conf.use_opencl = (False, False, False, False, False)
     update_math_settings()
     time_numpy = timer.timeit(number=iterations) / iterations
     print("  {:.3f} s".format(time_numpy))
@@ -429,6 +429,17 @@ tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
     else:
         time_numexpr = np.NaN
 
+    if poppy.accel_math._MKLFFT_AVAILABLE:
+        print("Timing performance with Numexpr + MKL:")
+        poppy.conf.use_numexpr = True
+        poppy.conf.use_fftw = False
+        poppy.conf.use_mkl = True
+        update_math_settings()
+        time_mkl = timer.timeit(number=iterations) / iterations
+        print("  {:.3f} s".format(time_mkl))
+    else:
+        time_mkl = np.NaN
+
     if poppy.accel_math._CUDA_AVAILABLE:
         print("Timing performance with CUDA:")
         poppy.conf.use_cuda = True
@@ -450,12 +461,123 @@ tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
         time_opencl = np.NaN
 
 
-    poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda,\
+    poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda,\
             poppy.conf.use_opencl, poppy.conf.double_precision = defaults
 
     return {'numpy': time_numpy,
             'fftw': time_fftw,
             'numexpr': time_numexpr,
+            'mkl': time_mkl,
             'cuda': time_cuda,
             'opencl': time_opencl}
+
+
+def benchmark_2d_ffts(mode='poppy', max_pow=13, verbose=False, savefig=False):
+    """Benchmark FFT runtime vs array size, for multiple transform libraries
+
+    Parameters
+    ----------
+    mode : string, 'poppy' or 'base'
+        What to test, either the full poppy usage of the 2D transform, including
+        surrounding setup and normalization code, or the basic transform on its own.
+    max_pow : int
+        Maximum power of 2 array size to test up to
+    verbose : bool
+        output numpy config info
+    savefig : bool
+        save plot result to a PDF?
+
+    """
+
+    # modified based on https://github.com/numpy/numpy/issues/17839#issuecomment-733543850
+
+
+    try:
+        from simple_benchmark import benchmark
+    except ImportError:
+        raise RuntimeError("You must have simple_benchmark installed to run this function")
+    import matplotlib.pyplot as plt
+
+    threads = multiprocessing.cpu_count()
+
+    if mode == 'base':
+        # Functions for benchmarking the low-level FFT functions in each library
+        def pocketfft(it):
+            np.fft.fft2(it)
+
+        def scipyfft(it):
+            scipy.fft.fft2(it)
+
+        def fftw_1thread(it):
+            # note, FFTW defaults to 1 thread, unless you override the config,
+            # but that's not a fair comparison
+            pyfftw.interfaces.numpy_fft.fft2(it, thread=1)
+
+        def fftw(it):
+            # explictly try multithreaded here
+            pyfftw.interfaces.numpy_fft.fft2(it, threads=threads)
+
+        def mklfft(it):
+            mkl_fft.fft2(it)
+
+        funcs_to_test = [pocketfft, fftw, mklfft, scipyfft, fftw_1thread, ]
+        function_aliases = {pocketfft: 'numpy.fft', fftw: 'pyfftw.fft, multithreaded', scipyfft: 'scipy.fft',
+                            mklfft: "MKL FFT", fftw_1thread: 'pyfftw.fft, single-thread'}
+        title = "Basic 2D FFT only"
+
+    elif mode == 'poppy':
+        # Functions for benchmarking poppy transforms using each library
+
+        def poppy_numpyfft(it):
+            global _USE_FFTW, _USE_MKL
+            _USE_FFTW = False
+            _USE_MKL = False
+
+            fft_2d(it, fftshift=False)
+
+        def poppy_fftw(it):
+            global _USE_FFTW, _USE_MKL
+            _USE_FFTW = True
+            _USE_MKL = False
+
+            fft_2d(it, fftshift=False)
+
+        def poppy_mklfft(it):
+            global _USE_FFTW, _USE_MKL
+            _USE_FFTW = False
+            _USE_MKL = True
+
+            fft_2d(it, fftshift=False)
+
+        funcs_to_test = [poppy_numpyfft, poppy_fftw, poppy_mklfft]
+        function_aliases = {poppy_numpyfft: 'poppy using numpy.fft', poppy_fftw: 'poppy using pyfftw.fft',
+                            poppy_mklfft: "poppy using MKL FFT"}
+        title = 'full poppy.accel_math.fft_2d'
+    else:
+        raise ValueError(f"Unknown/invalid value for 'base' parameter: {base}")
+
+    def shp(len):
+        return (len, len)
+
+    if verbose:
+        print(np.version)
+        np.show_config()
+
+    # Turn on the cache for optimum performance
+    pyfftw.interfaces.cache.enable()
+    b_array = benchmark(
+        funcs_to_test,
+        arguments={2 ** i: np.random.uniform(size=shp(2 ** i)) + 1j * np.random.uniform(size=shp(2 ** i)) for i in
+                   range(2, max_pow)},
+        argument_name='array size',
+        function_aliases=function_aliases
+    )
+    plt.figure(figsize=(12, 8))
+    b_array.plot()
+    plt.xlim(1, 2e4)
+    plt.ylim(1e-6, 1e1)
+
+    plt.title(f"Time for 2D complex FFTs: {title}")
+    if savefig:
+        plt.savefig(f"bench_ffts_{mode}.png")
 
