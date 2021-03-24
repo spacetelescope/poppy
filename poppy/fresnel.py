@@ -1112,7 +1112,7 @@ class FresnelOpticalSystem(BaseOpticalSystem):
             _log.info("Added detector: {0} after separation: {1:.2e} ".format(self.planes[-1].name, distance))
 
     @utils.quantity_input(wavelength=u.meter)
-    def input_wavefront(self, wavelength=1e-6 * u.meter):
+    def input_wavefront(self, wavelength=1e-6 * u.meter, inwave=None):
         """Create a Wavefront object suitable for sending through a given optical system.
 
         Uses self.source_offset to assign an off-axis tilt, if requested.
@@ -1130,13 +1130,16 @@ class FresnelOpticalSystem(BaseOpticalSystem):
 
         """
         oversample = int(np.round(1 / self.beam_ratio))
-        inwave = FresnelWavefront(self.pupil_diameter / 2, wavelength=wavelength,
-                                  npix=self.npix, oversample=oversample)
-        _log.debug(
-            "Creating input wavefront with wavelength={0} microns,"
-            "npix={1}, diam={3}, pixel scale={2}".format(
-                wavelength.to(u.micron).value, self.npix, self.pupil_diameter / (self.npix * u.pixel), self.pupil_diameter
-            ))
+        if inwave is None:
+            inwave = FresnelWavefront(self.pupil_diameter / 2, wavelength=wavelength,
+                                      npix=self.npix, oversample=oversample)
+        elif isinstance(inwave, poppy.FresnelWavefront):
+            _log.info('Using user-defined FresnelWavefront() for the input wavefront of the FresnelOpticalSystem().')
+        else:
+            raise ValueError("Input wavefront must be a FresnelWavefront() object or None, when using FresnelOpticalSystem().")
+
+        _log.debug("Input wavefront has wavelength={0} microns, npix={1}, diam={3}, pixel scale={2}".format(
+            wavelength.to(u.micron).value, self.npix, self.pupil_diameter / (self.npix * u.pixel), self.pupil_diameter))
         inwave._display_hint_expected_nplanes = len(self)     # For displaying a multi-step calculation nicely
         return inwave
 
