@@ -4,6 +4,7 @@
 #
 import numpy as np
 import multiprocessing
+import matplotlib.pyplot as plt
 from . import conf
 
 import time
@@ -472,6 +473,44 @@ tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
             'opencl': time_opencl}
 
 
+def get_processor_name():
+    """Return processor hardware name, in a cross-platform manner
+
+    With thanks to https://stackoverflow.com/a/20161999
+    """
+    import os, platform, subprocess, re
+
+    if platform.system() == "Windows":
+        return platform.processor()
+    elif platform.system() == "Darwin":
+        os.environ['PATH'] = os.environ['PATH'] + os.pathsep + '/usr/sbin'
+        command = "sysctl -n machdep.cpu.brand_string".split()
+        return (subprocess.check_output(command).strip()).decode()
+    elif platform.system() == "Linux":
+        command = "cat /proc/cpuinfo"
+        all_info = subprocess.check_output(command, shell=True).strip()
+        for line in all_info.split("\n"):
+            if "model name" in line:
+                return re.sub(".*model name.*:", "", line, 1)
+    return ""
+
+
+def get_physical_cpu_count():
+    """Get physical number of CPU cores
+
+    You might think multiprocessing.cpu_count() would give this, but no.
+    Hyperthreading makes that number harder to interpret.
+
+    """
+    import os, platform, subprocess, re
+
+    if platform.system() == "Darwin":
+        os.environ['PATH'] = os.environ['PATH'] + os.pathsep + '/usr/sbin'
+        command = "sysctl -n hw.physicalcpu".split()
+        return subprocess.check_output(command).strip().decode()
+    else:
+        raise NotImplementedError("make this cross platform")
+
 def benchmark_2d_ffts(mode='poppy', max_pow=13, verbose=False, savefig=False):
     """Benchmark FFT runtime vs array size, for multiple transform libraries
 
@@ -496,7 +535,6 @@ def benchmark_2d_ffts(mode='poppy', max_pow=13, verbose=False, savefig=False):
         from simple_benchmark import benchmark
     except ImportError:
         raise RuntimeError("You must have simple_benchmark installed to run this function")
-    import matplotlib.pyplot as plt
 
     threads = multiprocessing.cpu_count()
 
@@ -574,10 +612,74 @@ def benchmark_2d_ffts(mode='poppy', max_pow=13, verbose=False, savefig=False):
     )
     plt.figure(figsize=(12, 8))
     b_array.plot()
+    plt.grid(which='both', alpha=0.2)
+    plt.grid(which='major', alpha=0.5)
     plt.xlim(1, 2e4)
     plt.ylim(1e-6, 1e1)
 
-    plt.title(f"Time for 2D complex FFTs: {title}")
+    cpu_label = get_processor_name() + f", {get_physical_cpu_count()} cores"
+    plt.title(f"Time for 2D complex FFTs: {title}\n{cpu_label}", fontweight='bold')
     if savefig:
         plt.savefig(f"bench_ffts_{mode}.png")
 
+
+def benchmark_2d_mfts(max_pow=13, savefig=False):
+    """Benchmark MFT runtime vs array size, for multiple transform libraries
+
+    Parameters
+    ----------
+    mode : string, 'poppy' or 'base'
+        What to test, either the full poppy usage of the 2D transform, including
+        surrounding setup and normalization code, or the basic transform on its own.
+    max_pow : int
+        Maximum power of 2 array size to test up to
+    savefig : bool
+        save plot result to a PDF?
+
+    """
+
+    # modified based on https://github.com/numpy/numpy/issues/17839#issuecomment-733543850
+    from simple_benchmark import benchmark
+
+    import functools
+    import poppy
+
+    def shp(len):
+        return (len, len)
+
+    def test_mft_numpy(array, npix=64):
+        global _USE_NUMEXPR
+
+        _USE_NUMEXPR = False
+        poppy.matrixDFT.matrix_dft(array, 16, npix)
+
+    def test_mft_numexpr(array, npix=64):
+        global _USE_NUMEXPR
+        _USE_NUMEXPR = True
+
+        poppy.matrixDFT.matrix_dft(array, 16, npix)
+
+    test_mft_numpy_512 = functools.partial(test_mft_numpy, npix=512)
+    test_mft_numexpr_512 = functools.partial(test_mft_numexpr, npix=512)
+
+    b_array = benchmark(
+        [test_mft_numpy, test_mft_numexpr, test_mft_numpy_512, test_mft_numexpr_512],
+        arguments={2 ** i: np.random.uniform(size=shp(2 ** i)) + 1j * np.random.uniform(size=shp(2 ** i)) for i in
+                   range(2, max_pow)},
+        argument_name='pupil array size, npupil',
+        function_aliases={test_mft_numpy: "MFT with numpy, npix=64", test_mft_numexpr: "MFT with numexpr, npix=64",
+                          test_mft_numpy_512: "MFT with numpy, npix=512",
+                          test_mft_numexpr_512: "MFT with numexpr, npix=512"}
+    )
+    plt.figure(figsize=(12, 8))
+    b_array.plot()
+    plt.grid(which='both', alpha=0.2)
+    plt.grid(which='major', alpha=0.5)
+    plt.xlim(1, 2e4)
+    plt.ylim(1e-6, 1e1)
+
+    cpu_label = get_processor_name() + f", {get_physical_cpu_count()} cores"
+    plt.title(f"Matrix Fourier Transform timings\n{cpu_label}", fontweight='bold')
+
+    if savefig:
+        plt.savefig(f"bench_mfts.png")
