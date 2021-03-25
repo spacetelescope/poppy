@@ -1,6 +1,11 @@
 Appendix B: Optimizing FFT Performance with FFTW
 ================================================
 
+.. warning::
+
+    This page is obsolete, and superceded by subsequent library development. You probably want
+    to use Intel MKL rather than FFTW. See :ref:`_performance_and_parallelization`.
+
 Optimizing numerical performance of FFTs is a complicated subject. Just using the FFTW library is no guarantee of optimal performance; you need to know how to configure it.
 
 .. note::
