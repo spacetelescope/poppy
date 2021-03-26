@@ -138,6 +138,7 @@ from .fresnel import *
 from .physical_wavefront import *
 from .special_prop import *
 from .dms import *
+from .active_optics import *
 
 from .instrument import Instrument
 

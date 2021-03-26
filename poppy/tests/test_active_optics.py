@@ -4,29 +4,52 @@ import astropy.units as u
 import numpy as np
 
 
-def test_tip_tilt_optic():
-    """Test basic operation of tip tilt optic class"""
-
-    ap = poppy.HexagonAperture()
+def test_TipTiltStage(display=False, verbose=False):
+    """ Test tip tilt stage moves the PSF by the requested amount
+    """
+    ap = poppy.HexagonAperture(flattoflat=0.75*u.m)
+    det = poppy.Detector(pixelscale=0.1*u.arcsec/u.pix, fov_pixels=128)
 
     tt = poppy.active_optics.TipTiltStage(ap, include_factor_of_two=False)
 
-    wave = poppy.Wavefront(npix=128, diam=2*u.m)
+    wave = poppy.Wavefront(npix=128, diam=1*u.m)
+
     trans = ap.get_transmission(wave)
     assert np.allclose(tt.get_transmission(wave), trans), "Transmission does not match expectations"
-
     assert np.allclose(tt.get_opd(wave), 0), "OPD without tilt does not match expectation"
 
-    for ztilt in [1e-6, 2e-6]:
-        tt.set_tip_tilt(ztilt, 0)
+    for tx, ty in ( (0*u.arcsec, 1*u.arcsec),
+                    (1*u.arcsec, 0*u.arcsec),
+                    (-0.23*u.arcsec, 0.65*u.arcsec)):
+        for include_factor_of_two in [True, False]:
 
-        def rms(ar, mask ):
-            return np.sqrt((ar[mask]**2).mean())
+            if verbose:
+                print(f"Testing {tx}, {ty}, with include_factor_of_two={include_factor_of_two}")
 
-        rmstilt = rms(tt.get_opd(wave), trans != 0)
+            tt.include_factor_of_two = include_factor_of_two
+            tt.set_tip_tilt(tx, ty)
 
-        assert np.allclose(rmstilt, ztilt, rtol=0.1), f"OPD with tilt {ztilt} does not match expectations. Expected {ztilt}, got {rmstilt} RMS"
-        assert np.allclose(tt.get_transmission(wave), trans), "Transmission does not match expectations"
+            wave = poppy.Wavefront(npix=64, diam=1*u.m)
+            wave *= ap
+            wave *= tt
 
+            if display:
+                plt.figure()
+                wave.display(what='both')
+                plt.suptitle(f"Wavefront with {tx}, {ty}")
+
+            wave.propagate_to(det)
+
+            if display:
+                plt.figure()
+                wave.display()
+                plt.title(f"PSF with {tx}, {ty}")
+
+
+            cen = poppy.measure_centroid(wave.as_fits(), boxsize=5, relativeto='center', units='arcsec')
+
+            factor = 2 if include_factor_of_two else 1
+            assert np.isclose(cen[1]*u.arcsec, tx*factor, atol=1e-4), "X pos not as expected"
+            assert np.isclose(cen[0]*u.arcsec, ty*factor, atol=1e-4), f"Y pos not as expected: {cen[0]*u.arcsec}, {ty*factor}"
 
 
