@@ -880,8 +880,16 @@ class BaseWavefront(ABC):
         # Huh, the ndimage rotate function does not work for complex numbers. That's weird.
         # so let's treat the real and imaginary parts individually
         # FIXME TODO or would it be better to do this on the amplitude and phase?
-        rot_real = scipy.ndimage.interpolation.rotate(self.wavefront.real, angle, reshape=False)
-        rot_imag = scipy.ndimage.interpolation.rotate(self.wavefront.imag, angle, reshape=False)
+
+        k, remainder = np.divmod(angle, 90)
+        if remainder == 0:
+            # rotation is a multiple of 90
+            rot_real = np.rot90(self.wavefront.real, k=-k)  # negative = CCW
+            rot_imag = np.rot90(self.wavefront.imag, k=-k)
+        else:
+            # arbitrary free rotation with interpolation
+            rot_real = scipy.ndimage.interpolation.rotate(self.wavefront.real, -angle, reshape=False)  # negative = CCW
+            rot_imag = scipy.ndimage.interpolation.rotate(self.wavefront.imag, -angle, reshape=False)
         self.wavefront = rot_real + 1.j * rot_imag
 
         self.history.append('Rotated by {:.2f} degrees, CCW'.format(angle))
@@ -3001,13 +3009,21 @@ class FITSOpticalElement(OpticalElement):
             # ---- transformation: rotation ----
             # If a rotation is specified and we're NOT a null (scalar) optic, then do the rotation:
             if rotation is not None and len(self.amplitude.shape) == 2:
-                # do rotation with interpolation, but try to clean up some of the artifacts afterwards.
-                # this is imperfect at best, of course...
-                self.amplitude = scipy.ndimage.interpolation.rotate(self.amplitude, -rotation,  # negative = CCW
-                                                                    reshape=False).clip(min=0, max=1.0)
-                wnoise = np.where((self.amplitude < 1e-3) & (self.amplitude > 0))
-                self.amplitude[wnoise] = 0
-                self.opd = scipy.ndimage.interpolation.rotate(self.opd, -rotation, reshape=False)  # negative = CCW
+
+                k,remainder = np.divmod(rotation, 90)
+                if remainder==0:
+                    # rotation is a multiple of 90
+                    self.amplitude = np.rot90(self.amplitude, k=-k)   # negative = CCW
+                    self.opd = np.rot90(self.opd, k=-k)
+                else:
+                    # arbitrary free rotation with interpolation
+                    # do rotation with interpolation, but try to clean up some of the artifacts afterwards.
+                    # this is imperfect at best, of course...
+                    self.amplitude = scipy.ndimage.interpolation.rotate(self.amplitude, -rotation,  # negative = CCW
+                                                                        reshape=False).clip(min=0, max=1.0)
+                    wnoise = (self.amplitude < 1e-3) & (self.amplitude > 0)
+                    self.amplitude[wnoise] = 0
+                    self.opd = scipy.ndimage.interpolation.rotate(self.opd, -rotation, reshape=False)  # negative = CCW
                 _log.info("  Rotated optic by %f degrees counter clockwise." % rotation)
                 self._rotation = rotation
 
