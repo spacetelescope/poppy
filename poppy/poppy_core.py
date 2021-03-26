@@ -3011,7 +3011,7 @@ class FITSOpticalElement(OpticalElement):
                     # this is imperfect at best, of course...
                     self.amplitude = scipy.ndimage.interpolation.rotate(self.amplitude, -rotation,  # negative = CCW
                                                                         reshape=False).clip(min=0, max=1.0)
-                    wnoise = np.where((self.amplitude < 1e-3) & (self.amplitude > 0))
+                    wnoise = (self.amplitude < 1e-3) & (self.amplitude > 0)
                     self.amplitude[wnoise] = 0
                     self.opd = scipy.ndimage.interpolation.rotate(self.opd, -rotation, reshape=False)  # negative = CCW
                 _log.info("  Rotated optic by %f degrees counter clockwise." % rotation)
