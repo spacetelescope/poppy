@@ -416,7 +416,7 @@ class BaseWavefront(ABC):
         # areas with particularly low intensity
         phase = self.phase.copy()
         mean_intens = np.mean(intens[intens != 0])
-        phase[np.where(intens < mean_intens / 100)] = np.nan
+        phase[intens < mean_intens / 100] = np.nan
         amp = self.amplitude
 
         y, x = self.coordinates()
@@ -453,7 +453,7 @@ class BaseWavefront(ABC):
         if what == 'best':
             if self.planetype == PlaneType.image:
                 what = 'intensity'  # always show intensity for image planes
-            elif phase[np.where(np.isfinite(phase))].sum() == 0:
+            elif phase[(np.isfinite(phase))].sum() == 0:
                 what = 'intensity'  # for perfect pupils
             # FIXME re-implement this in some better way that doesn't depend on
             # optic positioning in the plot grid!
@@ -555,7 +555,7 @@ class BaseWavefront(ABC):
             wfe = self.wfe.to(u.nanometer).value.copy()
             if self.planetype == PlaneType.pupil and self.ispadded and not showpadding:
                 wfe = utils.removePadding(wfe, self.oversample)
-            wfe[np.where(intens < mean_intens / 100)] = np.nan
+            wfe[intens < mean_intens / 100] = np.nan
             vmx = np.nanmax(np.abs(wfe))
             norm_wfe = matplotlib.colors.Normalize(vmin=-vmx, vmax=vmx)
 
@@ -869,12 +869,27 @@ class BaseWavefront(ABC):
             Angle to rotate, in degrees counterclockwise.
 
         """
+
+        if self.ispadded:
+            # pupil plane is padded - trim out the zeros since it's not needed in the rotation
+            # If needed in later steps, the padding will be re-added automatically
+            self.wavefront = utils.removePadding(self.wavefront, self.oversample)
+            self.ispadded = False
+
         # self.wavefront = scipy.ndimage.interpolation.rotate(self.wavefront, angle, reshape=False)
         # Huh, the ndimage rotate function does not work for complex numbers. That's weird.
         # so let's treat the real and imaginary parts individually
         # FIXME TODO or would it be better to do this on the amplitude and phase?
-        rot_real = scipy.ndimage.interpolation.rotate(self.wavefront.real, angle, reshape=False)
-        rot_imag = scipy.ndimage.interpolation.rotate(self.wavefront.imag, angle, reshape=False)
+
+        k, remainder = np.divmod(angle, 90)
+        if remainder == 0:
+            # rotation is a multiple of 90
+            rot_real = np.rot90(self.wavefront.real, k=-k)  # negative = CCW
+            rot_imag = np.rot90(self.wavefront.imag, k=-k)
+        else:
+            # arbitrary free rotation with interpolation
+            rot_real = scipy.ndimage.interpolation.rotate(self.wavefront.real, -angle, reshape=False)  # negative = CCW
+            rot_imag = scipy.ndimage.interpolation.rotate(self.wavefront.imag, -angle, reshape=False)
         self.wavefront = rot_real + 1.j * rot_imag
 
         self.history.append('Rotated by {:.2f} degrees, CCW'.format(angle))
@@ -1068,7 +1083,7 @@ class Wavefront(BaseWavefront):
 
         # do FFT
         if conf.enable_flux_tests: _log.debug("\tPre-FFT total intensity: " + str(self.total_intensity))
-        if conf.enable_speed_tests: t0 = time.time()
+        if conf.enable_speed_tests: t0 = time.time()  # pragma: no cover
 
         self.wavefront = accel_math.fft_2d(self.wavefront, forward=fft_forward)
 
@@ -1080,7 +1095,7 @@ class Wavefront(BaseWavefront):
 
         self._last_transform_type = 'FFT'
 
-        if conf.enable_speed_tests:
+        if conf.enable_speed_tests:  # pragma: no cover
             t1 = time.time()
             _log.debug("\tTIME %f s\t for the FFT" % (t1 - t0))
 
@@ -1503,7 +1518,8 @@ class BaseOpticalSystem(ABC):
                  return_final=False,
                  source=None,
                  normalize='first',
-                 display_intermediates=False):
+                 display_intermediates=False,
+                 inwave=None):
         """Calculate a PSF, either multi-wavelength or monochromatic.
 
         The wavelength coverage computed will be:
@@ -1655,7 +1671,8 @@ class BaseOpticalSystem(ABC):
                     retain_intermediates=retain_intermediates,
                     retain_final=return_final,
                     display_intermediates=display_intermediates,
-                    normalize=normalize
+                    normalize=normalize,
+                    inwave=inwave
                 )
 
                 if outfits is None:
@@ -1732,7 +1749,8 @@ class BaseOpticalSystem(ABC):
                        normalize='first',
                        retain_intermediates=False,
                        retain_final=False,
-                       display_intermediates=False):
+                       display_intermediates=False,
+                       inwave=None):
         """Propagate a monochromatic wavefront through the optical system. Called from within `calc_psf`.
         Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s (empty if
         `retain_intermediates=False`).
@@ -1770,11 +1788,12 @@ class BaseOpticalSystem(ABC):
             (n.b. This will be empty if `retain_intermediates` is False and singular if retain_final is True.)
         """
 
-        if conf.enable_speed_tests:
+        if conf.enable_speed_tests:  # pragma: no cover
             t_start = time.time()
         if self.verbose:
             _log.info(" Propagating wavelength = {0:g}".format(wavelength))
-        wavefront = self.input_wavefront(wavelength)
+
+        wavefront = self.input_wavefront(wavelength, inwave=inwave)
 
         kwargs = {'normalize': normalize,
                   'display_intermediates': display_intermediates,
@@ -1791,7 +1810,7 @@ class BaseOpticalSystem(ABC):
         if (not retain_intermediates) & retain_final:  # return the full complex wavefront of the last plane.
             intermediate_wfs = [wavefront]
 
-        if conf.enable_speed_tests:
+        if conf.enable_speed_tests:  # pragma: no cover
             t_stop = time.time()
             _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop - t_start))
 
@@ -1988,7 +2007,7 @@ class OpticalSystem(BaseOpticalSystem):
 
     # methods for dealing with wavefronts:
     @utils.quantity_input(wavelength=u.meter)
-    def input_wavefront(self, wavelength=1e-6 * u.meter):
+    def input_wavefront(self, wavelength=1e-6 * u.meter, inwave=None):
         """Create a Wavefront object suitable for sending through a given optical system, based on
         the size of the first optical plane, assumed to be a pupil.
 
@@ -2042,9 +2061,15 @@ class OpticalSystem(BaseOpticalSystem):
         if isinstance(diam, u.Quantity):
             diam = diam.to(u.m).value
 
-        inwave = Wavefront(wavelength=wavelength, npix=npix,
-                           diam=diam, oversample=self.oversample)
-        _log.debug("Creating input wavefront with wavelength={}, npix={:d}, diam={:.3g}, pixel scale={:.3g} meters/pixel".format(
+        if inwave is None:
+            inwave = Wavefront(wavelength=wavelength, npix=npix,
+                               diam=diam, oversample=self.oversample)
+        elif isinstance(inwave, Wavefront):
+            _log.info('Using user-defined Wavefront() for the input wavefront of the OpticalSystem().')
+        else:
+            raise ValueError("Input wavefront must be a Wavefront() object or None, when using OpticalSystem().")
+
+        _log.debug("Input wavefront has wavelength={}, npix={:d}, diam={:.3g}, pixel scale={:.3g} meters/pixel".format(
             wavelength, npix, diam, diam / npix))
 
         if np.abs(self.source_offset_r) > 0:
@@ -2116,6 +2141,9 @@ class OpticalSystem(BaseOpticalSystem):
 
         # note: 0 is 'before first optical plane; 1 = 'after first plane and before second plane' and so on
         for optic in self.planes:
+
+            if conf.enable_speed_tests:  # pragma: no cover
+                s0 = time.time()
             # The actual propagation:
             wavefront.propagate_to(optic)
             wavefront *= optic
@@ -2142,6 +2170,10 @@ class OpticalSystem(BaseOpticalSystem):
             # Optional outputs:
             if conf.enable_flux_tests:
                 _log.debug("  Flux === " + str(wavefront.total_intensity))
+
+            if conf.enable_speed_tests:  # pragma: no cover
+                s1 = time.time()
+                _log.debug(f"\tTIME {s1 - s0:.4f} s\t for propagating past optic '{optic.name}'.")
 
             if return_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
                 intermediate_wfs.append(wavefront.copy())
@@ -2226,14 +2258,14 @@ class CompoundOpticalSystem(OpticalSystem):
         return np.sum([len(optsys) for optsys in self.optsyslist])
 
     @utils.quantity_input(wavelength=u.meter)
-    def input_wavefront(self, wavelength=1e-6 * u.meter):
+    def input_wavefront(self, wavelength=1e-6 * u.meter, inwave=None):
         """ Create input wavefront for a CompoundOpticalSystem
 
         Input wavefronts for a compound system are defined by the first OpticalSystem in the list.
         We tweak the _display_hint_expected_planes to reflect the full compound system however.
 
         """
-        inwave = self.optsyslist[0].input_wavefront(wavelength)
+        inwave = self.optsyslist[0].input_wavefront(wavelength, inwave=inwave)
         inwave._display_hint_expected_nplanes = len(self)     # For displaying a multi-step calculation nicely
         return inwave
 
@@ -2601,7 +2633,7 @@ class OpticalElement(object):
         # Evaluate the wavefront at the desired sampling and pixel scale.
         ampl = self.get_transmission(temp_wavefront)
         opd = self.get_opd(temp_wavefront).copy()
-        opd[np.where(ampl == 0)] = np.nan
+        opd[(ampl == 0)] = np.nan
 
         # define a helper function for the actual plotting - we do it this way so
         # we can call it twice if the 'both' option is chosen. This avoids the complexities of the
@@ -2977,13 +3009,21 @@ class FITSOpticalElement(OpticalElement):
             # ---- transformation: rotation ----
             # If a rotation is specified and we're NOT a null (scalar) optic, then do the rotation:
             if rotation is not None and len(self.amplitude.shape) == 2:
-                # do rotation with interpolation, but try to clean up some of the artifacts afterwards.
-                # this is imperfect at best, of course...
-                self.amplitude = scipy.ndimage.interpolation.rotate(self.amplitude, -rotation,  # negative = CCW
-                                                                    reshape=False).clip(min=0, max=1.0)
-                wnoise = np.where((self.amplitude < 1e-3) & (self.amplitude > 0))
-                self.amplitude[wnoise] = 0
-                self.opd = scipy.ndimage.interpolation.rotate(self.opd, -rotation, reshape=False)  # negative = CCW
+
+                k,remainder = np.divmod(rotation, 90)
+                if remainder==0:
+                    # rotation is a multiple of 90
+                    self.amplitude = np.rot90(self.amplitude, k=-k)   # negative = CCW
+                    self.opd = np.rot90(self.opd, k=-k)
+                else:
+                    # arbitrary free rotation with interpolation
+                    # do rotation with interpolation, but try to clean up some of the artifacts afterwards.
+                    # this is imperfect at best, of course...
+                    self.amplitude = scipy.ndimage.interpolation.rotate(self.amplitude, -rotation,  # negative = CCW
+                                                                        reshape=False).clip(min=0, max=1.0)
+                    wnoise = (self.amplitude < 1e-3) & (self.amplitude > 0)
+                    self.amplitude[wnoise] = 0
+                    self.opd = scipy.ndimage.interpolation.rotate(self.opd, -rotation, reshape=False)  # negative = CCW
                 _log.info("  Rotated optic by %f degrees counter clockwise." % rotation)
                 self._rotation = rotation
 

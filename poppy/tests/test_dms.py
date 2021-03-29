@@ -160,3 +160,37 @@ def test_factor_of_two_surface_vs_wfe():
         hexdm2.set_actuator(act, 1e-6, 0, 1e-4) # 1000 nm = 1 micron
     w = poppy_core.Wavefront(npix=128, diam=hexdm.pupil_diam)
     assert np.allclose(hexdm.get_opd(w)*2, hexdm2.get_opd(w)), "The hexagonal DM response should be 2x greater if include_factor_of_two is set"
+
+
+def test_basic_circular_dm():
+    """ A simple test for the circularly segmented deformable mirror code -
+    can we move actuators, and does adding nonzero WFE result in decreased Strehl?"""
+
+    dm = dms.CircularSegmentedDeformableMirror(rings=1)
+
+    osys = poppy_core.OpticalSystem(npix=256)
+    osys.add_pupil(dm)
+    osys.add_detector(0.010, fov_pixels=128)
+
+    psf_perf = osys.calc_psf()
+
+    for act in ( 3,6):
+        dm.set_actuator(act, 1e-6, 0, 1e-7) # 1000 nm = 1 micron
+        assert np.allclose(dm.surface[act,0],  1e-6), "Segment {} did not move as expected using bare floats".format(actx,acty)
+        assert np.allclose(dm.surface[act,2],  1e-7), "Segment {} did not move as expected using bare floats".format(actx,acty)
+
+    for act in ( 5,2):
+        dm.set_actuator(act, 1*u.nm, 0, 0) # 1 nm
+        assert np.allclose(dm.surface[act,0],  1e-9), "Segment {} did not move as expected in piston using astropy quantities".format(actx,acty)
+
+    for act in ( 1,4):
+        dm.set_actuator(act,  0, 1*u.microradian, 0) # 1 nm
+        assert np.allclose(dm.surface[act,1],  1e-6), "Segment {} did not move as expected in tilt using astropy quantities".format(actx,acty)
+
+    psf_aberrated = osys.calc_psf()
+
+    peak_perf = psf_perf[0].data.max()
+    peak_aberrated = psf_aberrated[0].data.max()
+    assert peak_aberrated < peak_perf, "Adding nonzero WFE did not decrease the Strehl as expected."
+
+    return psf_aberrated, psf_perf, osys

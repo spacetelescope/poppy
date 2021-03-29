@@ -709,7 +709,7 @@ class Instrument(object):
             result[0].header['JITRTYPE'] = ('None', 'Type of jitter applied')
             return
 
-        if conf.enable_speed_tests: t0 = time.time()
+        if conf.enable_speed_tests: t0 = time.time()  # pragma: no cover
 
         poppy_core._log.info("Calculating jitter using " + str(local_options['jitter']))
 
@@ -742,7 +742,7 @@ class Instrument(object):
         else:
             raise ValueError('Unknown jitter option value: ' + local_options['jitter'])
 
-        if conf.enable_speed_tests:
+        if conf.enable_speed_tests: # pragma: no cover
             t1 = time.time()
             _log.debug("\tTIME %f s\t for jitter model" % (t1 - t0))
 
@@ -906,7 +906,7 @@ class Instrument(object):
                 source.meta.update(source_meta)
 
             # choose reasonable min and max wavelengths
-            w_above10 = np.where(band_thru > 0.10 * band_thru.max())
+            w_above10 = (band_thru > 0.10 * band_thru.max())
 
             minwave = band_wave[w_above10].min()
             maxwave = band_wave[w_above10].max()
@@ -979,14 +979,12 @@ class Instrument(object):
 
             poppy_core._log.warning(
                 "CAUTION: Just interpolating rather than integrating filter profile, over {0} steps".format(nlambda))
-            wtrans = np.where(throughputs > 0.4)
             wavelengths = wavelengths * units.Unit(waveunit)
-            lrange = wavelengths[wtrans].to_value(units.m)  # convert from Angstroms to Meters
+            lrange = wavelengths[throughputs > 0.4].to_value(units.m)  # convert from Angstroms to Meters
             # get evenly spaced points within the range of allowed lambdas, centered on each bin
             lambd = np.linspace(np.min(lrange), np.max(lrange), nlambda, endpoint=False) + (
                     np.max(lrange) - np.min(lrange)) / (2 * nlambda)
             filter_fn = scipy.interpolate.interp1d(wavelengths.to_value(units.m), throughputs, kind='cubic',
                                                    bounds_error=False)
             weights = filter_fn(lambd)
-            filterfits.close()
             return lambd, weights
