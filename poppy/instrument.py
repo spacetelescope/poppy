@@ -259,7 +259,7 @@ class Instrument(object):
 
         # ---- now at last, actually do the PSF calc:
         #  instantiate an optical system using the current parameters
-        self.optsys = self.get_optical_system(fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
+        self.optsys = self._get_optical_system(fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
                                                fft_oversample=fft_oversample, detector_oversample=detector_oversample,
                                                options=local_options)
         self._check_for_aliasing(wavelens)
@@ -624,7 +624,7 @@ class Instrument(object):
         # Here we ensure the prior version works, back compatibly.
         import warnings
         warnings.warn("_get_optical_system is deprecated; use get_optical_system (without leading underscore) instead.",
-                      warnings.DeprecationWarning)
+                      DeprecationWarning)
         return self.get_optical_system(*args, **kwargs)
 
     def _check_for_aliasing(self, wavelengths):
@@ -763,7 +763,7 @@ class Instrument(object):
         # (specifically auto-selected pupils based on filter selection)
         wavelengths, _ = self._get_weights(nlambda=1)
         self._validate_config(wavelengths=wavelengths)
-        optsys = self.get_optical_system()
+        optsys = self._get_optical_system()
         optsys.display(what='both')
         if old_no_sam is not None:
             self.options['no_sam'] = old_no_sam

@@ -1153,10 +1153,8 @@ def opd_from_zernikes(coeffs, basis=zernike_basis_faster, aperture=None, outside
     constant_support =  np.allclose(np.isfinite(basis_set[0]), np.isfinite(basis_set[-1]))
 
     if constant_support:
-        # we can just sum the whole arrays
-        for i, b in enumerate(basis_set):
-            if coeffs[i] != 0:
-                output += coeffs[i] * b
+        # we can just sum the whole arrays using an Einstein sum
+        output = np.einsum('i,ijk->jk', coeffs, basis_set)
     else:
         # we have to use different good pixel areas per each basis element
         for i, b in enumerate(basis_set):

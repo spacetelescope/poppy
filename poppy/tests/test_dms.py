@@ -135,3 +135,28 @@ def test_hex_dm_rotation(npix=128, ptt = (0, 1e-6, 0), plot=False):
         if plot:
             plt.figure()
             dm.display(what='opd', npix=npix, opd_vmax=1e-6, title=f'DM with {rot} rotation', colorbar_orientation='vertical')
+
+
+def test_factor_of_two_surface_vs_wfe():
+    """For both types of DM, test the factor of two option
+    """
+
+    # Create two DMs, one commanded in WFE and the other in surface
+    dm = dms.ContinuousDeformableMirror()
+    dm2 = dms.ContinuousDeformableMirror(include_factor_of_two=True)
+
+    for actx, acty in ( (3,7), (7,3)):
+        dm2.set_actuator(actx, acty, 1e-6) # 1000 nm = 1 micron
+        dm.set_actuator(actx, acty, 1e-6) # 1000 nm = 1 micron
+
+    w = poppy_core.Wavefront(npix=128, diam=dm._aperture.radius*2)
+    assert np.allclose(dm.get_opd(w)*2, dm2.get_opd(w)), "The continuous DM response should be 2x greater if include_factor_of_two is set"
+
+    # Now repeat for the hex dm
+    hexdm = dms.HexSegmentedDeformableMirror(rings=1)
+    hexdm2 = dms.HexSegmentedDeformableMirror(rings=1, include_factor_of_two=True)
+    for act in ( 3,6):
+        hexdm.set_actuator(act, 1e-6, 0, 1e-4) # 1000 nm = 1 micron
+        hexdm2.set_actuator(act, 1e-6, 0, 1e-4) # 1000 nm = 1 micron
+    w = poppy_core.Wavefront(npix=128, diam=hexdm.pupil_diam)
+    assert np.allclose(hexdm.get_opd(w)*2, hexdm2.get_opd(w)), "The hexagonal DM response should be 2x greater if include_factor_of_two is set"

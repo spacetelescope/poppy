@@ -351,7 +351,7 @@ def test_DFT_rect_fov_sampling(fov_npix = (500,1000), pixelscale=0.03, display=F
 
     if display:
         plt.subplot(311)
-        poppy.display_PSF(psf)
+        poppy.display_psf(psf)
 
         plt.subplot(312)
         plt.semilogy(cut_h, label='horizontal')
@@ -587,8 +587,11 @@ def test_MFT_FFT_equivalence(display=False, displaycrop=None):
     mft = matrixDFT.MatrixFourierTransform(centering=centering)
     mftout = mft.perform(imgin, nlamD, npix)
 
-    fftout = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(imgin))) / np.sqrt(imgin.shape[0] * imgin.shape[1])
-
+    # SIGN CONVENTION: with our adopted sign conventions, forward propagation requires an inverse fft
+    # This differs from behavior in versions of poppy prior to 1.0.
+    # Further, note that the numpy normalization convention includes 1/n for the inverse transform and 1 for
+    # the forward transform, while we want to more symmetrically apply 1/sqrt(n) in both directions.
+    fftout = np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(imgin))) * np.sqrt(imgin.shape[0] * imgin.shape[1])
 
     norm_factor = abs(mftout).sum()
 
@@ -633,13 +636,18 @@ def test_MFT_FFT_equivalence(display=False, displaycrop=None):
 
         return mftout, fftout
 
-def test_MFT_FFT_equivalence_in_OpticalSystem(tmpdir, display=False):
+
+def test_MFT_FFT_equivalence_in_OpticalSystem(tmpdir, display=False, source_offset=1):
     """ Test that propagating Wavefronts through an OpticalSystem
     using an MFT and an FFT give equivalent results.
 
     This is a somewhat higher level test that involves all the
     Wavefront class's _propagateTo() machinery, which is not
-    tested in the above function. Hence the two closely related tests."""
+    tested in the above function. Hence the two closely related tests.
+
+    This test now includes a source offset, to test equivalnce of handling for
+    nonzero WFE, in this case for tilts.
+    """
 
 
     # Note that the Detector class and Wavefront propagation always uses
@@ -659,6 +667,8 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(tmpdir, display=False):
     fftsys = poppy_core.OpticalSystem(oversample=1)
     fftsys.add_pupil(pup511)
     fftsys.add_image()
+    fftsys.source_offset_r = source_offset
+    fftsys.source_offset_theta = 90
 
     fftpsf, fftplanes = fftsys.calc_psf(display=False, return_intermediates=True)
 
@@ -667,6 +677,8 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(tmpdir, display=False):
     mftsys = poppy_core.OpticalSystem(oversample=1)
     mftsys.add_pupil(pup511)
     mftsys.add_detector(pixelscale=fftplanes[1].pixelscale , fov_pixels=fftplanes[1].shape, oversample=1) #, offset=(pixscale/2, pixscale/2))
+    mftsys.source_offset_r = source_offset
+    mftsys.source_offset_theta = 90
 
     mftpsf, mftplanes = mftsys.calc_psf(display=False, return_intermediates=True)
 
@@ -675,11 +687,11 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(tmpdir, display=False):
         import poppy
         plt.figure(figsize=(15,4))
         plt.subplot(131)
-        poppy.display_PSF(fftpsf, title="FFT PSF")
+        poppy.display_psf(fftpsf, title="FFT PSF")
         plt.subplot(132)
-        poppy.display_PSF(mftpsf, title='MFT PSF')
+        poppy.display_psf(mftpsf, title='MFT PSF')
         plt.subplot(133)
-        poppy.display_PSF_difference(fftpsf, mftpsf, title='Diff FFT-MFT')
+        poppy.display_psf_difference(fftpsf, mftpsf, title='Diff FFT-MFT')
 
 
 

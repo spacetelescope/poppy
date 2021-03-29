@@ -1,3 +1,6 @@
+import pytest
+
+import poppy
 from .. import poppy_core
 from .. import optics
 from .. import misc
@@ -182,43 +185,122 @@ def test_Circular_Aperture_PTP_long(display=False, npix=512, display_proper=Fals
     assert(np.all((center_cut_y- center_cut_y[::-1])/center_cut_y < 0.001))
 
 
-def test_Circular_Aperture_PTP_short(display=False, npix=512, display_proper=False):
+try:
+    from skimage.registration import phase_cross_correlation
+    HAS_SKIMAGE = True
+except ImportError:
+    HAS_SKIMAGE = False
+
+@pytest.mark.skipif(not HAS_SKIMAGE, reason='This test requires having scikit-image installed.')
+def test_Circular_Aperture_PTP_short(display=False, npix=512, oversample=4, include_wfe=True, display_proper=False):
     """ Tests plane-to-plane propagation at short distances, by comparison
     of the results from propagate_ptp and propagate_direct calculations
 
+    This test also now include wavefront error, so as to demonstrate consistent sign conventions for phase aberrations
+    in both methods.
+
     """
     #test short distance propagation, as discussed in issue #194 (https://github.com/mperrin/poppy/issues/194)
-    wf = fresnel.FresnelWavefront(
+    wf_direct = fresnel.FresnelWavefront(
         2 * u.um,
         wavelength=10e-9*u.m,
         npix=npix,
-        oversample=4)
-    wf *= optics.CircularAperture(radius=800 * 1e-9*u.m)
-    wf_2 = fresnel.FresnelWavefront(
-        2 * u.um,
-        wavelength=10e-9*u.m,
-        npix=npix,
-        oversample=4)
-    wf_2 *= optics.CircularAperture(radius=800 * 1e-9*u.m)
+        oversample=oversample)
+    wf_direct *= optics.CircularAperture(radius=800 * 1e-9*u.m)
 
+    if include_wfe:
+        wf_direct *= poppy.wfe.ZernikeWFE(radius=800 * 1e-9*u.m,
+                     coefficients=(0,0,0,0,0, 0,1e-9))
+
+    wf_fresnel = wf_direct.copy()
     z = 12. * u.um
 
     # Calculate same result using 2 different algorithms:
-    wf.propagate_direct(z)
-    wf_2.propagate_fresnel(z)
+    wf_direct.propagate_direct(z)
+    wf_fresnel.propagate_fresnel(z)
 
-    # The results have different pixel scale so we need to resize
+    # The results have different pixel scales so we need to resize
     # in order to compare them
-    zoomed=(zoom(wf.intensity,(wf.pixelscale/wf_2.pixelscale).decompose().value))
-    n = zoomed.shape[0]
+    scalefactor = (wf_direct.pixelscale/wf_fresnel.pixelscale).decompose().value
+    zoomed_direct=zoom(wf_direct.intensity,scalefactor)
+    print(f"Rescaling by {scalefactor} to match pixel scales")
+    n = zoomed_direct.shape[0]
+    center_npix = npix*oversample/2
+    print(f"center npix: {center_npix}")
+    cropped_fresnel = wf_fresnel.intensity[int(center_npix - n / 2):int(center_npix + n / 2), int(center_npix - n / 2):int(center_npix + n / 2)]
 
-    crop_2=wf_2.intensity[int(1023-n/2):int(1023+n/2), int(1023-n/2):int(1023+n/2)]
-    #zooming shifted the centroids, find new centers
-    cent=fwcentroid.fwcentroid(zoomed,halfwidth=8)
-    cent2=fwcentroid.fwcentroid(crop_2,halfwidth=8)
-    shifted=shift(crop_2,[cent[1]-cent2[1],cent[0]-cent2[0]])
-    diff=shifted/shifted.max()-zoomed/zoomed.max()
-    assert(diff.max() < 1e-3)
+    # Zooming also shifts the centroids, so we have to re-align before we can compare pixel values.
+    # In theory we could figure out this offset directly from the pixel scales and how zoom works, which would be
+    # more elegant. However for current purposes it is sufficient to brute force it by registering the images together
+    if not include_wfe and False:
+        # For in-focus images, we can just measure the centroids empirically to align
+        #zooming shifted the centroids, find new centers
+        cent=fwcentroid.fwcentroid(zoomed_direct,halfwidth=8)
+        cent2=fwcentroid.fwcentroid(cropped_fresnel,halfwidth=8)
+
+        center_offset = np.asarray(cent)-np.asarray(cent2)
+        print(f"After rescaling, found center offset = {center_offset}")
+    else:
+        # For defocused images, after rescaling we can register via FFT correlation
+        import skimage
+        center_offset, error, diffphase = skimage.registration.phase_cross_correlation(zoomed_direct, cropped_fresnel, upsample_factor=50)
+        # upsample_factor of 50 or more is required to get sufficiently good alignment to pass the test criterion below
+        print(f"Offset from skimage: {center_offset}")
+
+    shifted_fresnel=shift(cropped_fresnel, (center_offset[1], center_offset[0]))
+
+    normalization = zoomed_direct.max() / shifted_fresnel.max() # work around different normalizations
+                                            # In some sense this is a bug in propagate_direct that they are not consistent
+    zoomed_direct /= normalization
+    print(f"Making consistent normalization with scale factor {normalization}")
+    diff=shifted_fresnel-zoomed_direct
+
+    if display:
+        boxhalfsize = npix//4
+
+        zoomed_crop = zoomed_direct[n//2-boxhalfsize:n//2+boxhalfsize, n//2-boxhalfsize:n//2+boxhalfsize]
+        shifted_crop = shifted_fresnel[n//2-boxhalfsize:n//2+boxhalfsize, n//2-boxhalfsize:n//2+boxhalfsize]
+        diff_crop = diff[n//2-boxhalfsize:n//2+boxhalfsize, n//2-boxhalfsize:n//2+boxhalfsize]
+
+        plt.imshow(zoomed_crop)
+        plt.colorbar()
+        plt.title("From propagate_direct\nrescaled to match scale of propagate_fresnel")
+        plt.figure()
+        plt.imshow(shifted_crop)
+        plt.colorbar()
+        plt.title("From propagate_fresnel\nshifted to align to propagate_direct")
+        plt.figure()
+        plt.imshow(diff_crop)
+        plt.colorbar()
+        plt.title("Difference of those two, after normalization")
+
+    maxreldiff = diff.max() / shifted_fresnel.max()
+    assert maxreldiff < 1e-3 , f"Pixel values different more than expected; max relative difference is {maxreldiff}"
+
+
+def test_fresnel_conservation_of_intensity(display=True, npix=256):
+    """Test that conservation of energy is maintained
+
+    """
+    aperture_diam = 10 * u.micron
+    distances = [10 * u.um, 100 * u.um, 200 * u.um, 1 * u.cm, 1 * u.m]
+
+    wf = poppy.fresnel.FresnelWavefront(
+        aperture_diam * 1.5,  # beam radius
+        wavelength=100 * u.nm,
+        npix=npix,
+        oversample=2)
+    wf *= poppy.optics.CircularAperture(radius=aperture_diam / 2)
+
+    ti0 = wf.total_intensity
+
+    for d in distances:
+        wf.propagate_fresnel(d)
+        assert np.allclose(ti0, wf.total_intensity), "Propagation appears to violate conservation of energy"
+        if display:
+            plt.figure()
+            wf.display(title=f'After {d}', scale='linear', showpadding=False)
+
 
 def test_spherical_lens(display=False):
     """Make sure that spherical lens operator is working.
@@ -242,12 +324,11 @@ def test_spherical_lens(display=False):
     wavefront = fresnel.FresnelWavefront(beam_radius=beam_diameter/2.,
                                    wavelength=500.0e-9, npix=256,
                                    oversample=1)
-    diam = beam_diameter
     lens = fresnel.QuadraticLens(fl, name='M1')
     wavefront.apply_lens_power(lens)
     #IDL/PROPER results should be within 10^(-11).
-    assert  1e-11 > abs(np.mean(wavefront.phase)-proper_wavefront_mean)
-    assert  1e-11 > abs(np.max(wavefront.phase)-proper_phase_max)
+    assert 1e-11 > abs(np.mean(wavefront.phase)-proper_wavefront_mean)
+    assert 1e-11 > abs(np.max(wavefront.phase)-proper_phase_max)
 
 def test_fresnel_optical_system_Hubble(display=False, sampling=2):
     """ Test the FresnelOpticalSystem infrastructure
@@ -449,6 +530,7 @@ def test_fresnel_FITS_Optical_element(tmpdir, display=False, verbose=False):
 
 
 def test_fresnel_propagate_direct_forward_and_back():
+    """ Test the propagate_direct FFT algorithm, applied forward and back, is a null operation"""
     npix = 1024
     wavelen = 2200 * u.nm
     wf = fresnel.FresnelWavefront(
@@ -463,6 +545,7 @@ def test_fresnel_propagate_direct_forward_and_back():
 
 
 def test_fresnel_propagate_direct_back_and_forward():
+    """ Test the propagate_fresnel FFT algorithm, applied forward and back, is a null operation"""
     npix = 1024
     wavelen = 2200 * u.nm
     wf = fresnel.FresnelWavefront(
@@ -477,6 +560,10 @@ def test_fresnel_propagate_direct_back_and_forward():
 
 
 def test_fresnel_propagate_direct_2forward_and_back():
+    """ Test that propagate_direct forward twice and back once is the same as forward once
+
+    (This seems redundant, and I can no longer remember why this test was implemented...)
+    """
     npix = 1024
     wavelen = 2200 * u.nm
     wf = fresnel.FresnelWavefront(
@@ -492,6 +579,9 @@ def test_fresnel_propagate_direct_2forward_and_back():
     np.testing.assert_almost_equal(wf.wavefront, start)
 
 def test_fresnel_return_complex():
+    """Test that we can return a complex wavefront from a Fresnel propagation, and
+    that complex wavefront is consistent with the usual PSF in real intensity units
+    """
     # physical radius values
     M1_radius = 3. * u.m
     fl_M1 = M1_radius/2.0
@@ -512,7 +602,10 @@ def test_fresnel_return_complex():
 
 def test_detector_in_fresnel_system(npix=256):
     """ Show that we can put a detector in a FresnelOpticalSystem
-    and it will resample the wavefront to the desired sampling and size"""
+    and it will resample the wavefront to the desired sampling and size.
+
+    Also checks conservation of intensity through the resampling operation.
+    """
 
     output_npix = 400
     out_pixscale = 210

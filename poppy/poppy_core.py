@@ -333,16 +333,20 @@ class BaseWavefront(ABC):
     def display(self, what='intensity', nrows=1, row=1, showpadding=False,
                 imagecrop=None, pupilcrop=None,
                 colorbar=False, crosshairs=False, ax=None, title=None, vmin=None,
-                vmax=None, scale=None, use_angular_coordinates=None,
+                vmax=None, vmax_wfe=None, scale=None, use_angular_coordinates=None,
                 angular_coordinate_unit=u.arcsec):
         """Display wavefront on screen
 
         Parameters
         ----------
         what : string
-           What to display. Must be one of {intensity, phase, best}.
+           What to display. Must be one of {intensity, phase, wfe, best, 'both'}.
+           'intensity' shows the wavefront intensity,  'wfe' shows the wavefront
+           error in meters or microns, 'phase' is similar to 'wfe' but shows wavefront
+           phase in radians at the given wavelength.
            'Best' implies to display the phase if there is nonzero OPD,
            or else display the intensity for a perfect pupil.
+           'both' will show two panels, for the wavefront intensity and wavefront error.
         nrows : int
             Number of rows to display in current figure (used for
             showing steps in a calculation)
@@ -354,6 +358,12 @@ class BaseWavefront(ABC):
             to [0, intens.max()] for linear (scale='linear') intensity plots,
             [1e-6*intens.max(), intens.max()] for logarithmic (scale='log') intensity
             plots, and [-0.25, 0.25] waves for phase plots.
+        vmax_wfe : float
+            Max value to display for phase or wfe, *if* distinct from vmax for intensity
+            for the case of what='both'. In other words you can use this to separately set
+            the min/max scales for the two plots. The minimum scale for wfe will be
+            set to the negative of this to ensure a balanced display scale symmetric around zero.
+            This parameter is ignored if the 'what' parameter is not equal to 'both'.
         scale : string
             'log' or 'linear', to define the desired display scale type for
             intensity. Default is log for image planes, linear otherwise.
@@ -476,10 +486,13 @@ class BaseWavefront(ABC):
             cmap_inten.set_bad(cmap_inten(0))
         cmap_phase = copy.copy(getattr(matplotlib.cm, conf.cmap_diverging))
         cmap_phase.set_bad('0.3')
-        # note, can't currently set separate vmin and vmax for intensity and phase
-        # but we can apply here a prior that the phase is always in the range of
-        # -pi to +pi, and we should display with a balanced color scale.
-        vmx = np.clip(max(vmax, np.abs(vmin)), -np.pi, np.pi)
+
+        if what == 'both':
+            vmx = vmax_wfe if vmax_wfe is not None else np.clip(max(vmax, np.abs(vmin)), -np.pi, np.pi)
+        else:
+            # we can apply here a prior that the phase is always in the range of
+            # -pi to +pi, and we should display with a balanced color scale.
+            vmx = np.clip(max(vmax, np.abs(vmin)), -np.pi, np.pi)
         norm_phase = matplotlib.colors.Normalize(vmin=-vmx, vmax=vmx)
 
         def wrap_lines_title(title):
@@ -509,11 +522,11 @@ class BaseWavefront(ABC):
             ax.set_title(title)
             ax.set_xlabel(unit_label)
             if colorbar:
-                plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
+                plt.colorbar(ax.images[0], ax=ax, orientation='vertical', shrink=0.8)
             plot_axes = [ax]
             to_return = ax
         elif what == 'phase':
-            # Display phase in waves.
+            # Display wavefront phase in radians.
             if ax is None:
                 ax = plt.subplot(nr, nc, int(row))
             utils.imshow_with_mouseover(
@@ -526,10 +539,42 @@ class BaseWavefront(ABC):
             )
             if title is None:
                 title = wrap_lines_title("Phase " + self.location)
-            plt.title(title)
-            plt.xlabel(unit_label)
+            ax.set_title(title)
+            ax.set_xlabel(unit_label)
             if colorbar:
-                plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
+                plt.colorbar(ax.images[0], ax=ax, orientation='vertical', shrink=0.8, label='Phase [radians]')
+
+            plot_axes = [ax]
+            to_return = ax
+
+        elif what == 'wfe':
+            # Display wavefront error in meters of optical path difference.
+            # Show units of nanometers, for convenience
+
+            # Set up WFE arrays, similar to how we set up phase and amp
+            wfe = self.wfe.to(u.nanometer).value.copy()
+            if self.planetype == PlaneType.pupil and self.ispadded and not showpadding:
+                wfe = utils.removePadding(wfe, self.oversample)
+            wfe[np.where(intens < mean_intens / 100)] = np.nan
+            vmx = np.nanmax(np.abs(wfe))
+            norm_wfe = matplotlib.colors.Normalize(vmin=-vmx, vmax=vmx)
+
+            if ax is None:
+                ax = plt.subplot(nr, nc, int(row))
+            utils.imshow_with_mouseover(
+                wfe,
+                ax=ax,
+                extent=extent,
+                norm=norm_wfe,
+                cmap=cmap_phase,
+                origin='lower'
+            )
+            if title is None:
+                title = wrap_lines_title("WFE " + self.location)
+            ax.set_title(title)
+            ax.set_xlabel(unit_label)
+            if colorbar:
+                plt.colorbar(ax.images[0], ax=ax, orientation='vertical', shrink=0.8, label='WFE [nm]')
 
             plot_axes = [ax]
             to_return = ax
@@ -537,20 +582,20 @@ class BaseWavefront(ABC):
         elif what == 'both':
             ax1 = plt.subplot(nrows, 2, (row * 2) - 1)
             plt.imshow(amp, extent=extent, cmap=cmap_inten, norm=norm_inten, origin='lower')
-            plt.title("Wavefront amplitude")
-            plt.ylabel(unit_label)
-            plt.xlabel(unit_label)
+            ax1.set_title("Wavefront amplitude")
+            ax1.set_ylabel(unit_label)
+            ax1.set_xlabel(unit_label)
 
             if colorbar:
-                plt.colorbar(orientation='vertical', shrink=0.8)
+                plt.colorbar(orientation='vertical', ax=ax1, shrink=0.8)
 
             ax2 = plt.subplot(nrows, 2, row * 2)
             plt.imshow(phase, extent=extent, cmap=cmap_phase, norm=norm_phase, origin='lower')
             if colorbar:
-                plt.colorbar(orientation='vertical', shrink=0.8)
+                plt.colorbar(orientation='vertical', ax=ax2, shrink=0.8, label='Phase [radians]')
 
-            plt.xlabel(unit_label)
-            plt.title("Wavefront phase [radians]")
+            ax2.set_xlabel(unit_label)
+            ax2.set_title("Wavefront phase")
 
             plot_axes = [ax1, ax2]
             to_return = (ax1, ax2)
@@ -571,7 +616,7 @@ class BaseWavefront(ABC):
             ax.set_title(title)
             ax.set_xlabel(unit_label)
             if colorbar:
-                plt.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
+                plt.colorbar(ax.images[0], ax=ax, orientation='vertical', shrink=0.8)
             plot_axes = [ax]
             to_return = ax
         else:
@@ -660,6 +705,11 @@ class BaseWavefront(ABC):
     def phase(self):
         """Phase of the wavefront, in radians"""
         return np.angle(self.wavefront)
+
+    @property
+    def wfe(self):
+        """Wavefront error of the wavefront, in meters"""
+        return self.phase * (self.wavelength/(2*np.pi))
 
     @property
     def shape(self):
@@ -798,7 +848,11 @@ class BaseWavefront(ABC):
             U -= (npix - 1) / 2.0
             U *= pixelscale
 
-            tiltphasor = np.exp(2.0j * np.pi * (U * xangle_rad + V * yangle_rad) / self.wavelength.to(u.meter).value)
+            # SIGN CONVENTION: Following Wyant and Creath:
+            #     Tilt in a wavefront affects the image by causing a shift of its center location in the Gaussian
+            #     image plane. A tilt causing a positive OPD change in the +x direction will cause the image to
+            #     shift in the -x direction
+            tiltphasor = np.exp(-2.0j * np.pi * (U * xangle_rad + V * yangle_rad) / self.wavelength.to(u.meter).value)
             self.wavefront *= tiltphasor
             self.history.append("Tilted wavefront by "
                                 "X={:2.2}, Y={:2.2} arcsec".format(Xangle, Yangle))
@@ -986,7 +1040,12 @@ class Wavefront(BaseWavefront):
 
         # Set up for computation - figure out direction & normalization
         if self.planetype == PlaneType.pupil and optic.planetype == PlaneType.image:
-            fft_forward = True
+            # SIGN CONVENTION: plus signs in exponent for basic forward propagation, with
+            # phase increasing with time. This convention differs from prior poppy version < 1.0.
+            # A "forward propagation" in the optical sense therefore corresponds to what numpy labels
+            # as an "inverse" FFT.
+            propagation_forward=True
+            fft_forward = False
 
             # (pre-)update state:
             self.planetype = PlaneType.image
@@ -995,7 +1054,12 @@ class Wavefront(BaseWavefront):
             self.history.append('   FFT {},  to IMAGE plane  scale={:.4f}'.format(self.wavefront.shape, self.pixelscale))
 
         elif self.planetype == PlaneType.image and optic.planetype == PlaneType.pupil:
-            fft_forward = False
+            # SIGN CONVENTION: plus signs in exponent for basic forward propagation, with
+            # phase increasing with time. This convention differs from prior poppy version < 1.0.
+            # A "backwards propagation" in the optical sense therefore corresponds to what numpy labels
+            # as an "forward" FFT.
+            propagation_forward=False
+            fft_forward = True
 
             # (pre-)update state:
             self.planetype = PlaneType.pupil
@@ -1008,7 +1072,7 @@ class Wavefront(BaseWavefront):
 
         self.wavefront = accel_math.fft_2d(self.wavefront, forward=fft_forward)
 
-        if fft_forward:
+        if propagation_forward:
             # FFT produces pixel-centered images by default, unless the _image_centered param
             # has already been set by an FQPM_FFT_aligner class
             if self._image_centered != 'corner':
@@ -2547,22 +2611,22 @@ class OpticalElement(object):
                 cmap = cmap_opd
                 norm = norm_opd
                 cb_values = np.array([-1, -0.5, 0, 0.5, 1]) * opd_vmax_m
-                cb_label = 'meters'
+                cb_label = 'OPD [meters]'
             else:
                 cmap = cmap_amp
                 norm = norm_amp
                 cb_values = [0, 0.25, 0.5, 0.75, 1.0]
-                cb_label = 'Fraction'
+                cb_label = 'Transmission amplitude'
 
             utils.imshow_with_mouseover(plot_array, ax=ax, extent=extent, cmap=cmap, norm=norm,
                                     origin='lower')
 
-            plt.title(title)
-            plt.ylabel(units)
+            ax.set_title(title)
+            ax.set_ylabel(units)
             ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
             ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
             if colorbar:
-                cb = plt.colorbar(ax.images[0], orientation=colorbar_orientation, ticks=cb_values)
+                cb = plt.colorbar(mappable=ax.images[0], ax=ax, orientation=colorbar_orientation, ticks=cb_values)
                 cb.set_label(cb_label)
             if crosshairs:
                 ax.axhline(0, ls=":", color='k')
