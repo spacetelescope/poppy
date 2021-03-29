@@ -916,7 +916,7 @@ class Instrument(object):
             wave_bin_edges = np.linspace(minwave, maxwave, nlambda + 1)
             wavesteps = (wave_bin_edges[:-1] + wave_bin_edges[1:]) / 2
             deltawave = wave_bin_edges[1] - wave_bin_edges[0]
-            jwst_area = 25.4 * (units.m * units.m)
+            area = 1 * (units.m * units.m)
             effstims = []
 
             for wave in wavesteps:
@@ -931,7 +931,7 @@ class Instrument(object):
                     binset = np.linspace(wave - deltawave, wave + deltawave,
                                          30)  # what wavelens to use when integrating across the sub-band?
                     binset = binset[binset >= 0]  # remove any negative values
-                    result = Observation(source, box, binset=binset).effstim('count', area=jwst_area)
+                    result = Observation(source, box, binset=binset).effstim('count', area=area)
                 effstims.append(result)
 
             effstims = units.Quantity(effstims)
@@ -956,8 +956,8 @@ class Instrument(object):
             # compute a source spectrum weighted by the desired filter curves.
             # The existing FITS files all have wavelength in ANGSTROMS since that is the stsynphot convention...
             filterfile = self._filters[self.filter].filename
-            filterfits = fits.open(filterfile)  # TODO: Use context manager
-            filterdata = filterfits[1].data
+            filterheader = fits.getheader(filterfile, 1)
+            filterdata = fits.getdata(filterfile, 1)
             try:
                 wavelengths = filterdata.WAVELENGTH.astype('=f8')
                 throughputs = filterdata.THROUGHPUT.astype('=f8')
@@ -965,8 +965,8 @@ class Instrument(object):
                 raise ValueError(
                     "The supplied file, {0}, does not appear to be a FITS table with WAVELENGTH and " +
                     "THROUGHPUT columns.".format(filterfile))
-            if 'WAVEUNIT' in filterfits[1].header:
-                waveunit = filterfits[1].header['WAVEUNIT'].lower()
+            if 'WAVEUNIT' in filterheader:
+                waveunit = filterheader['WAVEUNIT'].lower()
                 if re.match(r'[Aa]ngstroms?', waveunit) is None:
                     raise ValueError(
                         "The supplied file, {0}, has WAVEUNIT='{1}'. Only WAVEUNIT = Angstrom supported " +
