@@ -19,16 +19,17 @@ latest development version from git::
 Requirements
 --------------
 
-* Python 3.6, or more recent. Earlier versions of Python are no longer supported.
+* Python 3.6, or more recent.
 * The standard Python scientific stack: :py:mod:`numpy`, :py:mod:`scipy`,
   :py:mod:`matplotlib`
 * POPPY relies upon the `astropy
   <http://www.astropy.org>`__ community-developed core library for astronomy.
-  astropy, version 1.3 or more recent, is needed.
 
 The following are *optional*.  The first, :py:mod:`pysynphot`, is recommended
-for most users. The other optional installs are only worth adding for speed
-improvements if you are spending substantial time running calculations.
+for most users. The other optional installs can provide speed
+improvements if you are spending substantial time running calculations. See
+:ref:`the appendix on performance optimization <performance_and_parallelization>` for details.
+
 
 * `pysynphot <http://pysynphot.readthedocs.org/en/latest/>`_ enables the simulation
   of PSFs with proper spectral response to realistic source spectra.  Without
