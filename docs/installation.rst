@@ -9,9 +9,7 @@ POPPY may be installed one of three different ways.
 
     % pip install poppy --upgrade
 
-3. Cloning the source code hosted in `this repository on GitHub
-<https://github.com/spacetelescope/poppy>`_. It is possible to directly install the
-latest development version using your locally installed ``git`` package::
+3. Cloning the source code hosted in `this repository on GitHub <https://github.com/spacetelescope/poppy>`_. It is possible to directly install the latest development version using your locally installed ``git`` package::
 
     % git clone https://github.com/spacetelescope/poppy.git
     % cd poppy
