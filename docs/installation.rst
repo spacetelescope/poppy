@@ -3,7 +3,7 @@ Installation
 
 POPPY may be installed one of three different ways.
 
-1. Using ``conda`` through the `AstroConda channel <https://astroconda.readthedocs.io/en/latest/>`__. Note that Astroconda does not support Windows.
+1. Using ``conda`` through the `AstroConda channel <https://astroconda.readthedocs.io/en/latest/>`__. This is the recommended channel for most users on MacOS and Linux. But note that AstroConda does not support Windows.
 
 2. Using PyPi in the usual manner for Python packages::
 
