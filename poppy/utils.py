@@ -1465,7 +1465,7 @@ def specFromSpectralType(sptype, return_list=False, catalog=None):
         import os
         cdbs = os.getenv('PYSYN_CDBS')
         if cdbs is None:
-            raise EnvironmentError("Environment variable $PYSYN_CDBS must be defined for stsynphot")
+            raise EnvironmentError("Environment variable $PYSYN_CDBS must be defined for synphot")
         if os.path.exists(os.path.join(os.getenv('PYSYN_CDBS'), 'grid', 'phoenix')):
             catalog = 'phoenix'
         elif os.path.exists(os.path.join(os.getenv('PYSYN_CDBS'), 'grid', 'ck04models')):
@@ -1629,7 +1629,7 @@ def specFromSpectralType(sptype, return_list=False, catalog=None):
             return grid_to_spec(catname, keys[0], keys[1], keys[2])
         except IOError:
             errmsg = ("Could not find a match in catalog {0} for key {1}. Check that is a valid name in the " +
-                      "lookup table, and/or that stsynphot is installed properly.".format(catname, sptype))
+                      "lookup table, and/or that synphot is installed properly.".format(catname, sptype))
             _log.critical(errmsg)
             raise LookupError(errmsg)
 
