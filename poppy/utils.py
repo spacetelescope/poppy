@@ -1456,7 +1456,10 @@ def specFromSpectralType(sptype, return_list=False, catalog=None):
         otherwise, it's CK04.
 
     """
-    from stsynphot import grid_to_spec
+    try:
+        from stsynphot import grid_to_spec
+    except ImportError:
+        raise ImportError("Need stsynphot for this functionality")
     from synphot import SourceSpectrum
     from synphot import units as syn_u
     from synphot.models import ConstFlux1D, PowerLawFlux1D

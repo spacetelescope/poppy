@@ -12,8 +12,6 @@ import scipy.ndimage
 
 try:
     import synphot
-    from synphot import SourceSpectrum
-
     _HAS_SYNPHOT = True
 except ImportError:
     synphot = None
@@ -861,21 +859,20 @@ class Instrument(object):
             poppy_core._log.info("Monochromatic calculation requested.")
             return (np.asarray([monochromatic]), np.asarray([1]))
 
-        elif _HAS_SYNPHOT and (isinstance(source, SourceSpectrum) or source is None):
-            """ Given a SourceSpectrum object, perform synthetic photometry for
+        elif _HAS_SYNPHOT and (isinstance(source, synphot.SourceSpectrum) or source is None):
+            """ Given a synphot.SourceSpectrum object, perform synthetic photometry for
             nlambda bins spanning the wavelength range of interest.
 
             Because this calculation is kind of slow, cache results for reuse in the frequent
             case where one is computing many PSFs for the same spectral source.
             """
-            import synphot
             from synphot import SpectralElement, Observation
             from synphot.models import Box1D, BlackBodyNorm1D, Empirical1D
 
             poppy_core._log.debug(
                 "Calculating spectral weights using synphot, nlambda=%d, source=%s" % (nlambda, str(source)))
             if source is None:
-                source = SourceSpectrum(BlackBodyNorm1D, temperature=5700 * units.K)
+                source = synphot.SourceSpectrum(BlackBodyNorm1D, temperature=5700 * units.K)
                 poppy_core._log.info("No source spectrum supplied, therefore defaulting to 5700 K blackbody")
             poppy_core._log.debug("Computing spectral weights for source = " + str(source))
 
