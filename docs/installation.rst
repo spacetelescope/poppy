@@ -25,16 +25,16 @@ Requirements
 * POPPY relies upon the `astropy
   <http://www.astropy.org>`__ community-developed core library for astronomy.
 
-The following are *optional*.  The first, :py:mod:`pysynphot`, is recommended
-for most users. The other optional installs can provide speed
+
+The following are *optional*.  The first, :py:mod:`stsynphot`, is recommended
+for most users. The other optional installs are only worth adding for speed
 improvements if you are spending substantial time running calculations. See
 :ref:`the appendix on performance optimization <performance_and_parallelization>` for details.
 
-
-* `pysynphot <http://pysynphot.readthedocs.org/en/latest/>`_ enables the simulation
+* `stsynphot <https://stsynphot.readthedocs.io>`_ enables the simulation
   of PSFs with proper spectral response to realistic source spectra.  Without
   this, PSF fidelity is reduced. See below for :ref:`installation instructions
-  for pysynphot <pysynphot_install>`.
+  for stsynphot <stsynphot_install>`.
 * `psutil <https://pypi.python.org/pypi/psutil>`__ enables slightly better
   automatic selection of numbers of processes for multiprocess calculations.
 * `pyFFTW <https://pypi.python.org/pypi/pyFFTW>`__. The FFTW library can speed
@@ -53,19 +53,19 @@ improvements if you are spending substantial time running calculations. See
   These optionally can provide improved performance particularly in the
   Fresnel code.
 
-.. _pysynphot_install:
+.. _stsynphot_install:
 
-Installing or updating pysynphot
-----------------------------------
+Installing or updating stsynphot
+--------------------------------
 
-`Pysynphot <http://pysynphot.readthedocs.org/en/latest/>`_ is an optional dependency, but is highly recommended.
-See the `pysynphot installation docs here <http://pysynphot.readthedocs.org/en/latest/#installation-and-setup>`_
-to install ``pysynphot`` and (at least some of) its CDBS data files.
+`stsynphot <https://stsynphot.readthedocs.io>`_ is an optional dependency, but is highly recommended.
+See the `stsynphot installation docs here <https://stsynphot.readthedocs.io/en/latest/#installation-and-setup>`_
+to install ``stsynphot`` and (at least some of) its TRDS data files.
 
 *The minimum needed to have stellar spectral models available for use when
-creating PSFs is pysynphot itself plus just one of the CDBS data files: the Castelli & Kurucz stellar atlas, file*
-`synphot3.tar.gz <ftp://ftp.stsci.edu/cdbs/tarfiles/synphot3.tar.gz>`_ (18
-MB). Feel free to ignore the rest of the synphot CDBS files unless you know you want a larger set of
+creating PSFs is stsynphot itself plus just one of the TRDS data files: the Castelli & Kurucz stellar atlas, file*
+`synphot3_castelli-kurucz-2004.tar <https://archive.stsci.edu/hlsps/reference-atlases/hlsp_reference-atlases_hst_multi_castelli-kurucz-2004-atlas_multi_v1_synphot3.tar>`_ (18
+MB). Feel free to ignore the rest of the synphot TRDS files unless you know you want a larger set of
 input spectra or need the reference files for other purposes.
 
 

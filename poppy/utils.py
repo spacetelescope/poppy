@@ -704,8 +704,8 @@ def measure_ee(HDUlist_or_filename=None, ext=0, center=None, binsize=None, norma
 
     Examples
     --------
-    >>> ee = measure_ee("someimage.fits")
-    >>> print "The EE at 0.5 arcsec is ", ee(0.5)
+    >>> ee = measure_ee("someimage.fits")  # doctest: +SKIP
+    >>> print("The EE at 0.5 arcsec is ", ee(0.5))  # doctest: +SKIP
 
     """
 
@@ -749,8 +749,8 @@ def measure_radius_at_ee(HDUlist_or_filename=None, ext=0, center=None, binsize=N
 
     Examples
     --------
-    >>> ee = measure_radius_at_ee("someimage.fits")
-    >>> print "The EE is 50% at {} arcsec".format(ee(0.5))
+    >>> ee = measure_radius_at_ee("someimage.fits")  # doctest: +SKIP
+    >>> print("The EE is 50% at {} arcsec".format(ee(0.5)))  # doctest: +SKIP
     """
 
     rr, radialprofile2, ee = radial_profile(HDUlist_or_filename, ext, ee=True, center=center, binsize=binsize,
@@ -791,9 +791,9 @@ def measure_radial(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
 
     Examples
     --------
-    >>> rp = measure_radial("someimage.fits")
+    >>> rp = measure_radial("someimage.fits")  # doctest: +SKIP
     >>> radius = np.linspace(0, 5.0, 100)
-    >>> plot(radius, rp(radius), label="PSF")
+    >>> plot(radius, rp(radius), label="PSF")  # doctest: +SKIP
 
     """
 
@@ -1440,29 +1440,32 @@ quantity_input = BackCompatibleQuantityInput.as_decorator
 
 
 def specFromSpectralType(sptype, return_list=False, catalog=None):
-    """Get Pysynphot Spectrum object from a user-friendly spectral type string.
+    """Get synphot Spectrum object from a user-friendly spectral type string.
 
     Given a spectral type such as 'A0IV' or 'G2V', this uses a fixed lookup table
     to determine an appropriate spectral model from Castelli & Kurucz 2004 or
-    the Phoenix model grids. Depends on pysynphot and CDBS. This is just a
+    the Phoenix model grids. Depends on synphot, stsynphot, and CDBS. This is just a
     convenient access function.
 
     Parameters
     -----------
-    catalog: str
+    catalog : str
         'ck04' for Castelli & Kurucz 2004, 'phoenix' for Phoenix models.
         If not set explicitly, the code will check if the phoenix models are
         present inside the $PYSYN_CDBS directory. If so, those are the default;
         otherwise, it's CK04.
 
     """
-    import pysynphot
+    from stsynphot import grid_to_spec
+    from synphot import SourceSpectrum
+    from synphot import units as syn_u
+    from synphot.models import ConstFlux1D, PowerLawFlux1D
 
     if catalog is None:
         import os
         cdbs = os.getenv('PYSYN_CDBS')
         if cdbs is None:
-            raise EnvironmentError("Environment variable $PYSYN_CDBS must be defined for pysynphot")
+            raise EnvironmentError("Environment variable $PYSYN_CDBS must be defined for stsynphot")
         if os.path.exists(os.path.join(os.getenv('PYSYN_CDBS'), 'grid', 'phoenix')):
             catalog = 'phoenix'
         elif os.path.exists(os.path.join(os.getenv('PYSYN_CDBS'), 'grid', 'ck04models')):
@@ -1601,32 +1604,32 @@ def specFromSpectralType(sptype, return_list=False, catalog=None):
 
     if "Flat" in sptype:
         if sptype == "Flat spectrum in F_nu":
-            spec = pysynphot.FlatSpectrum(1, fluxunits='fnu')
+            spec = SourceSpectrum(ConstFlux1D, amplitude=1 * syn_u.FNU)
         elif sptype == "Flat spectrum in F_lambda":
-            spec = pysynphot.FlatSpectrum(1, fluxunits='flam')
-        spec.convert('flam')
-        return spec * (1. / spec.flux.mean())
+            spec = SourceSpectrum(ConstFlux1D, amplitude=1 * syn_u.FLAM)
+
+        return spec
     if 'Power law' in sptype:
         import re
-        ans = re.search('\((.*)\)', sptype)
+        ans = re.search(r'\((.*)\)', sptype)
         if ans is None:
             raise ValueError("Invalid power law specification cannot be parsed to get exponent")
         exponent = float(ans.groups(0)[0])
-        # note that Pysynphot's PowerLaw class implements a power law in terms of lambda, not nu.
+        # note that synphot's PowerLaw class implements a power law in terms of lambda, not nu.
         # but since nu = clight/lambda, it's just a matter of swapping the sign on the exponent.
 
-        spec = pysynphot.PowerLaw(1, (-1) * exponent, fluxunits='fnu')
-        spec.convert('flam')
-        spec *= (1. / spec.flux.mean())
-        spec.name = sptype
+        spec = SourceSpectrum(
+            PowerLawFlux1D, amplitude=1 * syn_u.FNU, x_0=1 * u.AA,
+            alpha=-exponent, meta={'name': sptype})
+
         return spec
     else:
         keys = lookuptable[sptype]
         try:
-            return pysynphot.Icat(catname, keys[0], keys[1], keys[2])
+            return grid_to_spec(catname, keys[0], keys[1], keys[2])
         except IOError:
             errmsg = ("Could not find a match in catalog {0} for key {1}. Check that is a valid name in the " +
-                      "lookup table, and/or that pysynphot is installed properly.".format(catname, sptype))
+                      "lookup table, and/or that stsynphot is installed properly.".format(catname, sptype))
             _log.critical(errmsg)
             raise LookupError(errmsg)
 
