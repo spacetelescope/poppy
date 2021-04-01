@@ -111,7 +111,7 @@ The general notion of an :py:class:`~poppy.Instrument` is that it consists of bo
 
 1. An optical system implemented in the usual fashion, optionally with several configurations such as
    selectable image plane or pupil plane stops or other adjustable properties, and
-2. Some defined spectral bandpass(es) such as selectable filters. If the :py:mod:`stsynphot` module is available, it will be used to perform careful synthetic photometry of targets with a given spectrum observed in the given bandpass. If :py:mod:`stsynphot` is not installed, the code will fall back to a much simpler model assuming constant number of counts vs wavelength.
+2. Some defined spectral bandpass(es) such as selectable filters. If the :py:mod:`synphot` module is available, it will be used to perform careful synthetic photometry of targets with a given spectrum observed in the given bandpass. If :py:mod:`synphot` is not installed, the code will fall back to a much simpler model assuming constant number of counts vs wavelength.
 
 
 Configurable options such as optical masks and filters are specified as properties of the instrument instance; an appropriate :py:class:`~poppy.OpticalSystem` will be generated when the :py:meth:`~poppy.Instrument.calc_psf` method is called.
