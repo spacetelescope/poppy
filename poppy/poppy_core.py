@@ -2074,31 +2074,37 @@ class OpticalSystem(BaseOpticalSystem):
 
         if np.abs(self.source_offset_r) > 0:
             # Add a tilt to the input wavefront.
-            # First we must work out the handedness of the input pupil relative to the
-            # final image plane.  This is needed to apply (to the input pupil) shifts
-            # with the correct handedness to get the desired motion in the final plane.
+            # We have to be careful about signs and rotations, so that we apply (to the input pupil)
+            # shifts with the correct handedness to get the desired motion in the final plane.
+
+            # convert to offset X,Y in arcsec in the focal plane, using the usual astronomical angle convention
+            angle = np.deg2rad(self.source_offset_theta)
+            tilt_x = self.source_offset_r * -np.sin(angle)
+            tilt_y = self.source_offset_r * np.cos(angle)
+
+            # Work backward through the optical system, applying inverse transforms as we go
             sign_x = 1
             sign_y = 1
             rotation_angle = 0
             if len(self.planes) > 0:
-                for plane in self.planes:
+                for plane in self.planes[::-1]:
                     if isinstance(plane, CoordinateInversion):
                         if plane.axis == 'x' or plane.axis == 'both':
                             sign_x *= -1
+                            tilt_x *= -1
                         if plane.axis == 'y' or plane.axis == 'both':
                             sign_y *= -1
+                            tilt_y *= -1
                     elif isinstance(plane, Rotation):
                         rotation_angle += plane.angle * sign_x * sign_y
+                        ang_rad = np.deg2rad(plane.angle)
+                        tx, ty = tilt_x, tilt_y
+                        tilt_x = np.cos(-ang_rad)*tx - np.sin(-ang_rad)*ty
+                        tilt_y = np.sin(-ang_rad)*tx + np.cos(-ang_rad)*ty
 
-            # now we must also work out the rotation
-
-            # convert to offset X,Y in arcsec using the usual astronomical angle convention
-            angle = (self.source_offset_theta - rotation_angle) * np.pi / 180
-            offset_x = sign_x * self.source_offset_r * -np.sin(angle)
-            offset_y = sign_y * self.source_offset_r * np.cos(angle)
-            inwave.tilt(Xangle=offset_x, Yangle=offset_y)
-            _log.debug("Tilted input wavefront by theta_X=%f, theta_Y=%f arcsec. (signs=%d, %d; theta offset=%f) " % (
-                       offset_x, offset_y, sign_x, sign_y, rotation_angle))
+            inwave.tilt(Xangle=tilt_x, Yangle=tilt_y)
+            _log.debug(f"  Requested source offset at r={self.source_offset_r}, theta={self.source_offset_theta}.")
+            _log.debug(f"  Tilted input wavefront by theta_X={tilt_x:.3f}, theta_Y={tilt_y:.3f} arcsec. (signs={sign_x}, {sign_y}; theta tilt={rotation_angle}) ")
 
         inwave._display_hint_expected_nplanes = len(self)  # For display of intermediate steps nicely
         return inwave

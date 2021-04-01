@@ -562,9 +562,16 @@ def test_analytic_vs_FITS_rotation_consistency(plot=False):
 
 ### OpticalSystem tests and related
 
-def test_source_offsets_in_OpticalSystem(npix=128, fov_size=1):
+def test_source_offsets_in_OpticalSystem(npix=128, fov_size=1, verbose=False):
     """Test source offsets within the field move in the expected
     directions and by the expected amounts
+
+    The source offset positions are specified in the *output* detector coordinate frame,
+    (i.e. for where the PSF should appear in the output image), but we create the
+    wavefront in the entrance pupil coordinate frame. These may be different if
+    there are coordinate transforms for axes flips or rotations. Therefore test several cases
+    and ensure the output PSF appears in the expected location in each case.
+
 
     Parameters:
     ----------
@@ -573,41 +580,64 @@ def test_source_offsets_in_OpticalSystem(npix=128, fov_size=1):
     fov_size :
         fov size in arcsec (pretty much arbitrary)
     """
-
     if npix < 110:
         raise ValueError("npix < 110 results in too few pixels for fwcentroid to work properly.")
 
     pixscale = fov_size / npix
     center_coords = np.asarray((npix - 1, npix - 1)) / 2
 
-    osys = poppy.OpticalSystem(oversample=1)
-    osys.add_pupil(poppy.CircularAperture(radius=1.0))
-    osys.add_detector(pixelscale=pixscale, fov_pixels=npix)
+    ref_psf1 = None  # below we will save and compare PSFs with transforms to one without.
 
-    # a PSF with no offset should be centered
-    psf0 = osys.calc_psf()
-    cen = poppy.measure_centroid(psf0)
-    assert np.allclose(cen, center_coords), "PSF with no source offset should be centered"
+    for transform in ['no', 'inversion', 'rotation', 'both']:
 
-    # Compute a PSF with the source offset towards PA=0 (+Y), still within the FOV
-    osys.source_offset_r = 0.3 * fov_size
+        osys = poppy.OpticalSystem(oversample=1, npix=npix)
+        osys.add_pupil(poppy.CircularAperture(radius=1.0))
+        if transform == 'inversion' or transform == 'both':
+            if verbose:
+                print("ADD INVERSION")
+            osys.add_inversion(axis='y')
+        if transform == 'rotation' or transform == 'both':
+            if verbose:
+                print("ADD ROTATION")
+            osys.add_rotation(angle=12.5)
+        osys.add_detector(pixelscale=pixscale, fov_pixels=npix)
 
-    # Shift to PA=0 should move in +Y
-    osys.source_offset_theta = 0
-    psf1 = osys.calc_psf()
-    cen = poppy.measure_centroid(psf1)
-    assert np.allclose((cen[0] - center_coords[0]) * pixscale, osys.source_offset_r,
-                       rtol=0.1), "Measured centroid in Y did not match expected offset"
-    assert np.allclose(cen[1], center_coords[1], rtol=0.1), "Measured centroid in X should not shift for this test case"
+        # a PSF with no offset should be centered
+        psf0 = osys.calc_psf()
+        cen = poppy.measure_centroid(psf0)
+        assert np.allclose(cen, center_coords), "PSF with no source offset should be centered"
+        if verbose:
+            print(f"PSF with no offset OK for system with {transform} transform.\n")
 
-    # Shift to PA=90 should move in -X
-    osys.source_offset_theta = 90
-    psf2 = osys.calc_psf()
-    cen = poppy.measure_centroid(psf2)
-    assert np.allclose((cen[1] - center_coords[1]) * pixscale, -osys.source_offset_r,
-                       rtol=0.1), "Measured centroid in X did not match expected offset"
-    assert np.allclose(cen[0], center_coords[0], rtol=0.1), "Measured centroid in Y should not shift for this test case"
+        # Compute a PSF with the source offset towards PA=0 (+Y), still within the FOV
+        osys.source_offset_r = 0.3 * fov_size
 
+        # Shift to PA=0 should move in +Y
+        osys.source_offset_theta = 0
+        psf1 = osys.calc_psf()
+        cen = poppy.measure_centroid(psf1)
+        assert np.allclose((cen[0] - center_coords[0]) * pixscale, osys.source_offset_r,
+                           rtol=0.1), "Measured centroid in Y did not match expected offset"
+        assert np.allclose(cen[1], center_coords[1], rtol=0.1), "Measured centroid in X should not shift for this test case"
+        if verbose:
+            print(f"PSF with +Y offset OK for system with {transform} transform.\n")
+
+        if ref_psf1 is None:
+            ref_psf1 = psf1
+        else:
+            assert np.allclose(ref_psf1[0].data, psf1[0].data,
+                               atol=1e-4), "PSF is inconsistent with the system without any transforms"
+
+        # Shift to PA=90 should move in -X
+        osys.source_offset_theta = 90
+        psf2 = osys.calc_psf()
+        cen = poppy.measure_centroid(psf2)
+        assert np.allclose((cen[1] - center_coords[1]) * pixscale, -osys.source_offset_r,
+                           rtol=0.1), "Measured centroid in X did not match expected offset"
+        assert np.allclose(cen[0], center_coords[0], rtol=0.1), "Measured centroid in Y should not shift for this test case"
+
+        if verbose:
+            print(f"PSF with -X offset OK for system with {transform} transform.\n")
 
 ### Detector class unit test ###
 
