@@ -11,13 +11,11 @@ import scipy.interpolate
 import scipy.ndimage
 
 try:
-    import stsynphot
-    from synphot import SourceSpectrum
-
-    _HAS_STSYNPHOT = True
+    import synphot
+    _HAS_SYNPHOT = True
 except ImportError:
-    stsynphot = None
-    _HAS_STSYNPHOT = False
+    synphot = None
+    _HAS_SYNPHOT = False
 
 from . import poppy_core
 from . import optics
@@ -35,7 +33,7 @@ class Instrument(object):
     """ A generic astronomical instrument, composed of
         (1) an optical system implemented using POPPY, optionally with several configurations such as
             selectable image plane or pupil plane stops, and
-        (2) some defined spectral bandpass(es) such as selectable filters, implemented using stsynphot.
+        (2) some defined spectral bandpass(es) such as selectable filters, implemented using synphot.
 
     This provides the capability to model both the optical and spectral responses of a given system.
     PSFs may be calculated for given source
@@ -114,7 +112,7 @@ class Instrument(object):
         # wrapped just below to create properties with validation.
         self._filter = None
         self._rotation = None
-        # for caching stsynphot results.
+        # for caching synphot results.
         self._spectra_cache = {}
         self.filter = self.filter_list[0]
 
@@ -782,7 +780,7 @@ class Instrument(object):
         return self.filter, name, nlambda
 
     def _get_synphot_bandpass(self, filtername):
-        """ Return a stsynphot.spectrum.ObservationSpectralElement object for the given desired band.
+        """ Return a synphot.spectrum.SpectralElement object for the given desired band.
 
         By subclassing this, you can define whatever custom bandpasses are appropriate for your instrument
 
@@ -793,20 +791,16 @@ class Instrument(object):
 
         Returns
         --------
-        a stsynphot.spectrum.ObservationSpectralElement object for that filter.
+        a synphot.spectrum.ObservationSpectralElement object for that filter.
 
         """
-        if not _HAS_STSYNPHOT:
-            raise RuntimeError("stsynphot not found")
+        if not _HAS_SYNPHOT:
+            raise RuntimeError("synphot not found")
 
-        if filtername.lower().startswith('f'):
-            # attempt to treat it as an HST filter name?
-            bpname = ('wfc3,uvis1,{}'.format(filtername)).lower()
-        else:
-            bpname = self._synphot_bandpasses[filtername]
+        bpname = self._synphot_bandpasses[filtername]
 
         try:
-            band = stsynphot.band(bpname)
+            band = synphot.spectrum.SpectralElement.from_filter(bpname)
         except Exception:
             raise LookupError("Don't know how to compute bandpass for a filter named " + bpname)
 
@@ -821,30 +815,30 @@ class Instrument(object):
         return 5
 
     def _get_filter_list(self):
-        """ Returns a list of allowable filters, and the corresponding stsynphot obsmode
+        """ Returns a list of allowable filters, and the corresponding synphot obsmode
         for each.
 
-        If you need to define bandpasses that are not already available in stsynphot, consider subclassing
-        _getSynphotBandpass instead to create a stsynphot spectrum based on data read from disk, etc.
+        If you need to define bandpasses that are not already available in synphot, consider subclassing
+        _getSynphotBandpass instead to create a synphot spectrum based on data read from disk, etc.
 
         Returns
         --------
         filterlist : list
             List of string filter names
         bandpasslist : dict
-            dictionary of string names for use by stsynphot
+            dictionary of string names for use by synphot
 
         This could probably be folded into one using an OrderdDict. FIXME do that later
 
         """
 
-        filterlist = ['B', 'I', 'R', 'U', 'V']
+        filterlist = ['U', 'B', 'V', 'R', 'I']
         bandpasslist = {
-            'B': 'johnson,b',
-            'I': 'johnson,i',
-            'R': 'johnson,r',
-            'U': 'johnson,u',
-            'V': 'johnson,v',
+            'U': 'johnson_u',
+            'B': 'johnson_b',
+            'V': 'johnson_v',
+            'R': 'johnson_r',
+            'I': 'johnson_i',
         }
 
         return filterlist, bandpasslist
@@ -855,7 +849,7 @@ class Instrument(object):
         """ Return the set of discrete wavelengths, and weights for each wavelength,
         that should be used for a PSF calculation.
 
-        Uses stsynphot (if installed), otherwise assumes simple-minded flat spectrum
+        Uses synphot (if installed), otherwise assumes simple-minded flat spectrum
 
         """
         if nlambda is None or nlambda == 0:
@@ -865,21 +859,20 @@ class Instrument(object):
             poppy_core._log.info("Monochromatic calculation requested.")
             return (np.asarray([monochromatic]), np.asarray([1]))
 
-        elif _HAS_STSYNPHOT and (isinstance(source, SourceSpectrum) or source is None):
-            """ Given a SourceSpectrum object, perform synthetic photometry for
+        elif _HAS_SYNPHOT and (isinstance(source, synphot.SourceSpectrum) or source is None):
+            """ Given a synphot.SourceSpectrum object, perform synthetic photometry for
             nlambda bins spanning the wavelength range of interest.
 
             Because this calculation is kind of slow, cache results for reuse in the frequent
             case where one is computing many PSFs for the same spectral source.
             """
-            import synphot
             from synphot import SpectralElement, Observation
             from synphot.models import Box1D, BlackBodyNorm1D, Empirical1D
 
             poppy_core._log.debug(
-                "Calculating spectral weights using stsynphot, nlambda=%d, source=%s" % (nlambda, str(source)))
+                "Calculating spectral weights using synphot, nlambda=%d, source=%s" % (nlambda, str(source)))
             if source is None:
-                source = SourceSpectrum(BlackBodyNorm1D, temperature=5700 * units.K)
+                source = synphot.SourceSpectrum(BlackBodyNorm1D, temperature=5700 * units.K)
                 poppy_core._log.info("No source spectrum supplied, therefore defaulting to 5700 K blackbody")
             poppy_core._log.debug("Computing spectral weights for source = " + str(source))
 
@@ -940,7 +933,7 @@ class Instrument(object):
 
             newsource = (wave_m, effstims.to_value())
             if verbose:
-                _log.info(" Wavelengths and weights computed from stsynphot: " + str(newsource))
+                _log.info(" Wavelengths and weights computed from synphot: " + str(newsource))
             self._spectra_cache[self._get_spec_cache_key(source, nlambda)] = newsource
             return newsource
         elif isinstance(source, dict) and ('wavelengths' in source) and ('weights' in source):
@@ -950,11 +943,11 @@ class Instrument(object):
             # Allow user to provide directly a tuple, as in poppy.calc_psf source option #3
             return source
 
-        else:  # Fallback simple code for if we don't have stsynphot.
+        else:  # Fallback simple code for if we don't have synphot.
             poppy_core._log.warning(
-                "stsynphot unavailable (or invalid source supplied)! Assuming flat # of counts versus wavelength.")
+                "synphot unavailable (or invalid source supplied)! Assuming flat # of counts versus wavelength.")
             # compute a source spectrum weighted by the desired filter curves.
-            # The existing FITS files all have wavelength in ANGSTROMS since that is the stsynphot convention...
+            # The existing FITS files all have wavelength in ANGSTROMS since that is the synphot convention...
             filterfile = self._filters[self.filter].filename
             filterheader = fits.getheader(filterfile, 1)
             filterdata = fits.getdata(filterfile, 1)
@@ -970,7 +963,7 @@ class Instrument(object):
                 if re.match(r'[Aa]ngstroms?', waveunit) is None:
                     raise ValueError(
                         "The supplied file, {0}, has WAVEUNIT='{1}'. Only WAVEUNIT = Angstrom supported " +
-                        "when stsynphot is not installed.".format(filterfile, waveunit))
+                        "when synphot is not installed.".format(filterfile, waveunit))
             else:
                 waveunit = 'Angstrom'
                 poppy_core._log.warning(

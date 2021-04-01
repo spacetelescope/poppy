@@ -6,7 +6,7 @@ import pytest
 from astropy import units as u
 
 from poppy import poppy_core, instrument, optics, utils
-from poppy.instrument import _HAS_STSYNPHOT
+from poppy.instrument import _HAS_SYNPHOT
 
 WEIGHTS_DICT = {'wavelengths': [2.0e-6, 2.1e-6, 2.2e-6], 'weights': [0.3, 0.5, 0.2]}
 WAVELENGTHS_ARRAY = np.array(WEIGHTS_DICT['wavelengths'])
@@ -57,8 +57,8 @@ def test_instrument_source_weight_array(wavelengths=WAVELENGTHS_ARRAY, weights=W
 
     return psf
 
-@pytest.mark.skipif(not _HAS_STSYNPHOT, reason="stsynphot dependency not met")
-def test_instrument_source_stsynphot():
+@pytest.mark.skipif(not _HAS_SYNPHOT, reason="synphot dependency not met")
+def test_instrument_source_synphot():
     """
     Tests the ability to provide a source as a SourceSpectrum object
     """
@@ -75,22 +75,22 @@ def test_instrument_source_stsynphot():
     psf_weights_explicit = inst.calc_psf(source=(wavelengths, weights), fov_pixels=FOV_PIXELS,
                                         detector_oversample=2, fft_oversample=2, nlambda=5)
     bb = SourceSpectrum(BlackBodyNorm1D, temperature=5700 * u.K)
-    psf_weights_stsynphot = inst.calc_psf(source=bb, fov_pixels=FOV_PIXELS,
+    psf_weights_synphot = inst.calc_psf(source=bb, fov_pixels=FOV_PIXELS,
                                          detector_oversample=2, fft_oversample=2, nlambda=5)
-    assert psf_weights_stsynphot[0].header['NWAVES'] == len(wavelengths), \
+    assert psf_weights_synphot[0].header['NWAVES'] == len(wavelengths), \
         "Number of wavelengths in PSF header does not match number requested"
 
-    assert np.allclose(psf_weights_explicit[0].data, psf_weights_stsynphot[0].data,
-            rtol=1e-4), ( # Slightly larger tolerance to accomodate minor changes w/ stsynphot versions
-        "stsynphot multiwavelength PSF does not match the weights and wavelengths pre-computed for "
-        "a 5500 K blackbody in Johnson B (has stsynphot changed?)"
+    assert np.allclose(psf_weights_explicit[0].data, psf_weights_synphot[0].data,
+            rtol=1e-4), ( # Slightly larger tolerance to accomodate minor changes w/ synphot versions
+        "synphot multiwavelength PSF does not match the weights and wavelengths pre-computed for "
+        "a 5500 K blackbody in Johnson B (has synphot changed?)"
     )
-    return psf_weights_stsynphot
+    return psf_weights_synphot
 
-@pytest.mark.skipif(not _HAS_STSYNPHOT, reason="stsynphot dependency not met")
-def test_stsynphot_spectra_cache():
+@pytest.mark.skipif(not _HAS_SYNPHOT, reason="synphot dependency not met")
+def test_synphot_spectra_cache():
     """
-    The result of the stsynphot calculation is cached. This ensures the appropriate
+    The result of the synphot calculation is cached. This ensures the appropriate
     key appears in the cache after one calculation, and that subsequent calculations
     proceed without errors (exercising the cache lookup code).
     """

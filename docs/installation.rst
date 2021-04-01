@@ -26,15 +26,15 @@ Requirements
   <http://www.astropy.org>`__ community-developed core library for astronomy.
 
 
-The following are *optional*.  The first, :py:mod:`stsynphot`, is recommended
+The following are *optional*.  The first, :py:mod:`synphot`, is recommended
 for most users. The other optional installs are only worth adding for speed
 improvements if you are spending substantial time running calculations. See
 :ref:`the appendix on performance optimization <performance_and_parallelization>` for details.
 
-* `stsynphot <https://stsynphot.readthedocs.io>`_ enables the simulation
+* `synphot <https://synphot.readthedocs.io>`_ enables the simulation
   of PSFs with proper spectral response to realistic source spectra.  Without
   this, PSF fidelity is reduced. See below for :ref:`installation instructions
-  for stsynphot <stsynphot_install>`.
+  for synphot <synphot_install>`.
 * `psutil <https://pypi.python.org/pypi/psutil>`__ enables slightly better
   automatic selection of numbers of processes for multiprocess calculations.
 * `pyFFTW <https://pypi.python.org/pypi/pyFFTW>`__. The FFTW library can speed
@@ -53,19 +53,19 @@ improvements if you are spending substantial time running calculations. See
   These optionally can provide improved performance particularly in the
   Fresnel code.
 
-.. _stsynphot_install:
+.. _synphot_install:
 
-Installing or updating stsynphot
+Installing or updating synphot
 --------------------------------
 
-`stsynphot <https://stsynphot.readthedocs.io>`_ is an optional dependency, but is highly recommended.
-See the `stsynphot installation docs here <https://stsynphot.readthedocs.io/en/latest/#installation-and-setup>`_
-to install ``stsynphot`` and (at least some of) its TRDS data files.
+`synphot <https://synphot.readthedocs.io>`_ is an optional dependency, but is highly recommended.
+See the `synphot installation docs here <https://synphot.readthedocs.io/en/latest/#installation-and-setup>`_
+to install ``synphot`` and (even more optionally) some of its TRDS data files.
 
 *The minimum needed to have stellar spectral models available for use when
-creating PSFs is stsynphot itself plus just one of the TRDS data files: the Castelli & Kurucz stellar atlas, file*
+creating PSFs is synphot itself plus just one of the TRDS data files: the Castelli & Kurucz stellar atlas, file*
 `synphot3_castelli-kurucz-2004.tar <https://archive.stsci.edu/hlsps/reference-atlases/hlsp_reference-atlases_hst_multi_castelli-kurucz-2004-atlas_multi_v1_synphot3.tar>`_ (18
-MB). Feel free to ignore the rest of the synphot TRDS files unless you know you want a larger set of
+MB). Feel free to ignore the rest of the many GB of synphot TRDS files unless you know you want a larger set of
 input spectra or need the reference files for other purposes.
 
 
