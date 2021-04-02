@@ -496,7 +496,6 @@ class PowerSpectrumWFE(WavefrontError):
             raise Exception('PSD screen size smaller than wavefront size, recommend at least 2x larger')
         
         # get pixelscale to calculate spatial frequency spacing
-        pixelscale =  * u.pixel # default setting is m/pix, force to meter only
         dk = (1/(self.screen_size * wave.pixelscale)).value # unseen units: 1/m
         
         # build spatial frequency map
