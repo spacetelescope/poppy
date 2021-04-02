@@ -359,11 +359,11 @@ class StatisticalPSDWFE(WavefrontError):
 
 
 class PowerSpectrumWFE(WavefrontError):
-    """
+    r"""
     WFE model specificed via a Power Spectral Density (PSD),
     or a list of multiple PSDs, which follow von Karman PSD model:
     
-    :math: `P(k) = \frac{\beta} {\left( \left(\frac{1}{L_{0}}\right)^{2} + |k|^{2} \right)^{{\alpha/2}}} e^{-(|k|l_{0})^{2}} + \beta_{sr}`
+    :math:`P(k) = \frac{\beta} {\left( \left(\frac{1}{L_{0}}\right)^{2} + |k|^{2} \right)^{{\alpha/2}}} e^{-(|k|l_{0})^{2}} + \beta_{sr}`
     
     where:
     P: astropy quantity
@@ -372,17 +372,17 @@ class PowerSpectrumWFE(WavefrontError):
         Assumes surface units of meters (first :math: `m^{2}`)
     k: astropy quantity
         Spatial frequency value, units 1/m
-    :math: `\alpha`: float 
+    :math:`\alpha`: float 
         The PSD index value 
-    :math: `\beta`: astropy quantity
+    :math:`\beta`: astropy quantity
         The normalization constant. In units of :math: `\frac{m^{2}}{m^{\alpha-2}}`
         Numerator assumes surface units of meters
         Denominator assumes spatial frequency units are 1/m
-    :math: `L_{0}`: astropy quantity
+    :math:`L_{0}`: astropy quantity
         The outer scale value, where the low spatial frequency flattens. Units: m
-    :math: `l_{0}`: float
+    :math:`l_{0}`: float
         Inner scale value, where the high spatial frequency flattens.
-    :math: `\beta_{sr}`: astropy quantity
+    :math:`\beta_{sr}`: astropy quantity
         Surface roughness normalization. Should match units of PSD.
     
     References:
