@@ -3158,7 +3158,7 @@ class FITSFPMElement(FITSOpticalElement):
     making it impossible to display the wavefront with extents.
 
     The method used to apply this element requires additional information from the user that is not required 
-    for FITSOpticalElements. These additional parameter are listed below. 
+    for FITSOpticalElements. These additional parameters are listed below. 
     
     Parameters not in FITSOpticalElement
     ----------
