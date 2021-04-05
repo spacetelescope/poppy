@@ -951,6 +951,43 @@ class FresnelWavefront(BaseWavefront):
 
         _log.debug("------ Optic: " + str(optic.name) + " applied ------")
 
+
+    def apply_fits_fpm_fftmft(self, optic):
+        """
+        Apply a focal plane mask using fft and mft methods to highly sample at the focal plane and apply the mask with the correct pixelscale.
+        This method is only used for FITSFPMElements.
+        This method is currently only functional for amplitude transmission elements. 
+        
+        Parameters
+        ----------
+        optic : FITSFPMElement
+
+        """
+        _log.debug("------ Applying FITS FPM using FFT and MFT sequence ------")
+        
+        # convert the sampling of the optic to units of lambda/D to apply the 
+        fpm_pxscl_lamcD = ( optic.pixelscale / ((optic.wavelength_c/optic.ep_diam) * (180/np.pi * 3600)) ).value
+        fpm_pxscl_lamD = ( fpm_pxscl_lamcD * optic.wavelength_c / self.wavelength ).value
+        
+        n = self.wavefront.shape[0]
+        fpm = optic.amplitude
+        nfpm = fpm.shape[0]
+        
+        nfpmlamD = nfpm*fpm_pxscl_lamD*self.oversample
+        
+        mft = poppy.matrixDFT.MatrixFourierTransform(centering=optic.centering)
+        
+        self.wavefront = np.fft.fftshift(self.wavefront)
+        self.wavefront = accel_math.fft_2d(self.wavefront, forward=True, fftshift=True) # do a forward FFT to virtual pupil
+        self.wavefront = mft.inverse(self.wavefront, nfpmlamD, nfpm) # MFT back to highly sampled focal plane
+        self.wavefront *= fpm
+        self.wavefront = mft.perform(self.wavefront, nfpmlamD, n) # MFT to virtual pupil
+        self.wavefront = accel_math.fft_2d(self.wavefront, forward=False, fftshift=True) # FFT back to normally-sampled focal plane
+        self.wavefront = np.fft.ifftshift(self.wavefront)
+        
+        _log.debug("------ FITs FPM Optic: " + str(optic.name) + " applied ------")
+
+
     def _resample_wavefront_pixelscale(self, detector):
         """ Resample a Fresnel wavefront to a desired detector sampling.
 
@@ -1162,7 +1199,11 @@ class FresnelOpticalSystem(BaseOpticalSystem):
 
             # The actual propagation:
             wavefront.propagate_to(optic, distance)
-            wavefront *= optic
+            
+            if isinstance(optic, poppy.poppy_core.FITSFPMElement):
+                wavefront.apply_fits_fpm_fftmft(optic)
+            else:
+                wavefront *= optic
 
             # Normalize if appropriate:
             if normalize.lower() == 'first' and wavefront.current_plane_index == 1:  # set entrance plane to 1.
