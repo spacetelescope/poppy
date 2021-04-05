@@ -395,7 +395,7 @@ class PowerSpectrumWFE(WavefrontError):
     ----------
     name : string
         name of the optic
-    psd_parameters: list of lists
+    psd_parameters: list (for single PSD set) or list of lists (multiple PSDs)
         List of specified PSD parameters.
         If there are multiple PSDs, then each list element is a list of specified PSD parameters.
         i.e. [ [PSD_list_0], [PSD_list_1]]
@@ -434,12 +434,13 @@ class PowerSpectrumWFE(WavefrontError):
         If None passed, then the wfe RMS produced is what shows up in PSD calculation.
         Default to None.
     incident_angle: astropy quantity
-        Adjusts the WFE based on 
+        Adjusts the WFE based on reflected beam distortion.
+        Does not distort the beam (remains circular), but will get the rms equivalent value.
         Can be passed as either degrees or radians.
         Default is 0 degrees (paraxial).
     """
 
-    @utils.quantity_input(wfe=u.nm, radius=u.meter)
+    @utils.quantity_input(wfe=u.nm, radius=u.meter, incident_angle=u.deg)
     def __init__(self, name='Model PSD WFE', psd_parameters=None, psd_weight=None, seed=None, 
                  apply_reflection=False, screen_size=None, rms=None, incident_angle=0*u.deg, 
                  **kwargs):
@@ -452,16 +453,9 @@ class PowerSpectrumWFE(WavefrontError):
         self.rms = rms
         
         # check incident angle units
-        if hasattr(incident_angle, 'unit'):
-            if incident_angle.unit == u.deg:
-                assert incident_angle.value < 90, "Incident angle must be less than 90 degrees."
-            elif incident_angle.unit == u.rad:
-                assert incident_angle.value < (np.pi/2), "Incident angle must be less than pi/2 radians."
-            else:
-                raise Exception('Incident angle units must be either degrees or radians.')
-            self.incident_angle = incident_angle
-        else:
-            raise Exception('Incident angle missing units, must be either degrees or radians.')
+        if incident_angle >= 90*u.deg:
+            raise ValueError("Incident angle must be less than 90 degrees, or equivalent in other units.")
+        self.incident_angle = incident_angle
             
         if psd_weight is None:
             self.psd_weight = np.ones((len(psd_parameters))) # default to equal weights
@@ -496,13 +490,13 @@ class PowerSpectrumWFE(WavefrontError):
             raise Exception('PSD screen size smaller than wavefront size, recommend at least 2x larger')
         
         # get pixelscale to calculate spatial frequency spacing
-        dk = (1/(self.screen_size * wave.pixelscale)).value # unseen units: 1/m
+        dk = 1/(self.screen_size * wave.pixelscale * u.pix) # eliminate the pixel units
         
         # build spatial frequency map
         cen = int(self.screen_size/2)
         maskY, maskX = np.mgrid[-cen:cen, -cen:cen]
-        ky = maskY*dk
-        kx = maskX*dk
+        ky = maskY*dk.value
+        kx = maskX*dk.value
         k_map = np.sqrt(kx**2 + ky**2) # unitless for the math, but actually 1/m
         
         # calculate the PSD
@@ -558,7 +552,8 @@ class PowerSpectrumWFE(WavefrontError):
             beam_diam = wave.pixelscale * u.pix * wave_size # has units, needed for circ
             circ = CircularAperture(name='beam diameter', radius=beam_diam/2)
             ap = circ.get_transmission(wave)
-            active_ap = opd[ap==True]
+            opd_crop = utils.pad_or_crop_to_shape(array=opd, target_shape=wave.shape)
+            active_ap = opd_crop[ap==True]
             rms_measure = np.sqrt(np.mean(np.square(active_ap))) # measured rms from aperture
             opd *= self.rms.to(u.m).value/rms_measure # appropriately scales entire OPD
             
