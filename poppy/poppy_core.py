@@ -3149,21 +3149,19 @@ class FITSOpticalElement(OpticalElement):
 
 class FITSFPMElement(FITSOpticalElement):
     '''
-    This class allows the definition of focal plane masks using .fits files.
-    An object of this type will by default use an fft and mft sequence in order to apply the mask. 
-    Doing so requires more information from the user than for a standard FITSOpticalElement, which are passed as kwargs. 
+    This class allows the definition of focal plane masks using .fits files that will be applied to a 
+    wavefront via an FFT/MFT sequence to acheive the correct sampling at the assumed focal plane.
     
-    This element will function as an image or intermediate planetype. If an image planetype is used,
-    the wavefront at this plane may have infinite pixelscales, making it impossible to display the wavefront with extents.
-    If an intermediate plane is used, the pixelscale units will default to m/pix, so the user must also pass
-    the pixelscale value in units of lambda/D such that the FPM can be applied in the correct units since
-    the MFTs rely on that value. 
+    This element will only function as an intermediate planetype due to pixelscale and display functionality
+    when propagating to this plane. 
+    Note: if an image planetype were to be used, the wavefront at this plane may have infinite pixelscales, 
+    making it impossible to display the wavefront with extents.
+
+    The method used to apply this element requires additional information from the user that is not required 
+    for FITSOpticalElements. These additional parameter are listed below. 
     
     Parameters not in FITSOpticalElement
     ----------
-    use_fpm_fftmft: boolean True or False
-        This parameter indicates whether or not the fftmft sequence 
-        should be used in order to apply this optic. 
     wavelength_c: float, astropy.quantity 
         Central wavelength of the user's system, required in order to 
         convert the pixelscale to units of lambda/D and scale the 
@@ -3171,11 +3169,11 @@ class FITSFPMElement(FITSOpticalElement):
     ep_diam: float, astropy.quantity
         Entrance pupil diameter of the system, required to convert the 
         pixelscale to units of lambda/D. 
+    pixelscale_lamD: float
+        pixelscale value in units of lambda/D. 
     centering: str
         What type of centering to use for the MFTs, see MFT documentation 
         for more information. Default is 'ADJUSTABLE'.
-    pixelscale_lamD: float
-        pixelscale value in units of lambda/D. 
         
     '''
     def __init__(self, name="unnamed FPM element", transmission=None, opd=None, opdunits=None,
@@ -3183,16 +3181,15 @@ class FITSFPMElement(FITSOpticalElement):
                  transmission_index=None, opd_index=None,
                  shift=None, shift_x=None, shift_y=None,
                  flip_x=False, flip_y=False, 
-                 wavelength_c=None, ep_diam=None, centering='ADJUSTABLE',
-                 pixelscale_lamD=None,
+                 wavelength_c=None, ep_diam=None, pixelscale_lamD=None, centering='ADJUSTABLE',
                  **kwargs):
         
         FITSOpticalElement.__init__(self, name=name, transmission=transmission, opd=opd, opdunits=opdunits,
-                                rotation=rotation, pixelscale=pixelscale, planetype=planetype,
-                                transmission_index=transmission_index, opd_index=opd_index,
-                                shift=shift, shift_x=shift_x, shift_y=shift_y,
-                                flip_x=flip_x, flip_y=flip_y, 
-                                **kwargs)
+                                    rotation=rotation, pixelscale=pixelscale, planetype=planetype,
+                                    transmission_index=transmission_index, opd_index=opd_index,
+                                    shift=shift, shift_x=shift_x, shift_y=shift_y,
+                                    flip_x=flip_x, flip_y=flip_y, 
+                                    **kwargs)
 
         self.wavelength_c = wavelength_c
         self.ep_diam = ep_diam
