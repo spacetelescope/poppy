@@ -236,6 +236,7 @@ def test_PowerSpectrumWFE(plot=False):
     npix_surf = surf_ref.shape[0]
     opt_diam = hdr['opticd'] * u.m
     pixelscale = hdr['pixscale'] * u.m/u.pix # should match with opt_diam/npix
+    surf_radius = (pixelscale * u.pix * npix_surf/2.0 ).to_value(u.m)
 
     # psd parameter data from header
     alpha = hdr['alpha']
@@ -259,7 +260,7 @@ def test_PowerSpectrumWFE(plot=False):
     psd_wave = poppy_core.Wavefront(npix=npix_surf, diam=opt_diam, wavelength=656e-9)
     psd_wfe = wfe.PowerSpectrumWFE(psd_parameters=psd_parameters, psd_weight=psd_weight,
                                     seed=seed, apply_reflection=False, screen_size=screen_size,
-                                    rms=rms_ref)
+                                    rms=rms_ref, radius=surf_radius)
     psd_opd = (psd_wfe.get_opd(psd_wave)*u.m).to(surf_ref.unit)
     psd_rms = rms(psd_opd)
     psd_pv = pv(psd_opd)
