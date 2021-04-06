@@ -415,7 +415,7 @@ class FresnelWavefront(BaseWavefront):
         Y, X :  array_like
             Wavefront coordinates in either meters or arcseconds for pupil and image, respectively
         """
-        # Override parent class method to provide one that's comparatible with
+        # Override parent class method to provide one that's compatible with
         # FFT indexing conventions. Centered one one pixel not on the middle
         # of the array.
         # This function is intentionally distinct from the regular Wavefront.coordinates(), and behaves
@@ -500,6 +500,10 @@ class FresnelWavefront(BaseWavefront):
         Implements the direct propagation algorithm as described in Andersen & Enmark (2011). Works best for
         far field propagation. Not part of the Gaussian beam propagation method.
 
+        This algorithm was implemented early on as a cross-check for the main propagate_fresnel pathway which
+        uses the angular spectrum method. In most cases you should use that; calling this method is not
+        recommended in general for most use cases, unless you have a particular reason to do so.
+
         Parameters
         ----------
         z :  float or Astropy.Quantity length
@@ -531,6 +535,10 @@ class FresnelWavefront(BaseWavefront):
             result = accel_math._ifftshift(result)
             result *= self.pixelscale.to(u.m / u.pix).value ** 2 * self.n ** 2
         result *= quadphase_2nd
+        # FIXME there is some inconsistency in the flux normalization here, possibly with the pixelscale scaling
+        # As a result this function does not properly conserve energy (i.e. conserve total intensity)
+        # Ideally this should be debugged but is not a priority to do so right now.
+        _log.warning("caution, propagate_direct normalization does not preserve flux.")
 
         self.pixelscale = self.wavelength * abs(z) / s / u.pix
         self.wavefront = result
@@ -670,10 +678,12 @@ class FresnelWavefront(BaseWavefront):
 
         self *= _QuadPhaseShifted(dz)
 
+        # SIGN CONVENTION: forward optical propagations want a positive sign in the complex exponential, which
+        # numpy implements as an "inverse" FFT
         if dz > 0:
-            self._fft()
-        else:
             self._inv_fft()
+        else:
+            self._fft()
 
         self.pixelscale = self.wavelength * np.abs(dz) / (self.n * u.pixel * self.pixelscale) / u.pixel
         self.z += dz
@@ -709,10 +719,12 @@ class FresnelWavefront(BaseWavefront):
             _log.error("Spherical to Waist propagation stopped, no change in distance.")
             return
 
+        # SIGN CONVENTION: forward optical propagations want a positive sign in the complex exponential, which
+        # numpy implements as an "inverse" FFT
         if dz > 0 * u.meter:
-            self._fft()
-        else:
             self._inv_fft()
+        else:
+            self._fft()
 
         # update to new pixel scale before applying curvature
         self.pixelscale = self.wavelength * np.abs(dz) / (self.n * u.pixel * self.pixelscale) / u.pixel
@@ -767,7 +779,7 @@ class FresnelWavefront(BaseWavefront):
                 self._propagate_ptp(delta_z)
             else:
                 # Plane wave to spherical. First use PTP to the waist, then WTS to Spherical
-                _log.debug('  Plane to Spherical, inside Z_R to outside Z_R')
+                _log.debug('  Plane to Spherical Regime, inside Z_R to outside Z_R')
                 _log.debug('  Starting Pixelscale: {}'.format(self.pixelscale))
                 self._propagate_ptp(self.z_w0 - self.z)
                 if display_intermed:
@@ -1100,7 +1112,7 @@ class FresnelOpticalSystem(BaseOpticalSystem):
             _log.info("Added detector: {0} after separation: {1:.2e} ".format(self.planes[-1].name, distance))
 
     @utils.quantity_input(wavelength=u.meter)
-    def input_wavefront(self, wavelength=1e-6 * u.meter):
+    def input_wavefront(self, wavelength=1e-6 * u.meter, inwave=None):
         """Create a Wavefront object suitable for sending through a given optical system.
 
         Uses self.source_offset to assign an off-axis tilt, if requested.
@@ -1118,13 +1130,16 @@ class FresnelOpticalSystem(BaseOpticalSystem):
 
         """
         oversample = int(np.round(1 / self.beam_ratio))
-        inwave = FresnelWavefront(self.pupil_diameter / 2, wavelength=wavelength,
-                                  npix=self.npix, oversample=oversample)
-        _log.debug(
-            "Creating input wavefront with wavelength={0} microns,"
-            "npix={1}, diam={3}, pixel scale={2}".format(
-                wavelength.to(u.micron).value, self.npix, self.pupil_diameter / (self.npix * u.pixel), self.pupil_diameter
-            ))
+        if inwave is None:
+            inwave = FresnelWavefront(self.pupil_diameter / 2, wavelength=wavelength,
+                                      npix=self.npix, oversample=oversample)
+        elif isinstance(inwave, poppy.FresnelWavefront):
+            _log.info('Using user-defined FresnelWavefront() for the input wavefront of the FresnelOpticalSystem().')
+        else:
+            raise ValueError("Input wavefront must be a FresnelWavefront() object or None, when using FresnelOpticalSystem().")
+
+        _log.debug("Input wavefront has wavelength={0} microns, npix={1}, diam={3}, pixel scale={2}".format(
+            wavelength.to(u.micron).value, self.npix, self.pupil_diameter / (self.npix * u.pixel), self.pupil_diameter))
         inwave._display_hint_expected_nplanes = len(self)     # For displaying a multi-step calculation nicely
         return inwave
 
@@ -1141,6 +1156,10 @@ class FresnelOpticalSystem(BaseOpticalSystem):
         intermediate_wfs = []
 
         for optic, distance in zip(self.planes, self.distances):
+
+            if poppy.conf.enable_speed_tests:  # pragma: no cover
+                s0 = time.time()
+
             # The actual propagation:
             wavefront.propagate_to(optic, distance)
             wavefront *= optic
@@ -1171,17 +1190,21 @@ class FresnelOpticalSystem(BaseOpticalSystem):
             if return_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
                 intermediate_wfs.append(wavefront.copy())
 
+            if poppy.conf.enable_speed_tests:  # pragma: no cover
+                s1 = time.time()
+                _log.debug(f"\tTIME {s1-s0:.4f} s\t for propagating past optic '{optic.name}'.")
+
             if display_intermediates:
-                if poppy.conf.enable_speed_tests:
+                if poppy.conf.enable_speed_tests:  # pragma: no cover
                     t0 = time.time()
 
                 wavefront._display_after_optic(optic)
 
-                if poppy.conf.enable_speed_tests:
+                if poppy.conf.enable_speed_tests:  # pragma: no cover
                     t1 = time.time()
                     _log.debug("\tTIME %f s\t for displaying the wavefront." % (t1 - t0))
 
-        if poppy.conf.enable_speed_tests:
+        if poppy.conf.enable_speed_tests: # pragma: no cover
             t_stop = time.time()
             _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop - t_start))
 

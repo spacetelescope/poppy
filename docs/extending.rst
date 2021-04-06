@@ -3,7 +3,7 @@
 Extending POPPY by defining your own optics and instruments
 ==============================================================
 
-POPPY is designed to make it straightforward to implement your own custom optics classes, which will interoperate with all the built-in classes.  Conceptually all that is needed is defining the ``get_transmission`` and/or ``get_opd`` functions for each new class. 
+POPPY is designed to make it straightforward to implement your own custom optics classes, which will interoperate with all the built-in classes.  Conceptually all that is needed is defining the ``get_transmission`` and/or ``get_opd`` functions for each new class.
 
 Many examples of this can be found in ``poppy/optics.py``
 
@@ -11,21 +11,21 @@ Defining a custom optic from an analytic function
 -------------------------------------------------
 
 The complex phasor of each optic is calculated automatically from that optic's transmission (i.e. the
-throughput for the amplitude of the electromagnetic field) and optical path difference (i.e. the propagation 
+throughput for the amplitude of the electromagnetic field) and optical path difference (i.e. the propagation
 delay in the phase of the electromagnetic field). Both of these quantities may vary as a function of
-position across the optic, and as a function of wavelength. 
+position across the optic, and as a function of wavelength.
 
 
 ``AnalyticOpticalElement`` subclasses must implement either or both of the functions `get_transmission()`
 and `get_opd()`. Each takes a `Wavefront` as its sole argument besides `self`.
-All other necessary parameters should be set up as part of the `__init__` function defining your optic. 
+All other necessary parameters should be set up as part of the `__init__` function defining your optic.
 
 .. note::
-    This is new in version 0.5 of poppy; prior versions used a single function getPhasor to 
-    handle computing the entire complex phasor in one step including both the transmission 
+    This is new in version 0.5 of poppy; prior versions used a single function getPhasor to
+    handle computing the entire complex phasor in one step including both the transmission
     and OPD components. Version 0.5 now provides better flexibility and extensibility by allowing
-    the transmission and OPD components to be defined in separate functions, and automatically 
-    takes care of combining them to produce the complex phasor behind the scenes. 
+    the transmission and OPD components to be defined in separate functions, and automatically
+    takes care of combining them to produce the complex phasor behind the scenes.
 
 
 
@@ -37,12 +37,12 @@ Example skeleton code::
             poppy.AnalyticOpticalElement.__init__(**kwargs)
 
         def get_opd(self,wave):
-            y, x = self.get_coordinates(wave) 
+            y, x = self.get_coordinates(wave)
             opd = some_function(x,y, wave.wavelength, self)
             return opd
 
         def get_transmission(self, wave):
-            y, x = self.get_coordinates(wave) 
+            y, x = self.get_coordinates(wave)
             transmission = other_function(x,y, wave.wavelength, self)
             return transmission
 
@@ -57,12 +57,12 @@ in arcseconds for image plane optics).  You can use these coordinates to
 calculate the transmission and path delay appropriate for your optic.  If
 your optic has wavelength dependent properties, access the `wave.wavelength`
 property to determine the the appropriate wavelength; this will be in units of
-meters. 
+meters.
 
 The `get_coordinates()` function automatically includes support for offset shifts
-and rotations for any analytic optic: just add a `shift_x`, `shift_y` or 
-`rotation` attribute for your optic object, and the coordinates will be shifted 
-accordingly. These parameters should be passed to ``poppy.AnalyticOpticalElement.__init__`` via the 
+and rotations for any analytic optic: just add a `shift_x`, `shift_y` or
+`rotation` attribute for your optic object, and the coordinates will be shifted
+accordingly. These parameters should be passed to ``poppy.AnalyticOpticalElement.__init__`` via the
 ``**kwargs`` mechanism.
 
 
@@ -75,16 +75,16 @@ The physical parameters of the array are defined using :ref:`fitsheaders`.
 
 The transmission array should contain floating point values between 0.0 and
 1.0.  These represent the local transmission of the electric field amplitude,
-not the total intensity. 
+not the total intensity.
 
 
 The OPD array should contain floating point numbers (positive and negative)
 representing a path delay in some physical units.  The unit must be specified
 using the `BUNIT` keyword; allowed BUNITs are 'meter', 'micron', 'nanometer' and
-their standard metric abbreviations. 
+their standard metric abbreviations.
 
-If you are using both an OPD and transmission together to define your optics, 
-the arrays must have the same size. 
+If you are using both an OPD and transmission together to define your optics,
+the arrays must have the same size.
 
 The spatial or angular scale of these arrays must also be indicated by a FITS
 header keyword. By default, poppy checks for the keyword `PIXSCALE` for image
@@ -111,12 +111,12 @@ The general notion of an :py:class:`~poppy.Instrument` is that it consists of bo
 
 1. An optical system implemented in the usual fashion, optionally with several configurations such as
    selectable image plane or pupil plane stops or other adjustable properties, and
-2. Some defined spectral bandpass(es) such as selectable filters. If the :py:mod:`pysynphot` module is available, it will be used to perform careful synthetic photometry of targets with a given spectrum observed in the given bandpass. If :py:mod:`pysynphot` is not installed, the code will fall back to a much simpler model assuming constant number of counts vs wavelength.  
+2. Some defined spectral bandpass(es) such as selectable filters. If the :py:mod:`synphot` module is available, it will be used to perform careful synthetic photometry of targets with a given spectrum observed in the given bandpass. If :py:mod:`synphot` is not installed, the code will fall back to a much simpler model assuming constant number of counts vs wavelength.
 
 
-Configurable options such as optical masks and filters are specified as properties of the instrument instance; an appropriate :py:class:`~poppy.OpticalSystem` will be generated when the :py:meth:`~poppy.Instrument.calc_psf` method is called. 
+Configurable options such as optical masks and filters are specified as properties of the instrument instance; an appropriate :py:class:`~poppy.OpticalSystem` will be generated when the :py:meth:`~poppy.Instrument.calc_psf` method is called.
 
-The :py:class:`~poppy.Instrument` is fairly complex, and has a lot of internal submethods used to modularize the calculation and allow subclassing and customization. For developing your own instrument classes, it may be useful to start with the instrument classes in WebbPSF as worked examples. 
+The :py:class:`~poppy.Instrument` is fairly complex, and has a lot of internal submethods used to modularize the calculation and allow subclassing and customization. For developing your own instrument classes, it may be useful to start with the instrument classes in WebbPSF as worked examples.
 
 
 You will at a minimum want to override the following class methods:

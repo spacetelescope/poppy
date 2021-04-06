@@ -5,21 +5,33 @@ Appendix A: Optimizing Performance and Parallelization
 
 Performance optimization on modern multi-core machines is a complex subject.
 
+.. note::
+
+   TL, DR: You probably want to have `a version of numpy using Intel MKL, such as the one in Anaconda <https://docs.anaconda.com/mkl-optimizations/index.html>`_,
+   plus the Intel `mkl_fft <https://anaconda.org/intel/mkl_fft>`_ library, plus `numexpr <https://github.com/pydata/numexpr>`_.
+
+
 Know your Linear Algebra Library
 ------------------------------------
 
-The optical propagation calculations in POPPY are dominated by a small number
-of matrix algebra calls, primarily ``np.dot`` with a side order of
-``np.outer``.  ``numpy`` relies heavily on ATLAS (`A Tuned LaPACK and BLAS
-library <http://math-atlas.sourceforge.net>`_ ) to perform its linear algebra
-calculations, but for reasons of portability many distributed copies of numpy
-do not have an ATLAS that has been compiled with all the CPU optimization
-tricks turned on.  
+The optical propagation calculations in POPPY are dominated by numerical implementations of:
+ * Fourier transforms, either as Fast Fourier Transforms (mostly in Fresnel propagation) or as Matrix Fourier Transforms (mostly in Fraunhofer propagation)
+ * a small number of matrix algebra calls, primarily ``np.dot`` with a side order of ``np.outer``.
+ * Miscellaneous array operations, such as rasterizing optical shapes such as circular apertures into discrete arrays.
 
 Whether or not ``numpy`` is linked against an optimized
 linear algebra library can make a **huge** difference in execution speed, with
 speedups of an **order of magnitude or more**. You definitely want to make sure
-that your numpy is using such a library: 
+that your numpy is using such a library. This is generally the case if you install
+your Python setup via Conda.
+
+As of 2021, Intel's Math Kernel Library (MKL) provides the best performance for
+both linear algebra and FFTs, on Intel CPUs. Installing an Intel MKL build of numpy
+and the MKL FFT library are highly recommended.  If MKL is not available for your system, OpenBLAS
+is also highly performant usually.
+
+Optimal numerical implementations have changed over time. These recommendations may be out of date.
+We recommend benchmarking tests on your own system for the utmost in performance.
 
  * Apple's `Accelerate framework
    <https://developer.apple.com/library/mac/documentation/Accelerate/Reference/AccelerateFWRef/index.html>`_
@@ -31,67 +43,27 @@ that your numpy is using such a library:
    add-on from Continuum Analytics to their Anaconda Python distribution. This
    requires a commercial license for a small fee. 
 
-Numpy is statically linked at compile time against a given copy of BLAS.
-Switching backends generally requires recompiling numpy. (Note that if you use
-MacPorts on Mac OS to install numpy, it automatically uses Apple's Accelerate
-framework for you. Nice!)
-
-Various `stackoverflow
-<http://stackoverflow.com/questions/5260068/multithreaded-blas-in-python-numpy>`_,
-`quora
-<http://www.quora.com/Computational-Science-Scientific-Computing/How-does-the-performance-of-the-Intel-BLAS-and-LAPACK-libraries-compare-with-the-FOSS-alternatives>`_,
-and `twitter <https://twitter.com/nedlom/status/437427557919891457>`_ posts
-suggest that OpenBLAS, MKL, and Accelerate all have very similar performance,
-so as long as  your ``numpy`` is using one of those three you should be in good
-shape. 
-
-
-
-
 Parallelized Calculations
-------------------------------
+-------------------------
 
+POPPY can parallelize calculations in several different ways:
 
-POPPY can parallelize calculations in two different ways:
-
-  1. Using Python's built-in ``multiprocessing`` package to launch many additional Python
+  1. Relying on multithreaded implementations of low-level functions in numpy to thread
+     individual array operations across multiple cores.  This also includes the use
+     of FFT libraries (FFTW, MKL FFT) that multithread.
+  2. Using Python's ``multiprocessing`` package to launch many additional Python
      processes, each of which calculates a different wavelength.
-  2. Using the FFTW library for optimized accellerated Fourier transform calculations.
-     FFTW is capable of sharing load across multiple processes via multiple threads.
 
-One might think that using both of these together would result in the fastest possible speeds.
-However, in testing it appears that FFTW does not work reliably with multiprocessing for some
-unknown reason; this instability manifests itself as occasional fatal crashes of the Python process.
-For this reason it is recommended that one use *either multiprocessing or FFTW, but not both*.
+It used to be the case that the second approach was recommended for more performance; however, as
+numerical libraries have matured the added complexity (and startup overhead) of multi-process
+calculations is not beneficial in most cases.
 
-**For most users, the recommended choice is using multiprocessing**.
+**For most users, the recommended choice is running single-process calculations and relying on numpy and MKL or FFTW to multithread calculations.** This is the default behavior.
 
-FFTW only helps for FFT-based calculations, such as some coronagraphic or spectroscopic calculations.
-Calculations that use only discrete matrix Fourier transforms are not helped by FFTW.
-Furthermore, baseline testing indicates that in many cases, just running multiple Python processes is in fact
-significantly faster than using FFTW, even for coronagraphic calculations using FFTs.
+Using multiprocessing
+^^^^^^^^^^^^^^^^^^^^^^
 
-There is one slight tradeoff in using multiprocessing: When running in this mode, POPPY cannot display plots of the
-calculation's work in progress, for instance the intermediate optical planes. (This is because the background Python processes can't
-write to any Matplotlib display windows owned by the foreground process.) One can still retrieve the intermediate optical planes after the 
-multiprocess calculation is complete and examine them then; you just can't see plots displayed on screen as the calculation is proceeding.
-Of course, the calculation ought to proceed faster overall if you're using multiple processes!
-
-.. _accelerated_multiprocessing:
-
-.. warning::
-   On Mac OS X, for Python < 2.7, multiprocessing is not compatible with
-   Apple's Accelerate framework mentioned above, due to the non-POSIX-compliant manner in which multiprocessing forks new processes. See https://github.com/spacetelescope/poppy/issues/23
-   and https://github.com/numpy/numpy/issues/5752 for discussion.  Python 3.4 provides an improved method
-   of starting new processes that removes this limitation. 
-
-   **If you want to use multiprocessing with Apple's Accelerate framework, you must upgrade to
-   Python 3.4+**. POPPY will raise an exception if you try to start a multiprocess calculation 
-   and numpy is linked to Accelerate on earlier versions of Python.
-
-   This is likely related to the intermittent crashes some users have 
-   reported with multiprocessing and FFTW; that combination may also prove more stable on 
-   Python 3.4 but this has not been extensively tested yet. 
+Most users should not need this; but we document these options for flexibility.
 
 The configuration options to enable multiprocessing live under :py:obj:`poppy.conf`, and use the Astropy configuration framework. Enable them as follows::
 
@@ -112,7 +84,9 @@ If desired, the number of processes can be explicitly specified::
 Set this to zero to enable automatic selection via the :py:func:`~poppy.utils.estimate_optimal_nprocesses` function.
 
 Comparison of Different Parallelization Methods
-------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+*This section is outdated; the following benchmark is from 2015.*
 
 The following figure shows the comparison of single-process, single-process with FFTW, and multi-process calculations on a relatively high end 16-core Mac Pro. The calculations were done with WebbPSF, a PSF simulator for JWST that uses POPPY to perform computations.
 
@@ -125,3 +99,10 @@ Y-axis scales for the two figures; coronagraphic calculations take much longer t
    :alt: Graphs of performance with different parallelization options
 
 Using multiple Python processes is the clear winner for most workloads. Explore the options to find what works best for your particular calculations and computer setup.
+
+
+Fourier Transform Benchmarks with Different Accelerated Math Libraries
+------------------------------------------------------------------------
+
+There are benchmarking functions in `poppy.accel_math` for measuring propagation transform speed versus
+
