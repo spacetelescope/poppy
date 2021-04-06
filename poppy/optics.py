@@ -1531,7 +1531,8 @@ class MultiCircularAperture(MultiSegmentAperture):
 
         super().__init__(name=name, segment_size=segment_diameter,
                          gap=gap, rings=rings, segmentlist=segmentlist, center=center, **kwargs)
-
+        self.pupil_diam = (segment_diameter) * (2 * self.rings + 1)+ gap * (2*rings)
+        
         self._use_gray_pixel = bool(gray_pixel)
         
     def _one_aperture(self, wave, index, value=1):
