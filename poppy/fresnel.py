@@ -1262,7 +1262,7 @@ class FresnelOpticalSystem(BaseOpticalSystem):
 
             # The actual propagation:
             wavefront.propagate_to(optic, distance)
-			wavefront *= optic
+            wavefront *= optic
 
             # Normalize if appropriate:
             if normalize.lower() == 'first' and wavefront.current_plane_index == 1:  # set entrance plane to 1.
