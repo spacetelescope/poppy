@@ -180,11 +180,11 @@ class FITSFPMElement(FITSOpticalElement):
     
     Parameters not in FITSOpticalElement
     ----------
-    wavelength_c: float, astropy.quantity 
+    wavelength_c: astropy.quantity 
         Central wavelength of the user's system, required in order to 
         convert the pixelscale to units of lambda/D and scale the 
         pixelscale of the element based on the wavelength being propagated. 
-    ep_diam: float, astropy.quantity
+    ep_diam: astropy.quantity
         Entrance pupil diameter of the system, required to convert the 
         pixelscale to units of lambda/D. 
     pixelscale_lamD: float
@@ -194,11 +194,13 @@ class FITSFPMElement(FITSOpticalElement):
         for more information. Default is 'ADJUSTABLE'.
         
     '''
-    def __init__(self, name="unnamed FPM element", transmission=None, planetype=PlaneType.intermediate,
+    def __init__(self, name="unnamed FPM element", transmission=None, opd=None, opdunits=None,
+                 planetype=PlaneType.intermediate,
                  wavelength_c=None, ep_diam=None, pixelscale_lamD=None, centering='ADJUSTABLE',
                  **kwargs):
         
-        FITSOpticalElement.__init__(self, name=name, transmission=transmission, planetype=planetype, **kwargs)
+        FITSOpticalElement.__init__(self, name=name, transmission=transmission, opd=opd, opdunits=opdunits,
+                                    planetype=planetype, **kwargs)
 
         self.wavelength_c = wavelength_c
         self.ep_diam = ep_diam
@@ -1020,7 +1022,6 @@ class FresnelWavefront(BaseWavefront):
     def apply_fits_fpm_fftmft(self, optic):
         """
         Apply a focal plane mask using fft and mft methods to highly sample at the focal plane.
-        Only works for ampltude transmission FPMs. 
         
         Parameters
         ----------
@@ -1030,11 +1031,21 @@ class FresnelWavefront(BaseWavefront):
         _log.debug("------ Applying FITS FPM using FFT and MFT sequence ------")
         
         # convert the sampling of the optic to units of lambda/D to apply the 
-        fpm_pxscl_lamD = ( optic.pixelscale_lamD * optic.wavelength_c / self.wavelength ).value
+        fpm_pxscl_lamD = ( optic.pixelscale_lamD * optic.wavelength_c.to(u.meter) / self.wavelength.to(u.meter) ).value
         
+        # get the fpm phasor either using numexpr or numpy
+        scale = 2. * np.pi / self.wavelength.to(u.meter).value
+        if accel_math._USE_NUMEXPR:
+            _log.debug("Calculating FPM phasor from numexpr.")
+            trans = optic.get_transmission(self)
+            opd = optic.get_opd(self)
+            fpm_phasor = ne.evaluate("trans * exp(1.j * opd * scale)")
+        else:
+            _log.debug("numexpr not available, calculating FPM phasor with numpy.")
+            fpm_phasor = optic.get_transmission(self) * np.exp(1.j * optic.get_opd(self) * scale)
+        
+        nfpm = fpm_phasor.shape[0]
         n = self.wavefront.shape[0]
-        fpm = optic.amplitude
-        nfpm = fpm.shape[0]
         
         nfpmlamD = nfpm*fpm_pxscl_lamD*self.oversample
         
@@ -1043,7 +1054,7 @@ class FresnelWavefront(BaseWavefront):
         self.wavefront = np.fft.fftshift(self.wavefront)
         self.wavefront = accel_math.fft_2d(self.wavefront, forward=True, fftshift=True) # do a forward FFT to virtual pupil
         self.wavefront = mft.inverse(self.wavefront, nfpmlamD, nfpm) # MFT back to highly sampled focal plane
-        self.wavefront *= fpm
+        self.wavefront *= fpm_phasor
         self.wavefront = mft.perform(self.wavefront, nfpmlamD, n) # MFT to virtual pupil
         self.wavefront = accel_math.fft_2d(self.wavefront, forward=False, fftshift=True) # FFT back to normally-sampled focal plane
         self.wavefront = np.fft.ifftshift(self.wavefront)
