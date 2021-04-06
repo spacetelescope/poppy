@@ -15,7 +15,7 @@ if accel_math._USE_NUMEXPR:
 _log = logging.getLogger('poppy')
 
 
-__all__ = ['QuadPhase', 'QuadraticLens', 'FresnelWavefront', 'FresnelOpticalSystem']
+__all__ = ['QuadPhase', 'QuadraticLens', 'FresnelWavefront', 'FresnelOpticalSystem', 'FITSFPMElement']
 
 
 class QuadPhase(poppy.optics.AnalyticOpticalElement):
@@ -163,6 +163,66 @@ class ConicLens(poppy.optics.CircularAperture):
         super(ConicLens, self).__init__(name=name, radius=radius.to(u.m).value, planetype=planetype, **kwargs)
         self.f_lens = f_lens
         self.K = K
+
+
+class FITSFPMElement(FITSOpticalElement):
+    '''
+    This class allows the definition of focal plane masks using .fits files that will be applied to a 
+    wavefront via an FFT/MFT sequence to acheive the correct sampling at the assumed focal plane.
+    
+    This element will only function as an intermediate planetype due to pixelscale and display functionality
+    when propagating to this plane. 
+    Note: if an image planetype were to be used, the wavefront at this plane may have infinite pixelscales, 
+    making it impossible to display the wavefront with extents.
+
+    The method used to apply this element requires additional information from the user that is not required 
+    for FITSOpticalElements. These additional parameters are listed below. 
+    
+    Parameters not in FITSOpticalElement
+    ----------
+    wavelength_c: float, astropy.quantity 
+        Central wavelength of the user's system, required in order to 
+        convert the pixelscale to units of lambda/D and scale the 
+        pixelscale of the element based on the wavelength being propagated. 
+    ep_diam: float, astropy.quantity
+        Entrance pupil diameter of the system, required to convert the 
+        pixelscale to units of lambda/D. 
+    pixelscale_lamD: float
+        pixelscale value in units of lambda/D. 
+    centering: str
+        What type of centering to use for the MFTs, see MFT documentation 
+        for more information. Default is 'ADJUSTABLE'.
+        
+    '''
+    def __init__(self, name="unnamed FPM element", transmission=None, planetype=PlaneType.intermediate,
+                 wavelength_c=None, ep_diam=None, pixelscale_lamD=None, centering='ADJUSTABLE',
+                 **kwargs):
+        
+        FITSOpticalElement.__init__(self, name=name, transmission=transmission, planetype=planetype, **kwargs)
+
+        self.wavelength_c = wavelength_c
+        self.ep_diam = ep_diam
+        self.pixelscale_lamD = pixelscale_lamD
+        self.centering = centering
+
+        if planetype is not PlaneType.intermediate:
+            raise ValueError('For this optic, the planetype must be an intermediate '
+                             'plane in order for pixelscales to be accurate after '
+                             'propagation and for display functionality.')
+
+        if wavelength_c is None or ep_diam is None or pixelscale_lamD is None:
+            raise ValueError('To use this method of applying an FPM, the central wavelength, '
+                             'the entrance pupil diameter, and the pixelscale in units of lambda/D '
+                             'must be known to scale the pixelscale for the MFTs.')
+        else:
+            self.pixelscale=pixelscale_lamD * (wavelength_c/ep_diam * 180/np.pi * 3600).value * u.arcsec/u.pix
+
+        _log.debug(
+            "FITSFPMElement {} initialized:"
+            "centering style {}, "
+            "central wavelength for operation {}, "
+            "Entrance pupil diameter of system {}, ".format(self.name, self.centering, self.wavelength_c, self.ep_diam)
+        )
 
 
 class FresnelWavefront(BaseWavefront):
@@ -822,6 +882,11 @@ class FresnelWavefront(BaseWavefront):
             # than most other optics, adjusting beam parameters and so forth
             self.apply_lens_power(optic)
             return self
+        elif isinstance(optic, FITSFPMElement):
+            # Special case: if we have an FPM, call the routine for that,
+            # which will apply an amplitude transmission to the wavefront. 
+            self.apply_fits_fpm_fftmft(optic)
+            return self
         else:
             # Otherwise fall back to the parent class
             return super(FresnelWavefront, self).__imul__(optic)
@@ -954,9 +1019,8 @@ class FresnelWavefront(BaseWavefront):
 
     def apply_fits_fpm_fftmft(self, optic):
         """
-        Apply a focal plane mask using fft and mft methods to highly sample at the focal plane and apply the mask with the correct pixelscale.
-        This method is only used for FITSFPMElements.
-        This method is currently only functional for amplitude transmission elements. 
+        Apply a focal plane mask using fft and mft methods to highly sample at the focal plane.
+        Only works for ampltude transmission FPMs. 
         
         Parameters
         ----------
@@ -966,8 +1030,7 @@ class FresnelWavefront(BaseWavefront):
         _log.debug("------ Applying FITS FPM using FFT and MFT sequence ------")
         
         # convert the sampling of the optic to units of lambda/D to apply the 
-        fpm_pxscl_lamcD = ( optic.pixelscale / ((optic.wavelength_c/optic.ep_diam) * (180/np.pi * 3600)) ).value
-        fpm_pxscl_lamD = ( fpm_pxscl_lamcD * optic.wavelength_c / self.wavelength ).value
+        fpm_pxscl_lamD = ( optic.pixelscale_lamD * optic.wavelength_c / self.wavelength ).value
         
         n = self.wavefront.shape[0]
         fpm = optic.amplitude
@@ -1199,11 +1262,7 @@ class FresnelOpticalSystem(BaseOpticalSystem):
 
             # The actual propagation:
             wavefront.propagate_to(optic, distance)
-            
-            if isinstance(optic, poppy.poppy_core.FITSFPMElement):
-                wavefront.apply_fits_fpm_fftmft(optic)
-            else:
-                wavefront *= optic
+			wavefront *= optic
 
             # Normalize if appropriate:
             if normalize.lower() == 'first' and wavefront.current_plane_index == 1:  # set entrance plane to 1.
