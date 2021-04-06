@@ -438,6 +438,11 @@ class PowerSpectrumWFE(WavefrontError):
         Does not distort the beam (remains circular), but will get the rms equivalent value.
         Can be passed as either degrees or radians.
         Default is 0 degrees (paraxial).
+    radius: astropy quantity
+        Optional. However, mandatory if rms parameter is passed.
+        If a value is passed in, this is the beam radius value for calculating
+        the generated WFE rms to compare with the normalized rms value.
+        Default to None.
     """
 
     @utils.quantity_input(rms=u.nm, radius=u.meter, incident_angle=u.deg)
