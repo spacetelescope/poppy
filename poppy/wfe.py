@@ -440,10 +440,10 @@ class PowerSpectrumWFE(WavefrontError):
         Default is 0 degrees (paraxial).
     """
 
-    @utils.quantity_input(wfe=u.nm, radius=u.meter, incident_angle=u.deg)
-    def __init__(self, name='Model PSD WFE', psd_parameters=None, psd_weight=None, seed=None, 
-                 apply_reflection=False, screen_size=None, rms=None, incident_angle=0*u.deg, 
-                 **kwargs):
+    @utils.quantity_input(rms=u.nm, radius=u.meter, incident_angle=u.deg)
+    def __init__(self, name='Model PSD WFE', psd_parameters=None, psd_weight=None, 
+                 seed=None, apply_reflection=False, screen_size=None, rms=None,
+                 incident_angle=0*u.deg, radius=None, **kwargs):
 
         super().__init__(name=name, **kwargs)
         self.psd_parameters = psd_parameters
@@ -451,6 +451,10 @@ class PowerSpectrumWFE(WavefrontError):
         self.apply_reflection = apply_reflection
         self.screen_size = screen_size
         self.rms = rms
+        
+        if self.rms is not None and radius is None:
+            raise ValueError("You must specify a radius for rms normalization.")
+        self.radius = radius
         
         # check incident angle units
         if incident_angle >= 90*u.deg:
@@ -495,8 +499,8 @@ class PowerSpectrumWFE(WavefrontError):
         # build spatial frequency map
         cen = int(self.screen_size/2)
         maskY, maskX = np.mgrid[-cen:cen, -cen:cen]
-        ky = maskY*dk.value
-        kx = maskX*dk.value
+        ky = maskY*dk.to_value(1./u.m)
+        kx = maskX*dk.to_value(1./u.m)
         k_map = np.sqrt(kx**2 + ky**2) # unitless for the math, but actually 1/m
         
         # calculate the PSD
@@ -549,8 +553,7 @@ class PowerSpectrumWFE(WavefrontError):
         
         # Set rms value based on the active region of beam
         if self.rms is not None:
-            beam_diam = wave.pixelscale * u.pix * wave_size # has units, needed for circ
-            circ = CircularAperture(name='beam diameter', radius=beam_diam/2)
+            circ = CircularAperture(name='beam diameter', radius=self.radius)
             ap = circ.get_transmission(wave)
             opd_crop = utils.pad_or_crop_to_shape(array=opd, target_shape=wave.shape)
             active_ap = opd_crop[ap==True]
