@@ -25,7 +25,7 @@ from . import utils
 from . import accel_math
 
 __all__ = ['WavefrontError', 'ParameterizedWFE', 'ZernikeWFE', 'SineWaveWFE',
-        'StatisticalPSDWFE']
+        'StatisticalPSDWFE', 'PowerSpectrumWFE']
 
 
 def _check_wavefront_arg(f):
@@ -353,6 +353,233 @@ class StatisticalPSDWFE(WavefrontError):
         phase_screen = np.fft.ifftshift(np.fft.ifft2(np.fft.ifftshift(scaled))).real   # FT of scaled random PSD makes phase screen
 
         phase_screen -= np.mean(phase_screen)  # force zero-mean
-        opd = phase_screen / np.std(phase_screen) * self.wfe.to(u.m).value  # normalize to wanted input rms wfe
+        self.opd = phase_screen / np.std(phase_screen) * self.wfe.to(u.m).value  # normalize to wanted input rms wfe
 
-        return opd
+        return self.opd
+
+
+class PowerSpectrumWFE(WavefrontError):
+    r"""
+    WFE model specificed via a Power Spectral Density (PSD),
+    or a list of multiple PSDs, which follow von Karman PSD model:
+    
+    :math:`P(k) = \frac{\beta} {\left( \left(\frac{1}{L_{0}}\right)^{2} + |k|^{2} \right)^{{\alpha/2}}} e^{-(|k|l_{0})^{2}} + \beta_{sr}`
+    
+    where:
+    P: astropy quantity
+        Power Spectral Density at a spatial frequency.
+        Units: :math: `m^{2}m^{2}`
+        Assumes surface units of meters (first :math: `m^{2}`)
+    k: astropy quantity
+        Spatial frequency value, units 1/m
+    :math:`\alpha`: float 
+        The PSD index value 
+    :math:`\beta`: astropy quantity
+        The normalization constant. In units of :math: `\frac{m^{2}}{m^{\alpha-2}}`
+        Numerator assumes surface units of meters
+        Denominator assumes spatial frequency units are 1/m
+    :math:`L_{0}`: astropy quantity
+        The outer scale value, where the low spatial frequency flattens. Units: m
+    :math:`l_{0}`: float
+        Inner scale value, where the high spatial frequency flattens.
+    :math:`\beta_{sr}`: astropy quantity
+        Surface roughness normalization. Should match units of PSD.
+    
+    References:
+    Males, Jared. MagAO-X Preliminary-Design Review, 
+        Section 5.1: Optics Specifications, Eqn 1
+        https://magao-x.org/docs/handbook/appendices/pdr/
+    Lumbres, et al. In Prep.
+
+    Parameters
+    ----------
+    name : string
+        name of the optic
+    psd_parameters: list (for single PSD set) or list of lists (multiple PSDs)
+        List of specified PSD parameters.
+        If there are multiple PSDs, then each list element is a list of specified PSD parameters.
+        i.e. [ [PSD_list_0], [PSD_list_1]]
+        The PSD parameters in a list are ordered as follows:
+        [alpha, beta, outer_scale, inner_scale, surf_roughness]
+        where:            
+            alpha: float 
+                The PSD index value.
+            beta: astropy quantity
+                The normalization constant. In units of :math: `\frac{m^{2}}{m^{\alpha-2}}`
+                Numerator assumes surface units of meters
+                Denominator assumes spatial frequency units are 1/m
+            outer_scale: astropy quantity
+                The outer scale value, where the low spatial frequency flattens. 
+                Unit requirement: meters
+            inner_scale: float
+                Inner scale value, where the high spatial frequency flattens.
+            surf_roughness: astropy quantity
+                Surface roughness normalization. Should match units of PSD.
+    psd_weight: iterable list of floats
+        Specifies the weight muliplier to set onto each model PSD
+    seed : integer
+        Seed for the random phase screen generator
+    apply_reflection: boolean
+        Applies 2x scale for the OPD as needed for reflection.
+        Default to False. 
+        Set to True if the PSD model only accounts for surface.
+    screen_size: integer
+        Sets how large the PSD matrix will be calculated.
+        The PSD matrix needs to be larger than the wavefront for Fourier transform padding purposes.
+        If None passed in, then code will default size to 4x wavefront's side.
+        Default to None.
+    rms: astropy quantity
+        Optional. Use this to force the wfe RMS
+        If a value is passed in, this is the surface rms value (not OPD) in meters.
+        If None passed, then the wfe RMS produced is what shows up in PSD calculation.
+        Default to None.
+    incident_angle: astropy quantity
+        Adjusts the WFE based on reflected beam distortion.
+        Does not distort the beam (remains circular), but will get the rms equivalent value.
+        Can be passed as either degrees or radians.
+        Default is 0 degrees (paraxial).
+    radius: astropy quantity
+        Optional. However, mandatory if rms parameter is passed.
+        If a value is passed in, this is the beam radius value for calculating
+        the generated WFE rms to compare with the normalized rms value.
+        Default to None.
+    """
+
+    @utils.quantity_input(rms=u.nm, radius=u.meter, incident_angle=u.deg)
+    def __init__(self, name='Model PSD WFE', psd_parameters=None, psd_weight=None, 
+                 seed=None, apply_reflection=False, screen_size=None, rms=None,
+                 incident_angle=0*u.deg, radius=None, **kwargs):
+
+        super().__init__(name=name, **kwargs)
+        self.psd_parameters = psd_parameters
+        self.seed = seed
+        self.apply_reflection = apply_reflection
+        self.screen_size = screen_size
+        self.rms = rms
+        
+        if self.rms is not None and radius is None:
+            raise ValueError("You must specify a radius for rms normalization.")
+        self.radius = radius
+        
+        # check incident angle units
+        if incident_angle >= 90*u.deg:
+            raise ValueError("Incident angle must be less than 90 degrees, or equivalent in other units.")
+        self.incident_angle = incident_angle
+            
+        if psd_weight is None:
+            self.psd_weight = np.ones((len(psd_parameters))) # default to equal weights
+        else:
+            self.psd_weight = psd_weight
+        
+
+    @_check_wavefront_arg
+    def get_opd(self, wave):
+        """
+        Parameters
+        ----------
+        wave : poppy.Wavefront (or float)
+            Incoming Wavefront before this optic to set wavelength and
+            scale, or a float giving the wavelength in meters
+            for a temporary Wavefront used to compute the OPD.
+        """
+        
+        # check that screen size is at least larger than wavefront size
+        wave_size = wave.shape[0]
+        if wave.ispadded is True: # get true wave size if padded to oversample.
+            wave_size = int(wave_size/wave.oversample)
+        
+        # check that screen size exists
+        if self.screen_size is None:
+            self.screen_size = wave.shape[0]
+            
+            if wave.ispadded is False: # sometimes the wave is not padded.
+                self.screen_size = self.screen_size * 4 # default 4x, open for discussion
+        
+        elif self.screen_size < wave_size:
+            raise Exception('PSD screen size smaller than wavefront size, recommend at least 2x larger')
+        
+        # get pixelscale to calculate spatial frequency spacing
+        dk = 1/(self.screen_size * wave.pixelscale * u.pix) # eliminate the pixel units
+        
+        # build spatial frequency map
+        cen = int(self.screen_size/2)
+        maskY, maskX = np.mgrid[-cen:cen, -cen:cen]
+        ky = maskY*dk.to_value(1./u.m)
+        kx = maskX*dk.to_value(1./u.m)
+        k_map = np.sqrt(kx**2 + ky**2) # unitless for the math, but actually 1/m
+        
+        # calculate the PSD
+        psd = np.zeros_like(k_map) # initialize the total PSD matrix
+        for n in range(0, len(self.psd_weight)):
+            # loop-internal localized PSD variables
+            alpha = self.psd_parameters[n][0]
+            beta = self.psd_parameters[n][1]
+            outer_scale = self.psd_parameters[n][2]
+            inner_scale = self.psd_parameters[n][3]
+            surf_roughness = self.psd_parameters[n][4]
+            
+            # unit check
+            psd_units = beta.unit / ((dk.unit**2)**(alpha/2))
+            assert surf_roughness.unit == psd_units, "PSD parameter units are not consistent, please re-evaluate parameters."
+            surf_unit = (psd_units*(dk.unit**2))**(0.5)
+            
+            # initialize loop-internal PSD matrix
+            psd_local = np.zeros_like(psd)
+            
+            # Calculate the PSD equation denominator based on outer_scale presence
+            if outer_scale.value == 0: # skip out or else PSD explodes
+                # temporary overwrite of k_map at k=0 to stop div/0 problem
+                k_map[cen][cen] = 1*dk.value
+                # calculate PSD as normal
+                psd_denom = (k_map**2)**(alpha/2)
+                # calculate the immediate PSD value
+                psd_interm = (beta.value*np.exp(-((k_map*inner_scale)**2))/psd_denom)
+                # overwrite PSD at k=0 to be 0 instead of the original infinity
+                psd_interm[cen][cen] = 0
+                # return k_map to original state
+                k_map[cen][cen] = 0
+            else:
+                psd_denom = ((outer_scale.value**(-2)) + (k_map**2))**(alpha/2) # unitless currently
+                psd_interm = (beta.value*np.exp(-((k_map*inner_scale)**2))/psd_denom)
+            
+            # apply surface roughness
+            psd_interm = psd_interm + surf_roughness.value
+            
+            # apply as the sum with the weight of the PSD model
+            psd = psd + (self.psd_weight[n] * psd_interm) # this should all be m2 [surf_unit]2, but stay unitless for all calculations
+        
+        # set the random noise
+        psd_random = np.random.RandomState()
+        psd_random.seed(self.seed)
+        rndm_noise = np.fft.fftshift(np.fft.fft2(psd_random.normal(size=(self.screen_size, self.screen_size))))
+        
+        psd_scaled = (np.sqrt(psd/(wave.pixelscale.value**2)) * rndm_noise)
+        opd = ((np.fft.ifft2(np.fft.ifftshift(psd_scaled)).real*surf_unit).to(u.m)).value 
+        
+        # Set rms value based on the active region of beam
+        if self.rms is not None:
+            circ = CircularAperture(name='beam diameter', radius=self.radius)
+            ap = circ.get_transmission(wave)
+            opd_crop = utils.pad_or_crop_to_shape(array=opd, target_shape=wave.shape)
+            active_ap = opd_crop[ap==True]
+            rms_measure = np.sqrt(np.mean(np.square(active_ap))) # measured rms from aperture
+            opd *= self.rms.to(u.m).value/rms_measure # appropriately scales entire OPD
+            
+        # apply the angle adjustment for rms
+        if self.incident_angle.value != 0:
+            opd /= np.cos(self.incident_angle).value
+        
+        # Set reflection OPD
+        if self.apply_reflection == True:
+            opd *= 2
+            
+        # Resize PSD screen to shape of wavefront
+        if self.screen_size > wave.shape[0]: # crop to wave shape if needed
+            opd = utils.pad_or_crop_to_shape(array=opd, target_shape=wave.shape)
+        
+        self.opd = opd
+        return self.opd
+    
+    
+    
+    
