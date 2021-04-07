@@ -35,9 +35,9 @@ def _arc(x, y0, y1, r):
     positive.
     """
     if accel_math._USE_NUMEXPR:
-        return ne.evaluate("0.5 * r**2 * (arctan(y1/x) - arctan(y0/x))")
+        return ne.evaluate("0.5 * r**2 * (arctan2(y1/x) - arctan2(y0/x))")
     else:
-        return 0.5 * r**2 * (np.arctan(y1/x) - np.arctan(y0/x))
+        return 0.5 * r**2 * (np.arctan2(y1/x) - np.arctan2(y0/x))
 
 def _chord(x, y0, y1):
     """
