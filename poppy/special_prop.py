@@ -274,7 +274,7 @@ class MatrixFTCoronagraph(poppy_core.OpticalSystem):
 
         """
 
-        if conf.enable_speed_tests:
+        if conf.enable_speed_tests:  # pragma: no cover
             t_start = time.time()
         if self.verbose:
             _log.info(" Propagating wavelength = {0:g} meters using "
@@ -334,7 +334,7 @@ class MatrixFTCoronagraph(poppy_core.OpticalSystem):
         if normalize.lower() == 'last':
             wavefront.normalize()
 
-        if conf.enable_speed_tests:
+        if conf.enable_speed_tests:  # pragma: no cover
             t_stop = time.time()
             _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop - t_start))
 

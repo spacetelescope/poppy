@@ -416,7 +416,7 @@ class BaseWavefront(ABC):
         # areas with particularly low intensity
         phase = self.phase.copy()
         mean_intens = np.mean(intens[intens != 0])
-        phase[np.where(intens < mean_intens / 100)] = np.nan
+        phase[intens < mean_intens / 100] = np.nan
         amp = self.amplitude
 
         y, x = self.coordinates()
@@ -453,7 +453,7 @@ class BaseWavefront(ABC):
         if what == 'best':
             if self.planetype == PlaneType.image:
                 what = 'intensity'  # always show intensity for image planes
-            elif phase[np.where(np.isfinite(phase))].sum() == 0:
+            elif phase[(np.isfinite(phase))].sum() == 0:
                 what = 'intensity'  # for perfect pupils
             # FIXME re-implement this in some better way that doesn't depend on
             # optic positioning in the plot grid!
@@ -555,7 +555,7 @@ class BaseWavefront(ABC):
             wfe = self.wfe.to(u.nanometer).value.copy()
             if self.planetype == PlaneType.pupil and self.ispadded and not showpadding:
                 wfe = utils.removePadding(wfe, self.oversample)
-            wfe[np.where(intens < mean_intens / 100)] = np.nan
+            wfe[intens < mean_intens / 100] = np.nan
             vmx = np.nanmax(np.abs(wfe))
             norm_wfe = matplotlib.colors.Normalize(vmin=-vmx, vmax=vmx)
 
@@ -880,8 +880,16 @@ class BaseWavefront(ABC):
         # Huh, the ndimage rotate function does not work for complex numbers. That's weird.
         # so let's treat the real and imaginary parts individually
         # FIXME TODO or would it be better to do this on the amplitude and phase?
-        rot_real = scipy.ndimage.interpolation.rotate(self.wavefront.real, angle, reshape=False)
-        rot_imag = scipy.ndimage.interpolation.rotate(self.wavefront.imag, angle, reshape=False)
+
+        k, remainder = np.divmod(angle, 90)
+        if remainder == 0:
+            # rotation is a multiple of 90
+            rot_real = np.rot90(self.wavefront.real, k=-k)  # negative = CCW
+            rot_imag = np.rot90(self.wavefront.imag, k=-k)
+        else:
+            # arbitrary free rotation with interpolation
+            rot_real = scipy.ndimage.interpolation.rotate(self.wavefront.real, -angle, reshape=False)  # negative = CCW
+            rot_imag = scipy.ndimage.interpolation.rotate(self.wavefront.imag, -angle, reshape=False)
         self.wavefront = rot_real + 1.j * rot_imag
 
         self.history.append('Rotated by {:.2f} degrees, CCW'.format(angle))
@@ -2066,31 +2074,37 @@ class OpticalSystem(BaseOpticalSystem):
 
         if np.abs(self.source_offset_r) > 0:
             # Add a tilt to the input wavefront.
-            # First we must work out the handedness of the input pupil relative to the
-            # final image plane.  This is needed to apply (to the input pupil) shifts
-            # with the correct handedness to get the desired motion in the final plane.
+            # We have to be careful about signs and rotations, so that we apply (to the input pupil)
+            # shifts with the correct handedness to get the desired motion in the final plane.
+
+            # convert to offset X,Y in arcsec in the focal plane, using the usual astronomical angle convention
+            angle = np.deg2rad(self.source_offset_theta)
+            tilt_x = self.source_offset_r * -np.sin(angle)
+            tilt_y = self.source_offset_r * np.cos(angle)
+
+            # Work backward through the optical system, applying inverse transforms as we go
             sign_x = 1
             sign_y = 1
             rotation_angle = 0
             if len(self.planes) > 0:
-                for plane in self.planes:
+                for plane in self.planes[::-1]:
                     if isinstance(plane, CoordinateInversion):
                         if plane.axis == 'x' or plane.axis == 'both':
                             sign_x *= -1
+                            tilt_x *= -1
                         if plane.axis == 'y' or plane.axis == 'both':
                             sign_y *= -1
+                            tilt_y *= -1
                     elif isinstance(plane, Rotation):
                         rotation_angle += plane.angle * sign_x * sign_y
+                        ang_rad = np.deg2rad(plane.angle)
+                        tx, ty = tilt_x, tilt_y
+                        tilt_x = np.cos(-ang_rad)*tx - np.sin(-ang_rad)*ty
+                        tilt_y = np.sin(-ang_rad)*tx + np.cos(-ang_rad)*ty
 
-            # now we must also work out the rotation
-
-            # convert to offset X,Y in arcsec using the usual astronomical angle convention
-            angle = (self.source_offset_theta - rotation_angle) * np.pi / 180
-            offset_x = sign_x * self.source_offset_r * -np.sin(angle)
-            offset_y = sign_y * self.source_offset_r * np.cos(angle)
-            inwave.tilt(Xangle=offset_x, Yangle=offset_y)
-            _log.debug("Tilted input wavefront by theta_X=%f, theta_Y=%f arcsec. (signs=%d, %d; theta offset=%f) " % (
-                       offset_x, offset_y, sign_x, sign_y, rotation_angle))
+            inwave.tilt(Xangle=tilt_x, Yangle=tilt_y)
+            _log.debug(f"  Requested source offset at r={self.source_offset_r}, theta={self.source_offset_theta}.")
+            _log.debug(f"  Tilted input wavefront by theta_X={tilt_x:.3f}, theta_Y={tilt_y:.3f} arcsec. (signs={sign_x}, {sign_y}; theta tilt={rotation_angle}) ")
 
         inwave._display_hint_expected_nplanes = len(self)  # For display of intermediate steps nicely
         return inwave
@@ -2628,7 +2642,7 @@ class OpticalElement(object):
         # Evaluate the wavefront at the desired sampling and pixel scale.
         ampl = self.get_transmission(temp_wavefront)
         opd = self.get_opd(temp_wavefront).copy()
-        opd[np.where(ampl == 0)] = np.nan
+        opd[(ampl == 0)] = np.nan
 
         # define a helper function for the actual plotting - we do it this way so
         # we can call it twice if the 'both' option is chosen. This avoids the complexities of the
@@ -3004,13 +3018,21 @@ class FITSOpticalElement(OpticalElement):
             # ---- transformation: rotation ----
             # If a rotation is specified and we're NOT a null (scalar) optic, then do the rotation:
             if rotation is not None and len(self.amplitude.shape) == 2:
-                # do rotation with interpolation, but try to clean up some of the artifacts afterwards.
-                # this is imperfect at best, of course...
-                self.amplitude = scipy.ndimage.interpolation.rotate(self.amplitude, -rotation,  # negative = CCW
-                                                                    reshape=False).clip(min=0, max=1.0)
-                wnoise = np.where((self.amplitude < 1e-3) & (self.amplitude > 0))
-                self.amplitude[wnoise] = 0
-                self.opd = scipy.ndimage.interpolation.rotate(self.opd, -rotation, reshape=False)  # negative = CCW
+
+                k,remainder = np.divmod(rotation, 90)
+                if remainder==0:
+                    # rotation is a multiple of 90
+                    self.amplitude = np.rot90(self.amplitude, k=-k)   # negative = CCW
+                    self.opd = np.rot90(self.opd, k=-k)
+                else:
+                    # arbitrary free rotation with interpolation
+                    # do rotation with interpolation, but try to clean up some of the artifacts afterwards.
+                    # this is imperfect at best, of course...
+                    self.amplitude = scipy.ndimage.interpolation.rotate(self.amplitude, -rotation,  # negative = CCW
+                                                                        reshape=False).clip(min=0, max=1.0)
+                    wnoise = (self.amplitude < 1e-3) & (self.amplitude > 0)
+                    self.amplitude[wnoise] = 0
+                    self.opd = scipy.ndimage.interpolation.rotate(self.opd, -rotation, reshape=False)  # negative = CCW
                 _log.info("  Rotated optic by %f degrees counter clockwise." % rotation)
                 self._rotation = rotation
 

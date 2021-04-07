@@ -1,39 +1,40 @@
 Installation
 ==================
 
-POPPY may be installed from PyPI in the usual manner for Python packages::
+POPPY may be installed one of three different ways.
 
-   % pip install poppy --upgrade
+1. Using ``conda`` through the `AstroConda channel <https://astroconda.readthedocs.io/en/latest/>`__. This is the recommended channel for most users on MacOS and Linux. But note that AstroConda does not support Windows.
 
-The source code is hosted in `this repository on GitHub
-<https://github.com/spacetelescope/poppy>`_. It is possible to directly install the
-latest development version from git::
+2. Using PyPi in the usual manner for Python packages::
 
-   % git clone https://github.com/spacetelescope/poppy.git
-   % cd poppy
-   % pip install -e .
+    % pip install poppy --upgrade
 
-.. note::
-   Users may also access POPPY with ``conda`` through the `AstroConda channel <https://astroconda.readthedocs.io/en/latest/>`__.
+3. Cloning the source code hosted in `this repository on GitHub <https://github.com/spacetelescope/poppy>`_. It is possible to directly install the latest development version using your locally installed ``git`` package::
+
+    % git clone https://github.com/spacetelescope/poppy.git
+    % cd poppy
+    % pip install -e .
+
 
 Requirements
 --------------
 
-* Python 3.6, or more recent. Earlier versions of Python are no longer supported.
+* Python 3.6, or more recent.
 * The standard Python scientific stack: :py:mod:`numpy`, :py:mod:`scipy`,
   :py:mod:`matplotlib`
 * POPPY relies upon the `astropy
   <http://www.astropy.org>`__ community-developed core library for astronomy.
-  astropy, version 1.3 or more recent, is needed.
 
-The following are *optional*.  The first, :py:mod:`pysynphot`, is recommended
+
+The following are *optional*.  The first, :py:mod:`synphot`, is recommended
 for most users. The other optional installs are only worth adding for speed
-improvements if you are spending substantial time running calculations.
+improvements if you are spending substantial time running calculations. See
+:ref:`the appendix on performance optimization <performance_and_parallelization>` for details.
 
-* `pysynphot <http://pysynphot.readthedocs.org/en/latest/>`_ enables the simulation
+* `synphot <https://synphot.readthedocs.io>`_ enables the simulation
   of PSFs with proper spectral response to realistic source spectra.  Without
   this, PSF fidelity is reduced. See below for :ref:`installation instructions
-  for pysynphot <pysynphot_install>`.
+  for synphot <synphot_install>`.
 * `psutil <https://pypi.python.org/pypi/psutil>`__ enables slightly better
   automatic selection of numbers of processes for multiprocess calculations.
 * `pyFFTW <https://pypi.python.org/pypi/pyFFTW>`__. The FFTW library can speed
@@ -52,19 +53,19 @@ improvements if you are spending substantial time running calculations.
   These optionally can provide improved performance particularly in the
   Fresnel code.
 
-.. _pysynphot_install:
+.. _synphot_install:
 
-Installing or updating pysynphot
-----------------------------------
+Installing or updating synphot
+--------------------------------
 
-`Pysynphot <http://pysynphot.readthedocs.org/en/latest/>`_ is an optional dependency, but is highly recommended.
-See the `pysynphot installation docs here <http://pysynphot.readthedocs.org/en/latest/#installation-and-setup>`_
-to install ``pysynphot`` and (at least some of) its CDBS data files.
+`synphot <https://synphot.readthedocs.io>`_ is an optional dependency, but is highly recommended.
+See the `synphot installation docs here <https://synphot.readthedocs.io/en/latest/#installation-and-setup>`_
+to install ``synphot`` and (even more optionally) some of its TRDS data files.
 
 *The minimum needed to have stellar spectral models available for use when
-creating PSFs is pysynphot itself plus just one of the CDBS data files: the Castelli & Kurucz stellar atlas, file*
-`synphot3.tar.gz <ftp://ftp.stsci.edu/cdbs/tarfiles/synphot3.tar.gz>`_ (18
-MB). Feel free to ignore the rest of the synphot CDBS files unless you know you want a larger set of
+creating PSFs is synphot itself plus just one of the TRDS data files: the Castelli & Kurucz stellar atlas, file*
+`synphot3_castelli-kurucz-2004.tar <https://archive.stsci.edu/hlsps/reference-atlases/hlsp_reference-atlases_hst_multi_castelli-kurucz-2004-atlas_multi_v1_synphot3.tar>`_ (18
+MB). Feel free to ignore the rest of the many GB of synphot TRDS files unless you know you want a larger set of
 input spectra or need the reference files for other purposes.
 
 

@@ -1,6 +1,6 @@
 BSD 3-Clause License
 
-Copyright (c) 2010-2018, Space Telescope Science Institute, AURA
+Copyright (c) 2010-2021, Space Telescope Science Institute, AURA
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

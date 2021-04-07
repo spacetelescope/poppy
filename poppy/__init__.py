@@ -25,7 +25,7 @@ try:
 except ImportError:
     __version__ = ''
 
-__minimum_python_version__ = "3.5"
+__minimum_python_version__ = "3.6"
 
 class UnsupportedPythonError(Exception):
     pass
@@ -61,6 +61,8 @@ class Conf(_config.ConfigNamespace):
     autosave_fftw_wisdom = _config.ConfigItem(True, 'Should POPPY ' +
                                               'automatically save and reload FFTW ' +
                                               '"wisdom" for improved speed?')
+    use_mkl = _config.ConfigItem(True, "Use Intel MKL for FFTs (assuming it is available). "
+                                       "This has highest priority for CPU-based FFT over other FFT options, if multiple are set True.")
 
     use_cuda = _config.ConfigItem(True, 'Use cuda for FFTs on GPU (assuming it' +
             'is available)?')
@@ -126,6 +128,7 @@ from . import fresnel
 from . import physical_wavefront
 from . import wfe
 from . import dms
+from . import active_optics
 
 from .poppy_core import *
 from .utils import *
@@ -135,6 +138,7 @@ from .fresnel import *
 from .physical_wavefront import *
 from .special_prop import *
 from .dms import *
+from .active_optics import *
 
 from .instrument import Instrument
 

@@ -1,6 +1,7 @@
 
 import numpy as np
 import astropy.units as u
+from astropy.io import fits
 
 from .. import poppy_core
 from .. import optics
@@ -214,6 +215,68 @@ def test_StatisticalPSDWFE(index=3, seed=123456, plot=False):
         plt.ylabel("Normalized PSD")
         plt.legend()
 
+def test_PowerSpectrumWFE(plot=False):
+    # verify self-consistency of PowerSpectrumWFE with a reference case
+    import os
+    import astropy.io.fits as fits
+    
+    # declare internal functions
+    def rms(opd):
+        return np.sqrt(np.mean(np.square(opd)))
+    def pv(opd):
+        return np.amax(opd) - np.amin(opd)
+    
+    # Initialize reference case: Jared Males' PSD surface for OAP
+    psd_ref = fits.open(os.path.join(os.path.dirname(__file__), 'psd_wfe_ref_oap.fits'))[0]
+    hdr = psd_ref.header
 
+    # Surface data
+    surf_ref = psd_ref.data * u.nm * 2 # TODO: the file was scaled by 0.5, need to update it
+    npix_surf = surf_ref.shape[0]
+    opt_diam = hdr['opticd'] * u.m
+    pixelscale = hdr['pixscale'] * u.m/u.pix # should match with opt_diam/npix
+    surf_radius = (pixelscale * u.pix * npix_surf/2.0 ).to_value(u.m)
+
+    # psd parameter data from header
+    alpha = hdr['alpha']
+    beta = hdr['beta'] * (pixelscale.value**2) * (surf_ref.unit**2) / (opt_diam.unit**(alpha-2))
+    # beta value in header has been normalized, needs to be backsolved
+    outer_scale = hdr['os'] * opt_diam.unit # sometimes labeled as L0
+    inner_scale = hdr['is'] # sometimes labeled lo
+    surf_roughness = 0.0 * (surf_ref.unit * opt_diam.unit)**2
+
+    # set PSD parameters in required list format
+    psd_parameters = [[alpha, beta, outer_scale, inner_scale, surf_roughness]]
+    psd_weight = [1.0]
+
+    # calculate reference rms and pv for comparison
+    rms_ref = rms(surf_ref)
+    pv_ref = pv(surf_ref)
+    
+    # single iteration testing to verify RMS matching
+    screen_size = 2048
+    seed = 123456
+    psd_wave = poppy_core.Wavefront(npix=npix_surf, diam=opt_diam, wavelength=656e-9)
+    psd_wfe = wfe.PowerSpectrumWFE(psd_parameters=psd_parameters, psd_weight=psd_weight,
+                                    seed=seed, apply_reflection=False, screen_size=screen_size,
+                                    rms=rms_ref, radius=surf_radius)
+    psd_opd = (psd_wfe.get_opd(psd_wave)*u.m).to(surf_ref.unit)
+    psd_rms = rms(psd_opd)
+    psd_pv = pv(psd_opd)
+    
+    # compare in meters because using np.allclose in nanometers fails assert
+    assert np.allclose(psd_rms.to(u.m).value,rms_ref.to(u.m).value), ('Calculated RMS wfe does not match with Reference RMS wfe')
+    
+    if plot:
+        import matplotlib.pyplot as plt
+        plt.figure(dpi=100)
+        plt.imshow(surf_ref.value, origin='lower')
+        plt.colorbar().set_label(surf_ref.unit)
+        plt.title('Ref surf, RMS={0:.4f}, PV={1:.2f}'.format(rms_ref, pv_ref))
+
+        plt.figure(dpi=100)
+        plt.imshow(psd_opd.value, origin='lower')
+        plt.colorbar().set_label(psd_opd.unit)
+        plt.title('PSD surf, RMS={0:.4f}, PV={1:.2f}'.format(psd_rms, psd_pv))
 
 

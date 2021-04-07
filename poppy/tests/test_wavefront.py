@@ -1,4 +1,5 @@
 
+import poppy
 from .. import poppy_core
 from .. import optics
 import numpy as np
@@ -61,6 +62,34 @@ def test_wavefront_rotation():
     wave0 = wave
     wave *= rot
     assert np.allclose(wave0.wavefront, wave.wavefront)
+
+def test_wavefront_rot90_vs_ndimagerotate_consistency(plot=False):
+    """Test that rotating a Wavefront via either of the two
+    methods yields consistent results. This compares an exact
+    90 degree rotation and an interpolating not-quite-90-deg rotation.
+    Both methods should rotate counterclockwise and consistently.
+    """
+    letterf = poppy.optics.LetterFAperture()
+    wave = poppy.Wavefront(diam=3 * u.m, npix=128)
+    wave *= letterf
+    wave2 = wave.copy()
+
+    wave.rotate(90)
+    wave2.rotate(89.99999)
+
+    assert np.allclose(wave2.intensity, wave.intensity, atol=1e-5), "Inconsistent results from the two rotation methods"
+
+    from poppy.tests.test_sign_conventions import brighter_top_half, brighter_left_half
+
+    assert brighter_left_half(wave.intensity), "Rotated wavefront orientation not as expected"
+    assert not brighter_top_half(wave.intensity), "Rotated wavefront orientation not as expected"
+
+    if plot:
+        fig, axes = plt.subplots(figsize=(10, 5), ncols=2)
+        wave.display(ax=axes[0])
+        wave2.display(ax=axes[1])
+        axes[0].set_title("Rot90")
+        axes[1].set_title("ndimage rotate(89.9999)")
 
 def test_wavefront_inversion():
     npix=100
