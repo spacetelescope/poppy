@@ -90,7 +90,7 @@ class Instrument(object):
         Type of jitter model to apply. Currently only convolution with a Gaussian kernel of specified
         width `jitter_sigma` is implemented. (default: None)
     jitter_sigma : float
-        Width of the jitter kernel in arcseconds (default: 0.007 arcsec)
+        Width of the jitter kernel in arcseconds per axis (default: 0.007 arcsec)
     parity : string "even" or "odd"
         You may wish to ensure that the output PSF grid has either an odd or even number of pixels.
         Setting this option will force that to be the case by increasing npix by one if necessary.
@@ -695,7 +695,7 @@ class Instrument(object):
 
         The key configuration argument is options['jitter'] which defines the type of jitter.
         If this is the string 'gaussian', then a Gaussian blurring kernel will be applied, the
-        amount of the blur is taken from the options['jitter_sigma'] value.
+        amount of the blur is taken from the options['jitter_sigma'] value (arcsec per axis).
 
         Other types of jitter are not yet implemented.
 
@@ -720,7 +720,7 @@ class Instrument(object):
             if sigma is None:
                 poppy_core._log.warning(
                     "Gaussian jitter model requested, but no width for jitter distribution specified. " +
-                    "Assuming jitter_sigma = 0.007 arcsec by default")
+                    "Assuming jitter_sigma = 0.007 arcsec per axis by default")
                 sigma = 0.007
 
             # that will be in arcseconds, we need to convert to pixels:
