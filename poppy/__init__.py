@@ -15,9 +15,7 @@ Documentation can be found online at https://poppy-optics.readthedocs.io/
 """
 # Enforce Python version check during package import.
 # This is the same check as the one at the top of setup.py
-import os
 import sys
-from warnings import warn
 from astropy import config as _config
 
 try:
@@ -27,8 +25,10 @@ except ImportError:
 
 __minimum_python_version__ = "3.6"
 
+
 class UnsupportedPythonError(Exception):
     pass
+
 
 if sys.version_info < tuple((int(val) for val in __minimum_python_version__.split('.'))):
     raise UnsupportedPythonError("poppy does not support Python < {}".format(__minimum_python_version__))
@@ -101,24 +101,6 @@ class Conf(_config.ConfigNamespace):
 
 
 conf = Conf()
-
-config_dir = os.path.dirname(__file__)
-config_template = os.path.join(config_dir, __package__ + ".cfg")
-if os.path.isfile(config_template):
-    try:
-        _config.configuration.update_default_config(
-            __package__, config_dir, version=__version__)
-    except TypeError as orig_error:
-        try:
-            _config.configuration.update_default_config(
-                __package__, config_dir)
-        except _config.configuration.ConfigurationDefaultMissingError as e:
-            wmsg = (e.args[0] + " Cannot install default profile. If you are "
-                                "importing from source, this is expected.")
-            warn(_config.configuration.ConfigurationDefaultMissingWarning(wmsg))
-            del e
-        except:
-            raise orig_error
 
 from . import poppy_core
 from . import utils
