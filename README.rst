@@ -8,9 +8,9 @@ POPPY: Physical Optics Propagation in Python
    :target: https://pypi.python.org/pypi/poppy
    :alt: Badge showing current released PyPI version
 
-.. image:: https://travis-ci.org/spacetelescope/poppy.svg?branch=develop
-   :target: https://travis-ci.org/spacetelescope/poppy
-   :alt: Badge showing continuous integration test status
+.. image:: https://github.com/spacetelescope/poppy/workflows/CI/badge.svg?branch=develop
+   :target: https://github.com/spacetelescope/poppy/actions
+   :alt: Github Actions CI Status
 
 .. image:: https://codecov.io/gh/spacetelescope/poppy/branch/develop/graph/badge.svg
    :target: https://codecov.io/gh/spacetelescope/poppy

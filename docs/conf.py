@@ -41,7 +41,7 @@ conf = ConfigParser()
 
 
 def setup(app):
-    app.add_stylesheet("stsci.css")
+    app.add_css_file("stsci.css")
 
 conf.read([os.path.join(os.path.dirname(__file__), '..', 'setup.cfg')])
 setup_cfg = dict(conf.items('metadata'))
