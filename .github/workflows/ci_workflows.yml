@@ -21,7 +21,7 @@ jobs:
 
           - name: Check for Sphinx doc build errors
             os: ubuntu-latest
-            python: 3.8
+            python: 3.7
             toxenv: docbuild
 
           - name: Check accelerated math version
