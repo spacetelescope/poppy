@@ -249,6 +249,7 @@ def test_segment_tilt_sign_and_direction(display=False):
     hexdm.set_actuator(2, 0, 0, 1 * u.arcsec)  # tilt
 
     if display:
+        import matplotlib.pyplot as plt
         hexdm.display(what='opd', colorbar_orientation='vertical', opd_vmax=2e-6)
         plt.figure(figsize=(14, 5))
         plt.suptitle("Segment tilt sign test (Fraunhofer propagation)", fontweight='bold')
