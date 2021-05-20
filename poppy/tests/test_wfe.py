@@ -7,6 +7,7 @@ from .. import poppy_core
 from .. import optics
 from .. import zernike
 from .. import wfe
+from .. import physical_wavefront
 
 NWAVES = 0.5
 WAVELENGTH = 1e-6
@@ -280,3 +281,47 @@ def test_PowerSpectrumWFE(plot=False):
         plt.title('PSD surf, RMS={0:.4f}, PV={1:.2f}'.format(psd_rms, psd_pv))
 
 
+def test_ThermalBloomingWFE_rho():
+    
+    # Verify that the rho is calculated correctly for a given set of parameters.
+    wf = physical_wavefront.PhysicalFresnelWavefront(beam_radius=5*14.15*u.cm,
+                                                     wavelength=10.6*u.um,
+                                                     units=u.m,
+                                                     npix=512,
+                                                     oversample=2,
+                                                     M2=1.0, n0=1.00027398)
+    wf.scale_power(100.0e3)
+    
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0x=200.0*u.cm/u.s, direction='x', isobaric=True)
+    rho = phase_screen.rho(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round(0.0, 6))
+    assert(np.round(np.min(rho), 6) == np.round(-8.208840195737935e-06, 6))
+    
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0x=200.0*u.cm/u.s, direction='x', isobaric=False)
+    rho = phase_screen.rho(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round(4.102415953233477e-06, 6))
+    assert(np.round(np.min(rho), 6) == np.round(-5.128577933666188e-06, 6))
+    
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0x=200.0*u.cm/u.s, direction='x', isobaric=True)
+    rho = phase_screen.rho_isobaric(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round(0.0, 6))
+    assert(np.round(np.min(rho), 6) == np.round(-8.208840195737935e-06, 6))
+    
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0x=200.0*u.cm/u.s, direction='x', isobaric=False)
+    rho = phase_screen.rho_nonisobaric(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round(4.102415953233477e-06, 6))
+    assert(np.round(np.min(rho), 6) == np.round(-5.128577933666188e-06, 6))
+    
+    rho = phase_screen.rho_dot_FT(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round((1.936370481716403-0.005940728873190856j), 6))
+    assert(np.round(np.min(rho), 6) == np.round((-1.2327190132928074-4.748967176089986e-10j), 6))
