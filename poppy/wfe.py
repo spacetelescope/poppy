@@ -610,6 +610,11 @@ class KolmogorovWFE(WavefrontError):
         Kind of the spatial power spectrum. Must be one of 'Kolmogorov',
         'Tatarski', 'von Karman', 'Hill'.
     
+    seed : integer
+        Seed for the random number generator when creating the phase screen.
+        This can be helpful when multiple fields (for example different modes)
+        should propagate through an identical atmosphere.
+    
     References
     -------------------
     For a general overview of the Kolmogorov theory, read
@@ -622,16 +627,17 @@ class KolmogorovWFE(WavefrontError):
     @utils.quantity_input(r0=u.meter, Cn2=u.meter**(-2/3), dz=u.meter,
                           inner_scale=u.meter, outer_scale=u.meter)
     def __init__(self, name="Kolmogorov WFE", r0=None, Cn2=None, dz=None,
-                 inner_scale=None, outer_scale=None, kind='Kolmogorov', **kwargs):
+                 inner_scale=None, outer_scale=None, kind='Kolmogorov',
+                 seed=None, **kwargs):
         
         if dz is None and not all(item is not None for item in [r0, Cn2]):
-            raise ValueError('To prepare a turbulent phase screen, \
-                             dz and either Cn2 or r0 must be given.')
+            raise ValueError('To prepare a turbulent phase screen, dz and either Cn2 or r0 must be given.')
         
         super(KolmogorovWFE, self).__init__(name=name, **kwargs)
         
         self.r0 = r0
         self.Cn2 = Cn2
+        self.seed = seed
         self.dz = dz.to(u.m)
         self.inner_scale = inner_scale
         self.outer_scale = outer_scale
@@ -728,7 +734,9 @@ class KolmogorovWFE(WavefrontError):
         sign = float(sign)
         
         # create Gaussian, zero-mean, unit variance random numbers
-        a = np.random.normal(size=(npix, npix))
+        random_numbers = np.random.RandomState()
+        random_numbers.seed(self.seed)
+        a = random_numbers.normal(size=(npix, npix))
         
         # apply required symmetry
         a[0, int(npix/2)+1:npix] = sign*a[0, 1:int(npix/2)][::-1]

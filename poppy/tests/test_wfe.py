@@ -347,6 +347,15 @@ def test_KolmogorovWFE():
         assert(np.max(np.abs(average.real)) < 0.1)
         assert(np.max(np.abs(average.imag)) < 0.1)
     
+    def test_get_opd():
+        npix = 64
+        wf = poppy_core.Wavefront(wavelength=WAVELENGTH*u.m,
+                                  npix=npix,
+                                  diam=3.0)
+        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ, inner_scale=1*u.cm, outer_scale=10*u.m)
+        opd = KolmogorovWFE.get_opd(wf)
+        assert(np.round(np.sum(opd), 9) == np.round(0.0, 9))
+    
     test_KolmogorovWFE_stats()
     test_KolmogorovWFE_Cn2()
     test_KolmogorovWFE_ps()
