@@ -837,7 +837,7 @@ def test_inwave_fresnel(plot=False):
 
 
 def test_FITSFPMElement(display=False):
-    poppy_tests_path = os.path.abspath(poppy.__file__)[:-11] + 'tests/' # define the path to where poppy's tests are
+    poppy_tests_fpath = os.path.abspath(poppy.__file__)[:-11]+'tests/'
     
     # HST example - Following example in PROPER Manual V2.0 page 49.
     # This is an idealized case and does not correspond precisely to the real telescope
@@ -853,33 +853,33 @@ def test_FITSFPMElement(display=False):
     fl_oap = 0.5*u.m
 
     sampling=2
-    hst = fresnel.FresnelOpticalSystem(npix=512, pupil_diameter=2.4*u.m, beam_ratio=1./sampling)
-    g1 = fresnel.QuadraticLens(fl_pri, name='Primary', planetype=poppy_core.PlaneType.pupil)
-    g2 = fresnel.QuadraticLens(fl_sec, name='Secondary')
-
-    fpm = fresnel.FITSFPMElement('BOWTIE FPM', 
-                               poppy_tests_path+'bowtie_fpm_0.05lamD.fits', 
+    hst = poppy.FresnelOpticalSystem(npix=128, pupil_diameter=2.4*u.m, beam_ratio=1./sampling)
+    g1 = poppy.QuadraticLens(fl_pri, name='Primary', planetype=poppy.poppy_core.PlaneType.pupil)
+    g2 = poppy.QuadraticLens(fl_sec, name='Secondary')
+    fpm = poppy.FITSFPMElement('BOWTIE FPM', 
+                               poppy_tests_fpath+'bowtie_fpm_0.05lamD.fits', 
                                wavelength_c=lambda_m, 
                                ep_diam=diam, 
                                pixelscale_lamD=0.05,
                                centering='ADJUSTABLE',
                               )
-    oap = fresnel.QuadraticLens(fl_oap, name='OAP')
-    
-    hst.add_optic(optics.CircularAperture(radius=diam.value/2))
+    oap = poppy.QuadraticLens(fl_oap, name='OAP')
+
+    hst.add_optic(poppy.CircularAperture(radius=diam.value/2))
     hst.add_optic(g1)
     hst.add_optic(g2, distance=d_pri_sec)
     hst.add_optic(fpm, distance=d_sec_to_focus)
     hst.add_optic(oap, distance=fl_oap)
     hst.add_optic(oap, distance=fl_oap)
-    hst.add_optic(optics.ScalarTransmission(planetype=poppy_core.PlaneType.intermediate, name='Image'), distance=fl_oap)
+    hst.add_optic(poppy.ScalarTransmission(planetype=poppy.poppy_core.PlaneType.intermediate, name='Image'), distance=fl_oap)
 
+    # Create a PSF
     # Create a PSF
     if display: fig=plt.figure(figsize=(10,5))
     psf, waves = hst.calc_psf(wavelength=lambda_m, display_intermediates=display, return_intermediates=True)
     
     # still have to do comparison of arrays
-    psf_result = fits.open(poppy_tests_path+'FITSFPMElement_test_result.fits')
+    psf_result = fits.open(poppy_tests_fpath+'FITSFPMElement_test_result.fits')
     psf_result_data = psf_result[0].data[0] + 1j*psf_result[0].data[1]
     psf_result_pxscl = psf_result[0].header['PIXELSCL']
     psf_result.close()
