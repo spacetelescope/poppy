@@ -1059,13 +1059,13 @@ class FresnelWavefront(BaseWavefront):
         # self.wavefront = accel_math.fft_2d(self.wavefront, forward=False, fftshift=True) # FFT back to normally-sampled focal plane
         # self.wavefront = np.fft.ifftshift(self.wavefront)
 
-        self.wavefront = np.fft.ifftshift(self.wavefront)
+        self.wavefront = accel_math._ifftshift(self.wavefront)
         self.wavefront = accel_math.fft_2d(self.wavefront, forward=False, fftshift=True) # do a forward FFT to virtual pupil
         self.wavefront = mft.perform(self.wavefront, nfpmlamD, nfpm) # MFT back to highly sampled focal plane
         self.wavefront *= fpm_phasor
         self.wavefront = mft.inverse(self.wavefront, nfpmlamD, n) # MFT to virtual pupil
         self.wavefront = accel_math.fft_2d(self.wavefront, forward=True, fftshift=True) # FFT back to normally-sampled focal plane
-        self.wavefront = np.fft.fftshift(self.wavefront)
+        self.wavefront = accel_math._fftshift(self.wavefront)
         
         _log.debug("------ FITs FPM Optic: " + str(optic.name) + " applied ------")
 
