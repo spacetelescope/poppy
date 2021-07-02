@@ -765,9 +765,9 @@ class ThermalBloomingWFE(WavefrontError):
         npix = wave.npix
         dx = wave.dx
         rho = np.zeros((npix, npix))
-        v0 = max(abs(self.v0x), abs(self.v0y))
         
         if (self.direction == 'x'):
+            v0 = self.v0x
             if v0 > 0.0:
                 for idx_x in range(npix):
                     for idx_y in range(npix):
@@ -777,6 +777,7 @@ class ThermalBloomingWFE(WavefrontError):
                     for idx_y in range(npix):
                         rho[idx_x, idx_y] = np.sum(intens[idx_x:-1, idx_y])
         elif (self.direction == 'y'):
+            v0 = self.v0y
             if v0 > 0.0:
                 for idx_x in range(npix):
                     for idx_y in range(npix):
