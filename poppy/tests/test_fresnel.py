@@ -884,9 +884,9 @@ def test_FITSFPMElement(display=False):
     psf_result_pxscl = psf_result[0].header['PIXELSCL']
     psf_result.close()
     
-    np.testing.assert_allclose(waves[-1].wavefront, psf_result_data,
-                               err_msg="PSF of this test does not match the saved result.")
+    np.testing.assert_allclose(waves[-1].wavefront, psf_result_data, rtol=1e-6,
+                               err_msg="PSF of this test does not match the saved result.", verbose=True)
     np.testing.assert_allclose(waves[-1].pixelscale.value, psf_result_pxscl,
-                               err_msg="PSF pixelscale of this test does not match the saved result.")
+                               err_msg="PSF pixelscale of this test does not match the saved result.", verbose=True)
     
 
