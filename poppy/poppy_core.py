@@ -2580,6 +2580,9 @@ class OpticalElement(object):
 
         # TODO infer correct units from pixelscale's units?
         units = "[arcsec]" if self.planetype == PlaneType.image else "[meters]"
+        if self.pixelscale is not None:
+            if self.pixelscale.unit.is_equivalent(u.arcsec/u.pix):
+                units = "[arcsec]"
         if nrows > 1:
             # for display inside an optical system, we repurpose the units display to label the plane
             units = self.name + "\n" + units
