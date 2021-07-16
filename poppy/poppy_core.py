@@ -245,7 +245,7 @@ class BaseWavefront(ABC):
 
         def get_unpadded(attribute_array):
             if self.planetype == PlaneType.pupil and self.ispadded and not includepadding:
-                return utils.removePadding(attribute_array.copy(), self.oversample)
+                return utils.remove_padding(attribute_array.copy(), self.oversample)
             else:
                 return attribute_array.copy()
 
@@ -421,11 +421,11 @@ class BaseWavefront(ABC):
 
         y, x = self.coordinates()
         if self.planetype == PlaneType.pupil and self.ispadded and not showpadding:
-            intens = utils.removePadding(intens, self.oversample)
-            phase = utils.removePadding(phase, self.oversample)
-            amp = utils.removePadding(amp, self.oversample)
-            y = utils.removePadding(y, self.oversample)
-            x = utils.removePadding(x, self.oversample)
+            intens = utils.remove_padding(intens, self.oversample)
+            phase = utils.remove_padding(phase, self.oversample)
+            amp = utils.remove_padding(amp, self.oversample)
+            y = utils.remove_padding(y, self.oversample)
+            x = utils.remove_padding(x, self.oversample)
 
         if use_angular_coordinates is None:
             use_angular_coordinates = self.planetype == PlaneType.image
@@ -554,7 +554,7 @@ class BaseWavefront(ABC):
             # Set up WFE arrays, similar to how we set up phase and amp
             wfe = self.wfe.to(u.nanometer).value.copy()
             if self.planetype == PlaneType.pupil and self.ispadded and not showpadding:
-                wfe = utils.removePadding(wfe, self.oversample)
+                wfe = utils.remove_padding(wfe, self.oversample)
             wfe[intens < mean_intens / 100] = np.nan
             vmx = np.nanmax(np.abs(wfe))
             norm_wfe = matplotlib.colors.Normalize(vmin=-vmx, vmax=vmx)
@@ -873,7 +873,7 @@ class BaseWavefront(ABC):
         if self.ispadded:
             # pupil plane is padded - trim out the zeros since it's not needed in the rotation
             # If needed in later steps, the padding will be re-added automatically
-            self.wavefront = utils.removePadding(self.wavefront, self.oversample)
+            self.wavefront = utils.remove_padding(self.wavefront, self.oversample)
             self.ispadded = False
 
         # self.wavefront = scipy.ndimage.interpolation.rotate(self.wavefront, angle, reshape=False)
@@ -1116,7 +1116,7 @@ class Wavefront(BaseWavefront):
 
         if self.ispadded:
             # pupil plane is padded - trim that out since it's not needed
-            self.wavefront = utils.removePadding(self.wavefront, self.oversample)
+            self.wavefront = utils.remove_padding(self.wavefront, self.oversample)
             self.ispadded = False
         self._preMFT_pupil_shape = self.wavefront.shape  # save for possible inverseMFT
         self._preMFT_pupil_pixelscale = self.pixelscale  # save for possible inverseMFT
