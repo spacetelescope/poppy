@@ -1,4 +1,4 @@
-"""
+﻿"""
 Analytic optical element classes to introduce a specified wavefront
 error in an OpticalSystem
 
@@ -580,8 +580,8 @@ class PowerSpectrumWFE(WavefrontError):
         self.opd = opd
         return self.opd
 
-      
-  class KolmogorovWFE(WavefrontError):
+
+class KolmogorovWFE(WavefrontError):
     """ A turbulent phase screen.
     
     This is an implementation of a turbulent phase screen as by the
@@ -832,7 +832,8 @@ class PowerSpectrumWFE(WavefrontError):
                                  inner scale l_0 must be provided.')
         
         return phi
-      
+
+
 class ThermalBloomingWFE(WavefrontError):
     """ A thermal blooming phase screen.
     
