@@ -567,7 +567,7 @@ class Instrument(object):
             if os.path.exists(self.pupil):
                 full_pupil_path = self.pupil
             else:
-                raise IOError("File not found: " + full_pupil_path)
+                raise IOError("File not found: " + self.pupil)
         elif isinstance(self.pupil, fits.HDUList):  # pupil supplied as FITS HDUList object
             full_pupil_path = self.pupil
         else:
