@@ -280,6 +280,88 @@ def test_PowerSpectrumWFE(plot=False):
         plt.colorbar().set_label(psd_opd.unit)
         plt.title('PSD surf, RMS={0:.4f}, PV={1:.2f}'.format(psd_rms, psd_pv))
 
+def test_KolmogorovWFE():
+    CN2 = 1e-14*u.m**(-2/3)
+    DZ = 50.0*u.m
+    
+    def test_KolmogorovWFE_stats():
+        # verify statistics of random numbers
+        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ)
+        npix = 2048
+        a = KolmogorovWFE.rand_turbulent(npix)
+        b = KolmogorovWFE.rand_symmetrized(npix, 1)
+        c = KolmogorovWFE.rand_symmetrized(npix, -1)
+        
+        assert(np.round(np.abs(np.mean(a)), 2) == np.round(0.0, 2))
+        assert(np.round(np.var(a), 2) == np.round(1.0, 2))
+        assert(np.round(np.mean(b), 2) == np.round(0.0, 2))
+        assert(np.round(np.var(b), 2) == np.round(1.0, 2))
+        assert(np.round(np.mean(c), 2) == np.round(0.0, 2))
+        assert(np.round(np.var(c), 2) == np.round(1.0, 2))
+    
+    def test_KolmogorovWFE_Cn2():
+        # verify correct calculation of Cn2 from Fried parameter
+        lam = WAVELENGTH*u.m
+        dz = 50.0*u.m
+        r0 = 0.185*(lam**2/CN2/dz)**(3.0/5.0) # analytical equation
+        KolmogorovWFE = wfe.KolmogorovWFE(r0=r0, dz=dz)
+        Cn2_test = KolmogorovWFE.get_Cn2(lam)
+        
+        assert(np.round(Cn2_test.value, 9) == np.round(CN2.value, 9))
+    
+    def test_KolmogorovWFE_ps():
+        # verify that first element of power spectrum is zero
+        npix = 64
+        wf = poppy_core.Wavefront(wavelength=WAVELENGTH*u.m,
+                                  npix=npix,
+                                  diam=3.0)
+        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ, inner_scale=1*u.cm, outer_scale=10*u.m)
+        
+        ps1 = KolmogorovWFE.power_spectrum(wf, kind='Kolmogorov')
+        ps2 = KolmogorovWFE.power_spectrum(wf, kind='Tatarski')
+        ps3 = KolmogorovWFE.power_spectrum(wf, kind='von Karman')
+        ps4 = KolmogorovWFE.power_spectrum(wf, kind='Hill')
+        
+        assert(np.round(ps1[0,0].value, 9) == np.round(0.0, 9))
+        assert(np.round(ps2[0,0].value, 9) == np.round(0.0, 9))
+        assert(np.round(ps3[0,0].value, 9) == np.round(0.0, 9))
+        assert(np.round(ps4[0,0].value, 9) == np.round(0.0, 9))
+    
+    def test_KolmogorovWFE_correlation():
+        # verify correlation of random numbers
+        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ)
+        num_ensemble = 2000
+        npix = 64
+        
+        average = np.zeros((npix, npix), dtype=complex)
+        for j in range(num_ensemble):
+            a = KolmogorovWFE.rand_turbulent(npix)
+            for l in range(npix):
+                for m in range(npix):
+                    average[l, m] += np.sum(a[:, l])*np.sum(np.conj(a[:, m]))/num_ensemble/npix
+        
+        for l in range(npix):
+            for m in range(npix):
+                if l == m:
+                    average[l, m] -= 1.0
+        
+        assert(np.max(np.abs(average.real)) < 0.1)
+        assert(np.max(np.abs(average.imag)) < 0.1)
+    
+    def test_get_opd():
+        npix = 64
+        wf = poppy_core.Wavefront(wavelength=WAVELENGTH*u.m,
+                                  npix=npix,
+                                  diam=3.0)
+        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ, inner_scale=1*u.cm, outer_scale=10*u.m)
+        opd = KolmogorovWFE.get_opd(wf)
+        assert(np.round(np.sum(opd), 9) == np.round(0.0, 9))
+    
+    test_KolmogorovWFE_stats()
+    test_KolmogorovWFE_Cn2()
+    test_KolmogorovWFE_ps()
+    test_KolmogorovWFE_correlation()
+
 
 def test_ThermalBloomingWFE_rho():
     
