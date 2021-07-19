@@ -106,6 +106,12 @@ def test_shifting_optics( npix=30,  grid_size = 3, display=False):
         plt.imshow(circ_samp-circ_shift_samp)
     assert np.allclose(circ_samp, circ_shift_samp) is False, "Shift didn't change array"
 
+    # create shifted version, using explicit units rather than implicitly in meters.
+    # Verify that gives the same result as without explicit units
+    circ_shift_via_units = poppy.CircularAperture( shift_x=shift_size*1000*u.millimeter)
+    circ_shift_via_units_samp = circ_shift_via_units.sample(npix=npix, grid_size=grid_size)
+    assert np.allclose(circ_shift_samp, circ_shift_via_units_samp), "Shift with value as Quantity didn't give same result as shift with value as bare float in meters"
+
     # Make a FITS element.
     circ_fits = circ.to_fits(npix=npix, grid_size=grid_size)
 
