@@ -300,8 +300,11 @@ class AnalyticOpticalElement(OpticalElement):
         "shift_x", "shift_y", "rotation", "inclination_x", "inclination_y"
         If any of them are present, then the coordinates are modified accordingly.
 
-        Shifts are given in meters for pupil optics and arcseconds for image
-        optics. Rotations and inclinations are given in degrees.
+        Shifts are given by default implicitly in meters for pupil optics and arcseconds for image
+        plane optics. Shifts may optionally also be given with explicit units using Astropy Quantities,
+        which in this case must be convertable into meters or arcseconds as appropriate.
+
+        Rotations and inclinations are given implicitly in degrees.
 
         For multiple transformations, the order of operations is:
             shift, rotate, incline.
@@ -309,9 +312,19 @@ class AnalyticOpticalElement(OpticalElement):
 
         y, x = wave.coordinates()
         if hasattr(self, "shift_x"):
-            x -= float(self.shift_x)
+            if isinstance(self.shift_x, u.Quantity):
+                desired_unit = u.arcsecond if self.planetype==PlaneType.image else u.meter
+                shift_value = self.shift_x.to_value(desired_unit)
+                x -= float(shift_value)
+            else:
+                x -= float(self.shift_x)
         if hasattr(self, "shift_y"):
-            y -= float(self.shift_y)
+            if isinstance(self.shift_y, u.Quantity):
+                desired_unit = u.arcsecond if self.planetype == PlaneType.image else u.meter
+                shift_value = self.shift_y.to_value(desired_unit)
+                y -= float(shift_value)
+            else:
+                y -= float(self.shift_y)
         if hasattr(self, "rotation"):
             angle = np.deg2rad(self.rotation)
             xp = np.cos(angle) * x + np.sin(angle) * y
