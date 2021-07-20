@@ -683,7 +683,7 @@ class KolmogorovWFE(WavefrontError):
         opd_FFT = dq*a*np.sqrt(2.0*np.pi*self.dz*phi)
         opd = npix**2*np.fft.ifft2(opd_FFT)
         
-        self.opd = opd.real.value
+        self.opd = np.real(opd)
         
         return self.opd
     
