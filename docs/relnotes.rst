@@ -31,8 +31,8 @@ For a list of contributors, see :ref:`about`.
 
 **New Functionality:**
 
- * New class ``TipTiltStage``, which allows putting additional tip-tilt on any arbitrary optic, and adjusting/controlling the tip and tilt. (:pr:`414` by :user:`mperrin)
- * New class ``CircularSegmentedDeformableMirror``, which models an aperture comprising several individually-controllable circular mirrors. (:pr:`407` and :pr:`424` by :user:`Teusia`)
+ * New class ``TipTiltStage``, which allows putting additional tip-tilt on any arbitrary optic, and adjusting/controlling the tip and tilt. See `here <https://poppy-optics.readthedocs.io/en/latest/available_optics.html#Tip-Tilt-Stage>`_ for example. (:pr:`414` by :user:`mperrin)
+ * New class ``CircularSegmentedDeformableMirror``, which models an aperture comprising several individually-controllable circular mirrors. See `here <https://poppy-optics.readthedocs.io/en/latest/available_optics.html#Circularly-Segmented-Deformable-Mirrors>`_ for example. (:pr:`407` and :pr:`424` by :user:`Teusia`)
 
 
 **Other enhancements and fixes:**
