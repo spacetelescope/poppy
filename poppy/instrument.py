@@ -567,7 +567,7 @@ class Instrument(object):
             if os.path.exists(self.pupil):
                 full_pupil_path = self.pupil
             else:
-                raise IOError("File not found: " + full_pupil_path)
+                raise IOError("File not found: " + self.pupil)
         elif isinstance(self.pupil, fits.HDUList):  # pupil supplied as FITS HDUList object
             full_pupil_path = self.pupil
         else:
@@ -857,7 +857,8 @@ class Instrument(object):
 
         if monochromatic is not None:
             poppy_core._log.info("Monochromatic calculation requested.")
-            return (np.asarray([monochromatic]), np.asarray([1]))
+            monochromatic_wavelen_meters = monochromatic.to_value(units.meter) if isinstance(monochromatic, units.Quantity) else monochromatic
+            return (np.asarray([monochromatic_wavelen_meters]), np.asarray([1]))
 
         elif _HAS_SYNPHOT and (isinstance(source, synphot.SourceSpectrum) or source is None):
             """ Given a synphot.SourceSpectrum object, perform synthetic photometry for
