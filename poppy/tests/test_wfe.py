@@ -283,11 +283,14 @@ def test_PowerSpectrumWFE(plot=False):
 def test_KolmogorovWFE():
     CN2 = 1e-14*u.m**(-2/3)
     DZ = 50.0*u.m
+
+    seed = 12345678  # Use fixed seed to ensure reproducible test behavior.
+                     # This particular value is arbitrary; any 32-bit int should work here.
     
     def test_KolmogorovWFE_stats():
         # verify statistics of random numbers
-        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ)
-        npix = 2048
+        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ, seed=seed)
+        npix = 1024
         a = KolmogorovWFE.rand_turbulent(npix)
         b = KolmogorovWFE.rand_symmetrized(npix, 1)
         c = KolmogorovWFE.rand_symmetrized(npix, -1)
@@ -304,7 +307,7 @@ def test_KolmogorovWFE():
         lam = WAVELENGTH*u.m
         dz = 50.0*u.m
         r0 = 0.185*(lam**2/CN2/dz)**(3.0/5.0) # analytical equation
-        KolmogorovWFE = wfe.KolmogorovWFE(r0=r0, dz=dz)
+        KolmogorovWFE = wfe.KolmogorovWFE(r0=r0, dz=dz, seed=seed)
         Cn2_test = KolmogorovWFE.get_Cn2(lam)
         
         assert(np.round(Cn2_test.value, 9) == np.round(CN2.value, 9))
@@ -315,7 +318,7 @@ def test_KolmogorovWFE():
         wf = poppy_core.Wavefront(wavelength=WAVELENGTH*u.m,
                                   npix=npix,
                                   diam=3.0)
-        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ, inner_scale=1*u.cm, outer_scale=10*u.m)
+        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ, inner_scale=1*u.cm, outer_scale=10*u.m, seed=seed)
         
         ps1 = KolmogorovWFE.power_spectrum(wf, kind='Kolmogorov')
         ps2 = KolmogorovWFE.power_spectrum(wf, kind='Tatarski')
@@ -327,14 +330,14 @@ def test_KolmogorovWFE():
         assert(np.round(ps3[0,0].value, 9) == np.round(0.0, 9))
         assert(np.round(ps4[0,0].value, 9) == np.round(0.0, 9))
     
-    def test_KolmogorovWFE_correlation():
+    def test_KolmogorovWFE_correlation(num_ensemble = 2000, npix = 64):
         # verify correlation of random numbers
-        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ)
-        num_ensemble = 2000
-        npix = 64
+        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ, seed=seed)
+
         
         average = np.zeros((npix, npix), dtype=complex)
         for j in range(num_ensemble):
+            KolmogorovWFE.seed += j
             a = KolmogorovWFE.rand_turbulent(npix)
             for l in range(npix):
                 for m in range(npix):
@@ -353,14 +356,15 @@ def test_KolmogorovWFE():
         wf = poppy_core.Wavefront(wavelength=WAVELENGTH*u.m,
                                   npix=npix,
                                   diam=3.0)
-        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ, inner_scale=1*u.cm, outer_scale=10*u.m)
+        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ, inner_scale=1*u.cm, outer_scale=10*u.m, seed=seed)
         opd = KolmogorovWFE.get_opd(wf)
         assert(np.round(np.sum(opd), 9) == np.round(0.0, 9))
     
     test_KolmogorovWFE_stats()
     test_KolmogorovWFE_Cn2()
     test_KolmogorovWFE_ps()
-    test_KolmogorovWFE_correlation()
+    test_KolmogorovWFE_correlation(num_ensemble=800, npix=32)
+    test_get_opd()
 
 
 def test_ThermalBloomingWFE_rho():
