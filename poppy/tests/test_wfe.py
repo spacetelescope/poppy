@@ -7,6 +7,7 @@ from .. import poppy_core
 from .. import optics
 from .. import zernike
 from .. import wfe
+from .. import physical_wavefront
 
 NWAVES = 0.5
 WAVELENGTH = 1e-6
@@ -362,3 +363,84 @@ def test_KolmogorovWFE():
     test_KolmogorovWFE_correlation()
 
 
+def test_ThermalBloomingWFE_rho():
+    
+    # Verify that the rho is calculated correctly for a given set of parameters.
+    wf = physical_wavefront.PhysicalFresnelWavefront(beam_radius=5*14.15*u.cm,
+                                                     wavelength=10.6*u.um,
+                                                     units=u.m,
+                                                     npix=512,
+                                                     oversample=2,
+                                                     M2=1.0, n0=1.00027398)
+    wf.scale_power(100.0e3)
+    
+    # Test nat_conv_vel
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0x=200.0*u.cm/u.s, direction='x', isobaric=True)
+    nat_conv_vel = phase_screen.nat_conv_vel(wf)
+    assert(np.round(nat_conv_vel, 6) == np.round(0.07287728078361912, 6))
+    
+    # Test get_opd
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0x=200.0*u.cm/u.s, direction='x', isobaric=False)
+    opd = phase_screen.get_opd(wf)
+    assert(np.round(np.max(opd), 6) == np.round(1.909383278158297e-06, 6))
+    assert(np.round(np.min(opd), 6) == np.round(-2.386988803403901e-06, 6))
+    
+    # Test isobaric phase screen x
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0x=200.0*u.cm/u.s, direction='x', isobaric=True)
+    rho = phase_screen.rho(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round(0.0, 6))
+    assert(np.round(np.min(rho), 6) == np.round(-8.208840195737935e-06, 6))
+    
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0x=-200.0*u.cm/u.s, direction='x', isobaric=True)
+    rho = phase_screen.rho(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round(0.0, 6))
+    assert(np.round(np.min(rho), 6) == np.round(-8.208840195737935e-06, 6))
+    
+    # Test non-isobaric phase screen x
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0x=200.0*u.cm/u.s, direction='x', isobaric=False)
+    rho = phase_screen.rho(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round(4.102415953233477e-06, 6))
+    assert(np.round(np.min(rho), 6) == np.round(-5.128577933666188e-06, 6))
+    
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0x=-200.0*u.cm/u.s, direction='x', isobaric=False)
+    rho = phase_screen.rho(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round(4.102415953233477e-06, 6))
+    assert(np.round(np.min(rho), 6) == np.round(-5.128577933666188e-06, 6))
+    
+    # Test isobaric phase screen y
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0y=200.0*u.cm/u.s, direction='y', isobaric=True)
+    rho = phase_screen.rho(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round(0.0, 6))
+    assert(np.round(np.min(rho), 6) == np.round(-8.208840195737935e-06, 6))
+    
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0y=-200.0*u.cm/u.s, direction='y', isobaric=True)
+    rho = phase_screen.rho(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round(0.0, 6))
+    assert(np.round(np.min(rho), 6) == np.round(-8.208840195737935e-06, 6))
+    
+    # Test non-isobaric phase screen x
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0y=200.0*u.cm/u.s, direction='y', isobaric=False)
+    rho = phase_screen.rho(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round(4.102415953233477e-06, 6))
+    assert(np.round(np.min(rho), 6) == np.round(-5.128577933666188e-06, 6))
+    
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0y=-200.0*u.cm/u.s, direction='y', isobaric=False)
+    rho = phase_screen.rho(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round(4.102415953233477e-06, 6))
+    assert(np.round(np.min(rho), 6) == np.round(-5.128577933666188e-06, 6))
