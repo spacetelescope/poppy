@@ -444,9 +444,3 @@ def test_ThermalBloomingWFE_rho():
     assert(rho.shape[1] == 1024)
     assert(np.round(np.max(rho), 6) == np.round(4.102415953233477e-06, 6))
     assert(np.round(np.min(rho), 6) == np.round(-5.128577933666188e-06, 6))
-    
-    rho = phase_screen.rho_dot_FT(wf)
-    assert(rho.shape[0] == 1024)
-    assert(rho.shape[1] == 1024)
-    assert(np.round(np.max(rho), 6) == np.round((1.936370481716403-0.005940728873190856j), 6))
-    assert(np.round(np.min(rho), 6) == np.round((-1.2327190132928074-4.748967176089986e-10j), 6))
