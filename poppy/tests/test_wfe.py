@@ -7,6 +7,7 @@ from .. import poppy_core
 from .. import optics
 from .. import zernike
 from .. import wfe
+from .. import physical_wavefront
 
 NWAVES = 0.5
 WAVELENGTH = 1e-6
@@ -282,11 +283,14 @@ def test_PowerSpectrumWFE(plot=False):
 def test_KolmogorovWFE():
     CN2 = 1e-14*u.m**(-2/3)
     DZ = 50.0*u.m
+
+    seed = 12345678  # Use fixed seed to ensure reproducible test behavior.
+                     # This particular value is arbitrary; any 32-bit int should work here.
     
     def test_KolmogorovWFE_stats():
         # verify statistics of random numbers
-        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ)
-        npix = 2048
+        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ, seed=seed)
+        npix = 1024
         a = KolmogorovWFE.rand_turbulent(npix)
         b = KolmogorovWFE.rand_symmetrized(npix, 1)
         c = KolmogorovWFE.rand_symmetrized(npix, -1)
@@ -303,7 +307,7 @@ def test_KolmogorovWFE():
         lam = WAVELENGTH*u.m
         dz = 50.0*u.m
         r0 = 0.185*(lam**2/CN2/dz)**(3.0/5.0) # analytical equation
-        KolmogorovWFE = wfe.KolmogorovWFE(r0=r0, dz=dz)
+        KolmogorovWFE = wfe.KolmogorovWFE(r0=r0, dz=dz, seed=seed)
         Cn2_test = KolmogorovWFE.get_Cn2(lam)
         
         assert(np.round(Cn2_test.value, 9) == np.round(CN2.value, 9))
@@ -314,7 +318,7 @@ def test_KolmogorovWFE():
         wf = poppy_core.Wavefront(wavelength=WAVELENGTH*u.m,
                                   npix=npix,
                                   diam=3.0)
-        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ, inner_scale=1*u.cm, outer_scale=10*u.m)
+        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ, inner_scale=1*u.cm, outer_scale=10*u.m, seed=seed)
         
         ps1 = KolmogorovWFE.power_spectrum(wf, kind='Kolmogorov')
         ps2 = KolmogorovWFE.power_spectrum(wf, kind='Tatarski')
@@ -326,14 +330,14 @@ def test_KolmogorovWFE():
         assert(np.round(ps3[0,0].value, 9) == np.round(0.0, 9))
         assert(np.round(ps4[0,0].value, 9) == np.round(0.0, 9))
     
-    def test_KolmogorovWFE_correlation():
+    def test_KolmogorovWFE_correlation(num_ensemble = 2000, npix = 64):
         # verify correlation of random numbers
-        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ)
-        num_ensemble = 2000
-        npix = 64
+        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ, seed=seed)
+
         
         average = np.zeros((npix, npix), dtype=complex)
         for j in range(num_ensemble):
+            KolmogorovWFE.seed += j
             a = KolmogorovWFE.rand_turbulent(npix)
             for l in range(npix):
                 for m in range(npix):
@@ -352,13 +356,95 @@ def test_KolmogorovWFE():
         wf = poppy_core.Wavefront(wavelength=WAVELENGTH*u.m,
                                   npix=npix,
                                   diam=3.0)
-        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ, inner_scale=1*u.cm, outer_scale=10*u.m)
+        KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ, inner_scale=1*u.cm, outer_scale=10*u.m, seed=seed)
         opd = KolmogorovWFE.get_opd(wf)
         assert(np.round(np.sum(opd), 9) == np.round(0.0, 9))
     
     test_KolmogorovWFE_stats()
     test_KolmogorovWFE_Cn2()
     test_KolmogorovWFE_ps()
-    test_KolmogorovWFE_correlation()
+    test_KolmogorovWFE_correlation(num_ensemble=800, npix=32)
+    test_get_opd()
 
 
+def test_ThermalBloomingWFE_rho():
+    
+    # Verify that the rho is calculated correctly for a given set of parameters.
+    wf = physical_wavefront.PhysicalFresnelWavefront(beam_radius=5*14.15*u.cm,
+                                                     wavelength=10.6*u.um,
+                                                     units=u.m,
+                                                     npix=512,
+                                                     oversample=2,
+                                                     M2=1.0, n0=1.00027398)
+    wf.scale_power(100.0e3)
+    
+    # Test nat_conv_vel
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0x=200.0*u.cm/u.s, direction='x', isobaric=True)
+    nat_conv_vel = phase_screen.nat_conv_vel(wf)
+    assert(np.round(nat_conv_vel, 6) == np.round(0.07287728078361912, 6))
+    
+    # Test get_opd
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0x=200.0*u.cm/u.s, direction='x', isobaric=False)
+    opd = phase_screen.get_opd(wf)
+    assert(np.round(np.max(opd), 6) == np.round(1.909383278158297e-06, 6))
+    assert(np.round(np.min(opd), 6) == np.round(-2.386988803403901e-06, 6))
+    
+    # Test isobaric phase screen x
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0x=200.0*u.cm/u.s, direction='x', isobaric=True)
+    rho = phase_screen.rho(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round(0.0, 6))
+    assert(np.round(np.min(rho), 6) == np.round(-8.208840195737935e-06, 6))
+    
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0x=-200.0*u.cm/u.s, direction='x', isobaric=True)
+    rho = phase_screen.rho(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round(0.0, 6))
+    assert(np.round(np.min(rho), 6) == np.round(-8.208840195737935e-06, 6))
+    
+    # Test non-isobaric phase screen x
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0x=200.0*u.cm/u.s, direction='x', isobaric=False)
+    rho = phase_screen.rho(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round(4.102415953233477e-06, 6))
+    assert(np.round(np.min(rho), 6) == np.round(-5.128577933666188e-06, 6))
+    
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0x=-200.0*u.cm/u.s, direction='x', isobaric=False)
+    rho = phase_screen.rho(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round(4.102415953233477e-06, 6))
+    assert(np.round(np.min(rho), 6) == np.round(-5.128577933666188e-06, 6))
+    
+    # Test isobaric phase screen y
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0y=200.0*u.cm/u.s, direction='y', isobaric=True)
+    rho = phase_screen.rho(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round(0.0, 6))
+    assert(np.round(np.min(rho), 6) == np.round(-8.208840195737935e-06, 6))
+    
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0y=-200.0*u.cm/u.s, direction='y', isobaric=True)
+    rho = phase_screen.rho(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round(0.0, 6))
+    assert(np.round(np.min(rho), 6) == np.round(-8.208840195737935e-06, 6))
+    
+    # Test non-isobaric phase screen x
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0y=200.0*u.cm/u.s, direction='y', isobaric=False)
+    rho = phase_screen.rho(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round(4.102415953233477e-06, 6))
+    assert(np.round(np.min(rho), 6) == np.round(-5.128577933666188e-06, 6))
+    
+    phase_screen = wfe.ThermalBloomingWFE(7e-7/u.cm, 2.0*u.km, v0y=-200.0*u.cm/u.s, direction='y', isobaric=False)
+    rho = phase_screen.rho(wf)
+    assert(rho.shape[0] == 1024)
+    assert(rho.shape[1] == 1024)
+    assert(np.round(np.max(rho), 6) == np.round(4.102415953233477e-06, 6))
+    assert(np.round(np.min(rho), 6) == np.round(-5.128577933666188e-06, 6))
