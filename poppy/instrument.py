@@ -198,7 +198,7 @@ class Instrument(object):
 
 
         """
-        local_options = self.options  # all local state should be stored in a dict, for
+        local_options = self.options.copy()  # all local state should be stored in a dict, for
         # ease of handing off to the various subroutines of
         # calc_psf. Don't just modify the global self.options
         # structure since that would pollute it with temporary
