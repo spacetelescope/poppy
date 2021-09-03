@@ -61,7 +61,14 @@ jobs:
     - name: Check conda info
       run: conda info
 
+    - name: Run tests with requirements file
+      if: ${{ contains(matrix.toxenv,'-latest') }}
+      run: |
+        cp $RUNNER_WORKSPACE/poppy/requirements.txt /tmp/
+        tox -e ${{ matrix.toxenv }}
+
     - name: Run tests
+      if: ${{ contains(matrix.toxenv,'-latest') != true }}
       run: tox -e ${{ matrix.toxenv }}
 
     - name: Upload coverage to codecov
