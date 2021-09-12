@@ -903,7 +903,7 @@ class FresnelWavefront(BaseWavefront):
             # than most other optics, adjusting beam parameters and so forth
             self.apply_lens_power(optic)
             return self
-        elif isinstance(optic, FITSFPMElement):
+        elif isinstance(optic, FixedSamplingImagePlaneElement):
             # Special case: if we have an FPM, call the routine for that,
             # which will apply an amplitude transmission to the wavefront. 
             self.apply_fits_fpm_fftmft(optic)
