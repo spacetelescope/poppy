@@ -906,7 +906,7 @@ class FresnelWavefront(BaseWavefront):
         elif isinstance(optic, FixedSamplingImagePlaneElement):
             # Special case: if we have an FPM, call the routine for that,
             # which will apply an amplitude transmission to the wavefront. 
-            self.apply_fits_fpm_fftmft(optic)
+            self.apply_image_plane_fftmft(optic)
             return self
         else:
             # Otherwise fall back to the parent class
