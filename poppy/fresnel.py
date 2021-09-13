@@ -204,8 +204,6 @@ class FixedSamplingImagePlaneElement(FITSOpticalElement):
 
         self.centering = centering
 
-        print(self.amplitude_header)
-
         if planetype is not PlaneType.intermediate:
             raise ValueError('For this optic, the planetype must be an intermediate '
                              'plane in order for pixelscales to be accurate after '
