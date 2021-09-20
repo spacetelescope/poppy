@@ -183,12 +183,15 @@ class FixedSamplingImagePlaneElement(FITSOpticalElement):
     wavelength_c: astropy.quantity 
         Central wavelength of the user's system, required in order to 
         convert the pixelscale to units of lambda/D and scale the 
-        pixelscale of the element based on the wavelength being propagated. 
-    ep_diam: astropy.quantity
+        pixelscale of the element based on the wavelength being propagated. If this parameter is left as None, 
+        the pixel scale can be read from the FITS header keyword PIXELSCL, if that keyword exists in the provided file.
+    entrance_pupil_diam: astropy.quantity
         Entrance pupil diameter of the system, required to convert the 
-        pixelscale to units of lambda/D. 
-    pixelscale_lamD: float
-        pixelscale value in units of lambda/D. 
+        pixelscale to units of lambda/D. If this parameter is left as None, the pixel scale can be 
+        read from the FITS header keyword PIXELSCL, if that keyword exists in the provided file. 
+    pixelscale: float
+        pixelscale value in units of arcsec/pix. If this parameter is left as None, the pixel scale can be 
+        read from the FITS header keyword PIXELSCL, if that keyword exists in the provided file.
     centering: str
         What type of centering to use for the MFTs, see MFT documentation 
         for more information. Default is 'ADJUSTABLE'.
@@ -240,7 +243,8 @@ class FixedSamplingImagePlaneElement(FITSOpticalElement):
             "FixedSamplingImagePlaneElement {} initialized:"
             "centering style {}, "
             "central wavelength for operation {}, "
-            "Entrance pupil diameter of system {}, ".format(self.name, self.centering, self.wavelength_c, self.entrance_pupil_diam)
+            "entrance pupil diameter of system {}, "
+            "pixelscale of {} arcsec/pix.".format(self.name, self.centering, self.wavelength_c, self.entrance_pupil_diam, self.pixelscale.value)
         )
 
 
