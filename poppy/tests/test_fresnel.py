@@ -838,7 +838,6 @@ def test_inwave_fresnel(plot=False):
 
 
 def test_FixedSamplingImagePlaneElement(display=False):
-    poppy_tests_fpath = os.path.abspath(poppy.__file__)[:-11]+'tests/'
     poppy_tests_fpath = os.path.dirname(os.path.abspath(poppy.__file__))+'/tests/'
     
     # HST example - Following example in PROPER Manual V2.0 page 49.
