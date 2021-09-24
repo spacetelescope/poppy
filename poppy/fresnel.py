@@ -5,7 +5,7 @@ import logging
 import time
 
 import poppy
-from poppy.poppy_core import PlaneType, Wavefront, BaseWavefront, BaseOpticalSystem
+from poppy.poppy_core import PlaneType, Wavefront, BaseWavefront, BaseOpticalSystem, FITSOpticalElement
 from . import utils
 from . import accel_math
 if accel_math._USE_NUMEXPR:
@@ -15,7 +15,7 @@ if accel_math._USE_NUMEXPR:
 _log = logging.getLogger('poppy')
 
 
-__all__ = ['QuadPhase', 'QuadraticLens', 'FresnelWavefront', 'FresnelOpticalSystem']
+__all__ = ['QuadPhase', 'QuadraticLens', 'FresnelWavefront', 'FresnelOpticalSystem', 'FixedSamplingImagePlaneElement']
 
 
 class QuadPhase(poppy.optics.AnalyticOpticalElement):
@@ -163,6 +163,89 @@ class ConicLens(poppy.optics.CircularAperture):
         super(ConicLens, self).__init__(name=name, radius=radius.to(u.m).value, planetype=planetype, **kwargs)
         self.f_lens = f_lens
         self.K = K
+
+
+class FixedSamplingImagePlaneElement(FITSOpticalElement):
+    '''
+    This class allows the definition of focal plane masks using .fits files that will be applied to a 
+    wavefront via an FFT/MFT sequence to acheive the correct sampling at the assumed focal plane.
+    
+    This element will only function as an intermediate planetype due to pixelscale and display functionality
+    when propagating to this plane. 
+    Note: if an image planetype were to be used, the wavefront at this plane may have infinite pixelscales, 
+    making it impossible to display the wavefront with extents.
+
+    The method used to apply this element requires additional information from the user that is not required 
+    for FITSOpticalElements. These additional parameters are listed below. 
+    
+    Parameters not in FITSOpticalElement
+    ----------
+    wavelength_c: astropy.quantity 
+        Central wavelength of the user's system, required in order to 
+        convert the pixelscale to units of lambda/D and scale the 
+        pixelscale of the element based on the wavelength being propagated. If this parameter is left as None, 
+        the pixel scale can be read from the FITS header keyword PIXELSCL, if that keyword exists in the provided file.
+    entrance_pupil_diam: astropy.quantity
+        Entrance pupil diameter of the system, required to convert the 
+        pixelscale to units of lambda/D. If this parameter is left as None, the pixel scale can be 
+        read from the FITS header keyword PIXELSCL, if that keyword exists in the provided file. 
+    pixelscale: float
+        pixelscale value in units of arcsec/pix. If this parameter is left as None, the pixel scale can be 
+        read from the FITS header keyword PIXELSCL, if that keyword exists in the provided file.
+    centering: str
+        What type of centering to use for the MFTs, see MFT documentation 
+        for more information. Default is 'ADJUSTABLE'.
+        
+    '''
+    def __init__(self, name="unnamed FPM element", transmission=None, opd=None, opdunits=None,
+                 planetype=PlaneType.intermediate,
+                 wavelength_c=None, entrance_pupil_diam=None, pixelscale=None, centering='ADJUSTABLE',
+                 **kwargs):
+        
+        FITSOpticalElement.__init__(self, name=name, transmission=transmission, opd=opd, opdunits=opdunits,
+                                    planetype=planetype, **kwargs)
+
+        self.centering = centering
+
+        if planetype is not PlaneType.intermediate:
+            raise ValueError('For this optic, the planetype must be an intermediate '
+                             'plane in order for pixelscales to be accurate after '
+                             'propagation and for display functionality.')
+
+        if 'PIXELSCL' in self.amplitude_header and pixelscale is None:
+            self.pixelscale = self.amplitude_header['PIXELSCL']*u.arcsec/u.pix
+        elif pixelscale is not None and pixelscale.unit.is_equivalent(u.arcsec/u.pix):
+            self.pixelscale = pixelscale.to(u.arcsec/u.pix)
+        else:
+            raise ValueError('To utilize this element type, a pixelscale must be provided in units of arcsec/pix in the header of '
+                             'the FITS file or by manual entry as a keyword.')
+
+        if 'WAVELENC' in self.amplitude_header and wavelength_c is None:
+            self.wavelength_c = self.amplitude_header['WAVELENC']*u.m
+        elif wavelength_c is not None and wavelength_c.unit.is_equivalent(u.meter):
+            self.wavelength_c = wavelength_c.to(u.meter)
+        else:
+            raise ValueError('To utilize this element type, a central wavelength must be specified in units of meters in the header of '
+                             'the FITS file or by manual entry as a keyword. This is required to convert to units of lambda/D for an MFT.')
+
+        if 'PUPLDIAM' in self.amplitude_header and entrance_pupil_diam is None:
+            self.entrance_pupil_diam = self.amplitude_header['PUPLDIAM']*u.m
+        elif entrance_pupil_diam is not None and entrance_pupil_diam.unit.is_equivalent(u.meter):
+            self.entrance_pupil_diam = entrance_pupil_diam.to(u.meter)
+        else:
+            raise ValueError('To utilize this element type, an entrance pupil diameter must be specified in units of meters in the header of '
+                             'the FITS file or by manual entry as a keyword. This is required to convert to units of lambda/D for an MFT.')
+
+        # convert the sampling of the optic to units of lambda/D for when an MFT is used
+        self.pixelscale_lamD = self.pixelscale.to(u.radian/u.pix).value/(self.wavelength_c/self.entrance_pupil_diam)
+
+        _log.debug(
+            "FixedSamplingImagePlaneElement {} initialized:"
+            "centering style {}, "
+            "central wavelength for operation {}, "
+            "entrance pupil diameter of system {}, "
+            "pixelscale of {} arcsec/pix.".format(self.name, self.centering, self.wavelength_c, self.entrance_pupil_diam, self.pixelscale.value)
+        )
 
 
 class FresnelWavefront(BaseWavefront):
@@ -822,6 +905,11 @@ class FresnelWavefront(BaseWavefront):
             # than most other optics, adjusting beam parameters and so forth
             self.apply_lens_power(optic)
             return self
+        elif isinstance(optic, FixedSamplingImagePlaneElement):
+            # Special case: if we have an FPM, call the routine for that,
+            # which will apply an amplitude transmission to the wavefront. 
+            self.apply_image_plane_fftmft(optic)
+            return self
         else:
             # Otherwise fall back to the parent class
             return super(FresnelWavefront, self).__imul__(optic)
@@ -950,6 +1038,50 @@ class FresnelWavefront(BaseWavefront):
         self *= effective_optic
 
         _log.debug("------ Optic: " + str(optic.name) + " applied ------")
+
+
+    def apply_image_plane_fftmft(self, optic):
+        """
+        Apply a focal plane mask using fft and mft methods to highly sample at the focal plane.
+        
+        Parameters
+        ----------
+        optic : FixedSamplingImagePlaneElement
+
+        """
+        _log.debug("------ Applying FixedSamplingImagePlaneElement using FFT and MFT sequence ------")
+        
+        # readjust pixelscale to wavelength being propagated
+        fpm_pxscl_lamD = ( optic.pixelscale_lamD * optic.wavelength_c.to(u.meter) / self.wavelength.to(u.meter) ).value 
+
+        # get the fpm phasor either using numexpr or numpy
+        scale = 2. * np.pi / self.wavelength.to(u.meter).value
+        if accel_math._USE_NUMEXPR:
+            _log.debug("Calculating FPM phasor from numexpr.")
+            trans = optic.get_transmission(self)
+            opd = optic.get_opd(self)
+            fpm_phasor = ne.evaluate("trans * exp(1.j * opd * scale)")
+        else:
+            _log.debug("numexpr not available, calculating FPM phasor with numpy.")
+            fpm_phasor = optic.get_transmission(self) * np.exp(1.j * optic.get_opd(self) * scale)
+        
+        nfpm = fpm_phasor.shape[0]
+        n = self.wavefront.shape[0]
+        
+        nfpmlamD = nfpm*fpm_pxscl_lamD*self.oversample
+
+        mft = poppy.matrixDFT.MatrixFourierTransform(centering=optic.centering)
+
+        self.wavefront = accel_math._ifftshift(self.wavefront)
+        self.wavefront = accel_math.fft_2d(self.wavefront, forward=False, fftshift=True) # do a forward FFT to virtual pupil
+        self.wavefront = mft.perform(self.wavefront, nfpmlamD, nfpm) # MFT back to highly sampled focal plane
+        self.wavefront *= fpm_phasor
+        self.wavefront = mft.inverse(self.wavefront, nfpmlamD, n) # MFT to virtual pupil
+        self.wavefront = accel_math.fft_2d(self.wavefront, forward=True, fftshift=True) # FFT back to normally-sampled focal plane
+        self.wavefront = accel_math._fftshift(self.wavefront)
+        
+        _log.debug("------ FixedSamplingImagePlaneElement: " + str(optic.name) + " applied ------")
+
 
     def _resample_wavefront_pixelscale(self, detector):
         """ Resample a Fresnel wavefront to a desired detector sampling.
