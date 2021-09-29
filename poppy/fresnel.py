@@ -333,7 +333,7 @@ class FresnelWavefront(BaseWavefront):
         if self.oversample > 1 and not self.ispadded:  # add padding for oversampling, if necessary
             self.wavefront = utils.pad_to_oversample(self.wavefront, self.oversample)
             self.ispadded = True
-            logmsg = "Padded WF array for oversampling by {0:d}, to {1}.".format(
+            logmsg = "Padded WF array for oversampling by {0:.3f}, to {1}.".format(
                 self.oversample,
                 self.wavefront.shape
             )
