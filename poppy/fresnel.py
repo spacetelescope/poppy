@@ -1261,7 +1261,7 @@ class FresnelOpticalSystem(BaseOpticalSystem):
             A wavefront appropriate for passing through this optical system.
 
         """
-        oversample = int(np.round(1 / self.beam_ratio))
+        oversample = 1 / self.beam_ratio
         if inwave is None:
             inwave = FresnelWavefront(self.pupil_diameter / 2, wavelength=wavelength,
                                       npix=self.npix, oversample=oversample)
