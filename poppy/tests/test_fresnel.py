@@ -884,3 +884,64 @@ def test_FixedSamplingImagePlaneElement(display=False):
                                err_msg="PSF pixelscale of this test does not match the saved result.", verbose=True)
     
 
+def test_fresnel_noninteger_oversampling(display_intermediates=False):
+    '''Test for noninteger oversampling for basic FresnelOpticalSystem() using HST example system'''
+    lambda_m = 0.5e-6 * u.m
+    # lambda_m = np.linspace(0.475e-6, 0.525e-6, 3) * u.m
+    diam = 2.4 * u.m
+    fl_pri = 5.52085 * u.m
+    d_pri_sec = 4.907028205 * u.m
+    fl_sec = -0.6790325 * u.m
+    d_sec_to_focus = 6.3919974 * u.m
+
+    m1 = poppy.QuadraticLens(fl_pri, name='Primary')
+    m2 = poppy.QuadraticLens(fl_sec, name='Secondary')
+    image_plane = poppy.ScalarTransmission(planetype=poppy_core.PlaneType.image, name='focus')
+
+    npix = 128
+
+    oversample1 = 2
+    hst1 = poppy.FresnelOpticalSystem(pupil_diameter=diam, npix=npix, beam_ratio=1 / oversample1)
+    hst1.add_optic(poppy.CircularAperture(radius=diam.value / 2))
+    hst1.add_optic(poppy.SecondaryObscuration(secondary_radius=0.396,
+                                             support_width=0.0264,
+                                             support_angle_offset=45.0))
+    hst1.add_optic(m1)
+    hst1.add_optic(m2, distance=d_pri_sec)
+    hst1.add_optic(image_plane, distance=d_sec_to_focus)
+
+    if display_intermediates: plt.figure(figsize=(12, 8))
+    psf1 = hst1.calc_psf(wavelength=lambda_m, display_intermediates=display_intermediates)
+
+    # now test the second system which has a different oversampling factor
+    oversample2 = 2.0
+    hst2 = poppy.FresnelOpticalSystem(pupil_diameter=diam, npix=npix, beam_ratio=1 / oversample2)
+    hst2.add_optic(poppy.CircularAperture(radius=diam.value / 2))
+    hst2.add_optic(poppy.SecondaryObscuration(secondary_radius=0.396,
+                                             support_width=0.0264,
+                                             support_angle_offset=45.0))
+    hst2.add_optic(m1)
+    hst2.add_optic(m2, distance=d_pri_sec)
+    hst2.add_optic(image_plane, distance=d_sec_to_focus)
+    
+    if display_intermediates: plt.figure(figsize=(12, 8))
+    psf2 = hst2.calc_psf(wavelength=lambda_m, display_intermediates=display_intermediates)
+
+    # Now test a 3rd HST system with oversample of 2.5 and compare to hardcoded result
+    oversample3=2.5
+    hst3 = poppy.FresnelOpticalSystem(pupil_diameter=diam, npix=npix, beam_ratio=1 / oversample3)
+    hst3.add_optic(poppy.CircularAperture(radius=diam.value / 2))
+    hst3.add_optic(poppy.SecondaryObscuration(secondary_radius=0.396,
+                                             support_width=0.0264,
+                                             support_angle_offset=45.0))
+    hst3.add_optic(m1)
+    hst3.add_optic(m2, distance=d_pri_sec)
+    hst3.add_optic(image_plane, distance=d_sec_to_focus)
+
+    if display_intermediates: plt.figure(figsize=(12, 8))
+    psf3 = hst3.calc_psf(wavelength=lambda_m, display_intermediates=display_intermediates)
+
+    assert np.allclose(psf1[0].data, psf2[0].data), 'PSFs with oversampling 2 and 2.0 are surprisingly different.'
+    np.testing.assert_almost_equal(psf3[0].header['PIXELSCL'], 0.017188733797782272, decimal=7, 
+                                   err_msg='pixelscale for the PSF with oversample of 2.5 is surprisingly different from expected result.')
+
