@@ -60,7 +60,7 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
             a Fresnel Wavefront object
         """
 
-        y, x = wave.coordinates()
+        y, x = self.get_coordinates(wave)
         _log.debug("Applying spherical phase curvature ={0:0.2e}".format(self.z))
         _log.debug("Applying spherical lens phase ={0:0.2e}".format(1.0 / self.z))
         z = self._z_m  # numexpr can't evaluate self.
