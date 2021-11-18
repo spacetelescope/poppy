@@ -211,7 +211,7 @@ def test_opd_expand(npix=512, input_coefficients=(0.1, 0.2, 0.3, 0.4, 0.5)):
         basis[idx] *= coeff
 
     opd = basis.sum(axis=0)
-    recovered_coeffs = zernike.opd_expand(opd, nterms=len(input_coefficients))
+    recovered_coeffs = zernike.decompose_opd(opd, nterms=len(input_coefficients))
     max_diff = np.max(np.abs(np.asarray(input_coefficients) - np.asarray(recovered_coeffs)))
     assert max_diff < 1e-3, "recovered coefficients from wf_expand more than 0.1% off"
 
@@ -222,16 +222,16 @@ def test_opd_expand(npix=512, input_coefficients=(0.1, 0.2, 0.3, 0.4, 0.5)):
     # We do the test in this same function for efficiency
 
 
-    recovered_coeffs_v2 = zernike.opd_expand_nonorthonormal(opd, nterms=len(input_coefficients))
+    recovered_coeffs_v2 = zernike.decompose_opd_nonorthonormal_basis(opd, nterms=len(input_coefficients))
     max_diff_v2 = np.max(np.abs(np.asarray(input_coefficients) - np.asarray(recovered_coeffs_v2)))
     assert max_diff_v2 < 1e-3, "recovered coefficients from wf_expand more than 0.1% off"
 
 
 def test_opd_from_zernikes():
     coeffs = [0,0.1, 0.4, 2, -0.3]
-    opd = zernike.opd_from_zernikes(coeffs, npix=256)
+    opd = zernike.compose_opd_from_basis(coeffs, npix=256)
 
-    outcoeffs = zernike.opd_expand(opd, nterms=len(coeffs))
+    outcoeffs = zernike.decompose_opd(opd, nterms=len(coeffs))
 
     # only compare on indices 1-3 to avoid divide by zero on piston
     diffs = np.abs(np.asarray(coeffs[1:5]) - np.asarray(outcoeffs[1:5]))/np.asarray(coeffs[1:5])
@@ -282,13 +282,13 @@ def test_piston_basis(verbose=False):
 
     random_pistons = np.random.randn(18)
 
-    pistoned_opd = zernike.opd_from_zernikes(basis=segment_piston_basis, coeffs=random_pistons, outside=0)
+    pistoned_opd = zernike.compose_opd_from_basis(basis=segment_piston_basis, coeffs=random_pistons, outside=0)
     aperture = segment_piston_basis.aperture()
     #aperture = np.asarray(pistoned_opd != 0, dtype=int)
 
     for border_pad in [None, 5]:
-        results = zernike.opd_expand_segments(pistoned_opd, basis=segment_piston_basis,
-                aperture=aperture, nterms=18, verbose=verbose, ignore_border=border_pad)
+        results = zernike.decompose_opd_segments(pistoned_opd, basis=segment_piston_basis,
+                                                 aperture=aperture, nterms=18, verbose=verbose, ignore_border=border_pad)
 
         if verbose:
             print(random_pistons)
@@ -322,17 +322,17 @@ def test_ptt_basis(verbose=False, plot=False,
             random_ptt[i*3] *= 1e-3
 
     # Generate an OPD with those aberrations
-    ptted_opd = zernike.opd_from_zernikes(basis=segment_ptt_basis, coeffs=random_ptt, outside=0)
+    ptted_opd = zernike.compose_opd_from_basis(basis=segment_ptt_basis, coeffs=random_ptt, outside=0)
 
     # Perform a fit to measure them
-    results = zernike.opd_expand_segments(ptted_opd,
-                                  basis=segment_ptt_basis,
-                                  aperture=segment_ptt_basis.aperture(),
-                                  nterms=segment_ptt_basis.nsegments*3,
-                                  verbose=verbose)
+    results = zernike.decompose_opd_segments(ptted_opd,
+                                             basis=segment_ptt_basis,
+                                             aperture=segment_ptt_basis.aperture(),
+                                             nterms=segment_ptt_basis.nsegments*3,
+                                             verbose=verbose)
 
     # Generate another OPD to show the measurements
-    ptted_v2 = zernike.opd_from_zernikes(basis=segment_ptt_basis, coeffs=results, outside=0)
+    ptted_v2 = zernike.compose_opd_from_basis(basis=segment_ptt_basis, coeffs=results, outside=0)
 
     if verbose:
         print(random_ptt)
@@ -353,3 +353,14 @@ def test_ptt_basis(verbose=False, plot=False,
     assert np.allclose(random_ptt[wz], results[wz], atol=1e-6)
 
     return random_ptt, results, ptted_opd, ptted_v2
+
+
+def test_back_compatible_aliases():
+    """ Test existence of back-compatibility alias names for several functions
+    The names of these functions change in poppy 1.0, but we keep the older versions as synonyms for back-compatibility, at least for now.
+    These can be removed in a future version of poppy.
+    """
+    assert zernike.opd_expand is zernike.decompose_opd, "Missing back compatibility alias"
+    assert zernike.opd_expand_segments is zernike.decompose_opd_segments, "Missing back compatibility alias"
+    assert zernike.opd_expand_nonorthonormal is zernike.decompose_opd_nonorthonormal_basis, "Missing back compatibility alias"
+    assert zernike.opd_from_zernikes is zernike.compose_opd_from_basis, "Missing back compatibility alias"
