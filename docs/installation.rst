@@ -19,7 +19,7 @@ POPPY may be installed one of three different ways.
 Requirements
 --------------
 
-* Python 3.6, or more recent.
+* Python 3.7, or more recent.
 * The standard Python scientific stack: :py:mod:`numpy`, :py:mod:`scipy`,
   :py:mod:`matplotlib`
 * POPPY relies upon the `astropy
@@ -79,10 +79,9 @@ run this test suite to verify that your installation is working properly::
    % cd poppy/tests/
    % pytest
    ============================ test session starts =====================================
-   Python 3.6.5, pytest-3.6.1, py-1.5.3, pluggy-0.6.0
-   Running tests with Astropy version 3.0.3.
+   Python 3.7.9, pytest-6.2.3, py-1.9.0, pluggy-0.13.1
    ... [etc] ...
-   ================= 147 passed, 2 skipped, 1 xfailed in 173.92 seconds ==================
+   ===================== 166 passed, 9 skipped in 410.12s (0:06:50 ======================
 
 Some tests may be automatically skipped depending on whether certain optional packaged are
 installed, and other tests in development may be marked "expected to fail" (``xfail``), but
