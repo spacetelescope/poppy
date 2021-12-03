@@ -10,7 +10,7 @@ For a list of contributors, see :ref:`about`.
 
 .. _rel1.0.0:
 
-*Date TBD*
+*2021 December 7*
 
 .. admonition:: Changes and Clarifications in Signs for Wavefront Error and Phase
 
@@ -29,8 +29,30 @@ For a list of contributors, see :ref:`about`.
     Randal Telfer (STScI) for invaluable discussions and aid in getting these
     details onto a more rigorous footing.
 
+**New Functionality:**
+
+ * New class ``TipTiltStage``, which allows putting additional tip-tilt on any arbitrary optic, and adjusting/controlling the tip and tilt. See `here <https://poppy-optics.readthedocs.io/en/latest/available_optics.html#Tip-Tilt-Stage>`_ for example. (:pr:`414` by :user:`mperrin)
+ * New class ``CircularSegmentedDeformableMirror``, which models an aperture comprising several individually-controllable circular mirrors. See `here <https://poppy-optics.readthedocs.io/en/latest/available_optics.html#Circularly-Segmented-Deformable-Mirrors>`_ for example. (:pr:`407` and :pr:`424` by :user:`Teusia`)
+ * New class ``KolmogorovWFE`, which models the phase distortions in a turbulent atmosphere. See `this notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Propagation%20through%20turbulent%20atmosphere.ipynb>`_ for details. (:pr:`437` by :user:`DaPhil`)
+ * New class ``ThermalBloomingWFE`, which models the change in WFE from heating of air (or other transmission medium) due to high powered laser beams. See `this notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Thermal%20Blooming%20Demo.ipynb>`_ for details. (:pr:`438` by :user:`DaPhil`)
+
+
 **Other enhancements and fixes:**
  * Wavefront instances gain a `.wfe` attribute for the wavefront error in meters (computed from phase, so it will wrap if wavefront error exceeds +- 0.5 waves), and the wavefront display method can display wfe as well as intensity and phase.
+ * Faster algorithm for calculations in the `zernike.opd_from_zernikes` function (:pr:`400` by :user:`grbrady`). Run time of this function was reduced roughly in half.
+ * Various performance enhancements in FFTs, array rotations, zero padding, and array indexing in certain cases (:pr:`394`, :pr:`398`, :pr:`411`, :pr:`413` by :user:`mperrin`)
+ * Bug fix to a sign inconsistency in wavefront rotation: While the documentation states that positive rotations are counterclockwise, the code had the other sign. Updated code to match the documented behavior, which also matches the rotation convention for optical elements. (:pr:`411` by :user:`mperrin`)
+ * More robust algorithm for offset sources in optical systems with coordinate rotations and inversions (:pr:`420` by :user:`mperrin`). This ensures the correct sign of tilt is applied in the entrance pupil plane to achieve the requested source position in the output image plane.
+ * Added ``inwave=`` parameter to ``calc_psf`` and related functions, for both Fresnel and Fraunhofer propagation types, to allow providing a custom input wavefront, for instance the output of some prior upstream calculation. If provided, this is used instead of the default input wavefront (a plane wave of uniform intensity). (:pr:`402` by :user:`kian1377`)
+ * Improved support for astropy Quantities, including being able to specify monochromatic wavelengths using Quantities of wavelength, and to specify optic shifts using Quantities in length or angular units as appropriate (:pr:`445`, :pr:`447` by :user:`mperrin`).
+
+
+
+**Software Infrastructure Updates and Internals:**
+
+ * Continuous integration system migrated to Github Actions, replacing previous use of Travis CI. (:pr: by :user:`shanosborne`)
+ * Updates to recommended (not minimum) dependency versions to track latest numpy, scipy, etc (various PRs by :user:`shanosborne`)
+ * Swap to use of base ``synphot`` rather than ``stsynphot`` package, to avoid dependency on many GBs of reference data. (:pr:`421` by :user:`mperrin`)
 
 
 0.9.2

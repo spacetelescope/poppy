@@ -51,6 +51,8 @@ Direct contributors to POPPY code
  * Rachel Morgan (:user:`remorgan01`)
  * Fanpeng Kong (:user:`fanpeng-kong`)
  * Kim Ward-Duong (:user:`spacegal-spiff`)
+ * Greg Brady (:user:`grbrady`)
+ * Kian Milani (:user:`kian1377`)
 
 Indirect Contributors (algorithms, advice, ideas, inspirations)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
