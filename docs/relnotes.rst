@@ -10,7 +10,7 @@ For a list of contributors, see :ref:`about`.
 
 .. _rel1.0.0:
 
-*Date TBD*
+*2021 December 7*
 
 .. admonition:: Changes and Clarifications in Signs for Wavefront Error and Phase
 
@@ -33,8 +33,8 @@ For a list of contributors, see :ref:`about`.
 
  * New class ``TipTiltStage``, which allows putting additional tip-tilt on any arbitrary optic, and adjusting/controlling the tip and tilt. See `here <https://poppy-optics.readthedocs.io/en/latest/available_optics.html#Tip-Tilt-Stage>`_ for example. (:pr:`414` by :user:`mperrin)
  * New class ``CircularSegmentedDeformableMirror``, which models an aperture comprising several individually-controllable circular mirrors. See `here <https://poppy-optics.readthedocs.io/en/latest/available_optics.html#Circularly-Segmented-Deformable-Mirrors>`_ for example. (:pr:`407` and :pr:`424` by :user:`Teusia`)
-* New class ``KolmogorovWFE`, which models the phase distortions in a turbulent atmosphere. See `this notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Propagation%20through%20turbulent%20atmosphere.ipynb>`_ for details. (:pr:`437` by :user:`DaPhil`)
-* New class ``ThermalBloomingWFE`, which models the change in WFE from heating of air (or other transmission medium) due to high powered laser beams. See `this notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Thermal%20Blooming%20Demo.ipynb>`_ for details. (:pr:`438` by :user:`DaPhil`)
+ * New class ``KolmogorovWFE`, which models the phase distortions in a turbulent atmosphere. See `this notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Propagation%20through%20turbulent%20atmosphere.ipynb>`_ for details. (:pr:`437` by :user:`DaPhil`)
+ * New class ``ThermalBloomingWFE`, which models the change in WFE from heating of air (or other transmission medium) due to high powered laser beams. See `this notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Thermal%20Blooming%20Demo.ipynb>`_ for details. (:pr:`438` by :user:`DaPhil`)
 
 
 **Other enhancements and fixes:**
@@ -51,7 +51,7 @@ For a list of contributors, see :ref:`about`.
 **Software Infrastructure Updates and Internals:**
 
  * Continuous integration system migrated to Github Actions, replacing previous use of Travis CI. (:pr: by :user:`shanosborne`)
- * Updates to recommended (not minimum) dependency versions to track latest numpy, scipy (various PRs by :user:`shanosborne`)
+ * Updates to recommended (not minimum) dependency versions to track latest numpy, scipy, etc (various PRs by :user:`shanosborne`)
  * Swap to use of base ``synphot`` rather than ``stsynphot`` package, to avoid dependency on many GBs of reference data. (:pr:`421` by :user:`mperrin`)
 
 
