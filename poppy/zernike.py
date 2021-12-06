@@ -835,7 +835,7 @@ class Segment_PTT_Basis(object):
         the MultiHexagonAperture class. Set that when creating
         an instance of this class, then you can call the resulting function object
         to generate a basis set with the desired sampling, or pass it to
-        the opd_from_zernikes or opd_expand_segments functions.
+        the compse_opd_from_basis or decompse_opd_segments functions.
 
         The basis is generated over a square array that exactly circumscribes
         the hexagonal aperture.
@@ -955,8 +955,8 @@ def decompose_opd(opd, aperture=None, nterms=15, basis=zernike_basis,
 
     Note that this implementation of the function treats the Zernikes as
     an orthonormal basis, which is only true on the unobscured unit circle.
-    See also `opd_expand_nonorthonormal` for an alternative approach for
-    basis vectors that are not orthonormal, or `opd_expand_segments` for
+    See also `decompose_opd_nonorthonormal` for an alternative approach for
+    basis vectors that are not orthonormal, or `decompose_opd_segments` for
     basis vectors defined over physically disjoint segments.
 
     Parameters
@@ -986,7 +986,7 @@ def decompose_opd(opd, aperture=None, nterms=15, basis=zernike_basis,
     Note: Recovering coefficients used to generate synthetic/test data
     depends greatly on the sampling (as one might expect). Generating
     test data using zernike_basis with npix=256 and passing the result
-    through opd_expand reproduces the input coefficients within <0.1%.
+    through decompose_opd reproduces the input coefficients within <0.1%.
 
     Returns
     -------
@@ -1025,7 +1025,7 @@ def decompose_opd(opd, aperture=None, nterms=15, basis=zernike_basis,
 
 def decompose_opd_nonorthonormal_basis(opd, aperture=None, nterms=15, basis=zernike_basis_faster,
                                        iterations=5, verbose=False, **kwargs):
-    """ Modified version of opd_expand, for cases where the basis function is
+    """ Modified version of decompose_opd, for cases where the basis function is
     *not* orthonormal, for instance using the regular Zernike functions on
     obscured apertures.
 
@@ -1132,7 +1132,7 @@ def compose_opd_from_basis(coeffs, basis=zernike_basis_faster, aperture=None, ou
 
     Example
     --------
-    opd = opd_from_zernikes([0,0,-5,1,0,4,0,8], npix=512)
+    opd = compose_opd_from_basis([0,0,-5,1,0,4,0,8], npix=512)
 
     """
 
@@ -1182,7 +1182,7 @@ def decompose_opd_segments(opd, aperture=None, nterms=15, basis=None,
     """
     Expand OPD into a basis defined by segments, typically with piston, tip, & tilt of each.
 
-    Similar algorithm as opd_expand_nonorthonormal, but adjusted slightly for
+    Similar algorithm as decompose_opd_nonorthonormal, but adjusted slightly for
     spatially disjoint basis vectors, and also for different expected normalization
     of the piston and tip/tilt basis terms.
 

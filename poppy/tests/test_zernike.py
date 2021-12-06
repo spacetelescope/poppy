@@ -205,7 +205,7 @@ def test_cross_arbitrary_basis():
         _test_cross_arbitrary_basis(testj=testj, nterms=6)
 
 
-def test_opd_expand(npix=512, input_coefficients=(0.1, 0.2, 0.3, 0.4, 0.5)):
+def test_decompose_opd(npix=512, input_coefficients=(0.1, 0.2, 0.3, 0.4, 0.5)):
     basis = zernike.zernike_basis(nterms=len(input_coefficients), npix=npix)
     for idx, coeff in enumerate(input_coefficients):
         basis[idx] *= coeff
@@ -227,7 +227,7 @@ def test_opd_expand(npix=512, input_coefficients=(0.1, 0.2, 0.3, 0.4, 0.5)):
     assert max_diff_v2 < 1e-3, "recovered coefficients from wf_expand more than 0.1% off"
 
 
-def test_opd_from_zernikes():
+def test_compose_opd_from_basis():
     coeffs = [0,0.1, 0.4, 2, -0.3]
     opd = zernike.compose_opd_from_basis(coeffs, npix=256)
 
