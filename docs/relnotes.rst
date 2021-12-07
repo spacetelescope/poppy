@@ -25,9 +25,14 @@ For a list of contributors, see :ref:`about`.
     different signs or orientations from prior results.
 
     See :ref:`sign_conventions` for details, discussion, and demonstration. Many thanks to Derek
-    Sabatke (Ball Aerospace), Matthew Bergkoetter Alden Jurling and Tom Zielinski (NASA GSFC), and
+    Sabatke (Ball Aerospace); Matthew Bergkoetter, Alden Jurling, and Tom Zielinski (NASA GSFC); and
     Randal Telfer (STScI) for invaluable discussions and aid in getting these
     details onto a more rigorous footing.
+
+
+**API Changes:**
+  * Several functions in the Zernike module were renamed for clarity, in particular ``opd_expand``->``decompose_opd``, and ``opd_from_zernikes``->``compose_opd_from_basis``.
+    The prior function names also continue to work as aliases for backwards compatibility.  (:pr:`471` by :user:`mperrin`)
 
 **New Functionality:**
 
@@ -50,8 +55,9 @@ For a list of contributors, see :ref:`about`.
 
 **Software Infrastructure Updates and Internals:**
 
- * Continuous integration system migrated to Github Actions, replacing previous use of Travis CI. (:pr: by :user:`shanosborne`)
+ * Continuous integration system migrated to Github Actions, replacing previous use of Travis CI. (:pr:`434` by :user:`shanosborne`)
  * Updates to recommended (not minimum) dependency versions to track latest numpy, scipy, etc (various PRs by :user:`shanosborne`)
+ * Updates to minimum dependency versions, generally to upstream releases as of mid-2020. (:pr:`415`, :pr:`472` by :user:`mperrin`)
  * Swap to use of base ``synphot`` rather than ``stsynphot`` package, to avoid dependency on many GBs of reference data. (:pr:`421` by :user:`mperrin`)
 
 
