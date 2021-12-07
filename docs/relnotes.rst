@@ -20,7 +20,7 @@ This is a major release with significant enhancements and changes, in particular
 
     This release includes optical algorithm updates after a thorough audit and cross-check of sign conventions for phase and wavefront error, disambiguating portions of the
     sign conventions and code to ensure consistency with several other relevant optical modeling packages. Poppy now strictly follows the sign conventions as advocated in e.g.
-    Wyant and Creath's `Basic Wavefront Aberration Theory for Optical Metrology <https://ui.adsabs.harvard.edu/abs/1992aooe...11....2W/abstract>`_ (or see `here <https://wp.optics.arizona.edu/jcwyant/wp-content/uploads/sites/13/2016/08/03-BasicAberrations_and_Optical_Testing.pdf>`_). This makes poppy consistent with the convention more widely used in optical metrology and other optical software such as Code V; however this is not consistent with some other reference such as Goodman's classic text _Fourier Optics_.
+    Wyant and Creath's `Basic Wavefront Aberration Theory for Optical Metrology <https://ui.adsabs.harvard.edu/abs/1992aooe...11....2W/abstract>`_ (or see `here <https://wp.optics.arizona.edu/jcwyant/wp-content/uploads/sites/13/2016/08/03-BasicAberrations_and_Optical_Testing.pdf>`_). This makes poppy consistent with the convention more widely used in optical metrology and other optical software such as Code V; however this is not consistent with some other reference such as Goodman's classic text *Fourier Optics*.
 
     To achieve that consistency, *this is a partially back-incompatible release*, with
     changes in the signs of complex exponentials in some Fourier propagation calculations. Depending on your use case this may result in some changes in output PSFs or
@@ -35,23 +35,23 @@ This is a major release with significant enhancements and changes, in particular
 
 
 **API Changes:**
-  * Several functions in the Zernike module were renamed for clarity, in particular the prior ``opd_expand`` is now ``decompose_opd``, and ``opd_from_zernikes`` is now ``compose_opd_from_basis``.
+  * Several functions in the Zernike module were renamed for clarity, in particular the prior `opd_expand` is now :py:func:`~poppy.zernike.decompose_opd`, and `opd_from_zernikes` is now :py:func:`~poppy.zernike.compose_opd_from_basis`.
     The prior function names also continue to work as aliases for backwards compatibility.  (:pr:`471` by :user:`mperrin`)
 
 **New Functionality:**
- * New class ``TipTiltStage``, which allows putting additional tip-tilt on any arbitrary optic, and adjusting/controlling the tip and tilt. See `here <https://poppy-optics.readthedocs.io/en/latest/available_optics.html#Tip-Tilt-Stage>`_ for example. (:pr:`414` by :user:`mperrin)
- * New class ``CircularSegmentedDeformableMirror``, which models an aperture comprising several individually-controllable circular mirrors. See `here <https://poppy-optics.readthedocs.io/en/latest/available_optics.html#Circularly-Segmented-Deformable-Mirrors>`_ for example. (:pr:`407` and :pr:`424` by :user:`Teusia`)
- * New class ``KolmogorovWFE``, which models the phase distortions in a turbulent atmosphere. See `this notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Propagation%20through%20turbulent%20atmosphere.ipynb>`_ for details. (:pr:`437` by :user:`DaPhil`)
- * New class ``ThermalBloomingWFE``, which models the change in WFE from heating of air (or other transmission medium) due to high powered laser beams. See `this notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Thermal%20Blooming%20Demo.ipynb>`_ for details. (:pr:`438` by :user:`DaPhil`)
+ * New class :py:obj:`~poppy.TipTiltStage`, which allows putting additional tip-tilt on any arbitrary optic, and adjusting/controlling the tip and tilt. See `here <https://poppy-optics.readthedocs.io/en/latest/available_optics.html#Tip-Tilt-Stage>`_ for example. (:pr:`414` by :user:`mperrin`)
+ * New class :py:obj:`~poppy.CircularSegmentedDeformableMirror`, which models an aperture comprising several individually-controllable circular mirrors. See `here <https://poppy-optics.readthedocs.io/en/latest/available_optics.html#Circularly-Segmented-Deformable-Mirrors>`_ for example. (:pr:`407` and :pr:`424` by :user:`Teusia`)
+ * New class :py:obj:`~poppy.KolmogorovWFE`, which models the phase distortions in a turbulent atmosphere. See `this notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Propagation%20through%20turbulent%20atmosphere.ipynb>`_ for details. (:pr:`437` by :user:`DaPhil`)
+ * New class :py:obj:`~poppy.ThermalBloomingWFE`, which models the change in WFE from heating of air (or other transmission medium) due to high powered laser beams. See `this notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Thermal%20Blooming%20Demo.ipynb>`_ for details. (:pr:`438` by :user:`DaPhil`)
 
 
 **Other enhancements and fixes:**
  * Wavefront instances gain a `.wfe` attribute for the wavefront error in meters (computed from phase, so it will wrap if wavefront error exceeds +- 0.5 waves), and the wavefront display method can display wfe as well as intensity and phase.
- * Faster algorithm for calculations in the `zernike.opd_from_zernikes` function (:pr:`400` by :user:`grbrady`). Run time of this function was reduced roughly in half.
+ * Faster algorithm for calculations in the :py:func:`~poppy.zernike.opd_from_zernikes` function (:pr:`400` by :user:`grbrady`). Run time of this function was reduced roughly in half.
  * Various performance enhancements in FFTs, array rotations, zero padding, and array indexing in certain cases (:pr:`394`, :pr:`398`, :pr:`411`, :pr:`413` by :user:`mperrin`)
  * Bug fix to a sign inconsistency in wavefront rotation: While the documentation states that positive rotations are counterclockwise, the code had the other sign. Updated code to match the documented behavior, which also matches the rotation convention for optical elements. (:pr:`411` by :user:`mperrin`)
  * More robust algorithm for offset sources in optical systems with coordinate rotations and inversions (:pr:`420` by :user:`mperrin`). This ensures the correct sign of tilt is applied in the entrance pupil plane to achieve the requested source position in the output image plane.
- * Added ``inwave=`` parameter to ``calc_psf`` and related functions, for both Fresnel and Fraunhofer propagation types, to allow providing a custom input wavefront, for instance the output of some prior upstream calculation. If provided, this is used instead of the default input wavefront (a plane wave of uniform intensity). (:pr:`402` by :user:`kian1377`)
+ * Added `inwave=` parameter to `calc_psf` and related functions, for both Fresnel and Fraunhofer propagation types, to allow providing a custom input wavefront, for instance the output of some prior upstream calculation. If provided, this is used instead of the default input wavefront (a plane wave of uniform intensity). (:pr:`402` by :user:`kian1377`)
  * Improved support for astropy Quantities, including being able to specify monochromatic wavelengths using Quantities of wavelength, and to specify optic shifts using Quantities in length or angular units as appropriate (:pr:`445`, :pr:`447` by :user:`mperrin`).
 
 
@@ -60,7 +60,7 @@ This is a major release with significant enhancements and changes, in particular
  * Continuous integration system migrated to Github Actions, replacing previous use of Travis CI. (:pr:`434` by :user:`shanosborne`)
  * Updates to recommended (not minimum) dependency versions to track latest numpy, scipy, etc (various PRs by :user:`shanosborne`)
  * Updates to minimum dependency versions, generally to upstream releases as of mid-2020. (:pr:`415`, :pr:`472` by :user:`mperrin`)
- * Swap to use of base ``synphot`` rather than ``stsynphot`` package, to avoid dependency on many GBs of reference data. (:pr:`421` by :user:`mperrin`)
+ * Swap to use of base `synphot` rather than `stsynphot` package, to avoid dependency on many GBs of reference data. (:pr:`421` by :user:`mperrin`)
 
 
 0.9.2
