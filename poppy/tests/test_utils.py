@@ -131,6 +131,56 @@ def test_radial_profile(plot=False):
     assert np.allclose(prof2, prof3)
     # TODO compare those to be near a sinc profile as expected?
 
+def test_radial_profile_of_offset_source():
+    """Test that we can compute the radial profile for a source slightly outside the FOV,
+    compare that to a calculation for a centered source, and check we get consistent results
+    for the overlapping range of the radius parameter space.
+
+    Also, make a plot showing the consistency.
+    """
+    import matplotlib.pyplot as plt
+
+    osys = poppy.OpticalSystem()
+    osys.add_pupil(poppy.CircularAperture(radius=1.0))
+    osys.add_detector(pixelscale=0.01, fov_pixels=128)
+
+    # compute centered PSF
+    psf0 = osys.calc_psf()
+
+    # Compute a PSF with the source offset
+    osys.source_offset_r = 1.0 # outside of FOV
+    psf1 = osys.calc_psf()
+
+    # Calculate the radial profiles of those two PSFs
+    r0,p0 = poppy.radial_profile(psf0)
+    # For the offset PSF, compute apparent coordinates of the offset source in that image
+    # (this will be a 'virtual' pixel value outside of the FOV)
+    halfsize = psf1[0].header['NAXIS1']//2
+    offset_ypos_in_pixels = osys.source_offset_r / psf1[0].header['PIXELSCL'] + halfsize
+    offset_target_center_pixels = (halfsize, offset_ypos_in_pixels)
+    r1,p1 = poppy.radial_profile(psf1, center=offset_target_center_pixels)
+
+    fig, axes = plt.subplots(figsize=(16,5), ncols=3)
+    poppy.display_psf(psf0, ax=axes[0], title='Centered', colorbar_orientation='horizontal')
+    poppy.display_psf(psf1, ax=axes[1], title='Offset', colorbar_orientation='horizontal')
+    axes[2].semilogy(r0,p0)
+    axes[2].semilogy(r1,p1)
+
+    # Measure radial profiles as interpolator objects, so we can evaluate them at identical radii
+    prof0 = poppy.measure_radial(psf0)
+    prof1 = poppy.measure_radial(psf1, center=offset_target_center_pixels)
+
+    # Test consistency of those two radial profiles at various radii within the overlap region
+    test_radii = np.linspace(0.4, 0.8, 7)
+    for rad in test_radii:
+        print(prof0(rad), prof1(rad))
+        axes[2].axvline(rad, ls=':', color='black')
+
+        # Check PSF agreement within 10%;
+        # also add an absolute tolerance since relative error can be higher for radii right on the dark Airy nuls
+        assert np.allclose(prof0(rad), prof1(rad), rtol=0.1, atol=5e-8), "Disagreement between centered and offset radial profiles"
+
+
 def test_measure_FWHM(display=False, verbose=False):
     """ Test the utils.measure_FWHM function
 

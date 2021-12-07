@@ -15,9 +15,7 @@ Documentation can be found online at https://poppy-optics.readthedocs.io/
 """
 # Enforce Python version check during package import.
 # This is the same check as the one at the top of setup.py
-import os
 import sys
-from warnings import warn
 from astropy import config as _config
 
 try:
@@ -25,10 +23,12 @@ try:
 except ImportError:
     __version__ = ''
 
-__minimum_python_version__ = "3.5"
+__minimum_python_version__ = "3.7"
+
 
 class UnsupportedPythonError(Exception):
     pass
+
 
 if sys.version_info < tuple((int(val) for val in __minimum_python_version__.split('.'))):
     raise UnsupportedPythonError("poppy does not support Python < {}".format(__minimum_python_version__))
@@ -61,6 +61,8 @@ class Conf(_config.ConfigNamespace):
     autosave_fftw_wisdom = _config.ConfigItem(True, 'Should POPPY ' +
                                               'automatically save and reload FFTW ' +
                                               '"wisdom" for improved speed?')
+    use_mkl = _config.ConfigItem(True, "Use Intel MKL for FFTs (assuming it is available). "
+                                       "This has highest priority for CPU-based FFT over other FFT options, if multiple are set True.")
 
     use_cuda = _config.ConfigItem(True, 'Use cuda for FFTs on GPU (assuming it' +
             'is available)?')
@@ -100,24 +102,6 @@ class Conf(_config.ConfigNamespace):
 
 conf = Conf()
 
-config_dir = os.path.dirname(__file__)
-config_template = os.path.join(config_dir, __package__ + ".cfg")
-if os.path.isfile(config_template):
-    try:
-        _config.configuration.update_default_config(
-            __package__, config_dir, version=__version__)
-    except TypeError as orig_error:
-        try:
-            _config.configuration.update_default_config(
-                __package__, config_dir)
-        except _config.configuration.ConfigurationDefaultMissingError as e:
-            wmsg = (e.args[0] + " Cannot install default profile. If you are "
-                                "importing from source, this is expected.")
-            warn(_config.configuration.ConfigurationDefaultMissingWarning(wmsg))
-            del e
-        except:
-            raise orig_error
-
 from . import poppy_core
 from . import utils
 from . import optics
@@ -126,6 +110,7 @@ from . import fresnel
 from . import physical_wavefront
 from . import wfe
 from . import dms
+from . import active_optics
 
 from .poppy_core import *
 from .utils import *
@@ -135,6 +120,7 @@ from .fresnel import *
 from .physical_wavefront import *
 from .special_prop import *
 from .dms import *
+from .active_optics import *
 
 from .instrument import Instrument
 

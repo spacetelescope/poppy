@@ -3,15 +3,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import astropy.io.fits as fits
 import pytest
-
-try:
-    import pysynphot
-    _HAS_PYSYNPHOT = True
-except ImportError:
-    pysynphot = None
-    _HAS_PYSYNPHOT = False
+from astropy import units as u
 
 from poppy import poppy_core, instrument, optics, utils
+from poppy.instrument import _HAS_SYNPHOT
 
 WEIGHTS_DICT = {'wavelengths': [2.0e-6, 2.1e-6, 2.2e-6], 'weights': [0.3, 0.5, 0.2]}
 WAVELENGTHS_ARRAY = np.array(WEIGHTS_DICT['wavelengths'])
@@ -29,7 +24,7 @@ def test_instrument_source_weight_dict(weights_dict=WEIGHTS_DICT):
         "Number of wavelengths in PSF header does not match number requested"
 
     # Check weighted sum
-    osys = inst._get_optical_system(fov_pixels=FOV_PIXELS,
+    osys = inst.get_optical_system(fov_pixels=FOV_PIXELS,
                                   detector_oversample=2, fft_oversample=2)
     output = np.zeros((2 * FOV_PIXELS, 2 * FOV_PIXELS))
     for wavelength, weight in zip(weights_dict['wavelengths'], weights_dict['weights']):
@@ -51,7 +46,7 @@ def test_instrument_source_weight_array(wavelengths=WAVELENGTHS_ARRAY, weights=W
         "Number of wavelengths in PSF header does not match number requested"
 
     # Check weighted sum
-    osys = inst._get_optical_system(fov_pixels=FOV_PIXELS,
+    osys = inst.get_optical_system(fov_pixels=FOV_PIXELS,
                                   detector_oversample=2, fft_oversample=2)
     output = np.zeros((2 * FOV_PIXELS, 2 * FOV_PIXELS))
     for wavelength, weight in zip(wavelengths, weights):
@@ -62,11 +57,13 @@ def test_instrument_source_weight_array(wavelengths=WAVELENGTHS_ARRAY, weights=W
 
     return psf
 
-@pytest.mark.skipif(not _HAS_PYSYNPHOT, reason="PySynphot dependency not met")
-def test_instrument_source_pysynphot():
+@pytest.mark.skipif(not _HAS_SYNPHOT, reason="synphot dependency not met")
+def test_instrument_source_synphot():
     """
-    Tests the ability to provide a source as a pysynphot.Spectrum object
+    Tests the ability to provide a source as a SourceSpectrum object
     """
+    from synphot import SourceSpectrum
+    from synphot.models import BlackBodyNorm1D
 
     # 5700 K blackbody + Johnson B filter
     wavelengths = np.array([3.94000000e-07, 4.22000000e-07, 4.50000000e-07,
@@ -77,27 +74,30 @@ def test_instrument_source_pysynphot():
     inst.filter = 'B'
     psf_weights_explicit = inst.calc_psf(source=(wavelengths, weights), fov_pixels=FOV_PIXELS,
                                         detector_oversample=2, fft_oversample=2, nlambda=5)
-    psf_weights_pysynphot = inst.calc_psf(source=pysynphot.BlackBody(5700), fov_pixels=FOV_PIXELS,
+    bb = SourceSpectrum(BlackBodyNorm1D, temperature=5700 * u.K)
+    psf_weights_synphot = inst.calc_psf(source=bb, fov_pixels=FOV_PIXELS,
                                          detector_oversample=2, fft_oversample=2, nlambda=5)
-    assert psf_weights_pysynphot[0].header['NWAVES'] == len(wavelengths), \
+    assert psf_weights_synphot[0].header['NWAVES'] == len(wavelengths), \
         "Number of wavelengths in PSF header does not match number requested"
 
-    assert np.allclose(psf_weights_explicit[0].data, psf_weights_pysynphot[0].data,
-            rtol=1e-4), ( # Slightly larger tolerance to accomodate minor changes w/ pysynphot versions
-        "PySynphot multiwavelength PSF does not match the weights and wavelengths pre-computed for "
-        "a 5500 K blackbody in Johnson B (has pysynphot changed?)"
+    assert np.allclose(psf_weights_explicit[0].data, psf_weights_synphot[0].data,
+            rtol=1e-4), ( # Slightly larger tolerance to accomodate minor changes w/ synphot versions
+        "synphot multiwavelength PSF does not match the weights and wavelengths pre-computed for "
+        "a 5500 K blackbody in Johnson B (has synphot changed?)"
     )
-    return psf_weights_pysynphot
+    return psf_weights_synphot
 
-@pytest.mark.skipif(not _HAS_PYSYNPHOT, reason="PySynphot dependency not met")
-def test_pysynphot_spectra_cache():
+@pytest.mark.skipif(not _HAS_SYNPHOT, reason="synphot dependency not met")
+def test_synphot_spectra_cache():
     """
-    The result of the Pysynphot calculation is cached. This ensures the appropriate
+    The result of the synphot calculation is cached. This ensures the appropriate
     key appears in the cache after one calculation, and that subsequent calculations
     proceed without errors (exercising the cache lookup code).
     """
-    import pysynphot
-    source = pysynphot.BlackBody(5700)
+    from synphot import SourceSpectrum
+    from synphot.models import BlackBodyNorm1D
+
+    source = SourceSpectrum(BlackBodyNorm1D, temperature=5700 * u.K)
     nlambda = 2
     ins = instrument.Instrument()
     cache_key = ins._get_spec_cache_key(source, nlambda)
@@ -174,7 +174,7 @@ def test_instrument_calc_datacube():
                     "Spectral axis of datacube does not match number requested"
 
     # Check individual planes
-    osys = inst._get_optical_system(fov_pixels=FOV_PIXELS,
+    osys = inst.get_optical_system(fov_pixels=FOV_PIXELS,
                                   detector_oversample=2, fft_oversample=2)
     for i, wavelength in enumerate(WAVELENGTHS_ARRAY):
 

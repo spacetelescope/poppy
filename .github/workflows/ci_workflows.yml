@@ -1,0 +1,78 @@
+name: CI
+
+on: [push, pull_request]
+
+env:
+  PYSYN_CDBS: "https://ssb.stsci.edu/trds"
+
+jobs:
+  tests:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+
+          - name: Coverage test in Python 3
+            os: ubuntu-latest
+            python: 3.9
+            toxenv: py39-syn-cov
+
+          - name: Check for Sphinx doc build errors
+            os: ubuntu-latest
+            python: 3.8
+            toxenv: docbuild
+
+          - name: Check accelerated math version
+            os: ubuntu-latest
+            python: 3.8
+            toxenv: py38-numexpr-mkl-cov
+
+          - name: Try Astropy development version
+            os: ubuntu-latest
+            python: 3.8
+            toxenv: py38-astropydev-test
+
+          - name: Try latest versions of all dependencies
+            os: ubuntu-latest
+            python: 3.9
+            toxenv: py39-latest-test
+
+          - name: Try minimum supported versions
+            os: ubuntu-latest
+            python: 3.7
+            toxenv: py37-legacy-test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python ${{ matrix.python }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
+
+    - name: Install Python dependencies
+      run: pip install tox tox-conda>=0.2
+
+    - name: Check conda info
+      run: conda info
+
+    - name: Run tests with requirements file
+      if: ${{ contains(matrix.toxenv,'-latest') }}
+      run: |
+        cp $RUNNER_WORKSPACE/poppy/requirements.txt /tmp/
+        tox -e ${{ matrix.toxenv }}
+
+    - name: Run tests
+      if: ${{ contains(matrix.toxenv,'-latest') != true }}
+      run: tox -e ${{ matrix.toxenv }}
+
+    - name: Upload coverage to codecov
+      if: ${{ contains(matrix.toxenv,'-cov') }}
+      uses: codecov/codecov-action@v2
+      with:
+        file: ./coverage.xml

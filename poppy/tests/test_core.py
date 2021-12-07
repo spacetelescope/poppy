@@ -5,6 +5,8 @@ import numpy as np
 from astropy.io import fits
 import astropy.units as u
 import pytest
+import matplotlib.pyplot as plt
+
 try:
     import scipy
 except ImportError:
@@ -13,6 +15,8 @@ except ImportError:
 import poppy
 from .. import poppy_core
 from .. import optics
+
+import matplotlib.pyplot as plt
 
 ####### Test Common Infrastructre #######
 
@@ -141,7 +145,7 @@ def test_CircularAperture_Airy(display=False):
         pl.title("Analytic")
         pl.subplot(142)
         #ax2=pl.imshow(numeric[0].data, norm=norm)
-        utils.display_PSF(numeric, vmin=1e-6, vmax=1e-2, colorbar=False)
+        utils.display_psf(numeric, vmin=1e-6, vmax=1e-2, colorbar=False)
         pl.title("Numeric")
         pl.subplot(143)
         ax2=pl.imshow(numeric[0].data-analytic, norm=norm)
@@ -256,47 +260,6 @@ def test_fov_size_pixels():
     assert psf[0].data.shape[1] == 200
 
 
-
-###    EXPECTED TO FAIL RIGHT NOW - Offsets don't work yet.
-###    See https://github.com/mperrin/poppy/issues/40
-import pytest
-@pytest.mark.xfail
-def test_fov_offset(scale=1.0):
-    """ Test offsetting the field of view of a Detector
-    This is distinct from offsetting the source! """
-    from ..utils import measure_centroid
-
-    size=100
-    pixscale = 0.1
-
-    # A PSF created on-axis with no offset
-    osys = poppy_core.OpticalSystem("test", oversample=2)
-    pupil = optics.CircularAperture(radius=6.5/2)
-    osys.add_pupil(pupil)
-    osys.add_detector(pixelscale=pixscale, fov_pixels=size, oversample=1)
-    psf1 = osys.calc_psf()
-    # The measured centroid should put it in the center of the array
-    cent1 = measure_centroid(psf1, relativeto='center')
-    poppy_core._log.info("On-axis PSF (no offset) centroid is:" + str(cent1))
-    assert(abs(cent1[0]-0) < 1e-5)
-    assert(abs(cent1[1]-0) < 1e-5)
-
-    # Now create an equivalent PSF but offset the axes by 1 pixel in the first axis
-    osys2 = poppy_core.OpticalSystem("test", oversample=2)
-    osys2.add_pupil(pupil)
-    osys2.add_detector(pixelscale=pixscale, fov_pixels=size, oversample=1, offset=(pixscale*scale,0))
-    psf2 = osys2.calc_psf()
-    # Its centroid shouldbe offset by a pixel
-    poppy_core._log.info("Offset PSF (by ({0},0) pixels ) centroid is: {1}".format(str(scale), str(cent1)))
-    cent2 = measure_centroid(psf2, relativeto='center')
-    assert(abs(cent2[0]-scale) < 1e-5)
-    assert(abs(cent2[1]-0) < 1e-5)
-
-
-    # and do the same thing in the second axis (after the above works)
-
-
-
 def test_inverse_MFT():
     """
     Verify basic functionality of the Inverse MFT code.
@@ -402,28 +365,49 @@ def test_return_complex():
 def test_displays():
     # Right now doesn't check the outputs are as expected in any way
     # TODO consider doing that? But it's hard given variations in matplotlib version etc
+
+    # As a result this just tests that the code runs to completion, without any assessment
+    # of the correctness of the output displays.
     import poppy
-    import matplotlib.pyplot as plt
 
     osys = poppy.OpticalSystem()
     osys.add_pupil(poppy.CircularAperture())
-    osys.add_detector(fov_pixels=128, pixelscale=0.01)
+    osys.add_detector(fov_pixels=128, pixelscale=0.01*u.arcsec/u.pixel)
 
+    # Test optical system display
+    # This implicitly exercises the optical element display paths, too
     osys.display()
 
+    # Test PSF calculation with intermediate wavefronts
     plt.figure()
     psf = osys.calc_psf(display_intermediates=True)
 
+    # Test PSF display
     plt.figure()
-    #psf = osys.calc_psf(display_intermediates=True)
     poppy.display_psf(psf)
+
+    # Test PSF display with other units too
+    poppy.display_psf(psf, angular_coordinate_unit=u.urad)
+
+    # Test PSF calculation with intermediate wavefronts and other units
+    plt.figure()
+    psf = osys.calc_psf(display_intermediates=True)
+    osys2 = poppy.OpticalSystem()
+    osys2.add_pupil(poppy.CircularAperture())
+    osys2.add_detector(fov_pixels=128, pixelscale=0.05*u.urad/u.pixel)
+    psf2, waves = osys.calc_psf(display_intermediates=True, return_intermediates=True)
+
+    # Test wavefront display, implicitly including other units
+    waves[-1].display()
+
+    plt.close('all')
 
 
 def test_rotation_in_OpticalSystem(display=False, npix=1024):
     """ Test that rotation planes within an OpticalSystem work as
     expected to rotate the wavefront. We can get equivalent results
-    by rotating an Optic a given amount, or rotating the wavefront
-    in the opposite direction.
+    by rotating an Optic a given amount counterclockwise, or rotating the wavefront
+    in the same direction.
     """
 
     angles_and_tolerances = ((90, 1e-8), (45, 3e-7))
@@ -432,23 +416,24 @@ def test_rotation_in_OpticalSystem(display=False, npix=1024):
         osys = poppy.OpticalSystem(npix=npix)
         osys.add_pupil(poppy.optics.ParityTestAperture(rotation=angle))
         osys.add_detector(fov_pixels=128, pixelscale=0.01)
+        psf1 = osys.calc_psf()
 
-        if display: plt.figure()
-        psf1 = osys.calc_psf(display=display)
-        if display: plt.title("Optic rotated {} deg".format(angle))
+        osys2 = poppy.OpticalSystem(npix=npix)
+        osys2.add_pupil(poppy.optics.ParityTestAperture())
+        osys2.add_rotation(angle=angle)  # note, same sign here.
+        osys2.add_detector(fov_pixels=128, pixelscale=0.01)
+        psf2 = osys2.calc_psf()
 
-
-        osys = poppy.OpticalSystem(npix=npix)
-        osys.add_pupil(poppy.optics.ParityTestAperture())
-        osys.add_rotation(angle=-angle)  # note, opposite sign here.
-        osys.add_detector(fov_pixels=128, pixelscale=0.01)
-        if display: plt.figure()
-        psf2 = osys.calc_psf(display=display)
-        if display: plt.title("Wavefront rotated {} deg".format(angle))
-
+        if display:
+            fig, axes = plt.subplots(figsize=(16, 5), ncols=2)
+            poppy.display_psf(psf1, ax=axes[0])
+            axes[0].set_title("Optic rotated {} deg".format(angle))
+            poppy.display_psf(psf2, ax=axes[1])
+            axes[1].set_title("Wavefront rotated {} deg".format(angle))
 
         assert np.allclose(psf1[0].data, psf2[0].data, atol=atol), ("PSFs did not agree "
-            "within the requested tolerance")
+                                                                    f"within the requested tolerance, for angle={angle}."
+                                                                    f"Max |difference| = {np.max(np.abs(psf1[0].data - psf2[0].data))}")
 
 ### Tests for OpticalElements defined in poppy_core###
 
@@ -462,9 +447,9 @@ def test_ArrayOpticalElement():
     assert np.allclose(ar.amplitude, y), "Couldn't set amplitude transmission"
     assert ar.pixelscale == 1*u.meter/u.pixel
 
-def test_FITSOpticalElement(tempdir='./'):
+def test_FITSOpticalElement(tmpdir):
     circ_fits = poppy.CircularAperture().to_fits(grid_size=3, npix=10)
-    fn = tempdir+"circle.fits"
+    fn = str(tmpdir / "circle.fits")
     circ_fits.writeto(fn, overwrite=True)
 
     # Test passing aperture via file on disk
@@ -483,7 +468,7 @@ def test_FITSOpticalElement(tempdir='./'):
     circ_mask = circ_fits[0].data
     circ_fits[0].data = np.stack([circ_mask, rect_mask])
     circ_fits[0].header['BUNIT'] = 'nm' # need unit for OPD
-    fn2 = tempdir+"cube.fits"
+    fn2 = str(tmpdir / "cube.fits")
     circ_fits.writeto(fn2, overwrite=True)
 
     # Test passing OPD as cube, with slice default, units of nanometers
@@ -535,6 +520,125 @@ def test_OPD_in_waves_for_FITSOpticalElement():
         psf = osys.calc_psf(wavelength=prefactor * u.um)
         assert np.isclose(center_pixel_value, psf[0].data[1,1])
 
+def test_fits_rot90_vs_ndimagerotate_consistency(plot=False):
+    """Test that rotating a FITS HDUList via either of the two
+    methods yields consistent results. This compares an exact
+    90 degree rotation and an interpolating not-quite-90-deg rotation.
+    Both methods should rotate counterclockwise and consistently.
+    """
+    letterf_hdu = poppy.optics.LetterFAperture().to_fits(npix=128)
+    opt1 = poppy.FITSOpticalElement(transmission=letterf_hdu,
+                                   rotation=90)
+    opt2 = poppy.FITSOpticalElement(transmission=letterf_hdu,
+                                   rotation=89.99999)
+    assert np.allclose(opt1.amplitude, opt2.amplitude, atol=1e-5)
+
+    if plot:
+        fig, axes = plt.subplots(figsize=(10, 5), ncols=2)
+        axes[0].imshow(opt1.amplitude)
+        axes[0].set_title("Rot90")
+        axes[1].imshow(opt2.amplitude)
+        axes[1].set_title("ndimage rotate(89.9999)")
+
+def test_analytic_vs_FITS_rotation_consistency(plot=False):
+    """Test that rotating an AnalyticOpticalElement vs
+    rotating a discretized version as a FITSOpticalElement
+    are consistent in rotation direction (counterclockwise)
+    and amount"""
+    opt1 = poppy.optics.LetterFAperture(rotation=90)
+
+    letterf_hdu = poppy.optics.LetterFAperture().to_fits(npix=128)
+    opt2 = poppy.FITSOpticalElement(transmission=letterf_hdu,
+                                    rotation=90)
+
+    if plot:
+        opt1.display()
+        plt.figure()
+        opt2.display()
+
+    array1 = opt1.sample(npix=128)
+    array2 = opt2.amplitude
+    assert np.allclose(array1, array2)
+
+### OpticalSystem tests and related
+
+def test_source_offsets_in_OpticalSystem(npix=128, fov_size=1, verbose=False):
+    """Test source offsets within the field move in the expected
+    directions and by the expected amounts
+
+    The source offset positions are specified in the *output* detector coordinate frame,
+    (i.e. for where the PSF should appear in the output image), but we create the
+    wavefront in the entrance pupil coordinate frame. These may be different if
+    there are coordinate transforms for axes flips or rotations. Therefore test several cases
+    and ensure the output PSF appears in the expected location in each case.
+
+
+    Parameters:
+    ----------
+    npix : int
+        number of pixels
+    fov_size :
+        fov size in arcsec (pretty much arbitrary)
+    """
+    if npix < 110:
+        raise ValueError("npix < 110 results in too few pixels for fwcentroid to work properly.")
+
+    pixscale = fov_size / npix
+    center_coords = np.asarray((npix - 1, npix - 1)) / 2
+
+    ref_psf1 = None  # below we will save and compare PSFs with transforms to one without.
+
+    for transform in ['no', 'inversion', 'rotation', 'both']:
+
+        osys = poppy.OpticalSystem(oversample=1, npix=npix)
+        osys.add_pupil(poppy.CircularAperture(radius=1.0))
+        if transform == 'inversion' or transform == 'both':
+            if verbose:
+                print("ADD INVERSION")
+            osys.add_inversion(axis='y')
+        if transform == 'rotation' or transform == 'both':
+            if verbose:
+                print("ADD ROTATION")
+            osys.add_rotation(angle=12.5)
+        osys.add_detector(pixelscale=pixscale, fov_pixels=npix)
+
+        # a PSF with no offset should be centered
+        psf0 = osys.calc_psf()
+        cen = poppy.measure_centroid(psf0)
+        assert np.allclose(cen, center_coords), "PSF with no source offset should be centered"
+        if verbose:
+            print(f"PSF with no offset OK for system with {transform} transform.\n")
+
+        # Compute a PSF with the source offset towards PA=0 (+Y), still within the FOV
+        osys.source_offset_r = 0.3 * fov_size
+
+        # Shift to PA=0 should move in +Y
+        osys.source_offset_theta = 0
+        psf1 = osys.calc_psf()
+        cen = poppy.measure_centroid(psf1)
+        assert np.allclose((cen[0] - center_coords[0]) * pixscale, osys.source_offset_r,
+                           rtol=0.1), "Measured centroid in Y did not match expected offset"
+        assert np.allclose(cen[1], center_coords[1], rtol=0.1), "Measured centroid in X should not shift for this test case"
+        if verbose:
+            print(f"PSF with +Y offset OK for system with {transform} transform.\n")
+
+        if ref_psf1 is None:
+            ref_psf1 = psf1
+        else:
+            assert np.allclose(ref_psf1[0].data, psf1[0].data,
+                               atol=1e-4), "PSF is inconsistent with the system without any transforms"
+
+        # Shift to PA=90 should move in -X
+        osys.source_offset_theta = 90
+        psf2 = osys.calc_psf()
+        cen = poppy.measure_centroid(psf2)
+        assert np.allclose((cen[1] - center_coords[1]) * pixscale, -osys.source_offset_r,
+                           rtol=0.1), "Measured centroid in X did not match expected offset"
+        assert np.allclose(cen[0], center_coords[0], rtol=0.1), "Measured centroid in Y should not shift for this test case"
+
+        if verbose:
+            print(f"PSF with -X offset OK for system with {transform} transform.\n")
+
 ### Detector class unit test ###
 
 try:
@@ -560,6 +664,11 @@ def test_Detector_pixelscale_units():
     # Or scale in arcsec, and fov in arcsec:
     test_det = poppy_core.Detector(pixelscale=0.01 * u.arcsec / u.pixel, fov_arcsec=10)
     assert test_det.pixelscale == 0.01 * u.arcsec / u.pixel
+    assert test_det.shape == (1000, 1000)
+
+    # Or scale in microradians, and fov in milliradians (converted to arcsec, since the fov_arcsec parameter needs arcsec):
+    test_det = poppy_core.Detector(pixelscale=1 * u.urad / u.pixel, fov_arcsec=(1*u.mrad).to_value(u.arcsec))
+    assert test_det.pixelscale == 1 * u.urad / u.pixel
     assert test_det.shape == (1000, 1000)
 
     # It also works to leave the scale unspecified in unit, which is interpreted as arcsec
@@ -633,3 +742,38 @@ def test_CompoundOpticalSystem():
 
     # check the planes
     assert len(cosys.planes) == len(osys1.planes)+len(osys2.planes)
+
+
+# Tests for the inwave argument
+
+def test_inwave_fraunhoffer(plot=False):
+    '''Verify basic functionality of the inwave kwarg for a basic OpticalSystem()'''
+    npix=128
+    oversample=2
+    diam=2.4*u.m
+    lambda_m = 0.5e-6*u.m
+    # calculate the Fraunhofer diffraction pattern
+    hst = poppy.OpticalSystem(pupil_diameter=diam, npix=npix, oversample=oversample)
+    hst.add_pupil(poppy.CircularAperture(radius=diam.value/2))
+    hst.add_pupil(poppy.SecondaryObscuration(secondary_radius=0.396,
+                  support_width=0.0264,
+                  support_angle_offset=45.0))
+    hst.add_image(poppy.ScalarTransmission(planetype=poppy_core.PlaneType.image, name='focus'))
+
+    if plot:
+        plt.figure(figsize=(9,3))
+    psf1,wfs1 = hst.calc_psf(wavelength=lambda_m, display_intermediates=plot, return_intermediates=True)
+    
+    # now test the system by inputting a wavefront first
+    wfin = poppy.Wavefront(wavelength=lambda_m, npix=npix,
+                           diam=diam, oversample=oversample)
+    if plot:
+        plt.figure(figsize=(9,3))
+    psf2,wfs2 = hst.calc_psf(wavelength=lambda_m, display_intermediates=plot, return_intermediates=True,
+                             inwave=wfin)
+    
+    wf = wfs1[-1].wavefront
+    wf_no_in = wfs2[-1].wavefront
+    
+    assert np.allclose(wf, wf_no_in), 'Results differ unexpectedly when using inwave argument in OpticalSystem().'
+

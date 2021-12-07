@@ -6,6 +6,7 @@ import astropy.io.fits as fits
 import astropy.units as u
 import warnings
 import logging
+from abc import ABC, abstractmethod
 
 from . import utils
 from . import conf
@@ -19,14 +20,13 @@ if accel_math._USE_NUMEXPR:
 
 _log = logging.getLogger('poppy')
 
-__all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'InverseTransmission',
+__all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'ScalarOpticalPathDifference', 'InverseTransmission',
            'BandLimitedCoron', 'BandLimitedCoronagraph', 'IdealFQPM', 'CircularPhaseMask', 'RectangularFieldStop', 'SquareFieldStop',
            'AnnularFieldStop', 'HexagonFieldStop',
            'CircularOcculter', 'BarOcculter', 'FQPM_FFT_aligner', 'CircularAperture',
-           'HexagonAperture', 'MultiHexagonAperture', 'NgonAperture', 'RectangleAperture',
-           'SquareAperture', 'SecondaryObscuration', 'AsymmetricSecondaryObscuration',
-           'ThinLens', 'GaussianAperture', 'KnifeEdge', 'CompoundAnalyticOptic', 'fixed_sampling_optic']
-
+           'HexagonAperture', 'MultiHexagonAperture', 'NgonAperture', 'MultiCircularAperture', 'RectangleAperture',
+           'SquareAperture', 'SecondaryObscuration', 'LetterFAperture', 'AsymmetricSecondaryObscuration',
+           'ThinLens',  'GaussianAperture', 'KnifeEdge', 'TiltOpticalPathDifference', 'CompoundAnalyticOptic', 'fixed_sampling_optic']
 
 # ------ Generic Analytic elements -----
 
@@ -300,8 +300,11 @@ class AnalyticOpticalElement(OpticalElement):
         "shift_x", "shift_y", "rotation", "inclination_x", "inclination_y"
         If any of them are present, then the coordinates are modified accordingly.
 
-        Shifts are given in meters for pupil optics and arcseconds for image
-        optics. Rotations and inclinations are given in degrees.
+        Shifts are given by default implicitly in meters for pupil optics and arcseconds for image
+        plane optics. Shifts may optionally also be given with explicit units using Astropy Quantities,
+        which in this case must be convertable into meters or arcseconds as appropriate.
+
+        Rotations and inclinations are given implicitly in degrees.
 
         For multiple transformations, the order of operations is:
             shift, rotate, incline.
@@ -309,9 +312,19 @@ class AnalyticOpticalElement(OpticalElement):
 
         y, x = wave.coordinates()
         if hasattr(self, "shift_x"):
-            x -= float(self.shift_x)
+            if isinstance(self.shift_x, u.Quantity):
+                desired_unit = u.arcsecond if self.planetype==PlaneType.image else u.meter
+                shift_value = self.shift_x.to_value(desired_unit)
+                x -= float(shift_value)
+            else:
+                x -= float(self.shift_x)
         if hasattr(self, "shift_y"):
-            y -= float(self.shift_y)
+            if isinstance(self.shift_y, u.Quantity):
+                desired_unit = u.arcsecond if self.planetype == PlaneType.image else u.meter
+                shift_value = self.shift_y.to_value(desired_unit)
+                y -= float(shift_value)
+            else:
+                y -= float(self.shift_y)
         if hasattr(self, "rotation"):
             angle = np.deg2rad(self.rotation)
             xp = np.cos(angle) * x + np.sin(angle) * y
@@ -344,6 +357,24 @@ class ScalarTransmission(AnalyticOpticalElement):
     def get_transmission(self, wave):
         res = np.empty(wave.shape, dtype=_float())
         res.fill(self.transmission)
+        return res
+
+
+class ScalarOpticalPathDifference(AnalyticOpticalElement):
+    """Uniform and constant optical path difference
+
+    """
+    @utils.quantity_input(opd=u.meter)
+    def __init__(self, name=None, opd=1.0*u.micron, **kwargs):
+        if name is None:
+            name = f'Constant OPD, {opd}'
+
+        super().__init__(name=name, **kwargs)
+        self.opd = opd
+
+    def get_opd(self, wave):
+        res = np.empty(wave.shape, dtype=_float())
+        res.fill(self.opd.to(u.meter).value)
         return res
 
 
@@ -478,22 +509,22 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
             # Also add in the opaque border of the coronagraph mask holder.
             if self.sigma > 4:
                 # MASK210R has one in the corner and one half in the other corner
-                wnd = np.where(
+                wnd = (
                     (y > 5) &
                     (
                             ((x < -5) & (x > -10)) |
                             ((x > 7.5) & (x < 12.5))
                     )
                 )
-                wborder = np.where((np.abs(y) > 10) | (x < -10))  # left end of mask holder
+                wborder = ((np.abs(y) > 10) | (x < -10))  # left end of mask holder
             else:
                 # the others have two halves on in each corner.
-                wnd = np.where(
+                wnd = (
                     (y > 5) &
                     (np.abs(x) > 7.5) &
                     (np.abs(x) < 12.5)
                 )
-                wborder = np.where(np.abs(y) > 10)
+                wborder = (np.abs(y) > 10)
 
             self.transmission[wnd] = np.sqrt(1e-3)
             self.transmission[wborder] = 0
@@ -537,38 +568,37 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
             sigmar.clip(np.finfo(sigmar.dtype).tiny, out=sigmar)  # avoid divide by zero -> NaNs
             self.transmission = (1 - (np.sin(sigmar) / sigmar) ** 2)
             # the bar should truncate at +- 10 arcsec:
-            woutside = np.where(np.abs(x) > 10)
-            self.transmission[woutside] = 1.0
+            self.transmission[np.abs(x) > 10] = 1.0
 
             # add in the ND squares. Note the positions are not exactly the same in the two wedges.
             # See the figures in Krist et al. of how the 6 ND squares are spaced among the 5
             # corongraph regions. Also add in the opaque border of the coronagraph mask holder.
             if np.abs(self.wavelength - 2.1e-6) < 0.1e-6:
                 # half ND square on each side
-                wnd = np.where(
+                wnd = (
                     (y > 5) &
                     (
                             ((x < -5) & (x > -10)) |
                             ((x > 7.5) & (x < 12.5))
                     )
                 )
-                wborder = np.where(np.abs(y) > 10)
+                wborder = (np.abs(y) > 10)
             elif np.abs(self.wavelength - 4.6e-6) < 0.1e-6:
-                wnd = np.where(
+                wnd = (
                     (y > 5) &
                     (
                             ((x < -7.5) & (x > -12.5)) |
                             (x > 5)
                     )
                 )
-                wborder = np.where((np.abs(y) > 10) | (x > 10))  # right end of mask holder
+                wborder = ((np.abs(y) > 10) | (x > 10))  # right end of mask holder
 
             self.transmission[wnd] = np.sqrt(1e-3)
             self.transmission[wborder] = 0
 
         if not np.isfinite(self.transmission.sum()):
             _log.warning("There are NaNs in the BLC mask - correcting to zero. (DEBUG LATER?)")
-            self.transmission[np.where(np.isfinite(self.transmission) == False)] = 0
+            self.transmission[ np.isnan(self.transmission) ] = 0
         return self.transmission
 
 BandLimitedCoron=BandLimitedCoronagraph # Back compatibility for old name.
@@ -699,14 +729,11 @@ class RectangularFieldStop(AnalyticImagePlaneElement):
 
         y, x = self.get_coordinates(wave)
 
-        w_outside = np.where(
-            (abs(y) > (self.height.to(u.arcsec).value / 2)) |
-            (abs(x) > (self.width.to(u.arcsec).value / 2))
+        w_inside = (
+            (abs(y) <= (self.height.to(u.arcsec).value / 2)) &
+            (abs(x) <= (self.width.to(u.arcsec).value / 2))
         )
-        del x  # for large arrays, cleanup very promptly, before allocating self.transmission
-        del y
-        self.transmission = np.ones(wave.shape, dtype=_float())
-        self.transmission[w_outside] = 0
+        self.transmission = w_inside.astype(_float())
 
         return self.transmission
 
@@ -791,16 +818,16 @@ class HexagonFieldStop(AnalyticImagePlaneElement):
 
         self.transmission = np.zeros(wave.shape, dtype=_float())
 
-        w_rect = np.where(
+        w_rect = (
             (np.abs(x) <= 0.5 * side) &
             (absy <= np.sqrt(3) / 2 * side)
         )
-        w_left_tri = np.where(
+        w_left_tri = (
             (x <= -0.5 * side) &
             (x >= -1 * side) &
             (absy <= (x + 1 * side) * np.sqrt(3))
         )
-        w_right_tri = np.where(
+        w_right_tri = (
             (x >= 0.5 * side) &
             (x <= 1 * side) &
             (absy <= (1 * side - x) * np.sqrt(3))
@@ -910,8 +937,8 @@ class BarOcculter(AnalyticImagePlaneElement):
 
         y, x = self.get_coordinates(wave)
 
-        w_inside = np.where( (np.abs(x) <= self.width.to(u.arcsec).value / 2) &
-                             (np.abs(y) <= self.height.to(u.arcsec).value / 2) )
+        w_inside = ( (np.abs(x) <= self.width.to(u.arcsec).value / 2) &
+                     (np.abs(y) <= self.height.to(u.arcsec).value / 2) )
 
         self.transmission = np.ones(wave.shape, dtype=_float())
         self.transmission[w_inside] = 0
@@ -919,7 +946,7 @@ class BarOcculter(AnalyticImagePlaneElement):
         return self.transmission
 
 
-# ------ Analytic Pupil or Intermedian Plane elements (coordinates in meters) -----
+# ------ Analytic Pupil or Intermediate Plane elements (coordinates in meters) -----
 
 class FQPM_FFT_aligner(AnalyticOpticalElement):
     """  Helper class for modeling FQPMs accurately
@@ -959,11 +986,11 @@ class FQPM_FFT_aligner(AnalyticOpticalElement):
         assert wave.planetype != PlaneType.image, "This optic does not work on image planes"
 
         fft_im_pixelscale = wave.wavelength / wave.diam / wave.oversample * u.radian
-        required_offset = -fft_im_pixelscale * 0.5
+        required_offset = fft_im_pixelscale * 0.5
         if self.direction == 'backward':
-            required_offset *= -1
             wave._image_centered = 'pixel'
         else:
+            required_offset *= -1  # changed in poppy 1.0 for sign convention update
             wave._image_centered = 'corner'
         wave.tilt(required_offset, required_offset)
 
@@ -975,6 +1002,8 @@ class ParityTestAperture(AnalyticOpticalElement):
     """ Defines a circular pupil aperture with boxes cut out.
     This is mostly a test aperture, which has no symmetry and thus can be used to
     test the various Fourier transform algorithms and sign conventions.
+
+    See also LetterFAperture
 
     Parameters
     ----------
@@ -1012,16 +1041,16 @@ class ParityTestAperture(AnalyticOpticalElement):
         y, x = self.get_coordinates(wave)
         r = _r(x, y)
 
-        w_outside = np.where(r > radius)
+        w_outside = (r > radius)
         self.transmission = np.ones(wave.shape, dtype=_float())
         self.transmission[w_outside] = 0
 
-        w_box1 = np.where(
+        w_box1 = (
             (r > (radius * 0.5)) &
             (np.abs(x) < radius * 0.1) &
             (y < 0)
         )
-        w_box2 = np.where(
+        w_box2 = (
             (r > (radius * 0.75)) &
             (np.abs(y) < radius * 0.2) &
             (x < 0)
@@ -1031,6 +1060,71 @@ class ParityTestAperture(AnalyticOpticalElement):
 
         return self.transmission
 
+
+class LetterFAperture(AnalyticOpticalElement):
+    """ Define a capital letter F aperture. This is sometimes useful for
+    disambiguating pupil orientations. See also AsymmetricParityTestAperture
+    and LetterFOpticalPathDifference.
+    """
+
+    def __init__(self, name=None, radius=1.0 * u.meter, pad_factor=1.5, **kwargs):
+        if name is None: name = f"Letter F Parity Test Aperture, radius={radius}"
+        super().__init__(name=name, planetype=PlaneType.pupil, **kwargs)
+        self.radius = radius
+        # for creating input wavefronts - let's pad a bit:
+        self.pupil_diam = pad_factor * 2 * self.radius
+        self.wavefront_display_hint = 'intensity'  # preferred display for wavefronts at this plane
+
+    def get_transmission(self, wave):
+        """ Compute the transmission inside/outside of the aperture.
+        """
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
+            raise ValueError("LetterFAperture get_opd must be called with a Wavefront "
+                             "to define the spacing")
+        assert (wave.planetype != PlaneType.image)
+
+        radius = self.radius.to(u.meter).value
+        y, x = self.get_coordinates(wave)
+        yr = y / radius
+        xr = x / radius
+
+        self.transmission = np.zeros(wave.shape, dtype=float)
+        self.transmission[(xr <  0) & (xr > -0.5) & (np.abs(yr) < 1)] = 1
+        self.transmission[(xr >= 0) & (xr < 0.75) & (np.abs(yr - 0.75) < 0.25)] = 1
+        self.transmission[(xr >= 0) & (xr < 0.5) & (np.abs(yr) < 0.25)] = 1
+        return self.transmission
+
+class LetterFOpticalPathDifference(AnalyticOpticalElement):
+    """ Define a capital letter F in OPD. This is sometimes useful for
+    disambiguating pupil orientations. See also LetterFAperture.
+    """
+
+    def __init__(self, name=None, radius=1.0 * u.meter, pad_factor=1.5, opd=1*u.micron, **kwargs):
+        if name is None: name = f"Letter F Parity Test Aperture, radius={radius}"
+        super().__init__(name=name, planetype=PlaneType.pupil, **kwargs)
+        self.radius = radius
+        self._opd_amount = opd.to_value(u.m)
+        # for creating input wavefronts - let's pad a bit:
+        self.pupil_diam = pad_factor * 2 * self.radius
+        self.wavefront_display_hint = 'intensity'  # preferred display for wavefronts at this plane
+
+    def get_opd(self, wave):
+        """ Compute the OPD inside/outside of the aperture.
+        """
+        if not isinstance(wave, BaseWavefront):  # pragma: no cover
+            raise ValueError("LetterFAperture get_opd must be called with a Wavefront "
+                             "to define the spacing")
+
+        radius = self.radius.to(u.meter).value
+        y, x = self.get_coordinates(wave)
+        yr = y / radius
+        xr = x / radius
+
+        self.opd = np.zeros(wave.shape, dtype=float)
+        self.opd[(xr <  0) & (xr > -0.5) & (np.abs(yr) < 1)] = self._opd_amount
+        self.opd[(xr >= 0) & (xr < 0.75) & (np.abs(yr - 0.75) < 0.25)] = self._opd_amount
+        self.opd[(xr >= 0) & (xr < 0.5) & (np.abs(yr) < 0.25)] = self._opd_amount
+        return self.opd
 
 class CircularAperture(AnalyticOpticalElement):
     """ Defines an ideal circular pupil aperture
@@ -1082,13 +1176,7 @@ class CircularAperture(AnalyticOpticalElement):
             self.transmission = geometry.filled_circle_aa(wave.shape, 0, 0, radius/pixscale, x/pixscale, y/pixscale)
         else:
             r = _r(x, y)
-            del x
-            del y
-
-            w_outside = np.where(r > radius)
-            del r
-            self.transmission = np.ones(wave.shape, dtype=_float())
-            self.transmission[w_outside] = 0
+            self.transmission = (r<=radius).astype(_float())
         return self.transmission
 
 
@@ -1151,16 +1239,16 @@ class HexagonAperture(AnalyticOpticalElement):
 
         self.transmission = np.zeros(wave.shape, dtype=_float())
 
-        w_rect = np.where(
+        w_rect = (
             (np.abs(x) <= 0.5 * side) &
             (absy <= np.sqrt(3) / 2 * side)
         )
-        w_left_tri = np.where(
+        w_left_tri = (
             (x <= -0.5 * side) &
             (x >= -1 * side) &
             (absy <= (x + 1 * side) * np.sqrt(3))
         )
-        w_right_tri = np.where(
+        w_right_tri = (
             (x >= 0.5 * side) &
             (x <= 1 * side) &
             (absy <= (1 * side - x) * np.sqrt(3))
@@ -1171,8 +1259,127 @@ class HexagonAperture(AnalyticOpticalElement):
 
         return self.transmission
 
+class MultiSegmentAperture(AnalyticOpticalElement, ABC):
+    """Abstract base class for an aperture made of sub-apertures
+    This is subclassed to hexagons and circles below.
+    """
 
-class MultiHexagonAperture(AnalyticOpticalElement):
+    @utils.quantity_input(segment_size=u.meter, gap=u.meter)
+    def __init__(self, name="MultiSegment", segment_size=1, gap=0.01, rings=1,
+                 segmentlist=None, center=False, **kwargs):
+        self.rings = rings
+        self.gap = gap
+        AnalyticOpticalElement.__init__(self, name=name, planetype=PlaneType.pupil, **kwargs)
+
+        # spacing between segment centers
+        self._segment_spacing = (segment_size + gap).to_value(u.meter)
+
+        self.pupil_diam = (self._segment_spacing) * (2 * self.rings + 1)
+
+        # make a list of all the segments included in this hex aperture
+        if segmentlist is not None:
+            self.segmentlist = segmentlist
+        else:
+            self.segmentlist = list(range(self._n_aper_inside_ring(self.rings + 1)))
+            if not center:
+                self.segmentlist.remove(0)  # remove center segment 0
+
+    def _n_aper_in_ring(self, n):
+        """ How many hexagons or circles in ring N? """
+        return 1 if n == 0 else 6 * n
+
+    def _n_aper_inside_ring(self, n):
+        """ How many hexagons or circles interior to ring N, not counting N?"""
+        return sum([self._n_aper_in_ring(i) for i in range(n)])
+
+    def _aper_in_ring(self, hex_index):
+        """ What ring is a given hexagon or circle in?"""
+        if hex_index == 0:
+            return 0
+        for i in range(100):
+            if self._n_aper_inside_ring(i) <= hex_index < self._n_aper_inside_ring(i + 1):
+                return i
+        raise ValueError("Loop exceeded! MultiSegmentAperture is limited to <100 rings of segments.")
+
+    def _aper_radius(self, hex_index):
+        """ Radius of a given hexagon from the center """
+        ring = self._aper_in_ring(hex_index)
+        if ring <= 1:
+            return (self._segment_spacing) * ring
+
+    def _aper_center(self, aper_index):
+        """ Center coordinates of a given hexagon
+        counting clockwise around each ring
+
+        Returns y, x coords
+
+        """
+        ring = self._aper_in_ring(aper_index)
+
+        # handle degenerate case of center segment
+        # to avoid div by 0 in the main code below
+        if ring == 0:
+            return 0, 0
+
+        # now count around from the starting point:
+        index_in_ring = aper_index - self._n_aper_inside_ring(ring) + 1  # 1-based
+        angle_per_hex = 2 * np.pi / self._n_aper_in_ring(ring)  # angle in radians
+
+        radius = (self._segment_spacing) * ring  # like JWST 'B' segments, aka corners for a hexagon
+        if np.mod(index_in_ring, ring) == 1:
+            angle = angle_per_hex * (index_in_ring - 1)
+            ypos = radius * np.cos(angle)
+            xpos = radius * np.sin(angle)
+        else:
+            # find position of previous 'B' type segment.
+            last_B_angle = ((index_in_ring - 1) // ring) * ring * angle_per_hex
+            ypos0 = radius * np.cos(last_B_angle)
+            xpos0 = radius * np.sin(last_B_angle)
+
+            # count around from that corner
+            da = (self._segment_spacing) * np.cos(30 * np.pi / 180)
+            db = (self._segment_spacing) * np.sin(30 * np.pi / 180)
+
+            whichside = (index_in_ring - 1) // ring  # which of the sides are we on?
+            if whichside == 0:
+                dx, dy = da, -db
+            elif whichside == 1:
+                dx, dy = 0, -self._segment_spacing
+            elif whichside == 2:
+                dx, dy = -da, -db
+            elif whichside == 3:
+                dx, dy = -da, db
+            elif whichside == 4:
+                dx, dy = 0, self._segment_spacing
+            elif whichside == 5:
+                dx, dy = da, db
+
+            xpos = xpos0 + dx * np.mod(index_in_ring - 1, ring)
+            ypos = ypos0 + dy * np.mod(index_in_ring - 1, ring)
+
+        return ypos, xpos
+
+    @abstractmethod
+    def _one_aperture(self, wave, index, value=1):
+        """Implement how to draw one aperture"""
+        pass
+
+    def get_transmission(self, wave):
+        """ Compute the transmission inside/outside of the occulter.
+        """
+        if not isinstance(wave, BaseWavefront):
+            raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
+        assert (wave.planetype != PlaneType.image)
+
+        self.transmission = np.zeros(wave.shape, dtype=_float())
+
+        for i in self.segmentlist:
+            self._one_aperture(wave, i)
+
+        return self.transmission
+
+
+class MultiHexagonAperture(MultiSegmentAperture):
     """ Defines a hexagonally segmented aperture
 
     Parameters
@@ -1218,136 +1425,33 @@ class MultiHexagonAperture(AnalyticOpticalElement):
         else:
             self.side = flattoflat / np.sqrt(3.)
         self.flattoflat = self.side * np.sqrt(3)
-        self.rings = rings
-        self.gap = gap
-        AnalyticOpticalElement.__init__(self, name=name, planetype=PlaneType.pupil, **kwargs)
 
-        self.pupil_diam = (self.flattoflat + self.gap) * (2 * self.rings + 1)
+        super().__init__(name=name, segment_size=self.flattoflat,
+                         gap=gap, rings=rings, segmentlist=segmentlist, center=center, **kwargs)
 
-        # make a list of all the segments included in this hex aperture
-        if segmentlist is not None:
-            self.segmentlist = segmentlist
-        else:
-            self.segmentlist = list(range(self._n_hexes_inside_ring(self.rings + 1)))
-            if not center:
-                self.segmentlist.remove(0)  # remove center segment 0
 
-    def _n_hexes_in_ring(self, n):
-        """ How many hexagons in ring N? """
-        return 1 if n == 0 else 6 * n
-
-    def _n_hexes_inside_ring(self, n):
-        """ How many hexagons interior to ring N, not counting N?"""
-        return sum([self._n_hexes_in_ring(i) for i in range(n)])
-
-    def _hex_in_ring(self, hex_index):
-        """ What ring is a given hexagon in?"""
-        if hex_index == 0:
-            return 0
-        for i in range(100):
-            if self._n_hexes_inside_ring(i) <= hex_index < self._n_hexes_inside_ring(i + 1):
-                return i
-        raise ValueError("Loop exceeded! MultiHexagonAperture is limited to <100 rings of hexagons.")
-
-    def _hex_radius(self, hex_index):
-        """ Radius of a given hexagon from the center """
-        ring = self._hex_in_ring(hex_index)
-        if ring <= 1:
-            return (self.flattoflat + self.gap) * ring
-
-    def _hex_center(self, hex_index):
-        """ Center coordinates of a given hexagon
-        counting clockwise around each ring
-
-        Returns y, x coords
-
-        """
-        ring = self._hex_in_ring(hex_index)
-
-        # handle degenerate case of center segment
-        # to avoid div by 0 in the main code below
-        if ring == 0:
-            return 0, 0
-
-        # now count around from the starting point:
-        index_in_ring = hex_index - self._n_hexes_inside_ring(ring) + 1  # 1-based
-        angle_per_hex = 2 * np.pi / self._n_hexes_in_ring(ring)  # angle in radians
-
-        # Now figure out what the radius is:
-        flattoflat = self.flattoflat.to(u.meter).value
-        gap = self.gap.to(u.meter).value
-        side = self.side.to(u.meter).value
-
-        radius = (flattoflat + gap) * ring  # JWST 'B' segments, aka corners
-        if np.mod(index_in_ring, ring) == 1:
-            angle = angle_per_hex * (index_in_ring - 1)
-            ypos = radius * np.cos(angle)
-            xpos = radius * np.sin(angle)
-        else:
-            # find position of previous 'B' type segment.
-            last_B_angle = ((index_in_ring - 1) // ring) * ring * angle_per_hex
-            ypos0 = radius * np.cos(last_B_angle)
-            xpos0 = radius * np.sin(last_B_angle)
-
-            # count around from that corner
-            da = (flattoflat + gap) * np.cos(30 * np.pi / 180)
-            db = (flattoflat + gap) * np.sin(30 * np.pi / 180)
-
-            whichside = (index_in_ring - 1) // ring  # which of the sides are we on?
-            if whichside == 0:
-                dx, dy = da, -db
-            elif whichside == 1:
-                dx, dy = 0, -(flattoflat + gap)
-            elif whichside == 2:
-                dx, dy = -da, -db
-            elif whichside == 3:
-                dx, dy = -da, db
-            elif whichside == 4:
-                dx, dy = 0, (flattoflat + gap)
-            elif whichside == 5:
-                dx, dy = da, db
-
-            xpos = xpos0 + dx * np.mod(index_in_ring - 1, ring)
-            ypos = ypos0 + dy * np.mod(index_in_ring - 1, ring)
-
-        return ypos, xpos
-
-    def get_transmission(self, wave):
-        """ Compute the transmission inside/outside of the occulter.
-        """
-        if not isinstance(wave, BaseWavefront):
-            raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
-        assert (wave.planetype != PlaneType.image)
-
-        self.transmission = np.zeros(wave.shape, dtype=_float())
-
-        for i in self.segmentlist:
-            self._one_hexagon(wave, i)
-
-        return self.transmission
-
-    def _one_hexagon(self, wave, index, value=1):
+    def _one_aperture(self, wave, index, value=1):
         """ Draw one hexagon into the self.transmission array """
 
         y, x = self.get_coordinates(wave)
         side = self.side.to(u.meter).value
 
-        ceny, cenx = self._hex_center(index)
+        ceny, cenx = self._aper_center(index)
 
         y -= ceny
         x -= cenx
         absy = np.abs(y)
 
-        w_rect = np.where(
+        w_rect = (
             (np.abs(x) <= 0.5 * side) &
             (absy <= np.sqrt(3) / 2 * side)
         )
-        w_left_tri = np.where(
+        w_left_tri = (
             (x <= -0.5 * side) &
             (x >= -1 * side) &
             (absy <= (x + 1 * side) * np.sqrt(3))
         )
-        w_right_tri = np.where(
+        w_right_tri = (
             (x >= 0.5 * side) &
             (x <= 1 * side) &
             (absy <= (1 * side - x) * np.sqrt(3))
@@ -1405,6 +1509,71 @@ class NgonAperture(AnalyticOpticalElement):
 
         return self.transmission
 
+class MultiCircularAperture(MultiSegmentAperture):
+    """ Defines a circularly segmented aperture in close compact configuration
+    
+    Parameters
+    ----------
+    name : string
+        descriptive name
+    rings : integer
+         The number of rings of hexagons to include, not counting the central segment
+    segment_radius : float, optional
+        radius of the circular sub-apertures in meters, default is 1 meters
+    gap: float, otional
+        Gap between adjacent segments, in meters. Default is 0.01 m = 1 cm
+    center : bool, optional
+        should the central segment be included? Default is True.
+    segmentlist : list of ints, optional
+        This allows one to specify that only a subset of segments are present, for a
+        partially populated segmented telescope, non-redundant segment set, etc.
+        Segments are numbered from 0 for the center segment, 1 for the segment immediately
+        above it, and then clockwise around each ring.
+        For example, segmentlist=[1,3,5] would make an aperture of 3 segments.
+    gray_pixel : bool, optional
+        Apply gray pixel approximation to return fractional transmission for
+        edge pixels that are only partially within this aperture? default : True
+    
+    """
+    
+    @utils.quantity_input(segment_radius=u.meter, gap=u.meter)
+    def __init__(self, name = "multiCirc",rings = 1, segment_radius = 1.0, gap = 0.01,
+                 segmentlist = None, center = True, gray_pixel = True, **kwargs):
+        self.segment_radius = segment_radius
+        segment_diameter = 2*segment_radius
+
+        super().__init__(name=name, segment_size=segment_diameter,
+                         gap=gap, rings=rings, segmentlist=segmentlist, center=center, **kwargs)
+        self.pupil_diam = (segment_diameter) * (2 * self.rings + 1)+ gap * (2*rings)
+        
+        self._use_gray_pixel = bool(gray_pixel)
+        
+    def _one_aperture(self, wave, index, value=1):
+        """ Draw one circular aperture into the self.transmission array """
+
+        y, x = self.get_coordinates(wave)
+        segRadius = self.segment_radius.to(u.meter).value
+
+        ceny, cenx = self._aper_center(index)
+
+        y -= ceny
+        x -= cenx
+        
+        if self._use_gray_pixel:
+            pixscale = wave.pixelscale.to(u.meter/u.pixel).value
+            tmpTransmission = geometry.filled_circle_aa(wave.shape, 0, 0, segRadius/pixscale, x/pixscale, y/pixscale)
+            self.transmission += tmpTransmission 
+        else:
+            r = _r(x, y)
+            del x
+            del y
+
+            w_inside = np.where(r < segRadius)
+            del r
+            self.transmission[w_inside] = value
+
+        return self.transmission
+
 
 class RectangleAperture(AnalyticOpticalElement):
     """ Defines an ideal rectangular pupil aperture
@@ -1441,15 +1610,12 @@ class RectangleAperture(AnalyticOpticalElement):
 
         y, x = self.get_coordinates(wave)
 
-        w_outside = np.where(
-            (abs(y) > (self.height.to(u.meter).value / 2)) |
-            (abs(x) > (self.width.to(u.meter).value / 2))
+        w_inside = (
+            (abs(y) <= (self.height.to(u.meter).value / 2)) &
+            (abs(x) <= (self.width.to(u.meter).value / 2))
         )
-        del y
-        del x
 
-        self.transmission = np.ones(wave.shape, dtype=_float())
-        self.transmission[w_outside] = 0
+        self.transmission = w_inside.astype(dtype=_float())
         return self.transmission
 
 
@@ -1636,9 +1802,14 @@ class ThinLens(CircularAperture):
     The sign convention adopted is the usual for lenses: a "positive" lens
     is converging (i.e. convex), a "negative" lens is diverging (i.e. concave).
 
+    Recall the sign convention choice that the OPD is positive if the aberrated wavefront
+    leads the ideal unaberrated wavefront; a converging wavefront leads at its outer edges
+    relative to a flat wavefront.
+
     In other words, a positive number of waves of defocus indicates a
-    lens with positive OPD at the center, and negative at its rim.
-    (Note, this is opposite the sign convention for Zernike defocus)
+    lens with more positive OPD at the edges than at the center.
+
+    NOTE - this sign convention was different in prior versions of poppy < 1.0.
 
     Parameters
     -------------
@@ -1673,16 +1844,13 @@ class ThinLens(CircularAperture):
         # rather than center-to-peak
         defocus_zernike = ((2 * r_norm ** 2 - 1) *
                            (0.5 * self.nwaves * self.reference_wavelength.to(u.meter).value))
-
-        # add negative sign here to get desired sign convention
-        opd = -defocus_zernike
+        opd = defocus_zernike
 
         # the thin lens is explicitly also a circular aperture:
-        # we use the aperture instensity here to mask the OPD we return, in
+        # we use the aperture intensity here to mask the OPD we return, in
         # order to avoid bogus values outside the aperture
         aperture_intensity = CircularAperture.get_transmission(self, wave)
         opd[aperture_intensity==0] = 0
-
 
         return opd
 
@@ -1746,6 +1914,41 @@ class GaussianAperture(AnalyticOpticalElement):
         transmission = np.exp((- (r / self.w.to(u.meter).value) ** 2))
 
         return transmission
+
+
+class TiltOpticalPathDifference(AnalyticOpticalElement):
+    """A simple tilt in OPD.
+
+    With the sign convention used in poppy, a wavefront that is positively increasing
+    in the +X direction will deflect the beam in the -X direction, and so on.
+
+    Parameters
+    ----------
+    tilt_angle : angle, as an astropy unit
+        Angle of the tilt
+    rotation : float
+        Position angle, in degrees, for the direction in which the beam should be tilted
+
+    use the rotation parameter (available for any AnalyticOpticalElement)
+    to adjust the position angle of the tilt
+
+    """
+    def __init__(self, name='Tilt', tilt_angle=0.1 * u.arcsec, rotation=0, **kwargs):
+        self.tilt_angle=tilt_angle
+        super().__init__(name=name, rotation=0, **kwargs)
+
+    def get_opd(self, wave):
+        # Get local coordinates for this wave; note this will implicitly include any
+        # rotation.
+        y, x = self.get_coordinates(wave)
+
+        # SIGN CONVENTION: an OPD or wavefront increasing in the -y direction will deflect the beam
+        # into the +y direction, and vice versa.
+        angle = self.tilt_angle.to_value(u.radian)
+        opd = y * -angle
+
+        return opd
+
 
 
 # ------ generic analytic optics ------
@@ -1876,8 +2079,18 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
 
     def get_opd(self, wave):
         opd = np.zeros(wave.shape, dtype=_float())
-        for optic in self.opticslist:
-            opd += optic.get_opd(wave)
+
+        if self.mergemode == 'and':
+            for optic in self.opticslist:
+                opd += optic.get_opd(wave)
+        elif self.mergemode == "or":
+            for optic in self.opticslist:
+                # spatially disjoint optics; each only contributes OPD to where it has nonzero transmission.
+                trans = optic.get_transmission(wave)
+                opd[trans != 0] += optic.get_opd(wave)[trans != 0]
+        else:
+            raise ValueError("mergemode must be either 'and' or 'or'.")
+
         self.opd = opd
         return self.opd
 

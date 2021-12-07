@@ -4,9 +4,9 @@ Efficient Lyot coronagraph propagation
 
 
 Poppy has extensive functionality to faciliate the modeling of coronagraph point spread functions. In addition to the general summary of those capabilities here, see the examples in the notebooks subdirectory:
-`POPPY Examples <https://github.com/spacetelescope/poppy/blob/master/notebooks/POPPY%20Examples.ipynb>`_
+`POPPY Examples <https://github.com/spacetelescope/poppy/blob/stable/notebooks/POPPY%20Examples.ipynb>`_
 and
-`MatrixFTCoronagraph_demo <https://github.com/spacetelescope/poppy/blob/master/notebooks/MatrixFTCoronagraph_demo.ipynb>`_.
+`MatrixFTCoronagraph_demo <https://github.com/spacetelescope/poppy/blob/stable/notebooks/MatrixFTCoronagraph_demo.ipynb>`_.
 
 Introduction
 --------------

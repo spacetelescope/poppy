@@ -34,7 +34,7 @@ pass
 #
 #    psf = osys.calc_psf(wavelength=1.0e-6)
 #
-#    utils.display_PSF(psf)
+#    utils.display_psf(psf)
 #
 #    # we need to be a little careful here due to floating point math comparision equality issues...
 #    # Can't just do a strict equality

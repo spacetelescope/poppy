@@ -9,15 +9,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.interpolate
 import scipy.ndimage
-import warnings
 
 try:
-    import pysynphot
-
-    _HAS_PYSYNPHOT = True
+    import synphot
+    _HAS_SYNPHOT = True
 except ImportError:
-    pysynphot = None
-    _HAS_PYSYNPHOT = False
+    synphot = None
+    _HAS_SYNPHOT = False
 
 from . import poppy_core
 from . import optics
@@ -35,7 +33,7 @@ class Instrument(object):
     """ A generic astronomical instrument, composed of
         (1) an optical system implemented using POPPY, optionally with several configurations such as
             selectable image plane or pupil plane stops, and
-        (2) some defined spectral bandpass(es) such as selectable filters, implemented using pysynphot.
+        (2) some defined spectral bandpass(es) such as selectable filters, implemented using synphot.
 
     This provides the capability to model both the optical and spectral responses of a given system.
     PSFs may be calculated for given source
@@ -53,7 +51,7 @@ class Instrument(object):
 
     You will at a minimum want to override the following class methods:
 
-        * _get_optical_system
+        * get_optical_system
         * _get_filter_list
         * _get_default_nlambda
         * _get_default_fov
@@ -92,7 +90,7 @@ class Instrument(object):
         Type of jitter model to apply. Currently only convolution with a Gaussian kernel of specified
         width `jitter_sigma` is implemented. (default: None)
     jitter_sigma : float
-        Width of the jitter kernel in arcseconds (default: 0.007 arcsec)
+        Width of the jitter kernel in arcseconds per axis (default: 0.007 arcsec)
     parity : string "even" or "odd"
         You may wish to ensure that the output PSF grid has either an odd or even number of pixels.
         Setting this option will force that to be the case by increasing npix by one if necessary.
@@ -114,7 +112,7 @@ class Instrument(object):
         # wrapped just below to create properties with validation.
         self._filter = None
         self._rotation = None
-        # for caching pysynphot results.
+        # for caching synphot results.
         self._spectra_cache = {}
         self.filter = self.filter_list[0]
 
@@ -162,7 +160,7 @@ class Instrument(object):
 
         Parameters
         ----------
-        source : pysynphot.SourceSpectrum or dict
+        source : synphot.spectrum.SourceSpectrum or dict
             specification of source input spectrum. Default is a 5700 K sunlike star.
         nlambda : int
             How many wavelengths to model for broadband?
@@ -200,7 +198,7 @@ class Instrument(object):
 
 
         """
-        local_options = self.options  # all local state should be stored in a dict, for
+        local_options = self.options.copy()  # all local state should be stored in a dict, for
         # ease of handing off to the various subroutines of
         # calc_psf. Don't just modify the global self.options
         # structure since that would pollute it with temporary
@@ -498,7 +496,7 @@ class Instrument(object):
         """
         pass
 
-    def _get_optical_system(self, fft_oversample=2, detector_oversample=None, fov_arcsec=2, fov_pixels=None,
+    def get_optical_system(self, fft_oversample=2, detector_oversample=None, fov_arcsec=2, fov_pixels=None,
                             options=None):
         """ Return an OpticalSystem instance corresponding to the instrument as currently configured.
 
@@ -569,7 +567,7 @@ class Instrument(object):
             if os.path.exists(self.pupil):
                 full_pupil_path = self.pupil
             else:
-                raise IOError("File not found: " + full_pupil_path)
+                raise IOError("File not found: " + self.pupil)
         elif isinstance(self.pupil, fits.HDUList):  # pupil supplied as FITS HDUList object
             full_pupil_path = self.pupil
         else:
@@ -615,13 +613,17 @@ class Instrument(object):
 
         return optsys
 
-    def get_optical_system(self, *args, **kwargs):
+    def _get_optical_system(self, *args, **kwargs):
         """ Return an OpticalSystem instance corresponding to the instrument as currently configured.
 
         """
         # Note, this has historically been an internal private API function (starting with an underscore)
         # As of version 0.9 it is promoted to a public part of the API for the Instrument class and subclasses.
-        return self._get_optical_system(*args, **kwargs)
+        # Here we ensure the prior version works, back compatibly.
+        import warnings
+        warnings.warn("_get_optical_system is deprecated; use get_optical_system (without leading underscore) instead.",
+                      DeprecationWarning)
+        return self.get_optical_system(*args, **kwargs)
 
     def _check_for_aliasing(self, wavelengths):
         """ Check for spatial frequency aliasing and warn if the
@@ -693,7 +695,7 @@ class Instrument(object):
 
         The key configuration argument is options['jitter'] which defines the type of jitter.
         If this is the string 'gaussian', then a Gaussian blurring kernel will be applied, the
-        amount of the blur is taken from the options['jitter_sigma'] value.
+        amount of the blur is taken from the options['jitter_sigma'] value (arcsec per axis).
 
         Other types of jitter are not yet implemented.
 
@@ -705,7 +707,7 @@ class Instrument(object):
             result[0].header['JITRTYPE'] = ('None', 'Type of jitter applied')
             return
 
-        if conf.enable_speed_tests: t0 = time.time()
+        if conf.enable_speed_tests: t0 = time.time()  # pragma: no cover
 
         poppy_core._log.info("Calculating jitter using " + str(local_options['jitter']))
 
@@ -718,7 +720,7 @@ class Instrument(object):
             if sigma is None:
                 poppy_core._log.warning(
                     "Gaussian jitter model requested, but no width for jitter distribution specified. " +
-                    "Assuming jitter_sigma = 0.007 arcsec by default")
+                    "Assuming jitter_sigma = 0.007 arcsec per axis by default")
                 sigma = 0.007
 
             # that will be in arcseconds, we need to convert to pixels:
@@ -738,7 +740,7 @@ class Instrument(object):
         else:
             raise ValueError('Unknown jitter option value: ' + local_options['jitter'])
 
-        if conf.enable_speed_tests:
+        if conf.enable_speed_tests: # pragma: no cover
             t1 = time.time()
             _log.debug("\tTIME %f s\t for jitter model" % (t1 - t0))
 
@@ -772,10 +774,13 @@ class Instrument(object):
         """ return key for the cache of precomputed spectral weightings.
         This is a separate function so the TFI subclass can override it.
         """
-        return self.filter, source.name, nlambda
+        name = source.meta.get('name')
+        if not name:
+            name = source.meta['expr']
+        return self.filter, name, nlambda
 
     def _get_synphot_bandpass(self, filtername):
-        """ Return a pysynphot.ObsBandpass object for the given desired band.
+        """ Return a synphot.spectrum.SpectralElement object for the given desired band.
 
         By subclassing this, you can define whatever custom bandpasses are appropriate for your instrument
 
@@ -786,22 +791,18 @@ class Instrument(object):
 
         Returns
         --------
-        a pysynphot.ObsBandpass object for that filter.
+        a synphot.spectrum.ObservationSpectralElement object for that filter.
 
         """
-        if not _HAS_PYSYNPHOT:
-            raise RuntimeError("PySynphot not found")
+        if not _HAS_SYNPHOT:
+            raise RuntimeError("synphot not found")
 
-        if filtername.lower().startswith('f'):
-            # attempt to treat it as an HST filter name?
-            bpname = ('wfc3,uvis1,{}'.format(filtername)).lower()
-        else:
-            bpname = self._synphot_bandpasses[filtername]
+        bpname = self._synphot_bandpasses[filtername]
 
         try:
-            band = pysynphot.ObsBandpass(bpname)
-        except ValueError:
-            raise LookupError("Don't know how to compute pysynphot.ObsBandpass for a filter named " + bpname)
+            band = synphot.spectrum.SpectralElement.from_filter(bpname)
+        except Exception:
+            raise LookupError("Don't know how to compute bandpass for a filter named " + bpname)
 
         return band
 
@@ -814,30 +815,30 @@ class Instrument(object):
         return 5
 
     def _get_filter_list(self):
-        """ Returns a list of allowable filters, and the corresponding pysynphot ObsBandpass strings
+        """ Returns a list of allowable filters, and the corresponding synphot obsmode
         for each.
 
-        If you need to define bandpasses that are not already available in pysynphot, consider subclassing
-        _getSynphotBandpass instead to create a pysynphot spectrum based on data read from disk, etc.
+        If you need to define bandpasses that are not already available in synphot, consider subclassing
+        _getSynphotBandpass instead to create a synphot spectrum based on data read from disk, etc.
 
         Returns
         --------
         filterlist : list
             List of string filter names
         bandpasslist : dict
-            dictionary of string names for use by pysynphot
+            dictionary of string names for use by synphot
 
         This could probably be folded into one using an OrderdDict. FIXME do that later
 
         """
 
-        filterlist = ['B', 'I', 'R', 'U', 'V']
+        filterlist = ['U', 'B', 'V', 'R', 'I']
         bandpasslist = {
-            'B': 'johnson,b',
-            'I': 'johnson,i',
-            'R': 'johnson,r',
-            'U': 'johnson,u',
-            'V': 'johnson,v',
+            'U': 'johnson_u',
+            'B': 'johnson_b',
+            'V': 'johnson_v',
+            'R': 'johnson_r',
+            'I': 'johnson_i',
         }
 
         return filterlist, bandpasslist
@@ -848,7 +849,7 @@ class Instrument(object):
         """ Return the set of discrete wavelengths, and weights for each wavelength,
         that should be used for a PSF calculation.
 
-        Uses pysynphot (if installed), otherwise assumes simple-minded flat spectrum
+        Uses synphot (if installed), otherwise assumes simple-minded flat spectrum
 
         """
         if nlambda is None or nlambda == 0:
@@ -856,19 +857,23 @@ class Instrument(object):
 
         if monochromatic is not None:
             poppy_core._log.info("Monochromatic calculation requested.")
-            return (np.asarray([monochromatic]), np.asarray([1]))
+            monochromatic_wavelen_meters = monochromatic.to_value(units.meter) if isinstance(monochromatic, units.Quantity) else monochromatic
+            return (np.asarray([monochromatic_wavelen_meters]), np.asarray([1]))
 
-        elif _HAS_PYSYNPHOT and (isinstance(source, pysynphot.spectrum.SourceSpectrum) or source is None):
-            """ Given a pysynphot.SourceSpectrum object, perform synthetic photometry for
+        elif _HAS_SYNPHOT and (isinstance(source, synphot.SourceSpectrum) or source is None):
+            """ Given a synphot.SourceSpectrum object, perform synthetic photometry for
             nlambda bins spanning the wavelength range of interest.
 
             Because this calculation is kind of slow, cache results for reuse in the frequent
             case where one is computing many PSFs for the same spectral source.
             """
+            from synphot import SpectralElement, Observation
+            from synphot.models import Box1D, BlackBodyNorm1D, Empirical1D
+
             poppy_core._log.debug(
-                "Calculating spectral weights using pysynphot, nlambda=%d, source=%s" % (nlambda, str(source)))
+                "Calculating spectral weights using synphot, nlambda=%d, source=%s" % (nlambda, str(source)))
             if source is None:
-                source = pysynphot.BlackBody(5700)
+                source = synphot.SourceSpectrum(BlackBodyNorm1D, temperature=5700 * units.K)
                 poppy_core._log.info("No source spectrum supplied, therefore defaulting to 5700 K blackbody")
             poppy_core._log.debug("Computing spectral weights for source = " + str(source))
 
@@ -882,38 +887,54 @@ class Instrument(object):
 
             poppy_core._log.info("Computing wavelength weights using synthetic photometry for %s..." % self.filter)
             band = self._get_synphot_bandpass(self.filter)
-            # choose reasonable min and max wavelengths
-            w_above10 = np.where(band.throughput > 0.10 * band.throughput.max())
+            band_wave = band.waveset
+            band_thru = band(band_wave)
 
-            minwave = band.wave[w_above10].min()
-            maxwave = band.wave[w_above10].max()
-            poppy_core._log.debug("Min, max wavelengths = %f, %f" % (minwave / 1e4, maxwave / 1e4))
+            # Update source to ensure that it covers the entire filter
+            if band_wave.value.min() < source.waveset.value.min() or \
+                    band_wave.value.max() > source.waveset.value.max():
+                source_meta = source.meta
+                wave, wave_str = synphot.utils.generate_wavelengths(band_wave.value.min(), band_wave.value.max(),
+                                                                    wave_unit=units.angstrom, log=False)
+                source = synphot.SourceSpectrum(Empirical1D, points=wave, lookup_table=source(wave))
+                source.meta.update(source_meta)
+
+            # choose reasonable min and max wavelengths
+            w_above10 = (band_thru > 0.10 * band_thru.max())
+
+            minwave = band_wave[w_above10].min()
+            maxwave = band_wave[w_above10].max()
+            poppy_core._log.debug("Min, max wavelengths = %f, %f" % (
+                minwave.to_value(units.micron), maxwave.to_value(units.micron)))
 
             wave_bin_edges = np.linspace(minwave, maxwave, nlambda + 1)
             wavesteps = (wave_bin_edges[:-1] + wave_bin_edges[1:]) / 2
             deltawave = wave_bin_edges[1] - wave_bin_edges[0]
+            area = 1 * (units.m * units.m)
             effstims = []
 
             for wave in wavesteps:
                 poppy_core._log.debug(
-                    "Integrating across band centered at %.2f microns with width %.2f" % (wave / 1e4, deltawave / 1e4))
-                box = pysynphot.Box(wave, deltawave) * band
-                if box.throughput.max() == 0:
+                    f"Integrating across band centered at {wave.to(units.micron):.2f} "
+                    f"with width {deltawave.to(units.micron):.2f}")
+                box = SpectralElement(Box1D, amplitude=1, x_0=wave, width=deltawave) * band
+                if box.tpeak() == 0:
                     # watch out for pathological cases with no overlap (happens with MIRI FND at high nlambda)
                     result = 0.0
                 else:
                     binset = np.linspace(wave - deltawave, wave + deltawave,
                                          30)  # what wavelens to use when integrating across the sub-band?
-                    result = pysynphot.Observation(source, box, binset=binset).effstim('counts')
+                    binset = binset[binset >= 0]  # remove any negative values
+                    result = Observation(source, box, binset=binset).effstim('count', area=area)
                 effstims.append(result)
 
-            effstims = np.array(effstims)
-            effstims /= effstims.sum()
-            wave_m = band.waveunits.Convert(wavesteps, 'm')  # convert to meters
+            effstims = units.Quantity(effstims)
+            effstims /= effstims.sum()  # Normalized count rate is unitless
+            wave_m = wavesteps.to_value(units.m)  # convert to meters
 
-            newsource = (wave_m, effstims)
+            newsource = (wave_m, effstims.to_value())
             if verbose:
-                _log.info(" Wavelengths and weights computed from pysynphot: " + str(newsource))
+                _log.info(" Wavelengths and weights computed from synphot: " + str(newsource))
             self._spectra_cache[self._get_spec_cache_key(source, nlambda)] = newsource
             return newsource
         elif isinstance(source, dict) and ('wavelengths' in source) and ('weights' in source):
@@ -923,14 +944,14 @@ class Instrument(object):
             # Allow user to provide directly a tuple, as in poppy.calc_psf source option #3
             return source
 
-        else:  # Fallback simple code for if we don't have pysynphot.
+        else:  # Fallback simple code for if we don't have synphot.
             poppy_core._log.warning(
-                "Pysynphot unavailable (or invalid source supplied)!   Assuming flat # of counts versus wavelength.")
+                "synphot unavailable (or invalid source supplied)! Assuming flat # of counts versus wavelength.")
             # compute a source spectrum weighted by the desired filter curves.
-            # The existing FITS files all have wavelength in ANGSTROMS since that is the pysynphot convention...
+            # The existing FITS files all have wavelength in ANGSTROMS since that is the synphot convention...
             filterfile = self._filters[self.filter].filename
-            filterfits = fits.open(filterfile)
-            filterdata = filterfits[1].data
+            filterheader = fits.getheader(filterfile, 1)
+            filterdata = fits.getdata(filterfile, 1)
             try:
                 wavelengths = filterdata.WAVELENGTH.astype('=f8')
                 throughputs = filterdata.THROUGHPUT.astype('=f8')
@@ -938,12 +959,12 @@ class Instrument(object):
                 raise ValueError(
                     "The supplied file, {0}, does not appear to be a FITS table with WAVELENGTH and " +
                     "THROUGHPUT columns.".format(filterfile))
-            if 'WAVEUNIT' in filterfits[1].header:
-                waveunit = filterfits[1].header['WAVEUNIT'].lower()
+            if 'WAVEUNIT' in filterheader:
+                waveunit = filterheader['WAVEUNIT'].lower()
                 if re.match(r'[Aa]ngstroms?', waveunit) is None:
                     raise ValueError(
                         "The supplied file, {0}, has WAVEUNIT='{1}'. Only WAVEUNIT = Angstrom supported " +
-                        "when Pysynphot is not installed.".format(filterfile, waveunit))
+                        "when synphot is not installed.".format(filterfile, waveunit))
             else:
                 waveunit = 'Angstrom'
                 poppy_core._log.warning(
@@ -952,13 +973,12 @@ class Instrument(object):
 
             poppy_core._log.warning(
                 "CAUTION: Just interpolating rather than integrating filter profile, over {0} steps".format(nlambda))
-            wtrans = np.where(throughputs > 0.4)
-            lrange = wavelengths[wtrans] * 1e-10  # convert from Angstroms to Meters
+            wavelengths = wavelengths * units.Unit(waveunit)
+            lrange = wavelengths[throughputs > 0.4].to_value(units.m)  # convert from Angstroms to Meters
             # get evenly spaced points within the range of allowed lambdas, centered on each bin
             lambd = np.linspace(np.min(lrange), np.max(lrange), nlambda, endpoint=False) + (
                     np.max(lrange) - np.min(lrange)) / (2 * nlambda)
-            filter_fn = scipy.interpolate.interp1d(wavelengths * 1e-10, throughputs, kind='cubic',
+            filter_fn = scipy.interpolate.interp1d(wavelengths.to_value(units.m), throughputs, kind='cubic',
                                                    bounds_error=False)
             weights = filter_fn(lambd)
-            filterfits.close()
             return lambd, weights

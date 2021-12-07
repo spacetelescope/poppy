@@ -57,6 +57,19 @@ def test_scalar_transmission():
         assert( np.all(optic.get_phasor(wave) == transmission))
 
 
+def test_scalar_opd():
+    """ Verify this adjusts the wavefront intensity appropriately """
+    wave = poppy_core.Wavefront(npix=100, wavelength=wavelength)
+
+    for opd in [1.0*u.micron, 1.0e-7*u.m, 0.0*u.m]:
+
+        optic = optics.ScalarOpticalPathDifference(opd=opd)
+        assert np.all(optic.get_opd(wave) == opd.to_value(u.m)), "OPD value not as expected"
+
+    # Also test with bare floats, which should be interpreted as meters
+    optic = optics.ScalarOpticalPathDifference(opd=2e-6)
+    assert np.all(optic.get_opd(wave) == 2e-6), "OPD value not as expected"
+
 
 def test_roundtrip_through_FITS():
     """ Verify we can make an analytic element, turn it into a FITS file and back,
@@ -92,6 +105,12 @@ def test_shifting_optics( npix=30,  grid_size = 3, display=False):
     if display:
         plt.imshow(circ_samp-circ_shift_samp)
     assert np.allclose(circ_samp, circ_shift_samp) is False, "Shift didn't change array"
+
+    # create shifted version, using explicit units rather than implicitly in meters.
+    # Verify that gives the same result as without explicit units
+    circ_shift_via_units = poppy.CircularAperture( shift_x=shift_size*1000*u.millimeter)
+    circ_shift_via_units_samp = circ_shift_via_units.sample(npix=npix, grid_size=grid_size)
+    assert np.allclose(circ_shift_samp, circ_shift_via_units_samp), "Shift with value as Quantity didn't give same result as shift with value as bare float in meters"
 
     # Make a FITS element.
     circ_fits = circ.to_fits(npix=npix, grid_size=grid_size)
@@ -416,7 +435,7 @@ def test_ObscuredCircularAperture_Airy(display=False):
         pl.title("Analytic")
         pl.subplot(142)
         #ax2=pl.imshow(numeric[0].data, norm=norm)
-        utils.display_PSF(numeric, vmin=1e-6, vmax=1e-2, colorbar=False)
+        utils.display_psf(numeric, vmin=1e-6, vmax=1e-2, colorbar=False)
         pl.title("Numeric")
         pl.subplot(143)
         ax2=pl.imshow(numeric[0].data-analytic, norm=norm)
@@ -457,9 +476,9 @@ def test_CompoundAnalyticOptic(display=False):
         from poppy import utils
         plt.figure()
         plt.subplot(1, 2, 1)
-        utils.display_PSF(psf_separate, title='From Separate Optics (and)')
+        utils.display_psf(psf_separate, title='From Separate Optics (and)')
         plt.subplot(1, 2, 2)
-        utils.display_PSF(psf_compound, title='From Compound Optics (and)')
+        utils.display_psf(psf_compound, title='From Compound Optics (and)')
 
     difference = psf_compound[0].data - psf_separate[0].data
 
@@ -504,9 +523,9 @@ def test_CompoundAnalyticOptic(display=False):
         plt.figure()
         ints_compound[0].display(title='Compound wave[0] (or)')
         plt.figure()
-        utils.display_PSF(psf_separate, title='From Separate Optics (or)')
+        utils.display_psf(psf_separate, title='From Separate Optics (or)')
         plt.figure()
-        utils.display_PSF(psf_compound, title='From Compound Optics (or)')
+        utils.display_psf(psf_compound, title='From Compound Optics (or)')
 
     #check transmission of OpticalElement objects
     # PASSES commit 1e4709b
@@ -560,7 +579,7 @@ def test_AsymmetricObscuredAperture(display=False):
         #norm = LogNorm(vmin=1e-6, vmax=1e-2)
 
         #ax2=pl.imshow(numeric[0].data, norm=norm)
-        utils.display_PSF(numeric, vmin=1e-8, vmax=1e-2, colorbar=False)
+        utils.display_psf(numeric, vmin=1e-8, vmax=1e-2, colorbar=False)
         #pl.title("Numeric")
 
 def test_GaussianAperture(display=False):
@@ -598,6 +617,10 @@ def test_GaussianAperture(display=False):
 
 
 def test_ThinLens(display=False):
+    """ Test that a +0.5 wave lens creates +0.5 waves of OPD
+
+
+    """
     pupil_radius = 1
 
     # let's add < 1 wave here so we don't have to worry about wrapping
@@ -611,21 +634,21 @@ def test_ThinLens(display=False):
 
     # Now test the values at some precisely chosen pixels
     y, x = wave.coordinates()
-    at_radius = np.where((x==1) & (y==0))
-    assert np.allclose(wave.phase[at_radius], -np.pi/2), "Didn't get -1/2 wave OPD at edge of optic"
+    at_radius = ((x==1) & (y==0))
+    assert np.allclose(wave.phase[at_radius], np.pi/2), "Didn't get 1/2 wave OPD at edge of optic"
     assert len(at_radius[0]) > 0, "Array indices messed up - need to have a pixel at exactly (1,0)"
 
-    at_radius = np.where((x==0) & (y==1))
-    assert np.allclose(wave.phase[at_radius], -np.pi/2), "Didn't get -1/2 wave OPD at edge of optic"
+    at_radius = ((x==0) & (y==1))
+    assert np.allclose(wave.phase[at_radius], np.pi/2), "Didn't get 1/2 wave OPD at edge of optic"
     assert len(at_radius[0]) > 0, "Array indices messed up - need to have a pixel at exactly (0,1)"
 
 
-    at_center = np.where((x==0) & (y==0))
-    assert np.allclose(wave.phase[at_center], np.pi/2), "Didn't get 1/2 wave OPD at center of optic"
+    at_center = ((x==0) & (y==0))
+    assert np.allclose(wave.phase[at_center], -np.pi/2), "Didn't get -1/2 wave OPD at center of optic"
     assert len(at_radius[0]) > 0, "Array indices messed up - need to have a pixel at exactly (0,0)"
 
     # TODO test intermediate pixel values between center and edge?
-
+    #   OK - This is now tested in test_sign_conventions.test_lens_wfe_sign
 
     # regression test to ensure null optical elements don't change ThinLens behavior
     # see https://github.com/mperrin/poppy/issues/14
@@ -650,8 +673,8 @@ def test_ThinLens(display=False):
 
     if display:
         import poppy
-        poppy.display_PSF(psf)
-        poppy.display_PSF(psf2)
+        poppy.display_psf(psf)
+        poppy.display_psf(psf2)
 
     assert np.allclose(psf[0].data,psf2[0].data), (
         "ThinLens shouldn't be affected by null optical elements! Introducing extra image planes "

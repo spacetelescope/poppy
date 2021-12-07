@@ -38,7 +38,8 @@ from functools import lru_cache
 
 __all__ = [
     'R', 'cached_zernike1', 'hex_aperture', 'hexike_basis', 'noll_indices',
-    'opd_expand', 'opd_expand_nonorthonormal', 'opd_expand_segments', 'opd_from_zernikes',
+    'decompose_opd', 'decompose_opd_nonorthonormal_basis', 'decompose_opd_segments', 'compose_opd_from_basis',
+    'opd_expand', 'opd_expand_nonorthonormal', 'opd_expand_segments', 'opd_from_zernikes', # back compatibility aliases
     'str_zernike', 'zern_name', 'zernike', 'zernike1', 'zernike_basis',
     'Segment_Piston_Basis','Segment_PTT_Basis', 'arbitrary_basis'
 ]
@@ -245,8 +246,7 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
     if not np.all(rho.shape == theta.shape):
         raise ValueError('The rho and theta arrays do not have consistent shape.')
 
-    aperture = np.ones(rho.shape)
-    aperture[np.where(rho > 1)] = 0.0  # this is the aperture mask
+    aperture = (rho <= 1)
 
     if m == 0:
         if n == 0:
@@ -261,7 +261,7 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
         norm_coeff = np.sqrt(2) * np.sqrt(n + 1) if noll_normalize else 1
         zernike_result = norm_coeff * R(n, m, rho) * np.sin(np.abs(m) * theta) * aperture
 
-    zernike_result[np.where(rho > 1)] = outside
+    zernike_result[(rho > 1)] = outside
     return zernike_result
 
 
@@ -489,9 +489,9 @@ def hex_aperture(npix=1024, rho=None, theta=None, vertical=False, outside=0):
     absy = np.abs(y)
 
     aperture = np.full(x.shape, outside)
-    w_rect = np.where((np.abs(x) <= 0.5) & (np.abs(y) <= np.sqrt(3) / 2))
-    w_left_tri = np.where((x <= -0.5) & (x >= -1) & (absy <= (x + 1) * np.sqrt(3)))
-    w_right_tri = np.where((x >= 0.5) & (x <= 1) & (absy <= (1 - x) * np.sqrt(3)))
+    w_rect = ((np.abs(x) <= 0.5) & (np.abs(y) <= np.sqrt(3) / 2))
+    w_left_tri = ((x <= -0.5) & (x >= -1) & (absy <= (x + 1) * np.sqrt(3)))
+    w_right_tri = ((x >= 0.5) & (x <= 1) & (absy <= (1 - x) * np.sqrt(3)))
     aperture[w_rect] = 1
     aperture[w_left_tri] = 1
     aperture[w_right_tri] = 1
@@ -618,6 +618,12 @@ def hexike_basis_wss(nterms=9, npix=512, rho=None, theta=None,
     are not actually used in the WSS.
     This function has an attributed hexike_basis_wss.label_strings for
     convenient use in plot labeling.
+
+    Historical note on ordering: The reordering here relative to the more typical
+    ordering of Zernikes is motivated by moving spherical to position 9, and using
+    just the first 8 for JWST. This is because focus and spherical are not orthogonal
+    when in hexike versions on the JWST aperture, so "spherical was booted out of the picture"
+
 
 
     Parameters
@@ -829,7 +835,7 @@ class Segment_PTT_Basis(object):
         the MultiHexagonAperture class. Set that when creating
         an instance of this class, then you can call the resulting function object
         to generate a basis set with the desired sampling, or pass it to
-        the opd_from_zernikes or opd_expand_segments functions.
+        the compse_opd_from_basis or decompse_opd_segments functions.
 
         The basis is generated over a square array that exactly circumscribes
         the hexagonal aperture.
@@ -942,15 +948,15 @@ class Segment_Piston_Basis(Segment_PTT_Basis):
         return basis[0:nterms]
 
 
-def opd_expand(opd, aperture=None, nterms=15, basis=zernike_basis,
-               **kwargs):
+def decompose_opd(opd, aperture=None, nterms=15, basis=zernike_basis,
+                  **kwargs):
     """Given a wavefront OPD map, return the list of coefficients in a
     given basis set (by default, Zernikes) that best fit the OPD map.
 
     Note that this implementation of the function treats the Zernikes as
     an orthonormal basis, which is only true on the unobscured unit circle.
-    See also `opd_expand_nonorthonormal` for an alternative approach for
-    basis vectors that are not orthonormal, or `opd_expand_segments` for
+    See also `decompose_opd_nonorthonormal` for an alternative approach for
+    basis vectors that are not orthonormal, or `decompose_opd_segments` for
     basis vectors defined over physically disjoint segments.
 
     Parameters
@@ -980,7 +986,7 @@ def opd_expand(opd, aperture=None, nterms=15, basis=zernike_basis,
     Note: Recovering coefficients used to generate synthetic/test data
     depends greatly on the sampling (as one might expect). Generating
     test data using zernike_basis with npix=256 and passing the result
-    through opd_expand reproduces the input coefficients within <0.1%.
+    through decompose_opd reproduces the input coefficients within <0.1%.
 
     Returns
     -------
@@ -1009,18 +1015,17 @@ def opd_expand(opd, aperture=None, nterms=15, basis=zernike_basis,
         **kwargs
     )
 
-    wgood = np.where(apmask)
     ngood = apmask.sum()
 
-    coeffs = [(opd * b)[wgood].sum() / ngood
+    coeffs = [(opd * b)[apmask].sum() / ngood
               for b in basis_set]
 
     return coeffs
 
 
-def opd_expand_nonorthonormal(opd, aperture=None, nterms=15, basis=zernike_basis_faster,
-                              iterations=5, verbose=False, **kwargs):
-    """ Modified version of opd_expand, for cases where the basis function is
+def decompose_opd_nonorthonormal_basis(opd, aperture=None, nterms=15, basis=zernike_basis_faster,
+                                       iterations=5, verbose=False, **kwargs):
+    """ Modified version of decompose_opd, for cases where the basis function is
     *not* orthonormal, for instance using the regular Zernike functions on
     obscured apertures.
 
@@ -1083,7 +1088,7 @@ def opd_expand_nonorthonormal(opd, aperture=None, nterms=15, basis=zernike_basis
         **kwargs
     )
 
-    wgood = np.where(apmask & np.isfinite(basis_set[1]))
+    wgood = (apmask & np.isfinite(basis_set[1]))
     ngood = apmask.sum()
 
     coeffs = np.zeros(nterms)
@@ -1100,8 +1105,8 @@ def opd_expand_nonorthonormal(opd, aperture=None, nterms=15, basis=zernike_basis
     return coeffs
 
 
-def opd_from_zernikes(coeffs, basis=zernike_basis_faster, aperture=None, outside=np.nan,
-                      **kwargs):
+def compose_opd_from_basis(coeffs, basis=zernike_basis_faster, aperture=None, outside=np.nan,
+                           **kwargs):
     """ Synthesize an OPD from a set of coefficients
 
     Parameters
@@ -1127,7 +1132,7 @@ def opd_from_zernikes(coeffs, basis=zernike_basis_faster, aperture=None, outside
 
     Example
     --------
-    opd = opd_from_zernikes([0,0,-5,1,0,4,0,8], npix=512)
+    opd = compose_opd_from_basis([0,0,-5,1,0,4,0,8], npix=512)
 
     """
 
@@ -1153,10 +1158,8 @@ def opd_from_zernikes(coeffs, basis=zernike_basis_faster, aperture=None, outside
     constant_support =  np.allclose(np.isfinite(basis_set[0]), np.isfinite(basis_set[-1]))
 
     if constant_support:
-        # we can just sum the whole arrays
-        for i, b in enumerate(basis_set):
-            if coeffs[i] != 0:
-                output += coeffs[i] * b
+        # we can just sum the whole arrays using an Einstein sum
+        output = np.einsum('i,ijk->jk', coeffs, basis_set)
     else:
         # we have to use different good pixel areas per each basis element
         for i, b in enumerate(basis_set):
@@ -1174,12 +1177,12 @@ def opd_from_zernikes(coeffs, basis=zernike_basis_faster, aperture=None, outside
     return output
 
 
-def opd_expand_segments(opd, aperture=None, nterms=15, basis=None,
-                              iterations=2, verbose=False, ignore_border=None, **kwargs):
+def decompose_opd_segments(opd, aperture=None, nterms=15, basis=None,
+                           iterations=2, verbose=False, ignore_border=None, **kwargs):
     """
     Expand OPD into a basis defined by segments, typically with piston, tip, & tilt of each.
 
-    Similar algorithm as opd_expand_nonorthonormal, but adjusted slightly for
+    Similar algorithm as decompose_opd_nonorthonormal, but adjusted slightly for
     spatially disjoint basis vectors, and also for different expected normalization
     of the piston and tip/tilt basis terms.
 
@@ -1274,3 +1277,9 @@ def opd_expand_segments(opd, aperture=None, nterms=15, basis=None,
         if verbose:
             print("Iteration {}/{}: {}".format(count, iterations, coeffs))
     return coeffs
+
+# Back compatibility aliases, for the names in poppy pre 1.0:
+opd_expand = decompose_opd
+opd_expand_nonorthonormal = decompose_opd_nonorthonormal_basis
+opd_expand_segments = decompose_opd_segments
+opd_from_zernikes = compose_opd_from_basis

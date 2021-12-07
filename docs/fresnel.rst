@@ -29,7 +29,7 @@ poppy. There are :class:`~poppy.FresnelWavefront` and :class:`~poppy.FresnelOpti
 be used for the most part similar to the :class:`~poppy.Wavefront` and :class:`~poppy.OpticalSystem` classes.
 
 Users are encouraged to consult the Jupyter notebook `Fresnel_Propagation_Demo
-<https://github.com/spacetelescope/poppy/blob/master/notebooks/Fresnel_Propagation_Demo.ipynb>`_
+<https://github.com/spacetelescope/poppy/blob/develop/notebooks/Fresnel_Propagation_Demo.ipynb>`_
 for examples of how to use the Fresnel code.
 
 Key Differences from Fraunhofer mode
@@ -95,14 +95,14 @@ Example Jupyter Notebooks
 
    For more details and examples of code usage, consult the Jupyter
    notebook `Fresnel_Propagation_Demo
-   <https://github.com/spacetelescope/poppy/blob/master/notebooks/Fresnel_Propagation_Demo.ipynb>`_.
+   <https://github.com/spacetelescope/poppy/blob/stable/notebooks/Fresnel_Propagation_Demo.ipynb>`_.
    In addition to details on code usage, this includes a worked example of
    a Fresnel model of the Hubble Space Telescope.
 
 .. admonition:: A non-astronomical example
 
     A worked example of a compound microscope in POPPY is available
-    `here <https://github.com/douglase/poppy_example_notebooks/blob/master/Fresnel/Microscope_Example.ipynb>`_,
+    `here <https://github.com/douglase/poppy_example_notebooks/blob/develop/Fresnel/Microscope_Example.ipynb>`_,
     reproducing the microscope example case provided in the PROPER manual.
 
 Fresnel calculations with Physical units
@@ -114,7 +114,7 @@ total intensity (power).  This code was developed and contributed by `Phillip
 Springer <https://github.com/DaPhil>`_.
 
 See `this notebook
-<https://github.com/spacetelescope/poppy/blob/master/notebooks/Physical%20Units%20Demo.ipynb>`_
+<https://github.com/spacetelescope/poppy/blob/develop/notebooks/Physical%20Units%20Demo.ipynb>`_
 for examples and further discussion.
 
 
