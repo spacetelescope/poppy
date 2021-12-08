@@ -35,7 +35,7 @@ This is a major release with significant enhancements and changes, in particular
 
 
 **API Changes:**
-  * Several functions in the Zernike module were renamed for clarity, in particular the prior `opd_expand` is now :py:func:`~poppy.zernike.decompose_opd`, and `opd_from_zernikes` is now :py:func:`~poppy.zernike.compose_opd_from_basis`.
+  * Several functions in the Zernike module were renamed for clarity, in particular the prior ``opd_expand`` is now :py:func:`~poppy.zernike.decompose_opd`, and ``opd_from_zernikes`` is now :py:func:`~poppy.zernike.compose_opd_from_basis`.
     The prior function names also continue to work as aliases for backwards compatibility.  (:pr:`471` by :user:`mperrin`)
 
 **New Functionality:**
@@ -51,7 +51,7 @@ This is a major release with significant enhancements and changes, in particular
  * Various performance enhancements in FFTs, array rotations, zero padding, and array indexing in certain cases (:pr:`394`, :pr:`398`, :pr:`411`, :pr:`413` by :user:`mperrin`)
  * Bug fix to a sign inconsistency in wavefront rotation: While the documentation states that positive rotations are counterclockwise, the code had the other sign. Updated code to match the documented behavior, which also matches the rotation convention for optical elements. (:pr:`411` by :user:`mperrin`)
  * More robust algorithm for offset sources in optical systems with coordinate rotations and inversions (:pr:`420` by :user:`mperrin`). This ensures the correct sign of tilt is applied in the entrance pupil plane to achieve the requested source position in the output image plane.
- * Added `inwave=` parameter to `calc_psf` and related functions, for both Fresnel and Fraunhofer propagation types, to allow providing a custom input wavefront, for instance the output of some prior upstream calculation. If provided, this is used instead of the default input wavefront (a plane wave of uniform intensity). (:pr:`402` by :user:`kian1377`)
+ * Added ``inwave=`` parameter to ``calc_psf`` and related functions, for both Fresnel and Fraunhofer propagation types, to allow providing a custom input wavefront, for instance the output of some prior upstream calculation. If provided, this is used instead of the default input wavefront (a plane wave of uniform intensity). (:pr:`402` by :user:`kian1377`)
  * Improved support for astropy Quantities, including being able to specify monochromatic wavelengths using Quantities of wavelength, and to specify optic shifts using Quantities in length or angular units as appropriate (:pr:`445`, :pr:`447` by :user:`mperrin`).
 
 
@@ -60,7 +60,7 @@ This is a major release with significant enhancements and changes, in particular
  * Continuous integration system migrated to Github Actions, replacing previous use of Travis CI. (:pr:`434` by :user:`shanosborne`)
  * Updates to recommended (not minimum) dependency versions to track latest numpy, scipy, etc (various PRs by :user:`shanosborne`)
  * Updates to minimum dependency versions, generally to upstream releases as of mid-2020. (:pr:`415`, :pr:`472` by :user:`mperrin`)
- * Swap to use of base `synphot` rather than `stsynphot` package, to avoid dependency on many GBs of reference data. (:pr:`421` by :user:`mperrin`)
+ * Swap to use of base ``synphot`` rather than ``stsynphot`` package, to avoid dependency on many GBs of reference data. (:pr:`421` by :user:`mperrin`)
 
 
 0.9.2

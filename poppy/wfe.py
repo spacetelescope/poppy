@@ -874,7 +874,7 @@ class ThermalBloomingWFE(WavefrontError):
         affects the calculation results if isobaric=True.
     
     isobaric : bool
-        Wether to use the isobaric approximation.
+        Whether to use the isobaric approximation.
     
     Note
     -------------------
