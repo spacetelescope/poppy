@@ -128,4 +128,5 @@ from .instrument import Instrument
 #if accel_math._FFTW_AVAILABLE:
 #    utils.fftw_load_wisdom()
 
-__all__ = ['conf', 'Instrument', '__version__'] + utils.__all__ + poppy_core.__all__ + optics.__all__ + fresnel.__all__ + wfe.__all__
+__all__ = ['conf', 'Instrument', '__version__'] + utils.__all__ + poppy_core.__all__ + optics.__all__ + \
+          fresnel.__all__ + wfe.__all__ + dms.__all__ + active_optics.__all__
