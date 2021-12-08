@@ -874,9 +874,9 @@ class ThermalBloomingWFE(WavefrontError):
         affects the calculation results if isobaric=True.
     
     isobaric : bool
-        Wether to use the isobaric approximation.
+        Whether to use the isobaric approximation.
     
-    Note
+    Notes
     -------------------
     Initial values are those for dry air at room temperature, taken from:
     https://www.engineeringtoolbox.com/dry-air-properties-d_973.html

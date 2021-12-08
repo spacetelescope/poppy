@@ -5,6 +5,16 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+1.0.1
+-----
+
+.. _rel1.0.1:
+
+*2021 December 9*
+
+This is a very minor re-release, to fix some documentation formatting and release packaging issues with the 1.0.0 release. No changes in functionality.
+
+
 1.0.0
 -----
 
@@ -12,39 +22,42 @@ For a list of contributors, see :ref:`about`.
 
 *2021 December 7*
 
+This is a major release with significant enhancements and changes, in particular with regards to changes in wavefront sign convention representations. 
+
 .. admonition:: Changes and Clarifications in Signs for Wavefront Error and Phase
 
     **Some sign conventions for wavefront error and optical phase have changed in this version of poppy**
 
     This release includes optical algorithm updates after a thorough audit and cross-check of sign conventions for phase and wavefront error, disambiguating portions of the
     sign conventions and code to ensure consistency with several other relevant optical modeling packages. Poppy now strictly follows the sign conventions as advocated in e.g.
-    Wyant and Creath's `Basic Wavefront Aberration Theory for Optical Metrology <https://ui.adsabs.harvard.edu/abs/1992aooe...11....2W/abstract>_` (or see `here <https://wp.optics.arizona.edu/jcwyant/wp-content/uploads/sites/13/2016/08/03-BasicAberrations_and_Optical_Testing.pdf>_`). This makes poppy consistent with the convention more widely used in optical metrology and other optical software such as Code V; however this is not consistent with some other reference such as Goodman's classic text _Fourier Optics_.
+    Wyant and Creath's `Basic Wavefront Aberration Theory for Optical Metrology <https://ui.adsabs.harvard.edu/abs/1992aooe...11....2W/abstract>`_ (or see `here <https://wp.optics.arizona.edu/jcwyant/wp-content/uploads/sites/13/2016/08/03-BasicAberrations_and_Optical_Testing.pdf>`_). This makes poppy consistent with the convention more widely used in optical metrology and other optical software such as Code V; however this is not consistent with some other reference such as Goodman's classic text *Fourier Optics*.
 
     To achieve that consistency, *this is a partially back-incompatible release*, with
     changes in the signs of complex exponentials in some Fourier propagation calculations. Depending on your use case this may result in some changes in output PSFs or
     different signs or orientations from prior results.
 
-    See :ref:`sign_conventions` for details, discussion, and demonstration. Many thanks to Derek
+    See `Sign Conventions for Coordinates, Phase, and Wavefront Error <https://poppy-optics.readthedocs.io/en/latest/sign_conventions_for_coordinates_and_phase.html>`_ for details, discussion, and demonstration. 
+    
+    Many thanks to Derek
     Sabatke (Ball Aerospace); Matthew Bergkoetter, Alden Jurling, and Tom Zielinski (NASA GSFC); and
     Randal Telfer (STScI) for invaluable discussions and aid in getting these
     details onto a more rigorous footing.
 
 
 **API Changes:**
-  * Several functions in the Zernike module were renamed for clarity, in particular ``opd_expand``->``decompose_opd``, and ``opd_from_zernikes``->``compose_opd_from_basis``.
+  * Several functions in the Zernike module were renamed for clarity, in particular the prior ``opd_expand`` is now :py:func:`~poppy.zernike.decompose_opd`, and ``opd_from_zernikes`` is now :py:func:`~poppy.zernike.compose_opd_from_basis`.
     The prior function names also continue to work as aliases for backwards compatibility.  (:pr:`471` by :user:`mperrin`)
 
 **New Functionality:**
-
- * New class ``TipTiltStage``, which allows putting additional tip-tilt on any arbitrary optic, and adjusting/controlling the tip and tilt. See `here <https://poppy-optics.readthedocs.io/en/latest/available_optics.html#Tip-Tilt-Stage>`_ for example. (:pr:`414` by :user:`mperrin)
- * New class ``CircularSegmentedDeformableMirror``, which models an aperture comprising several individually-controllable circular mirrors. See `here <https://poppy-optics.readthedocs.io/en/latest/available_optics.html#Circularly-Segmented-Deformable-Mirrors>`_ for example. (:pr:`407` and :pr:`424` by :user:`Teusia`)
- * New class ``KolmogorovWFE`, which models the phase distortions in a turbulent atmosphere. See `this notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Propagation%20through%20turbulent%20atmosphere.ipynb>`_ for details. (:pr:`437` by :user:`DaPhil`)
- * New class ``ThermalBloomingWFE`, which models the change in WFE from heating of air (or other transmission medium) due to high powered laser beams. See `this notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Thermal%20Blooming%20Demo.ipynb>`_ for details. (:pr:`438` by :user:`DaPhil`)
+ * New class :py:obj:`~poppy.TipTiltStage`, which allows putting additional tip-tilt on any arbitrary optic, and adjusting/controlling the tip and tilt. See `here <https://poppy-optics.readthedocs.io/en/latest/available_optics.html#Tip-Tilt-Stage>`_ for example. (:pr:`414` by :user:`mperrin`)
+ * New class :py:obj:`~poppy.CircularSegmentedDeformableMirror`, which models an aperture comprising several individually-controllable circular mirrors. See `here <https://poppy-optics.readthedocs.io/en/latest/available_optics.html#Circularly-Segmented-Deformable-Mirrors>`_ for example. (:pr:`407` and :pr:`424` by :user:`Teusia`)
+ * New class :py:obj:`~poppy.KolmogorovWFE`, which models the phase distortions in a turbulent atmosphere. See `this notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Propagation%20through%20turbulent%20atmosphere.ipynb>`_ for details. (:pr:`437` by :user:`DaPhil`)
+ * New class :py:obj:`~poppy.ThermalBloomingWFE`, which models the change in WFE from heating of air (or other transmission medium) due to high powered laser beams. See `this notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Thermal%20Blooming%20Demo.ipynb>`_ for details. (:pr:`438` by :user:`DaPhil`)
 
 
 **Other enhancements and fixes:**
  * Wavefront instances gain a `.wfe` attribute for the wavefront error in meters (computed from phase, so it will wrap if wavefront error exceeds +- 0.5 waves), and the wavefront display method can display wfe as well as intensity and phase.
- * Faster algorithm for calculations in the `zernike.opd_from_zernikes` function (:pr:`400` by :user:`grbrady`). Run time of this function was reduced roughly in half.
+ * Faster algorithm for calculations in the :py:func:`~poppy.zernike.opd_from_zernikes` function (:pr:`400` by :user:`grbrady`). Run time of this function was reduced roughly in half.
  * Various performance enhancements in FFTs, array rotations, zero padding, and array indexing in certain cases (:pr:`394`, :pr:`398`, :pr:`411`, :pr:`413` by :user:`mperrin`)
  * Bug fix to a sign inconsistency in wavefront rotation: While the documentation states that positive rotations are counterclockwise, the code had the other sign. Updated code to match the documented behavior, which also matches the rotation convention for optical elements. (:pr:`411` by :user:`mperrin`)
  * More robust algorithm for offset sources in optical systems with coordinate rotations and inversions (:pr:`420` by :user:`mperrin`). This ensures the correct sign of tilt is applied in the entrance pupil plane to achieve the requested source position in the output image plane.
@@ -54,7 +67,6 @@ For a list of contributors, see :ref:`about`.
 
 
 **Software Infrastructure Updates and Internals:**
-
  * Continuous integration system migrated to Github Actions, replacing previous use of Travis CI. (:pr:`434` by :user:`shanosborne`)
  * Updates to recommended (not minimum) dependency versions to track latest numpy, scipy, etc (various PRs by :user:`shanosborne`)
  * Updates to minimum dependency versions, generally to upstream releases as of mid-2020. (:pr:`415`, :pr:`472` by :user:`mperrin`)
@@ -78,7 +90,7 @@ This release includes several updated optical element classes, bug fixes, and im
 **Other enhancements and fixes:**
  * The ShackHartmannWavefrontSensor class was refactored and improved . (:pr:`369` by :user:`fanpeng-kong`). And a unit test case for this class was added (:pr:`376` by :user:`remorgan123` in collaboration with :user:`douglase`)
  * Expanded documentation and example code for usage of astropy Units. (:pr:`374`, :pr:`378` by :user:`mperrin`; with thanks to :user:`keflavich’ and  :user:`mcbeth`)
-* Made the HexagonalSegmentedDeformableMirror class consistent with ContinuousDeformableMirror in having an 'include_factor_of_two' parameter, for control in physical surface versus wavefront error units
+ * Made the HexagonalSegmentedDeformableMirror class consistent with ContinuousDeformableMirror in having an 'include_factor_of_two' parameter, for control in physical surface versus wavefront error units
  * Bug fix for influence functions of rotated hexagonally segmented deformable mirrors. (:pr:`371` by :user:`mperrin`)
  * Bug fix for FWHM measurement on integer data type images. (:pr:`368` by :user:`kjbrooks`)
  * Bug fix for StatisticalPSDWFE to avoid side effects from changing global numpy random generator state. (:pr:`377` by :user:`ivalaginja`)
@@ -117,7 +129,6 @@ This is a minor release primarily for updates in packaging infrastructure, plus 
  * Fix a log string formatting bug encountered in MFT propagation under certain conditions (:pr:`360` by :user:`mperrin`)
 
 **Software Infrastructure Updates and Internals:**
-
  * Removed dependency on the deprecated astropy-helpers package framework. (:pr:`349` by :user:`shanosborne`). Fixes :issue:`355`.
  * Switched code coverage CI service to codecov.io. (:pr:`349` by :user:`shanosborne`)
  * The minimum Python version is now 3.6. (:pr:`356` by :user:`mperrin`)
@@ -130,7 +141,6 @@ This is a minor release primarily for updates in packaging infrastructure, plus 
 *2019 Nov 25*
 
 **New Functionality:**
-
  * **Chaining together multiple propagations calculations:** Multiple `OpticalSystem` instances can now be chained together into a `CompoundOpticalSystem`. This includes mixed
    propagations that are partially Fresnel and partially Fraunhofer; Wavefront objects will be cast between types as
    needed. (:pr:`290` by :user:`mperrin`)
@@ -170,7 +180,6 @@ This is a minor release primarily for updates in packaging infrastructure, plus 
    at the end (:pr:`298` by :user:`sdwill`)
 
 **Software Infrastructure Updates and Internals:**
-
  * PR :pr:`290` for CompoundOpticalSystem involved refactoring the Wavefront and FresnelWavefront classes to both be child classes of a new abstract base class BaseWavefront. This change should be transparent for most/all users and requires no changes in calling code.
  * PR :pr:`306` for wavelength-independent phase subsequently required refactoring of the optical element display code to correctly handle all cases. As a result the display code internals were clarified and made more consistent. (:pr:`314` and :pr:`321`  by :user:`mperrin` with contributions from :user:`ivalaginja` and :user:`shanosborne`). Again this change should be transparent for users. 
  * Removed deprecated / unused decorator function in WFE classes, making their `get_opd` function API consistent with the rest of poppy. (:pr:`322` by :user:`mperrin`)
@@ -181,7 +190,6 @@ This is a minor release primarily for updates in packaging infrastructure, plus 
  * Note, minimum supported versions of some upstream packages such as numpy and matplotlib have been updated.
 
 **Bug Fixes and Misc Improvements:**
-
  * Correctly assign BUNIT keyword after rescaling OPDs (:issue:`285`, :pr:`286` by :user:`laurenmarietta`).
  * New header keywords in output PSF files for `OPD_FILE` and `OPDSLICE` to more cleanly record the information
    previously stored together in the `PUPILOPD` keyword (:pr:`316` by :user:`mperrin`)

@@ -22,7 +22,7 @@ class TipTiltStage(poppy.poppy_core.OpticalElement):
     radius : astropy Quantity of dimension length
         radius of the circle over which to apply Zernike tip/tilt.
         This is used in converting angular tip/tilt to OPD in length units.
-    include_factor_of_two : book
+    include_factor_of_two : bool
         include factor of 2 on WFE due to reflection? In other words, if True, the
         applied wavefront tilt will be twice the commanded tilt of the stage.
 

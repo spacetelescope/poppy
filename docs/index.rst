@@ -17,7 +17,6 @@ imaging simulations.
 Summary
 ------------
 
-
 **What this software does:**
 
 * Allows users to define an optical system consisting of multiple planes, such as pupils and images.
@@ -28,13 +27,13 @@ Summary
   selection of broad- and narrow-band filters, selectable optical components such as pupil stops, models of 
   optical aberrations defined by Zernike polynomials, etc.
 
+That said, Poppy does not implement full Rayleigh-Sommerfeld electromagnetic propagation, vector electromagnetic field propagation 
+such as would be needed for modeling polarization effects, nor modelling of any kind of detector noise or imperfections. 
 
-**What this software does not do:**
 
-* Full Rayleigh-Sommerfeld electromagnetic propagation.
-* Vector electromagnetic field propagation such as would be needed for modeling polarization effects.
-* Modelling of any kind of detector noise or imperfections. 
+**Getting Started:**
 
+See `Example Code and Getting Started <https://poppy-optics.readthedocs.io/en/latest/examples.html>`_
 
 .. admonition:: Quickstart IPython Notebook
 
