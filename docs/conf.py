@@ -18,6 +18,12 @@ import sys
 import datetime
 import stsci_rtd_theme
 
+try:
+    from sphinx_astropy.conf.v1 import *  # noqa
+except ImportError:
+    print('ERROR: the documentation requires the sphinx-astropy package to be installed')
+    sys.exit(1)
+
 # -- Project information -----------------------------------------------------
 # Get configuration information from setup.cfg
 from configparser import ConfigParser
@@ -63,6 +69,7 @@ extensions = [
               'sphinx.ext.inheritance_diagram',
               'sphinx.ext.viewcode',
               'sphinx.ext.autosummary',
+              'sphinx.ext.mathjax',
               'sphinx_automodapi.automodapi',
               'sphinx_issues',
               'nbsphinx',
