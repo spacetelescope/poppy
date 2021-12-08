@@ -5,6 +5,16 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+1.0.1
+-----
+
+.. _rel1.0.1:
+
+*2021 December 9*
+
+This is a very minor re-release, to fix some documentation formatting and release packaging issues with the 1.0.0 release. No changes in functionality.
+
+
 1.0.0
 -----
 
