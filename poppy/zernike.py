@@ -980,13 +980,9 @@ def decompose_opd(opd, aperture=None, nterms=15, basis=zernike_basis,
         of basis arrays given arguments `nterms`, `npix`, and `outside`.
         Default is `poppy.zernike.zernike_basis`.
 
-    Additional keyword arguments to this function are passed
-    through to the `basis` callable.
-
-    Note: Recovering coefficients used to generate synthetic/test data
-    depends greatly on the sampling (as one might expect). Generating
-    test data using zernike_basis with npix=256 and passing the result
-    through decompose_opd reproduces the input coefficients within <0.1%.
+    Other Parameters
+    ----------------
+        Additional keyword arguments to this function are passed through to the `basis` callable.
 
     Returns
     -------
@@ -997,6 +993,15 @@ def decompose_opd(opd, aperture=None, nterms=15, basis=zernike_basis,
         wavefront is in waves, coeffs will be in waves.)
         Note that the first coefficient (element 0 in Python indexing)
         corresponds to the Z=1 Zernike piston term, and so on.
+
+    Notes
+    -----
+    Recovering coefficients used to generate synthetic/test data
+    depends greatly on the sampling (as one might expect). Generating
+    test data using zernike_basis with npix=256 and passing the result
+    through decompose_opd reproduces the input coefficients within <0.1%.
+
+
     """
 
     if aperture is None:
@@ -1127,10 +1132,11 @@ def compose_opd_from_basis(coeffs, basis=zernike_basis_faster, aperture=None, ou
         Default is `np.nan`, but you may also find it useful for this to
         be 0.0 sometimes.
 
-    Other parameters are supported via **kwargs, in particular setting the
-    size of the OPD via npix.
+    Other Parameters
+    ----------------
+        Other parameters are supported via **kwargs, in particular setting the size of the OPD via npix.
 
-    Example
+    Examples
     --------
     opd = compose_opd_from_basis([0,0,-5,1,0,4,0,8], npix=512)
 

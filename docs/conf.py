@@ -66,6 +66,7 @@ extensions = [
               'sphinx_automodapi.automodapi',
               'sphinx_issues',
               'nbsphinx',
+              'numpydoc'
 
 ]
 
