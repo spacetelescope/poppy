@@ -1633,7 +1633,7 @@ def spectrum_from_spectral_type(sptype, return_list=False, catalog=None):
             raise LookupError(errmsg)
 
 
-# Back compatibility allias
+# Back compatibility alias
 specFromSpectralType = spectrum_from_spectral_type
 
 
