@@ -389,7 +389,7 @@ improved upon in a future release.
 
  * Fix ConfigParser import (see `astropy/package-template#172 <https://github.com/astropy/package-template/pull/172>`_)
  * Fixes to formatting of ``astropy.units.Quantity`` values (`#171 <https://github.com/spacetelescope/poppy/issues/171>`_, `#174 <https://github.com/mperrin/poppy/pull/174>`_, `#179 <https://github.com/mperrin/poppy/pull/174>`_; @josephoenix, @neilzim)
- * Fixes to ``fftw_save_wisdom`` and ``fftw_load_wisdom`` (`#177 <https://github.com/spacetelescope/poppy/issues/177>`_, `#178 <https://github.com/mperrin/poppy/pull/178>`_; @mmecthley)
+ * Fixes to ``fftw_save_wisdom`` and ``fftw_load_wisdom`` (`#177 <https://github.com/spacetelescope/poppy/issues/177>`_, `#178 <https://github.com/mperrin/poppy/pull/178>`_; @mmechtley)
  * Add ``calc_datacube`` method to ``poppy.Instrument`` (`#182 <https://github.com/spacetelescope/poppy/issues/182>`_; @mperrin)
  * Test for Apple Accelerate more narrowly (`#176 <https://github.com/spacetelescope/poppy/issues/176>`_; @mperrin)
  * ``Wavefront.display()`` correctly handles ``vmin`` and ``vmax`` args (`#183 <https://github.com/spacetelescope/poppy/pull/183>`_; @neilzim)
