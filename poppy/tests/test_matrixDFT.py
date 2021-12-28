@@ -144,7 +144,7 @@ def test_MFT_fluxconsv_all_types(centering=None, **kwargs):
 
 
 
-def test_DFT_rect(centering='FFTSTYLE', outdir=None, outname='DFT1R_', npix=None, sampling=10., nlamd=None, display=False):
+def test_DFT_rect(centering='FFTSTYLE', outdir=None, outname='DFT1R_', npix=None, sampling=10., nlambda=None, display=False):
     """
     Test matrix DFT, including non-square arrays, in both the
     forward and inverse directions.
@@ -167,14 +167,14 @@ def test_DFT_rect(centering='FFTSTYLE', outdir=None, outname='DFT1R_', npix=None
 
 
     # make things rectangular:
-    if nlamd is None and npix is None:
-        nlamd = (10,20)
-        npix = [val*sampling for val in nlamd] #(100, 200)
+    if nlambda is None and npix is None:
+        nlambda = (10,20)
+        npix = [val*sampling for val in nlambda] #(100, 200)
     elif npix is None:
-        npix = [val*sampling for val in nlamd] #(100, 200)
-    elif nlamd is None:
-        nlamd = [val/sampling for val in npix]
-    u = nlamd
+        npix = [val*sampling for val in nlambda] #(100, 200)
+    elif nlambda is None:
+        nlambda = [val/sampling for val in npix]
+    u = nlambda
     _log.info("Requested sampling in pixels: "+str(npix))
     _log.info("Requested sampling in lam/D units: "+str(u))
     #(u, float(u)/npix[0]*npix[1])
@@ -207,8 +207,8 @@ def test_DFT_rect(centering='FFTSTYLE', outdir=None, outname='DFT1R_', npix=None
     if outdir is not None:
         fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", overwrite=True)
 
-    _log.info('performing MFT with pupil shape: '+ str(pupil.shape)+ ' nlamd: '+ str( nlamd)+ '  npix: '+ str(npix))
-    a = mft1.perform(pupil, nlamd, npix)
+    _log.info('performing MFT with pupil shape: '+ str(pupil.shape)+ ' nlambda: '+ str( nlambda)+ '  npix: '+ str(npix))
+    a = mft1.perform(pupil, nlambda, npix)
 
 
     _log.info('Shape of MFT result: '+str(a.shape))
