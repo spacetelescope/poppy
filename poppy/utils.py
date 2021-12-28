@@ -72,7 +72,7 @@ def imshow_with_mouseover(image, ax=None, *args, **kwargs):
 
     def report_pixel(x, y):
         # map data coords back to pixel coords
-        # and be sure to clip appropriatedly to avoid array bounds errors
+        # and be sure to clip appropriately to avoid array bounds errors
         img_y = np.floor((y - imext[2]) / (imext[3] - imext[2]) * imsize[0])
         img_y = int(img_y.clip(0, imsize[0] - 1))
 
