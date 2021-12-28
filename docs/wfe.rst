@@ -256,7 +256,7 @@ desired in the basis, as well as the desired sampling (how many pixels across ea
 Using any of the above basis functions, OPD arrays can be decomposed into coefficients per each term, or conversely
 OPD arrays can be generated from provided coefficients. There are several functions provided for OPD decomposition, tuned for different usage scenarios.
 
- * :func:`poppy.zernike.compose_opd_from_basis` generates an OPD from providend coefficients for any of the above basis sets.
+ * :func:`poppy.zernike.compose_opd_from_basis` generates an OPD from provided coefficients for any of the above basis sets.
  * :func:`poppy.zernike.decompose_opd` projects a given OPD into a basis, and returns the resulting coefficients. This version of the function works best when dealing with cases closer to ideal, i.e. Zernikes over an actually-circular aperture.
  * :func:`poppy.zernike.decompose_opd_nonorthonormal_basis` does the same, but uses an alternate iterative algorithm that works better when dealing with basis sets that are not strictly orthonormal over the given aperture.
  * :func:`poppy.zernike.decompose_opd_segments` uses a similar iterative algorithm but with some adjustments to better handle spatially disjoint basis elements such as different segments. Use this for best results if you're dealing with a segmented aperture.
