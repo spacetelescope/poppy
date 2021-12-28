@@ -365,7 +365,7 @@ def test_MultiHexagonAperture(display=False):
 def test_NgonAperture(display=False):
     """ Test n-gon aperture
 
-    Note we could better test this if we impemented symmetry checks using the rotation argument?
+    Note we could better test this if we implemented symmetry checks using the rotation argument?
     """
     # should make n-gon PSF for n=4, 6 and compare to square and hex apertures
     optic= optics.NgonAperture(nsides=4, radius=1, rotation=45)
