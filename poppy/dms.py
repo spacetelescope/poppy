@@ -329,7 +329,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         if hasattr(self, 'shift_x') or hasattr(self, 'shift_y'):
             # Apply shifts here, if necessary. Doing it this way lets the same shift code apply
             # across all of the above 3 potential ingredients into the OPD, potentially at some
-            # small cost in accuracy rather than shifting each individuall at a subpixel level.
+            # small cost in accuracy rather than shifting each individually at a subpixel level.
 
             # suppress irrelevant scipy warning from ndzoom calls
             import warnings
