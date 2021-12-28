@@ -82,7 +82,7 @@ def test_MFT_flux_conservation(centering='FFTSTYLE', outdir=None, outname='test_
         Directory path to output diagnostic FITS files. If not specified, files will not be written.
     precision : float, either 0.01 or 0.001
         How precisely to expect flux conservation; it will not be strictly 1.0 given any finite array size.
-        This function usesd predetermined MFT array sizes based on the desired precision level of the test.
+        This function uses predetermined MFT array sizes based on the desired precision level of the test.
     """
 
     # Set up constants for either a more precise test or a less precise but much
