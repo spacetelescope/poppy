@@ -1610,7 +1610,7 @@ class BaseOpticalSystem(ABC):
 
             if _USE_FFTW:
                 _log.warning('IMPORTANT WARNING: Python multiprocessing and fftw3 do not appear to play well together. '
-                             'This may crash interimittently')
+                             'This may crash intermittently')
                 _log.warning('   We suggest you set poppy.conf.use_fftw to False if you want to use multiprocessing().')
             if display:
                 _log.warning('Display during calculations is not supported for multiprocessing mode. '

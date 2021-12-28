@@ -45,7 +45,7 @@ improvements if you are spending substantial time running calculations. See
   MIRI.  (Note: POPPY previously made use of the PyFFTW3 package, which is
   *different* from pyFFTW.  The latter is more actively maintained and
   supported today, hence the switch.  Note also that some users have reported
-  interimittent stability issues with pyFFTW for reasons that are not yet
+  intermittent stability issues with pyFFTW for reasons that are not yet
   clear.) *At this time we recommend most users should skip installing pyFFTW
   while getting started with poppy*.
 * Anaconda `accelerate <https://docs.anaconda.com/accelerate/>`_ and
