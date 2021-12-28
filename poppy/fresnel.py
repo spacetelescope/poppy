@@ -829,7 +829,7 @@ class FresnelWavefront(BaseWavefront):
         return np.abs(self.z_w0 - z) < self.z_r
 
     @utils.quantity_input(delta_z=u.meter)
-    def propagate_fresnel(self, delta_z, display_interimed=False):
+    def propagate_fresnel(self, delta_z, display_intermed=False):
         """Top-level routine for Fresnel diffraction propagation
 
 
@@ -840,14 +840,14 @@ class FresnelWavefront(BaseWavefront):
         ----------
         delta_z :  float
             the distance from the current location to propagate the beam.
-        display_interimed : boolean
+        display_intermed : boolean
              If True, display the complex start, interimediates waist and end surfaces.
 
 
         """
         self.angular_coordinates = False  # coordinates must be in meters for propagation
         z = self.z + delta_z
-        if display_interimed:
+        if display_intermed:
             plt.figure()
             self.display('both', colorbar=True, title="Starting Surface")
 
@@ -865,7 +865,7 @@ class FresnelWavefront(BaseWavefront):
                 _log.debug('  Plane to Spherical Regime, inside Z_R to outside Z_R')
                 _log.debug('  Starting Pixelscale: {}'.format(self.pixelscale))
                 self._propagate_ptp(self.z_w0 - self.z)
-                if display_interimed:
+                if display_intermed:
                     plt.figure()
                     self.display('both', colorbar=True)
                 self._propagate_wts(z - self.z_w0)
@@ -874,7 +874,7 @@ class FresnelWavefront(BaseWavefront):
                 # Spherical to plane. First use STW to the waist, then PTP to the desired plane
                 _log.debug('  Spherical to Plane Regime, outside Z_R to inside Z_R')
                 self._propagate_stw(self.z_w0 - self.z)
-                if display_interimed:
+                if display_intermed:
                     plt.figure()
                     self.display('both', colorbar=True, title='Intermediate Waist')
                 self._propagate_ptp(z - self.z_w0)
@@ -885,11 +885,11 @@ class FresnelWavefront(BaseWavefront):
                 self._propagate_stw(self.z_w0 - self.z)
                 _log.debug('  Intermediate Pixelscale: {}'.format(self.pixelscale))
 
-                if display_interimed:
+                if display_intermed:
                     plt.figure()
                     self.display('both', colorbar=True, title='Intermediate Waist')
                 self._propagate_wts(z - self.z_w0)
-        if display_interimed:
+        if display_intermed:
             plt.figure()
             self.display('both', colorbar=True)
 
