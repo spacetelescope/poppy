@@ -136,7 +136,7 @@ def _ifftshift(x):
     Otherwise defaults to numpy.
     Note, ifftshift and fftshift are identical for even-length x,
     the functions differ by one sample for odd-length x. This function
-    implictly assumes that if using CUDA, the array size must be even,
+    implicitly assumes that if using CUDA, the array size must be even,
     so we can use the same algorithm as fftshift.
 
     Note - TODO write an OpenCL version
