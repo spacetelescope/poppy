@@ -20,9 +20,9 @@ By default, an optical system defined in Poppy uses the Fast Fourier Transform (
    :alt: Schematics of two Lyot coronagraph design variants
    :align: right
 
-The upper design in the figure represents the classical Lyot coronagraph and its widely implemented, optimized descendent, the `apodized pupil Lyot coronagraph (APLC) <http://dx.doi.org/10.1051/0004-6361:20021573>`_. In this case an intermediate focal plane (labeled B) is occulted by a round, opaque mask. By applying the principle of electromagnetic field superposition, combined with knowledge of how FFT complexity scales with array size, `Soummer et al. (2007) <http://dx.doi.org/10.1364/OE.15.015935>`_ showed that the number of operations needed to compute the PSF is greatly reduced by replacing the FFT with discrete Fourier transfoms, implemented in a vectorized fashion and spatially restricted to the *occulted* region of the intermediate focal plane. This is the now widely-used **semi-analytical** computational method for numerically modeling Lyot coronagraphs.
+The upper design in the figure represents the classical Lyot coronagraph and its widely implemented, optimized descendent, the `apodized pupil Lyot coronagraph (APLC) <http://dx.doi.org/10.1051/0004-6361:20021573>`_. In this case an interimediate focal plane (labeled B) is occulted by a round, opaque mask. By applying the principle of electromagnetic field superposition, combined with knowledge of how FFT complexity scales with array size, `Soummer et al. (2007) <http://dx.doi.org/10.1364/OE.15.015935>`_ showed that the number of operations needed to compute the PSF is greatly reduced by replacing the FFT with discrete Fourier transfoms, implemented in a vectorized fashion and spatially restricted to the *occulted* region of the interimediate focal plane. This is the now widely-used **semi-analytical** computational method for numerically modeling Lyot coronagraphs.
 
-The lower design in the above figure shows a slightly different Lyot coronagraph design case. Here the focal plane mask (FPM) is a diaphragm that restricts the outer edge of the transmitted field. `Zimmerman et al. (2016) <http://dx.doi.org/10.1117/1.JATIS.2.1.011012>`_ showed how this design variant can solve the same starlight cancellation problem, in particular for the baseline design of WFIRST. With this FPM geometry, the superposition simplification of `Soummer et al. (2007) <http://dx.doi.org/10.1364/OE.15.015935>`_ is not valid. However, again the execution time is greatly reduced by using discrete, vectorized Fourier transforms, now spatially restricted to the *transmitted* region of the intermediate focal plane.
+The lower design in the above figure shows a slightly different Lyot coronagraph design case. Here the focal plane mask (FPM) is a diaphragm that restricts the outer edge of the transmitted field. `Zimmerman et al. (2016) <http://dx.doi.org/10.1117/1.JATIS.2.1.011012>`_ showed how this design variant can solve the same starlight cancellation problem, in particular for the baseline design of WFIRST. With this FPM geometry, the superposition simplification of `Soummer et al. (2007) <http://dx.doi.org/10.1364/OE.15.015935>`_ is not valid. However, again the execution time is greatly reduced by using discrete, vectorized Fourier transforms, now spatially restricted to the *transmitted* region of the interimediate focal plane.
 
 In Poppy, two subclasses of OpticalSystem exploit the computational methods described above: SemiAnalyticCoronagraph and MatrixFTCoronagraph. Let's see how to make use of these subclasses to speed up Lyot coronagraph PSF calculations.
 
@@ -51,12 +51,12 @@ The following code performs the same calculation both with semi-analytical and F
    
         import time
         t0s = time.time()
-        psf_sam = sam_osys.calc_psf(display_intermediates=True)
+        psf_sam = sam_osys.calc_psf(display_interimediates=True)
         t1s = time.time()
 
         plt.figure(2)
         t0f = time.time()
-        psf_fft = osys.calc_psf(display_intermediates=True)
+        psf_fft = osys.calc_psf(display_interimediates=True)
         t1f = time.time()
 
         plt.figure(3)
@@ -85,7 +85,7 @@ On a circa-2010 Mac Pro, the results are dramatic::
 Lyot coronagraph using the MatrixFTCoronagraph subclass
 --------------------------------------------------------
 
-This coronagraph uses an annular diaphragm in the intermediate focal plane, corresponding to the lower half of the diagram above.
+This coronagraph uses an annular diaphragm in the interimediate focal plane, corresponding to the lower half of the diagram above.
 
 The procedure to enable the MatrixFTCoronagraph propagation is analogous to the SemiAnalytic case. We create an OpticalSystem as usual, and then cast it to a MatrixFTCoronagraph class.
 
@@ -108,14 +108,14 @@ Again we will compare the execution time with the FFT case.::
         # Re-cast as MFT coronagraph with annular diaphragm FPM
         matrixFTcoron_annFPM_osys = poppy.MatrixFTCoronagraph( fftcoron_annFPM_osys, occulter_box=diaphragm.uninverted_optic.radius_inner )
         t0_fft = time.time()
-        annFPM_fft_psf, annFPM_fft_interm = fftcoron_annFPM_osys.calc_psf(wavelen, display_intermediates=True,\
-                                                                 return_intermediates=True)
+        annFPM_fft_psf, annFPM_fft_interim = fftcoron_annFPM_osys.calc_psf(wavelen, display_interimediates=True,\
+                                                                 return_interimediates=True)
         t1_fft = time.time()
         
         plt.figure()
         t0_mft = time.time()
-        annFPM_mft_psf, annFPM_mft_interm = matrixFTcoron_annFPM_osys.calc_psf(wavelen, display_intermediates=True,\
-                                                                     return_intermediates=True)
+        annFPM_mft_psf, annFPM_mft_interim = matrixFTcoron_annFPM_osys.calc_psf(wavelen, display_interimediates=True,\
+                                                                     return_interimediates=True)
         t1_mft = time.time()
 
 Plot the results::
@@ -142,10 +142,10 @@ Print some of the propagation parameters::
 
          lamoD_asec = wavelen/fftcoron_annFPM_osys.planes[0].pupil_diam * 180/np.pi * 3600
          print("System diffraction resolution element scale (lambda/D) in arcsec: %.3f" % lamoD_asec)
-         print("Array width in first focal plane, FFT: %d" % annFPM_fft_interm[1].amplitude.shape[0])
-         print("Array width in first focal plane, MatrixFT: %d" % annFPM_mft_interm[1].amplitude.shape[0])
-         print("Array width in Lyot plane, FFT: %d" % annFPM_fft_interm[2].amplitude.shape[0])
-         print("Array width in Lyot plane, MatrixFT: %d" % annFPM_mft_interm[2].amplitude.shape[0])
+         print("Array width in first focal plane, FFT: %d" % annFPM_fft_interim[1].amplitude.shape[0])
+         print("Array width in first focal plane, MatrixFT: %d" % annFPM_mft_interim[1].amplitude.shape[0])
+         print("Array width in Lyot plane, FFT: %d" % annFPM_fft_interim[2].amplitude.shape[0])
+         print("Array width in Lyot plane, MatrixFT: %d" % annFPM_mft_interim[2].amplitude.shape[0])
 
          System diffraction resolution element scale (lambda/D) in arcsec: 0.103
          Array width in first focal plane, FFT: 8192
@@ -184,7 +184,7 @@ As an example of a more complicated coronagraph PSF calculation than the ones ab
 
     osys.source_offset_theta = 45.
     osys.source_offset_r =  0.1  # arcsec
-    psf = osys.calc_psf(wavelength=wavelength, display_intermediates=True)
+    psf = osys.calc_psf(wavelength=wavelength, display_interimediates=True)
     
    
 .. image:: ./example_BLC_offset.png
@@ -195,7 +195,7 @@ As an example of a more complicated coronagraph PSF calculation than the ones ab
 FQPM coronagraph
 ------------------
 
-Due to the wide (ideally infinite) spatial extension of its focal plane phase-shifting optic, the four-quadrant phase mask (FQPM) coronagraphs relies on FFT propagation. Another unique complication of the FQPM coronagraph class is its array alignment requirement between the FFT result in the intermediate focal plane with the center of the phase mask. This is done using a virtual optic called an 'FQPM FFT aligner' as follows::
+Due to the wide (ideally infinite) spatial extension of its focal plane phase-shifting optic, the four-quadrant phase mask (FQPM) coronagraphs relies on FFT propagation. Another unique complication of the FQPM coronagraph class is its array alignment requirement between the FFT result in the interimediate focal plane with the center of the phase mask. This is done using a virtual optic called an 'FQPM FFT aligner' as follows::
 
     optsys = poppy.OpticalSystem()
     optsys.add_pupil( poppy.CircularAperture( radius=3, pad_factor=1.5)) #pad display area by 50%
@@ -207,7 +207,7 @@ Due to the wide (ideally infinite) spatial extension of its focal plane phase-sh
     optsys.add_detector(pixelscale=0.01, fov_arcsec=10.0)
 
 
-    psf = optsys.calc_psf(wavelength=2e-6, display_intermediates=True)
+    psf = optsys.calc_psf(wavelength=2e-6, display_interimediates=True)
 
 .. image:: ./example_FQPM.png
    :scale: 60%
@@ -237,7 +237,7 @@ opaque circular obscuration. The latter we can make using the InverseTransmissio
 
     optsys.display()
 
-    psf = optsys.calc_psf(wavelength=2e-6, display_intermediates=True)
+    psf = optsys.calc_psf(wavelength=2e-6, display_interimediates=True)
 
 
 .. image:: ./example_FQPM_obscured.png

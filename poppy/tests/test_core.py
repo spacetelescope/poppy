@@ -272,15 +272,15 @@ def test_inverse_MFT():
     osys = poppy_core.OpticalSystem("test", oversample=4)
     osys.add_pupil(test_ap)
     osys.add_detector(pixelscale=0.010, fov_arcsec=fov_arcsec) # use a large FOV so we grab essentially all the light and conserve flux
-    psf1 = osys.calc_psf(wavelength=wavelength, normalize='first', display_intermediates=False)
+    psf1 = osys.calc_psf(wavelength=wavelength, normalize='first', display_interimediates=False)
 
     #osys.add_pupil(test_ap)
     osys.add_pupil() # this will force an inverse MFT
     osys.add_detector(pixelscale=0.010, fov_arcsec=fov_arcsec) # use a large FOV so we grab essentially all the light and conserve flux
     #plt.clf()
-    psf = osys.calc_psf(wavelength=wavelength, normalize='first', display_intermediates=False)
+    psf = osys.calc_psf(wavelength=wavelength, normalize='first', display_interimediates=False)
 
-    # the intermediate PSF (after one MFT) should be essentially identical to the
+    # the interimediate PSF (after one MFT) should be essentially identical to the
     # final PSF (after an MFT, inverse MFT, and another MFT):
     assert(   np.abs(psf1[0].data - psf[0].data).max()  < 1e-7 )
 
@@ -378,9 +378,9 @@ def test_displays():
     # This implicitly exercises the optical element display paths, too
     osys.display()
 
-    # Test PSF calculation with intermediate wavefronts
+    # Test PSF calculation with interimediate wavefronts
     plt.figure()
-    psf = osys.calc_psf(display_intermediates=True)
+    psf = osys.calc_psf(display_interimediates=True)
 
     # Test PSF display
     plt.figure()
@@ -389,13 +389,13 @@ def test_displays():
     # Test PSF display with other units too
     poppy.display_psf(psf, angular_coordinate_unit=u.urad)
 
-    # Test PSF calculation with intermediate wavefronts and other units
+    # Test PSF calculation with interimediate wavefronts and other units
     plt.figure()
-    psf = osys.calc_psf(display_intermediates=True)
+    psf = osys.calc_psf(display_interimediates=True)
     osys2 = poppy.OpticalSystem()
     osys2.add_pupil(poppy.CircularAperture())
     osys2.add_detector(fov_pixels=128, pixelscale=0.05*u.urad/u.pixel)
-    psf2, waves = osys.calc_psf(display_intermediates=True, return_intermediates=True)
+    psf2, waves = osys.calc_psf(display_interimediates=True, return_interimediates=True)
 
     # Test wavefront display, implicitly including other units
     waves[-1].display()
@@ -762,14 +762,14 @@ def test_inwave_fraunhofer(plot=False):
 
     if plot:
         plt.figure(figsize=(9,3))
-    psf1,wfs1 = hst.calc_psf(wavelength=lambda_m, display_intermediates=plot, return_intermediates=True)
+    psf1,wfs1 = hst.calc_psf(wavelength=lambda_m, display_interimediates=plot, return_interimediates=True)
     
     # now test the system by inputting a wavefront first
     wfin = poppy.Wavefront(wavelength=lambda_m, npix=npix,
                            diam=diam, oversample=oversample)
     if plot:
         plt.figure(figsize=(9,3))
-    psf2,wfs2 = hst.calc_psf(wavelength=lambda_m, display_intermediates=plot, return_intermediates=True,
+    psf2,wfs2 = hst.calc_psf(wavelength=lambda_m, display_interimediates=plot, return_interimediates=True,
                              inwave=wfin)
     
     wf = wfs1[-1].wavefront

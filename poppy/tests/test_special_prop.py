@@ -50,10 +50,10 @@ def test_SAMC(fft_oversample=4, samc_oversample=8, npix=512,
     if display:
         plt.figure()
     t_start_sam = time.time()
-    psf_sam = sam_osys.calc_psf(display_intermediates=display)
-    # also compute a version with the intermediate planes returned
-    psf_sam_copy, intermediates= sam_osys.calc_psf(display_intermediates=display,
-                    return_intermediates=True)
+    psf_sam = sam_osys.calc_psf(display_interimediates=display)
+    # also compute a version with the interimediate planes returned
+    psf_sam_copy, interimediates= sam_osys.calc_psf(display_interimediates=display,
+                    return_interimediates=True)
     t_stop_sam = time.time()
 
     print("SAMC calculation: {} s".format(t_stop_sam - t_start_sam))
@@ -62,7 +62,7 @@ def test_SAMC(fft_oversample=4, samc_oversample=8, npix=512,
         plt.figure()
 
     t_start_fft = time.time()
-    psf_fft = osys.calc_psf(display_intermediates=display)
+    psf_fft = osys.calc_psf(display_interimediates=display)
     t_stop_fft = time.time()
     print("Basic FFT calculation: {} s".format(t_stop_fft - t_start_fft))
     if display:
@@ -88,8 +88,8 @@ def test_SAMC(fft_oversample=4, samc_oversample=8, npix=512,
     assert np.abs(psf_sam[0].data.sum()-expected_total) < thresh, "Summed total of PSF intensity did not match expectations"
     assert np.abs(psf_sam[0].data.sum()-expected_total)/expected_total < 0.003, "Summed total of PSF intensity was more than 0.3% away from expectation"
 
-    # Check there are the expected number of intermediate planes, which for this
+    # Check there are the expected number of interimediate planes, which for this
     # kind of propagation has some extras:
-    assert len(intermediates) == len(osys)+2, "Unexpected number of returned optical planes"
+    assert len(interimediates) == len(osys)+2, "Unexpected number of returned optical planes"
 
-    assert np.allclose(psf_sam[0].data, psf_sam_copy[0].data), "Didn't get same results with & without return_intermediates"
+    assert np.allclose(psf_sam[0].data, psf_sam_copy[0].data), "Didn't get same results with & without return_interimediates"

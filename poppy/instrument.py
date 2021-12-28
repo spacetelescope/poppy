@@ -137,7 +137,7 @@ class Instrument(object):
     # ----- actual optical calculations follow here -----
     def calc_psf(self, outfile=None, source=None, nlambda=None, monochromatic=None,
                  fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
-                 overwrite=True, display=False, save_intermediates=False, return_intermediates=False,
+                 overwrite=True, display=False, save_interimediates=False, return_interimediates=False,
                  normalize='first'):
         """ Compute a PSF.
         The result can either be written to disk (set outfile="filename") or else will be returned as
@@ -149,7 +149,7 @@ class Instrument(object):
         1) Set `oversample=<number>`. This will use that oversampling factor beyond detector pixels
            for output images, and beyond Nyquist sampling for any FFTs to prior optical planes.
         2) set `detector_oversample=<number>` and `fft_oversample=<other_number>`. This syntax lets
-           you specify distinct oversampling factors for intermediate and final planes.
+           you specify distinct oversampling factors for interimediate and final planes.
 
         By default, both oversampling factors are set equal to 2.
 
@@ -176,14 +176,14 @@ class Instrument(object):
             Filename to write. If None, then result is returned as an HDUList
         oversample, detector_oversample, fft_oversample : int
             How much to oversample. Default=4. By default the same factor is used for final output
-            pixels and intermediate optical planes, but you may optionally use different factors
+            pixels and interimediate optical planes, but you may optionally use different factors
             if so desired.
         overwrite : bool
             overwrite output FITS file if it already exists?
         display : bool
             Whether to display the PSF when done or not.
-        save_intermediates, return_intermediates : bool
-            Options for saving to disk or returning to the calling function the intermediate optical planes during
+        save_interimediates, return_interimediates : bool
+            Options for saving to disk or returning to the calling function the interimediate optical planes during
             the propagation. This is useful if you want to e.g. examine the intensity in the Lyot plane for a
             coronagraphic propagation.
         normalize : string
@@ -262,12 +262,12 @@ class Instrument(object):
                                                options=local_options)
         self._check_for_aliasing(wavelens)
         # and use it to compute the PSF (the real work happens here, in code in poppy.py)
-        result = self.optsys.calc_psf(wavelens, weights, display_intermediates=display, display=display,
-                                      save_intermediates=save_intermediates, return_intermediates=return_intermediates,
+        result = self.optsys.calc_psf(wavelens, weights, display_interimediates=display, display=display,
+                                      save_interimediates=save_interimediates, return_interimediates=return_interimediates,
                                       normalize=normalize)
 
-        if return_intermediates:  # this implies we got handed back a tuple, so split it apart
-            result, intermediates = result
+        if return_interimediates:  # this implies we got handed back a tuple, so split it apart
+            result, interimediates = result
 
         self._apply_jitter(result,
                            local_options)  # will immediately return if there is no jitter parameter in local_options
@@ -293,8 +293,8 @@ class Instrument(object):
             result.writeto(outfile, overwrite=overwrite)
             poppy_core._log.info("Saved result to " + outfile)
 
-        if return_intermediates:
-            return result, intermediates
+        if return_interimediates:
+            return result, interimediates
         else:
             return result
 
@@ -508,9 +508,9 @@ class Instrument(object):
         ----------
 
         fft_oversample : int
-            Oversampling factor for intermediate plane calculations. Default is 2
+            Oversampling factor for interimediate plane calculations. Default is 2
         detector_oversample: int, optional
-            By default the detector oversampling is equal to the intermediate calculation oversampling.
+            By default the detector oversampling is equal to the interimediate calculation oversampling.
             If you wish to use a different value for the detector, set this parameter.
             Note that if you just want images at detector pixel resolution you will achieve higher fidelity
             by still using some oversampling (i.e. *not* setting `oversample_detector=1`) and instead rebinning

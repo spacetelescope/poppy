@@ -561,7 +561,7 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
     Z = np.full((nterms + 1,) + shape, outside, dtype=float)
     Z[1:] = zernike_basis(nterms=nterms, npix=npix, rho=rho, theta=theta, outside=0.0)
 
-    G = [np.zeros(shape), np.ones(shape)]  # array of G_i etc. intermediate fn
+    G = [np.zeros(shape), np.ones(shape)]  # array of G_i etc. interimediate fn
     H = [np.zeros(shape), apmask_float.copy()]  # array of hexikes
     c = {}  # coefficients hash
 
@@ -797,7 +797,7 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
         Z = np.zeros((nterms + 1,) + shape)
         Z[1:] = zernike_basis(nterms=nterms, rho=rho, theta=theta, outside=0.0)
 
-    G = [np.zeros(shape), np.ones(shape)]  # array of G_i etc. intermediate fn
+    G = [np.zeros(shape), np.ones(shape)]  # array of G_i etc. interimediate fn
     H = [np.zeros(shape), apmask_float.copy()]  # array of zernikes on arbitrary basis
     c = {}  # coefficients hash
 

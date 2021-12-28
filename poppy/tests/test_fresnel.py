@@ -349,8 +349,8 @@ def test_fresnel_optical_system_Hubble(display=False, sampling=2):
 
     This function tests the FresnelOpticalSystem functionality including
     assembly of the optical system and propagation of wavefronts,
-    intermediate beam sizes through the optical system,
-    intermediate and final system focal lengths,
+    interimediate beam sizes through the optical system,
+    interimediate and final system focal lengths,
     toggling between different types of optical planes,
     and the properties of the output PSF including FWHM and
     comparison to the Airy function.
@@ -378,7 +378,7 @@ def test_fresnel_optical_system_Hubble(display=False, sampling=2):
     hst.add_optic(optics.ScalarTransmission(planetype=poppy_core.PlaneType.image), distance=d_sec_to_focus)
 
     # Create a PSF
-    psf, waves = hst.calc_psf(wavelength=0.5e-6, display_intermediates=display, return_intermediates=True)
+    psf, waves = hst.calc_psf(wavelength=0.5e-6, display_interimediates=display, return_interimediates=True)
 
     if len(waves)>1:
 
@@ -415,7 +415,7 @@ def test_fresnel_optical_system_Hubble(display=False, sampling=2):
 
         ### check the various plane types are as expected, including toggling into angular coordinates
         assert_message = ("Expected FresnelWavefront at plane #{} to have {} == {}, but got {}")
-        system_planetypes = [PlaneType.pupil, PlaneType.pupil, PlaneType.intermediate, PlaneType.image]
+        system_planetypes = [PlaneType.pupil, PlaneType.pupil, PlaneType.interimediate, PlaneType.image]
         for idx, (wavefront, planetype) in enumerate(zip(waves, system_planetypes)):
             assert wavefront.planetype == planetype, assert_message.format(
                 idx, "planetype", plane_type, wavefront.planetype
@@ -520,7 +520,7 @@ def test_fresnel_FITS_Optical_element(tmpdir, display=False, verbose=False):
         fosys.add_optic(optics.ScalarTransmission(name='focus'), distance=1 * u.m)
 
         # perform the calculation, then check results are as expected
-        psf_with_astigmatism, wfronts = fosys.calc_psf(display_intermediates=display, return_intermediates=True)
+        psf_with_astigmatism, wfronts = fosys.calc_psf(display_interimediates=display, return_interimediates=True)
 
         cx, cy = utils.measure_centroid(psf_with_astigmatism)
         expected_cx = expected_cy = psf_with_astigmatism[0].data.shape[0] // 2
@@ -589,7 +589,7 @@ def test_fresnel_return_complex():
     # physical radius values
     M1_radius = 3. * u.m
     fl_M1 = M1_radius/2.0
-    # intermediary distances
+    # interimediary distances
 
     tel = fresnel.FresnelOpticalSystem(pupil_diameter=2.4*u.m)
     gl=fresnel.QuadraticLens(500*u.cm)
@@ -622,7 +622,7 @@ def test_detector_in_fresnel_system(npix=256):
     osys.add_detector(pixelscale=out_pixscale*u.micron/u.pixel, fov_pixels=output_npix)
 
     # Calculate a PSF
-    psf, waves = osys.calc_psf(wavelength=1e-6, return_intermediates=True)
+    psf, waves = osys.calc_psf(wavelength=1e-6, return_interimediates=True)
 
     # Check the output pixel scale is as desired
     np.testing.assert_almost_equal(psf[0].header['PIXELSCL'],  out_pixscale/1e6)
@@ -702,7 +702,7 @@ def test_CompoundOpticalSystem_fresnel(npix=128, display=False):
     osys.add_optic(poppy.QuadraticLens(1.0*u.m))
     osys.add_optic(poppy.Detector(pixelscale=0.25*u.micron/u.pixel, fov_pixels=512), distance=1*u.m)
 
-    psf = osys.calc_psf(display_intermediates=display)
+    psf = osys.calc_psf(display_interimediates=display)
 
     if display:
         plt.figure()
@@ -717,7 +717,7 @@ def test_CompoundOpticalSystem_fresnel(npix=128, display=False):
 
     cosys = poppy.CompoundOpticalSystem([osys1, osys2])
 
-    psf2 = cosys.calc_psf(display_intermediates=display)
+    psf2 = cosys.calc_psf(display_interimediates=display)
 
     assert np.allclose(psf[0].data, psf2[0].data), "Results from simple and compound Fresnel systems differ unexpectedly."
 
@@ -752,8 +752,8 @@ def test_CompoundOpticalSystem_hybrid(npix=128):
     osys3.add_pupil(poppy.ScalarTransmission())
     osys3.add_detector(fov_pixels=64, pixelscale=0.01)
     cosys = poppy.CompoundOpticalSystem([osys1, osys2, osys3])
-    psf, ints = cosys.calc_psf( return_intermediates=True)
-    assert len(ints) == 4, "Unexpected number of intermediate  wavefronts"
+    psf, ints = cosys.calc_psf( return_interimediates=True)
+    assert len(ints) == 4, "Unexpected number of interimediate  wavefronts"
     assert isinstance(ints[0], poppy.Wavefront), "Unexpected output type"
     assert isinstance(ints[1], poppy.FresnelWavefront), "Unexpected output type"
     assert isinstance(ints[2], poppy.Wavefront), "Unexpected output type"
@@ -785,9 +785,9 @@ def test_CompoundOpticalSystem_hybrid(npix=128):
     cosys = poppy.CompoundOpticalSystem([osys1, osys2])
 
     #===== PSF calculations =====
-    psf_simple = osys.calc_psf(return_intermediates=False)
+    psf_simple = osys.calc_psf(return_interimediates=False)
     poppy.poppy_core._log.info("******=========calculation divider============******")
-    psf_compound = cosys.calc_psf(return_intermediates=False)
+    psf_compound = cosys.calc_psf(return_interimediates=False)
 
     np.testing.assert_allclose(psf_simple[0].data, psf_compound[0].data,
                                err_msg="PSFs do not match between equivalent simple and compound/hybrid optical systems")
@@ -819,14 +819,14 @@ def test_inwave_fresnel(plot=False):
 
     if plot:
         plt.figure(figsize=(12, 8))
-    psf1, wfs1 = hst.calc_psf(wavelength=lambda_m, display_intermediates=plot, return_intermediates=True)
+    psf1, wfs1 = hst.calc_psf(wavelength=lambda_m, display_interimediates=plot, return_interimediates=True)
 
     # now test the system by inputting a wavefront first
     wfin = poppy.FresnelWavefront(beam_radius=diam / 2, wavelength=lambda_m,
                                   npix=npix, oversample=oversample)
     if plot:
         plt.figure(figsize=(12, 8))
-    psf2, wfs2 = hst.calc_psf(wavelength=lambda_m, display_intermediates=plot, return_intermediates=True,
+    psf2, wfs2 = hst.calc_psf(wavelength=lambda_m, display_interimediates=plot, return_interimediates=True,
                               inwave=wfin)
 
     wf = wfs1[-1].wavefront
@@ -866,11 +866,11 @@ def test_FixedSamplingImagePlaneElement(display=False):
     hst.add_optic(fpm, distance=d_sec_to_focus)
     hst.add_optic(oap, distance=fl_oap)
     hst.add_optic(oap, distance=fl_oap)
-    hst.add_optic(poppy.ScalarTransmission(planetype=poppy.poppy_core.PlaneType.intermediate, name='Image'), distance=fl_oap)
+    hst.add_optic(poppy.ScalarTransmission(planetype=poppy.poppy_core.PlaneType.interimediate, name='Image'), distance=fl_oap)
 
     # Create a PSF
     if display: fig=plt.figure(figsize=(10,5))
-    psf, waves = hst.calc_psf(wavelength=lambda_m, display_intermediates=display, return_intermediates=True)
+    psf, waves = hst.calc_psf(wavelength=lambda_m, display_interimediates=display, return_interimediates=True)
 
     # still have to do comparison of arrays
     psf_result = fits.open(poppy_tests_fpath+'FITSFPMElement_test_result.fits')
@@ -884,7 +884,7 @@ def test_FixedSamplingImagePlaneElement(display=False):
                                err_msg="PSF pixelscale of this test does not match the saved result.", verbose=True)
     
 
-def test_fresnel_noninteger_oversampling(display_intermediates=False):
+def test_fresnel_noninteger_oversampling(display_interimediates=False):
     '''Test for noninteger oversampling for basic FresnelOpticalSystem() using HST example system'''
     lambda_m = 0.5e-6 * u.m
     # lambda_m = np.linspace(0.475e-6, 0.525e-6, 3) * u.m
@@ -910,8 +910,8 @@ def test_fresnel_noninteger_oversampling(display_intermediates=False):
     hst1.add_optic(m2, distance=d_pri_sec)
     hst1.add_optic(image_plane, distance=d_sec_to_focus)
 
-    if display_intermediates: plt.figure(figsize=(12, 8))
-    psf1 = hst1.calc_psf(wavelength=lambda_m, display_intermediates=display_intermediates)
+    if display_interimediates: plt.figure(figsize=(12, 8))
+    psf1 = hst1.calc_psf(wavelength=lambda_m, display_interimediates=display_interimediates)
 
     # now test the second system which has a different oversampling factor
     oversample2 = 2.0
@@ -924,8 +924,8 @@ def test_fresnel_noninteger_oversampling(display_intermediates=False):
     hst2.add_optic(m2, distance=d_pri_sec)
     hst2.add_optic(image_plane, distance=d_sec_to_focus)
     
-    if display_intermediates: plt.figure(figsize=(12, 8))
-    psf2 = hst2.calc_psf(wavelength=lambda_m, display_intermediates=display_intermediates)
+    if display_interimediates: plt.figure(figsize=(12, 8))
+    psf2 = hst2.calc_psf(wavelength=lambda_m, display_interimediates=display_interimediates)
 
     # Now test a 3rd HST system with oversample of 2.5 and compare to hardcoded result
     oversample3=2.5
@@ -938,8 +938,8 @@ def test_fresnel_noninteger_oversampling(display_intermediates=False):
     hst3.add_optic(m2, distance=d_pri_sec)
     hst3.add_optic(image_plane, distance=d_sec_to_focus)
 
-    if display_intermediates: plt.figure(figsize=(12, 8))
-    psf3 = hst3.calc_psf(wavelength=lambda_m, display_intermediates=display_intermediates)
+    if display_interimediates: plt.figure(figsize=(12, 8))
+    psf3 = hst3.calc_psf(wavelength=lambda_m, display_interimediates=display_interimediates)
 
     assert np.allclose(psf1[0].data, psf2[0].data), 'PSFs with oversampling 2 and 2.0 are surprisingly different.'
     np.testing.assert_almost_equal(psf3[0].header['PIXELSCL'], 0.017188733797782272, decimal=7, 

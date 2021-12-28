@@ -56,9 +56,9 @@ if _HAVE_PYTEST:
             reason="Python 3.4 required for reliable forkserver start method")
     @pytest.mark.skipif(LooseVersion(astropy.__version__) <  LooseVersion('1.0.3'),
             reason="astropy >=1.0.3 required for tests of multiprocessing")
-    def test_multiprocessing_intermediate_planes():
-        """ Test that using multiprocessing you can retrieve the intermediate planes,
-        and they are consistent with the intermediate planes from a
+    def test_multiprocessing_interimediate_planes():
+        """ Test that using multiprocessing you can retrieve the interimediate planes,
+        and they are consistent with the interimediate planes from a
         single process calculation"""
         osys = poppy_core.OpticalSystem("test")
         osys.add_pupil(optics.CircularAperture(radius=1))
@@ -69,10 +69,10 @@ if _HAVE_PYTEST:
         conf.use_fftw=False
 
         conf.use_multiprocessing=False
-        psf_single, planes_single = osys.calc_psf(source=source, return_intermediates=True)
+        psf_single, planes_single = osys.calc_psf(source=source, return_interimediates=True)
 
         conf.use_multiprocessing=True
-        psf_multi, planes_multi = osys.calc_psf(source=source, return_intermediates=True)
+        psf_multi, planes_multi = osys.calc_psf(source=source, return_interimediates=True)
 
         assert np.allclose(psf_single[0].data, psf_multi[0].data), \
             "PSF from multiprocessing does not match PSF from single process"

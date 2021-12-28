@@ -3,7 +3,7 @@ Overview
 
 The module ``poppy`` implements an object-oriented system for modeling physical optics
 propagation with diffraction, particularly for telescopic and coronagraphic
-imaging. Right now only image and pupil planes are supported; intermediate
+imaging. Right now only image and pupil planes are supported; interimediate
 planes are a future goal.  
 
 Poppy also includes a system for modeling a complete instrument (including
@@ -110,7 +110,7 @@ The allowed types of planes are:
  * **Image** planes, which have angular sampling measured in arcseconds. The
    default behavior for an image plane in POPPY is to have the sampling
    automatically defined by the natural sampling of a Fourier Transform of the
-   previous pupil array. This is generally appropriate for most intermediate
+   previous pupil array. This is generally appropriate for most interimediate
    optical planes in a system. However there are also:
 
  * **Detector** planes, which are a specialized subset of image plane that has
@@ -121,7 +121,7 @@ The allowed types of planes are:
  * **Rotation** planes, which represent a change of coordinate system rotating
    by some number of degrees around the optical axis. Note that POPPY always
    represents an "unfolded", linear optical system; fold mirrors and/or other
-   intermediate powered optics are not represented as such.  Rotations can take
+   interimediate powered optics are not represented as such.  Rotations can take
    place after either an image or pupil plane. 
 
 POPPY thus is capable of representing a moderate subset of optical imaging systems, 
