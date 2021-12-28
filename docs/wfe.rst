@@ -245,7 +245,7 @@ desired in the basis, as well as the desired sampling (how many pixels across ea
 
  * :func:`poppy.zernike.zernike_basis` is the standard Zernike polynomials over a unit circle
  * :func:`poppy.zernike.hexike_basis` is the Hexikes over a unit hexagon
- * :func:`poppy.zernike.arbitrary_basis` uses the Gram-Schmidt orthonormalization algorthm to generate an
+ * :func:`poppy.zernike.arbitrary_basis` uses the Gram-Schmidt orthonormalization algorithm to generate an
    orthonormal basis for any supplied arbitrary aperture shape.
  * :class:`poppy.zernike.Segment_Piston_Basis` implements bases defined by hexagonal segments controlled in piston only. Unlike the prior basis functions, this one is a function class: first you must instantiate it to specify the desired number of hexagons and other pupil geometry information, and then you can use the resulting object as a basis function to compute the hexikes.
  * :class:`poppy.zernike.Segment_PTT_Basis` is similar, but each segment can be controlled in piston, tip, and tilt.
