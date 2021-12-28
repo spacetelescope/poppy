@@ -173,7 +173,7 @@ h1 tt, h2 tt, h3 tt, h4 tt, h5 tt, h6 tt, pre, code, tt {
   background-color: #f8f8f8;
 }
 
-/* override box for links & other sphinx-specifc stuff */
+/* override box for links & other sphinx-specific stuff */
 tt.xref, a tt, tt.descname, tt.descclassname {
   padding: 0 1px 0 1px;
   border: none;
