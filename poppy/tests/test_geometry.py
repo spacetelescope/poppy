@@ -35,7 +35,7 @@ def test_clipping():
 # Test effect of shifting the center of the image by fractional pixels
     # cross correlation of shifted & unshifted to demonstrate 1/2 pixel shifts?
 
-# Test using subpixel scaling of incput X and Y arrays
+# Test using subpixel scaling of input X and Y arrays
 
 # Test the specific case at fault here.
 
