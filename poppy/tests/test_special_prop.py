@@ -27,7 +27,7 @@ def test_SAMC(fft_oversample=4, samc_oversample=8, npix=512,
         Oversampling factor for resolution & precision
     extra_test_plane : bool
         Should we add an extra plane in the beginning? This allows easy testing of
-        muliple cases in the updated flexible-about-number-of-planes SAMC implementation.
+        multiple cases in the updated flexible-about-number-of-planes SAMC implementation.
 
     """
     lyot_radius = 6.5/2.5
