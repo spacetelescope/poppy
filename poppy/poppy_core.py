@@ -1000,7 +1000,7 @@ class Wavefront(BaseWavefront):
         """
         if self.planetype == optic.planetype:
             if isinstance(optic, Detector):
-                _log.debug("  Resampling wavefront to match detector pixellation.")
+                _log.debug("  Resampling wavefront to match detector pixelation.")
                 self._resample_wavefront_pixelscale(optic)
             else:
                 _log.debug("  Wavefront and optic %s already at same plane type, no propagation needed." % optic.name)
