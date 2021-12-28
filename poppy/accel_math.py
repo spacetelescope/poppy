@@ -564,7 +564,7 @@ def benchmark_2d_ffts(mode='poppy', max_pow=13, verbose=False, savefig=False):
             pyfftw.interfaces.numpy_fft.fft2(it, thread=1)
 
         def fftw(it):
-            # explictly try multithreaded here
+            # explicitly try multithreaded here
             pyfftw.interfaces.numpy_fft.fft2(it, threads=threads)
 
         def mklfft(it):
