@@ -56,7 +56,7 @@ def test_wavefront_copy():
 
 
 def test_wavefront_rotation():
-    # test rotation doesn't do anything in imul, but instead does stuff in propatage
+    # test rotation doesn't do anything in imul, but instead does stuff in propagate
     wave = poppy_core.Wavefront(npix=100, wavelength=1e-6)
     rot = poppy_core.Rotation(10)
     wave0 = wave
