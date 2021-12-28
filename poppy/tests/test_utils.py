@@ -222,7 +222,7 @@ def test_measure_FWHM(display=False, verbose=False):
     # We test both well sampled and barely sampled cases.
     # In this test case the FWHM is 0.206265 arcsec, so pixel scale up to 0.2 arcsec.
     pixscales = [0.01, 0.1, 0.2]
-    # We allow slightly worse accurance for less well sampled data
+    # We allow slightly worse occurrence for less well sampled data
     tolerances= [0.01, 0.015, 0.04]
 
     for pixscale, tolerance in zip(pixscales, tolerances):
