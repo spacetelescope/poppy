@@ -18,7 +18,7 @@ from .. import optics
 
 import matplotlib.pyplot as plt
 
-####### Test Common Infrastructre #######
+####### Test Common Infrastructure #######
 
 def check_wavefront(filename_or_hdulist, slice=0, ext=0, test='nearzero', comment=""):
     """ A helper routine to verify certain properties of a wavefront FITS file,
