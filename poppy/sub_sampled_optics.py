@@ -238,7 +238,7 @@ class Subapertures(poppy.OpticalElement):
 
         inputs:
         cent_function: function names
-            see available funtions in .utils (if using a different one make sure to include it at top of this file as well)
+            see available functions in .utils (if using a different one make sure to include it at top of this file as well)
         relative to: string
             can be either 'center' or 'origin' for default centroid function
         asFITS: bool
