@@ -2126,7 +2126,7 @@ def fixed_sampling_optic(optic, wavefront, oversample=2):
     Returns
     -------
     new_array_optic : poppy.ArrayOpticalElement
-        A version ofthe input optic with fixed arrays for OPD and transmission.
+        A version of the input optic with fixed arrays for OPD and transmission.
 
     """
     from .poppy_core import ArrayOpticalElement
