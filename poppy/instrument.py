@@ -828,7 +828,7 @@ class Instrument(object):
         bandpasslist : dict
             dictionary of string names for use by synphot
 
-        This could probably be folded into one using an OrderdDict. FIXME do that later
+        This could probably be folded into one using an OrderedDict. FIXME do that later
 
         """
 
