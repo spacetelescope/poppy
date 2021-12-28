@@ -1407,7 +1407,7 @@ class MultiHexagonAperture(MultiSegmentAperture):
 
     Note that this routine becomes a bit slow for nrings >4. For repeated computations on
     the same aperture, avoid repeated evaluations of this function. It will be faster to create
-    this aperture, evalute it once, and save the result onto a discrete array, via either
+    this aperture, evaluate it once, and save the result onto a discrete array, via either
        (1) saving it to a FITS file using the to_fits() method, and then use that in a
        FITSOpticalElement, or
        (2) Use the fixed_sampling_optic function to create an ArrayOpticalElement with
