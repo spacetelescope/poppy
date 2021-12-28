@@ -669,7 +669,7 @@ Released April 7, 2014
 0.2.8
 -----
 
- * First release as a standalone package (previously was integrated as part of webbpsf). See the release notes for WebbPSF for prior verions.
+ * First release as a standalone package (previously was integrated as part of webbpsf). See the release notes for WebbPSF for prior versions.
  * switched package building to use `setuptools` instead of `distutils`/`stsci_distutils_hack`
  * new `Instrument` class in poppy provides much of the functionality previously in JWInstrument, to make it
    easier to model generic non-JWST instruments using this code.
