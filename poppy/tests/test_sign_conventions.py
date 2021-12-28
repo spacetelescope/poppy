@@ -94,7 +94,7 @@ def test_wavefront_tilt_sign_and_direction_fresnel(plot=False, npix=128):
 
     n = wave.shape[0]
     nominal_cen = n // 2  # In Fresnel mode, PSFs are centered on a pixel by default
-    # (different from in Frauhofer mode by half a pixel)
+    # (different from in Fraunhofer mode by half a pixel)
 
     cen = poppy.measure_centroid(wave.as_fits())
     assert np.allclose(cen[0], nominal_cen), "Tilt in X should not displace the PSF in Y"

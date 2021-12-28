@@ -746,7 +746,7 @@ def test_CompoundOpticalSystem():
 
 # Tests for the inwave argument
 
-def test_inwave_fraunhoffer(plot=False):
+def test_inwave_fraunhofer(plot=False):
     '''Verify basic functionality of the inwave kwarg for a basic OpticalSystem()'''
     npix=128
     oversample=2
