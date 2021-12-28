@@ -1520,7 +1520,7 @@ class MultiCircularAperture(MultiSegmentAperture):
          The number of rings of hexagons to include, not counting the central segment
     segment_radius : float, optional
         radius of the circular sub-apertures in meters, default is 1 meters
-    gap: float, otional
+    gap: float, optional
         Gap between adjacent segments, in meters. Default is 0.01 m = 1 cm
     center : bool, optional
         should the central segment be included? Default is True.
