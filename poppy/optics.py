@@ -540,7 +540,7 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
             # either end
             # scalefact = np.linspace(1,7, x.shape[1]).clip(2,6)
 
-            # the scale fact should depent on X coord in arcsec, scaling across a 20 arcsec FOV.
+            # the scale fact should depend on X coord in arcsec, scaling across a 20 arcsec FOV.
             # map flat regions to 2.5 arcsec each?
             # map -7.5 to 2, +7.5 to 6. slope is 4/15, offset is +9.5
             scalefact = (2 + (-x + 7.5) * 4 / 15).clip(2, 6)
