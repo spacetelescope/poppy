@@ -815,7 +815,7 @@ class CircularSegmentedDeformableMirror(SegmentedDeformableMirror, optics.MultiC
             ----------
             rings, segment_radius, gap, center : various
                 All keywords for defining the segmented aperture geometry are inherited from
-                the MultiCircularperture class. See that class for details.
+                the MultiCircularAperture class. See that class for details.
 
              include_factor_of_two : Bool
                 include the factor of two due to reflection in the OPD function (optional, default False).

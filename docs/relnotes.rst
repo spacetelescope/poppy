@@ -125,7 +125,7 @@ This is a minor release primarily for updates in packaging infrastructure, plus 
  * `calc_datacube` function now allows `nwavelengths>100`, removing a prior limitation of this function. (:pr:`351` by :user:`ojustino`)
  * `radial_profile` function can now be applied to datacubes, with a `slice` keyword to specify which slice of the cube should be examined. (:pr:`352` by :user:`mperrin`)
  * Improved the Zernike basis expansion function for segmented apertures, `opd_expand_segments`, to allow optional masking out of pixels at the segment borders. This can be useful in some circumstances for avoiding edge effects from partially illuminated pixels or interpolation artifacts when evaluating Zernike or hexike coefficients per segment. (:pr:`353` by :user:`mperrin`)
- * Allows `Segmented_PTT_Basis` to pass through keyword arguments to parent class `MultiHexagonAperture`, in particular for selecting/excluding particular segments from the apreture geometry. (:pr:`357` by :user:`kjbrooks`)
+ * Allows `Segmented_PTT_Basis` to pass through keyword arguments to parent class `MultiHexagonAperture`, in particular for selecting/excluding particular segments from the aperture geometry. (:pr:`357` by :user:`kjbrooks`)
  * Fix a log string formatting bug encountered in MFT propagation under certain conditions (:pr:`360` by :user:`mperrin`)
 
 **Software Infrastructure Updates and Internals:**
