@@ -659,7 +659,7 @@ Released April 7, 2014
  * Added support for pyFFTW in addition to PyFFTW3.
  * pyFFTW will auto save wisdom to disk for more rapid execution on subsequent invocations
  * InverseTransmission of an AnalyticElement is now allowed inside a CompoundAnalyticOptic
- * Added SecondaryObscuration optic to conveniently model an opaque secondary mirror and adjustible support spiders.
+ * Added SecondaryObscuration optic to conveniently model an opaque secondary mirror and adjustable support spiders.
  * Added RectangleAperture. Added rotation keywords for RectangleAperture and SquareAperture.
  * Added AnalyticOpticalElement.sample() function to sample analytic functions onto a user defined grid. Refactored
    the display() and toFITS() functions. Improved functionality of display for CompoundAnalyticOptics.

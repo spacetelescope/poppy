@@ -33,7 +33,7 @@ Example skeleton code::
 
     class myCustomOptic(poppy.AnalyticOpticalElement):
         def __init__(self, *args, **kwargs):
-            """ If your optic has adjustible parameters, then save them as attributes here """
+            """ If your optic has adjustable parameters, then save them as attributes here """
             super().__init__(**kwargs)
 
         def get_opd(self,wave):
