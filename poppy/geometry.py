@@ -52,7 +52,7 @@ def _oneside(x, y0, y1, r):
     """
     Compute the area of intersection between a triangle and a circle.
     The circle is centered at the origin and has a radius of r.  The
-    triangle has verticies at the origin and at (x,y0) and (x,y1).
+    triangle has vertices at the origin and at (x,y0) and (x,y1).
     This is a signed area.  The path is traversed from y0 to y1.  If
     this path takes you clockwise the area will be negative.
     """
