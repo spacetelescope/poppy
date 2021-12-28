@@ -391,7 +391,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
         interpolated_surface = np.zeros(wave.shape)
 
-        crosstalk = 0.15  # amount of crosstalk on advancent actuator
+        crosstalk = 0.15  # amount of crosstalk on adjacent actuator
         sigma = self.actuator_spacing.to(u.meter).value / np.sqrt((-np.log(crosstalk)))
 
         pixelscale = x[0, 1] - x[0, 0]  # scale of x,y
@@ -662,7 +662,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         if self.influence_type == 'from file':
             act_space_m = self.actuator_spacing.to(u.meter).value
             r = np.linspace(0, 4 * act_space_m, 50)
-            crosstalk = 0.15  # amount of crosstalk on advancent actuator
+            crosstalk = 0.15  # amount of crosstalk on adjacent actuator
             sigma = act_space_m / np.sqrt((-np.log(crosstalk)))
             plt.plot(r, np.exp(- (r / sigma) ** 2))
             plt.xlabel('Separation [m]')
