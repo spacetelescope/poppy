@@ -657,7 +657,7 @@ class CircularPhaseMask(AnalyticImagePlaneElement):
         Wavelength in meters for which the phase mask was designed
     retardance : float
         Optical path delay at that wavelength, specified in waves
-        relative to the reference wavelengt. Default is 0.5.
+        relative to the reference wavelength. Default is 0.5.
 
     """
 
