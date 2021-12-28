@@ -189,7 +189,7 @@ def test_StatisticalPSDWFE(index=3, seed=123456, plot=False):
     assert (0.1 <= index <= 10), "index is outside of the range supported by this unit test"
 
     import astropy.modeling
-    # guess a power law model; but don't have the starting guess be the right anwser
+    # guess a power law model; but don't have the starting guess be the right answer
     plaw_guess = astropy.modeling.models.PowerLaw1D(alpha=index*1.5,
         bounds={'alpha': (0.1, 10)}) # avoid floating point overflow warnings on test
 
