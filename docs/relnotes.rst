@@ -420,7 +420,7 @@ some lingering bugs. As always, please let us know of any issues encountered via
    (`#145 <https://github.com/spacetelescope/poppy/issues/145>`_, `#165 <https://github.com/mperrin/poppy/pull/165>`_; @mperrin, douglase)
  * The ``getPhasor`` function for all OpticalElements has been refactored to split it into 3
    functions: ``get_transmission`` (for electric field amplitude transmission), ``get_opd``
-   (for the optical path difference affectig the phase), and ``get_phasor`` (which combines transmission
+   (for the optical path difference affecting the phase), and ``get_phasor`` (which combines transmission
    and OPD into the complex phasor). This division simplifies and makes more flexible the subclassing
    of optics, since in many cases (such as aperture stops) one only cares about setting either the
    transmission or the OPD.  Again, there are back compatibility hooks to allow existing code calling
