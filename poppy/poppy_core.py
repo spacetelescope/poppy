@@ -1604,7 +1604,7 @@ class BaseOpticalSystem(ABC):
         if _USE_FFTW:
             utils.fftw_load_wisdom()
 
-        if conf.use_multiprocessing and len(wavelength) > 1:  # ######## Parallellized computation ############
+        if conf.use_multiprocessing and len(wavelength) > 1:  # ######## Parallelized computation ############
             # Avoid a Mac OS incompatibility that can lead to hard-to-reproduce crashes.
             # see issues #23 and #176
 
