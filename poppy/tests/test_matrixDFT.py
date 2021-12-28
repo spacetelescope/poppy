@@ -36,7 +36,7 @@ def complexinfo(a, str=None):
 def euclid2(s, c=None):
     """ Compute Euclidean distance between points across an 2d ndarray
 
-    Paramters
+    Parameters
     ----------
     s : tuple
         shape of array
