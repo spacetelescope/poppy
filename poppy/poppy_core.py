@@ -449,7 +449,7 @@ class BaseWavefront(ABC):
         halfpix = self.pixelscale.to_value(pixelscale_unit) * 0.5
         extent = [x.min() - halfpix, x.max() + halfpix, y.min() - halfpix, y.max() + halfpix]
 
-        # implement semi-intellegent selection of what to display, if the user wants
+        # implement semi-intelligent selection of what to display, if the user wants
         if what == 'best':
             if self.planetype == PlaneType.image:
                 what = 'intensity'  # always show intensity for image planes
