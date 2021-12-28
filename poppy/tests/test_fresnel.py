@@ -771,7 +771,7 @@ def test_CompoundOpticalSystem_hybrid(npix=128):
     # First part is Fraunhofer then second is Fresnel
     osys1 = poppy.OpticalSystem(npix=128, oversample=4, name="FIRST PART, FRAUNHOFER")
     # Note for strict consistency we need to apply a half pixel shift to optics in the Fraunhofer part;
-    # this accomodates the differences between different types of image centering.
+    # this accommodates the differences between different types of image centering.
     pixscl = osys.input_wavefront().pixelscale
     halfpixshift = (pixscl*0.5*u.pixel).to(u.m).value
     opt1shifted = poppy.SquareAperture(shift_x = halfpixshift, shift_y = halfpixshift)
