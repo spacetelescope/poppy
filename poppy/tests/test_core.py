@@ -54,7 +54,7 @@ def test_basic_functionality():
     osys.add_detector(pixelscale=0.1, fov_arcsec=5.0) # use a large FOV so we grab essentially all the light and conserve flux
 
     psf = osys.calc_psf(wavelength=1.0e-6)
-    # we need to be a little careful here due to floating point math comparision equality issues... Can't just do a strict equality
+    # we need to be a little careful here due to floating point math comparison equality issues... Can't just do a strict equality
     assert abs(psf[0].data.max() - 0.201) < 0.001
 
     # test the (fairly trivial) description function.
@@ -194,7 +194,7 @@ def test_normalization():
     from .. import conf
     conf.enable_flux_tests  = True
 
-    # we need to be a little careful here due to floating point math comparision equality issues... Can't just do a strict equality
+    # we need to be a little careful here due to floating point math comparison equality issues... Can't just do a strict equality
 
     # this should be very very close to one
     psf_last = osys.calc_psf(wavelength=1.0e-6, normalize='last')
