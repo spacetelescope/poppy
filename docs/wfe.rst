@@ -52,7 +52,7 @@ Per the 1-D indexing convention in Noll 1976, oblique astigmatism is :math:`j = 
    osys.add_pupil(thinlens)
    osys.add_detector(pixelscale=PIXSCALE, fov_arcsec=FOV)
 
-   psf_with_zernikewfe = osys.calc_psf(wavelength=WAVELENGTH, display_interimediates=True)
+   psf_with_zernikewfe = osys.calc_psf(wavelength=WAVELENGTH, display_intermediates=True)
 
 The resulting PSF and OPD map:
 
@@ -142,7 +142,7 @@ First, the ThinLens::
 
    osys.add_detector(pixelscale=PIXSCALE, fov_arcsec=FOV)
 
-   psf_thinlens = osys.calc_psf(wavelength=WAVELENGTH, display_interimediates=True)
+   psf_thinlens = osys.calc_psf(wavelength=WAVELENGTH, display_intermediates=True)
 
 Second, the equivalent ZernikeWFE usage, with the appropriate coefficient::
 
@@ -156,7 +156,7 @@ Second, the equivalent ZernikeWFE usage, with the appropriate coefficient::
    osys.add_pupil(zernikewfe)
    osys.add_detector(pixelscale=PIXSCALE, fov_arcsec=FOV)
 
-   psf_zernikewfe = osys.calc_psf(wavelength=WAVELENGTH, display_interimediates=True)
+   psf_zernikewfe = osys.calc_psf(wavelength=WAVELENGTH, display_intermediates=True)
 
 If we plot ``psf_thinlens``, ``psf_zernikewfe``, and their difference (for confirmation) we will see:
 
@@ -193,7 +193,7 @@ As a brief demonstration, let's adapt the :ref:`defocus example <zernike_normali
    osys.add_pupil(thinlens)
    osys.add_detector(pixelscale=PIXSCALE, fov_arcsec=FOV)
 
-   psf_with_zernikewfe = osys.calc_psf(wavelength=WAVELENGTH, display_interimediates=True)
+   psf_with_zernikewfe = osys.calc_psf(wavelength=WAVELENGTH, display_intermediates=True)
 
 If you plot this PSF, you will see one identical to that shown above. Now let's modify it to use `~poppy.zernike.hexike_basis`. The first change is to replace the `~poppy.CircularAperture` with a `~poppy.HexagonAperture`. The second is to supply ``basis_factory=zernike.hexike_basis``. Here's the code sample::
 
@@ -209,7 +209,7 @@ If you plot this PSF, you will see one identical to that shown above. Now let's 
    osys.add_pupil(thinlens)
    osys.add_detector(pixelscale=PIXSCALE, fov_arcsec=FOV)
 
-   psf_with_hexikewfe = osys.calc_psf(wavelength=WAVELENGTH, display_interimediates=True, return_interimediates=True)
+   psf_with_hexikewfe = osys.calc_psf(wavelength=WAVELENGTH, display_intermediates=True, return_intermediates=True)
 
 If we plot the new PSF, we will get a hexagonal PSF with a central minimum typical of a single wave of defocus. (Using the same setup with a hexagon aperture and a *Zernike* basis gets a much less pronounced central minimum, as the Zernike polynomials are only orthonormal over the unit circle.)
 

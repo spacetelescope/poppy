@@ -38,7 +38,7 @@ class PlaneType(enum.Enum):
     image = 2  # image plane
     detector = 3
     rotation = 4  # coordinate system rotation
-    interimediate = 5  # arbitrary plane between pupil and image
+    intermediate = 5  # arbitrary plane between pupil and image
     inversion = 6  # coordinate system inversion (flip axes, e.g. like going through focus)
 
 
@@ -46,7 +46,7 @@ _PUPIL = PlaneType.pupil
 _IMAGE = PlaneType.image
 _DETECTOR = PlaneType.detector  # specialized type of image plane
 _ROTATION = PlaneType.rotation  # not a real optic, just a coordinate transform
-_INTERMED = PlaneType.interimediate  # for Fresnel propagation
+_INTERMED = PlaneType.intermediate  # for Fresnel propagation
 
 _RADIANStoARCSEC = 180. * 60 * 60 / np.pi
 
@@ -64,7 +64,7 @@ def _wrap_propagate_for_multiprocessing(args):
     as a tuple, transmitting that to the new process, and then unpickling that,
     unpacking the results, and *then* at last making our instance method call.
     """
-    optical_system, wavelength, retain_interimediates, retain_final, normalize, usefftwflag = args
+    optical_system, wavelength, retain_intermediates, retain_final, normalize, usefftwflag = args
     conf.use_fftw = usefftwflag  # passed in from parent process
 
     # we're in a different Python interpreter process so we
@@ -74,7 +74,7 @@ def _wrap_propagate_for_multiprocessing(args):
         utils.fftw_load_wisdom()
 
     return optical_system.propagate_mono(wavelength,
-                                         retain_interimediates=retain_interimediates,
+                                         retain_intermediates=retain_intermediates,
                                          retain_final=retain_final,
                                          normalize=normalize)
 
@@ -925,7 +925,7 @@ class BaseWavefront(ABC):
 
 class Wavefront(BaseWavefront):
     """ Wavefront in the Fraunhofer approximation: a monochromatic wavefront that
-    can be transformed between pupil and image planes only, not to interimediate planes
+    can be transformed between pupil and image planes only, not to intermediate planes
 
     In a pupil plane, a wavefront object `wf` has
 
@@ -1400,7 +1400,7 @@ class BaseOpticalSystem(ABC):
         self.source_offset_r = 0  # = np.zeros((2))     # off-axis tilt of the source, in ARCSEC
         self.source_offset_theta = 0  # in degrees CCW
 
-        self.interimediate_wfs = None  #
+        self.intermediate_wfs = None  #
         if self.verbose:
             _log.info("Initialized OpticalSystem: " + self.name)
 
@@ -1511,14 +1511,14 @@ class BaseOpticalSystem(ABC):
     @utils.quantity_input(wavelength=u.meter)
     def calc_psf(self, wavelength=1e-6,
                  weight=None,
-                 save_interimediates=False,
-                 save_interimediates_what='all',
+                 save_intermediates=False,
+                 save_intermediates_what='all',
                  display=False,
-                 return_interimediates=False,
+                 return_intermediates=False,
                  return_final=False,
                  source=None,
                  normalize='first',
-                 display_interimediates=False,
+                 display_intermediates=False,
                  inwave=None):
         """Calculate a PSF, either multi-wavelength or monochromatic.
 
@@ -1534,32 +1534,32 @@ class BaseOpticalSystem(ABC):
         weight : float, optional
             weight by which to multiply each wavelength. Must have same length as
             wavelength parameter. Defaults to 1s if not specified.
-        save_interimediates : bool, optional
-            whether to output interimediate optical planes to disk. Default is False
-        save_interimediate_what : string, optional
+        save_intermediates : bool, optional
+            whether to output intermediate optical planes to disk. Default is False
+        save_intermediate_what : string, optional
             What to save - phase, intensity, amplitude, complex, parts, all. Default is all.
-        return_interimediates: bool, optional
-            return interimediate wavefronts as well as PSF?
+        return_intermediates: bool, optional
+            return intermediate wavefronts as well as PSF?
         return_final: bool, optional
             return the complex wavefront at the last surface propagation as well as the PSF.
-            Useful for getting complex PSF without memory usage of `return_interimediates`
+            Useful for getting complex PSF without memory usage of `return_intermediates`
         source : dict
             a dict containing 'wavelengths' and 'weights' list.
         normalize : string, optional
             How to normalize the PSF. See the documentation for propagate_mono() for details.
         display : bool, optional
             whether to plot the results when finished or not.
-        display_interimediates: bool, optional
-            Display interimediate optical planes? Default is False. This option is incompatible with
+        display_intermediates: bool, optional
+            Display intermediate optical planes? Default is False. This option is incompatible with
             parallel calculations using `multiprocessing`. (If calculating in parallel, it will have no effect.)
 
         Returns
         -------
         outfits :
             a fits.HDUList
-        interimediate_wfs : list of `poppy.Wavefront` objects (optional)
-            Only returned if `return_interimediates` is specified.
-            A list of `poppy.Wavefront` objects representing the wavefront at interimediate optical planes.
+        intermediate_wfs : list of `poppy.Wavefront` objects (optional)
+            Only returned if `return_intermediates` is specified.
+            A list of `poppy.Wavefront` objects representing the wavefront at intermediate optical planes.
             The 0th item is "before first optical plane", 1st is "after first plane and before second plane", and so on.
         final_wfs : `poppy.Wavefront` object (optional)
             Only returned if `return_final` is specified.
@@ -1590,12 +1590,12 @@ class BaseOpticalSystem(ABC):
         if self.verbose:
             _log.info("Calculating PSF with %d wavelengths" % (len(wavelength)))
         outfits = None
-        interimediate_wfs = None
-        if save_interimediates or return_interimediates:
-            _log.info("User requested saving interimediate wavefronts in call to poppy.calc_psf")
-            retain_interimediates = True
+        intermediate_wfs = None
+        if save_intermediates or return_intermediates:
+            _log.info("User requested saving intermediate wavefronts in call to poppy.calc_psf")
+            retain_intermediates = True
         else:
-            retain_interimediates = False
+            retain_intermediates = False
 
         normwts = np.asarray(weight, dtype=_float())
         normwts /= normwts.sum()
@@ -1617,13 +1617,13 @@ class BaseOpticalSystem(ABC):
                              'Please set poppy.conf.use_multiprocessing = False if you want to use display=True.')
                 _log.warning('(Plot the returned PSF with poppy.utils.display_psf.)')
 
-            if return_interimediates:
-                _log.warning('Memory usage warning: When preserving interimediate  planes in multiprocessing mode, '
+            if return_intermediates:
+                _log.warning('Memory usage warning: When preserving intermediate  planes in multiprocessing mode, '
                              'memory usage scales with the number of planes times number of wavelengths. Disable '
                              'use_multiprocessing if you are running out of memory.')
-            if save_interimediates:
-                _log.warning('Saving interimediate steps does not take advantage of multiprocess parallelism. '
-                             'Set save_interimediates=False for improved speed.')
+            if save_intermediates:
+                _log.warning('Saving intermediate steps does not take advantage of multiprocess parallelism. '
+                             'Set save_intermediates=False for improved speed.')
 
             # do *NOT* just blindly try to create as many processes as one has CPUs, or one per wavelength either
             # This is a memory-intensive task so that can end up swapping to disk and thrashing IO
@@ -1639,38 +1639,38 @@ class BaseOpticalSystem(ABC):
 
             # build a single iterable containing the required function arguments
             _log.info("Beginning multiprocessor job using {0} processes".format(nproc))
-            worker_arguments = [(self, wlen, retain_interimediates, return_final, normalize, _USE_FFTW)
+            worker_arguments = [(self, wlen, retain_intermediates, return_final, normalize, _USE_FFTW)
                                 for wlen in wavelength]
             results = pool.map(_wrap_propagate_for_multiprocessing, worker_arguments)
             _log.info("Finished multiprocessor job")
             pool.close()
 
             # Sum all the results up into one array, using the weights
-            outfits, interimediate_wfs = results[0]
+            outfits, intermediate_wfs = results[0]
             outfits[0].data *= normwts[0]
-            for idx, wavefront in enumerate(interimediate_wfs):
-                interimediate_wfs[idx] *= normwts[0]
+            for idx, wavefront in enumerate(intermediate_wfs):
+                intermediate_wfs[idx] *= normwts[0]
             _log.info("got results for wavelength channel {} / {} ({:g} meters)".format(
                 0, len(tuple(wavelength)), wavelength[0]))
             for i in range(1, len(normwts)):
-                mono_psf, mono_interimediate_wfs = results[i]
+                mono_psf, mono_intermediate_wfs = results[i]
                 wave_weight = normwts[i]
                 _log.info("got results for wavelength channel {} / {} ({:g} meters)".format(
                     i, len(tuple(wavelength)), wavelength[i]))
                 outfits[0].data += mono_psf[0].data * wave_weight
-                for idx, wavefront in enumerate(mono_interimediate_wfs):
-                    interimediate_wfs[idx] += wavefront * wave_weight
+                for idx, wavefront in enumerate(mono_intermediate_wfs):
+                    intermediate_wfs[idx] += wavefront * wave_weight
             outfits[0].header.add_history("Multiwavelength PSF calc using {} processes completed.".format(nproc))
 
         else:  # ######### single-threaded computations (may still use multi cores if FFTW enabled ######
             if display:
                 plt.clf()
             for wlen, wave_weight in zip(wavelength, normwts):
-                mono_psf, mono_interimediate_wfs = self.propagate_mono(
+                mono_psf, mono_intermediate_wfs = self.propagate_mono(
                     wlen,
-                    retain_interimediates=retain_interimediates,
+                    retain_intermediates=retain_intermediates,
                     retain_final=return_final,
-                    display_interimediates=display_interimediates,
+                    display_intermediates=display_intermediates,
                     normalize=normalize,
                     inwave=inwave
                 )
@@ -1679,18 +1679,18 @@ class BaseOpticalSystem(ABC):
                     # for the first wavelength processed, set up the arrays where we accumulate the output
                     outfits = mono_psf
                     outfits[0].data *= wave_weight
-                    interimediate_wfs = mono_interimediate_wfs
-                    for wavefront in interimediate_wfs:
+                    intermediate_wfs = mono_intermediate_wfs
+                    for wavefront in intermediate_wfs:
                         wavefront *= wave_weight  # modifies Wavefront in-place
                 else:
                     # for subsequent wavelengths, scale and add the data to the existing arrays
                     outfits[0].data += mono_psf[0].data * wave_weight
-                    for idx, wavefront in enumerate(mono_interimediate_wfs):
-                        interimediate_wfs[idx] += wavefront * wave_weight
+                    for idx, wavefront in enumerate(mono_intermediate_wfs):
+                        intermediate_wfs[idx] += wavefront * wave_weight
 
             # Display WF if requested.
             #  Note - don't need to display here if we are showing all steps already
-            if display and not display_interimediates:
+            if display and not display_intermediates:
                 cmap = copy.copy(getattr(matplotlib.cm, conf.cmap_sequential))
                 cmap.set_bad('0.3')
                 halffov_x = outfits[0].header['PIXELSCL'] * outfits[0].data.shape[1] / 2
@@ -1705,13 +1705,13 @@ class BaseOpticalSystem(ABC):
                 utils.imshow_with_mouseover(outfits[0].data, extent=extent, norm=norm, cmap=cmap,
                                             origin='lower')
 
-        if save_interimediates:
-            _log.info('Saving interimediate wavefronts:')
-            for idx, wavefront in enumerate(interimediate_wfs):
+        if save_intermediates:
+            _log.info('Saving intermediate wavefronts:')
+            for idx, wavefront in enumerate(intermediate_wfs):
                 filename = 'wavefront_plane_{:03d}.fits'.format(idx)
-                wavefront.writeto(filename, what=save_interimediates_what)
-                _log.info('  saved {} to {} ({} / {})'.format(save_interimediates_what, filename,
-                                                              idx, len(interimediate_wfs)))
+                wavefront.writeto(filename, what=save_intermediates_what)
+                _log.info('  saved {} to {} ({} / {})'.format(save_intermediates_what, filename,
+                                                              idx, len(intermediate_wfs)))
 
         tstop = time.time()
         tdelta = tstop - tstart
@@ -1737,8 +1737,8 @@ class BaseOpticalSystem(ABC):
         if self.verbose:
             _log.info("PSF Calculation completed.")
 
-        if return_interimediates | return_final:
-            return outfits, interimediate_wfs
+        if return_intermediates | return_final:
+            return outfits, intermediate_wfs
 
         else:
             return outfits
@@ -1747,13 +1747,13 @@ class BaseOpticalSystem(ABC):
     def propagate_mono(self,
                        wavelength=1e-6 * u.meter,
                        normalize='first',
-                       retain_interimediates=False,
+                       retain_intermediates=False,
                        retain_final=False,
-                       display_interimediates=False,
+                       display_intermediates=False,
                        inwave=None):
         """Propagate a monochromatic wavefront through the optical system. Called from within `calc_psf`.
-        Returns a tuple with a `fits.HDUList` object and a list of interimediate `Wavefront`s (empty if
-        `retain_interimediates=False`).
+        Returns a tuple with a `fits.HDUList` object and a list of intermediate `Wavefront`s (empty if
+        `retain_intermediates=False`).
 
         Parameters
         ----------
@@ -1765,27 +1765,27 @@ class BaseOpticalSystem(ABC):
             * 'last' = set total flux = 1 after the entire optical system.
             * 'exit_pupil' = set total flux = 1 at the last pupil of the optical system.
             * 'first=2' = set total flux = 2 after the first optic (used for debugging only)
-        display_interimediates : bool
-            Should interimediate steps in the calculation be displayed on screen? Default: False.
-        retain_interimediates : bool
-            Should interimediate steps in the calculation be retained? Default: False.
+        display_intermediates : bool
+            Should intermediate steps in the calculation be displayed on screen? Default: False.
+        retain_intermediates : bool
+            Should intermediate steps in the calculation be retained? Default: False.
             If True, the second return value of the method will be a list of `poppy.Wavefront` objects
-            representing interimediate optical planes from the calculation.
+            representing intermediate optical planes from the calculation.
         retain_final : bool
             Should the final complex wavefront be retained? Default: False.
             If True, the second return value of the method will be a single element list
-            (for consistency with retain interimediates) containing a `poppy.Wavefront` object
+            (for consistency with retain intermediates) containing a `poppy.Wavefront` object
             representing the final optical plane from the calculation.
-            Overridden by retain_interimediates.
+            Overridden by retain_intermediates.
 
         Returns
         -------
         final_wf : fits.HDUList
             The final result of the monochromatic propagation as a FITS HDUList
-        interimediate_wfs : list
-            A list of `poppy.Wavefront` objects representing the wavefront at interimediate optical planes.
+        intermediate_wfs : list
+            A list of `poppy.Wavefront` objects representing the wavefront at intermediate optical planes.
             The 0th item is "before first optical plane", 1st is "after first plane and before second plane", and so on.
-            (n.b. This will be empty if `retain_interimediates` is False and singular if retain_final is True.)
+            (n.b. This will be empty if `retain_intermediates` is False and singular if retain_final is True.)
         """
 
         if conf.enable_speed_tests:  # pragma: no cover
@@ -1796,25 +1796,25 @@ class BaseOpticalSystem(ABC):
         wavefront = self.input_wavefront(wavelength, inwave=inwave)
 
         kwargs = {'normalize': normalize,
-                  'display_interimediates': display_interimediates,
-                  'return_interimediates': retain_interimediates}
+                  'display_intermediates': display_intermediates,
+                  'return_intermediates': retain_intermediates}
 
         # Is there a more elegant way to handle optional return quantities?
         # without making them mandatory.
-        if retain_interimediates:
-            wavefront, interimediate_wfs = self.propagate(wavefront, **kwargs)
+        if retain_intermediates:
+            wavefront, intermediate_wfs = self.propagate(wavefront, **kwargs)
         else:
             wavefront = self.propagate(wavefront, **kwargs)
-            interimediate_wfs = []
+            intermediate_wfs = []
 
-        if (not retain_interimediates) & retain_final:  # return the full complex wavefront of the last plane.
-            interimediate_wfs = [wavefront]
+        if (not retain_intermediates) & retain_final:  # return the full complex wavefront of the last plane.
+            intermediate_wfs = [wavefront]
 
         if conf.enable_speed_tests:  # pragma: no cover
             t_stop = time.time()
             _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop - t_start))
 
-        return wavefront.as_fits(), interimediate_wfs
+        return wavefront.as_fits(), intermediate_wfs
 
     def display(self, **kwargs):
         """ Display all elements in an optical system on screen.
@@ -2106,14 +2106,14 @@ class OpticalSystem(BaseOpticalSystem):
             _log.debug(f"  Requested source offset at r={self.source_offset_r}, theta={self.source_offset_theta}.")
             _log.debug(f"  Tilted input wavefront by theta_X={tilt_x:.3f}, theta_Y={tilt_y:.3f} arcsec. (signs={sign_x}, {sign_y}; theta tilt={rotation_angle}) ")
 
-        inwave._display_hint_expected_nplanes = len(self)  # For display of interimediate steps nicely
+        inwave._display_hint_expected_nplanes = len(self)  # For display of intermediate steps nicely
         return inwave
 
     def propagate(self,
                   wavefront,
                   normalize='none',
-                  return_interimediates=False,
-                  display_interimediates=False):
+                  return_intermediates=False,
+                  display_intermediates=False):
         """ Core low-level routine for propagating a wavefront through an optical system
 
         This is a **linear operator** that acts on an input complex wavefront to give an
@@ -2128,14 +2128,14 @@ class OpticalSystem(BaseOpticalSystem):
             * 'first' = set total flux = 1 after the first optic, presumably a pupil
             * 'last' = set total flux = 1 after the entire optical system.
             * 'exit_pupil' = set total flux = 1 at the last pupil of the optical system.
-        display_interimediates : bool
-            Should interimediate steps in the calculation be displayed on screen? Default: False.
-        return_interimediates : bool
-            Should interimediate steps in the calculation be returned? Default: False.
+        display_intermediates : bool
+            Should intermediate steps in the calculation be displayed on screen? Default: False.
+        return_intermediates : bool
+            Should intermediate steps in the calculation be returned? Default: False.
             If True, the second return value of the method will be a list of `poppy.Wavefront` objects
-            representing interimediate optical planes from the calculation.
+            representing intermediate optical planes from the calculation.
 
-        Returns a wavefront, and optionally also the interimediate wavefronts after
+        Returns a wavefront, and optionally also the intermediate wavefronts after
         each step of propagation.
 
         """
@@ -2143,7 +2143,7 @@ class OpticalSystem(BaseOpticalSystem):
         if not isinstance(wavefront, Wavefront):
             raise ValueError("First argument to propagate must be a Wavefront.")
 
-        interimediate_wfs = []
+        intermediate_wfs = []
 
         # note: 0 is 'before first optical plane; 1 = 'after first plane and before second plane' and so on
         for optic in self.planes:
@@ -2181,13 +2181,13 @@ class OpticalSystem(BaseOpticalSystem):
                 s1 = time.time()
                 _log.debug(f"\tTIME {s1 - s0:.4f} s\t for propagating past optic '{optic.name}'.")
 
-            if return_interimediates:  # save interimediate wavefront, summed for polychromatic if needed
-                interimediate_wfs.append(wavefront.copy())
-            if display_interimediates:
+            if return_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
+                intermediate_wfs.append(wavefront.copy())
+            if display_intermediates:
                 wavefront._display_after_optic(optic, default_nplanes=len(self))
 
-        if return_interimediates:
-            return wavefront, interimediate_wfs
+        if return_intermediates:
+            return wavefront, intermediate_wfs
         else:
             return wavefront
 
@@ -2278,8 +2278,8 @@ class CompoundOpticalSystem(OpticalSystem):
     def propagate(self,
                   wavefront,
                   normalize='none',
-                  return_interimediates=False,
-                  display_interimediates=False):
+                  return_intermediates=False,
+                  display_intermediates=False):
         """ Core low-level routine for propagating a wavefront through an optical system
 
         See docstring of OpticalSystem.propagate for details
@@ -2287,8 +2287,8 @@ class CompoundOpticalSystem(OpticalSystem):
         """
         from poppy.fresnel import FresnelOpticalSystem, FresnelWavefront
 
-        if return_interimediates:
-            interimediate_wfs = []
+        if return_intermediates:
+            intermediate_wfs = []
 
         # helper function for logging:
         def loghistory(wavefront, msg):
@@ -2310,18 +2310,18 @@ class CompoundOpticalSystem(OpticalSystem):
             loghistory(wavefront, "CompoundOpticalSystem: Propagating through system {}: {}".format(i+1, optsys.name))
             retval = optsys.propagate(wavefront,
                                       normalize=normalize,
-                                      return_interimediates=return_interimediates,
-                                      display_interimediates=display_interimediates)
+                                      return_intermediates=return_intermediates,
+                                      display_intermediates=display_intermediates)
 
             # Deal with returned item(s) as appropriate
-            if return_interimediates:
-                wavefront, interimediate_wfs_i = retval
-                interimediate_wfs += interimediate_wfs_i
+            if return_intermediates:
+                wavefront, intermediate_wfs_i = retval
+                intermediate_wfs += intermediate_wfs_i
             else:
                 wavefront = retval
 
-        if return_interimediates:
-            return wavefront, interimediate_wfs
+        if return_intermediates:
+            return wavefront, intermediate_wfs
         else:
             return wavefront
 

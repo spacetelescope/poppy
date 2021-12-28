@@ -504,13 +504,13 @@ def test_CompoundAnalyticOptic(display=False):
         osys_c_pupil
     )
     osys_compound.add_detector(pixelscale=0.010, fov_pixels=512, oversample=1)
-    psf_compound, ints_compound = osys_compound.calc_psf(wavelength=wavelen, display=False, return_interimediates=True)
+    psf_compound, ints_compound = osys_compound.calc_psf(wavelength=wavelen, display=False, return_intermediates=True)
 
     osys_separate = poppy_core.OpticalSystem()
     osys_s_pupil = optics.RectangleAperture(width=w, height=max(h1, h2))
     osys_separate.add_pupil(osys_s_pupil)
     osys_separate.add_detector(pixelscale=0.010, fov_pixels=512, oversample=1)
-    psf_separate, ints_separate = osys_separate.calc_psf(wavelength=wavelen, display=False, return_interimediates=True)
+    psf_separate, ints_separate = osys_separate.calc_psf(wavelength=wavelen, display=False, return_intermediates=True)
     if display: 
         #from matplotlib import pyplot as plt
         #from poppy import utils
@@ -647,7 +647,7 @@ def test_ThinLens(display=False):
     assert np.allclose(wave.phase[at_center], -np.pi/2), "Didn't get -1/2 wave OPD at center of optic"
     assert len(at_radius[0]) > 0, "Array indices messed up - need to have a pixel at exactly (0,0)"
 
-    # TODO test interimediate pixel values between center and edge?
+    # TODO test intermediate pixel values between center and edge?
     #   OK - This is now tested in test_sign_conventions.test_lens_wfe_sign
 
     # regression test to ensure null optical elements don't change ThinLens behavior

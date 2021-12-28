@@ -90,7 +90,7 @@ Either of the above will let you set the diameter of the input wavefront as desi
 The `._default_display_size` attribute is similar, but has different semantics. It is used to set the default
 size used to display an optic when calling `optic.display()` without specifying a grid size.
 Note that `.pupil_diam` only makes sense for pupil-plane optics, specified in physical size such as meters. `._default_display_size` can be set and applied
-to either pupil plane or interimediate plane optics (in linear units such as meters) and also to image plane optics
+to either pupil plane or intermediate plane optics (in linear units such as meters) and also to image plane optics
 (in angular units such as arcseconds)
 
 

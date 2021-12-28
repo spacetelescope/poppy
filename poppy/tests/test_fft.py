@@ -43,7 +43,7 @@ def test_fft_normalization():
 
     poppy_core._log.info('TEST: wavelen = {0}, radius = {1}'.format(wavelen, radius))
 
-    psf, waves = osys.calc_psf(wavelength=2.0e-6, normalize='first', return_interimediates=True)
+    psf, waves = osys.calc_psf(wavelength=2.0e-6, normalize='first', return_intermediates=True)
 
     for i in range(3):
         assert np.isclose(waves[i].total_intensity, 1.0), f'intensity was not conserved for plane {i}'
@@ -68,7 +68,7 @@ def test_fft_blc_coronagraph():
     osys.add_pupil( optics.CircularAperture(radius=lyot_radius) )
     osys.add_detector(pixelscale=0.010, fov_arcsec=5.0)
 
-    psf, int_wfs = osys.calc_psf(wavelength=wavelen, display_interimediates=False, return_interimediates=True)
+    psf, int_wfs = osys.calc_psf(wavelength=wavelen, display_intermediates=False, return_intermediates=True)
 
 
     # after the Lyot plane, the wavefront should be all real.
@@ -127,7 +127,7 @@ def test_parity_FFT_forward_inverse(display=False):
     sys.add_pupil()
     sys.add_detector(pixelscale=0.010, fov_arcsec=1)
 
-    psf, planes = sys.calc_psf(display=display, return_interimediates=True)
+    psf, planes = sys.calc_psf(display=display, return_intermediates=True)
 
     # the wavefronts are padded by 0s. With the current API the most convenient
     # way to ensure we get unpadded versions is via the as_fits function.
@@ -178,7 +178,7 @@ def test_parity_FFT_forward_inverse(display=False):
 # The test method is the same for all: calculate PSFs for an
 # optical system with both forward and backward FFTs, then compare
 # results for consistency (within a factor of 5 of machine precision)
-# applying the check to both the final PSFs and the interimediate WFs.
+# applying the check to both the final PSFs and the intermediate WFs.
 ############################################################################
 
 def setup_test_osys():
@@ -206,30 +206,30 @@ def test_pyfftw_vs_numpyfft(verbose=False):
     sys = setup_test_osys()
 
     conf.use_fftw = False
-    psf_numpy, interimediates_numpy = sys.calc_psf(wavelength=1e-6, return_interimediates=True)
+    psf_numpy, intermediates_numpy = sys.calc_psf(wavelength=1e-6, return_intermediates=True)
 
     conf.use_fftw = True
-    psf_fftw, interimediates_fftw = sys.calc_psf(wavelength=1e-6, return_interimediates=True)
+    psf_fftw, intermediates_fftw = sys.calc_psf(wavelength=1e-6, return_intermediates=True)
 
     # check the final PSFs are consistent
     assert np.abs(psf_fftw[0].data-psf_numpy[0].data).max() < 1e-6
 
-    # Check flux conservation for the interimediate arrays behaves the same for both
-    interimediates = interimediates_fftw
-    epsilon = np.finfo(interimediates[0].wavefront.dtype).eps
-    total_int_input = interimediates_numpy[0].total_intensity
+    # Check flux conservation for the intermediate arrays behaves the same for both
+    intermediates = intermediates_fftw
+    epsilon = np.finfo(intermediates[0].wavefront.dtype).eps
+    total_int_input = intermediates_numpy[0].total_intensity
     for i in [1,2]:
-        assert np.abs(interimediates[i].total_intensity - total_int_input) < 5*epsilon
+        assert np.abs(intermediates[i].total_intensity - total_int_input) < 5*epsilon
 
     # Check flux in output array is about 0.5% less than input array (due to finite FOV)
     expected = 0.004949550538272617927759
-    assert np.abs(interimediates[3].total_intensity - total_int_input) - expected < 5*epsilon
+    assert np.abs(intermediates[3].total_intensity - total_int_input) - expected < 5*epsilon
 
     if verbose:
         print ("PSF difference: ", np.abs(psf_fftw[0].data-psf_numpy[0].data).max())
         for i in [1,2]:
-            print(" Int. WF {} intensity diff: {}".format(i, np.abs(interimediates[i].total_intensity-total_int_input)) )
-        print(" Final PSF intensity diff:", np.abs(interimediates[3].total_intensity-total_int_input) - expected)
+            print(" Int. WF {} intensity diff: {}".format(i, np.abs(intermediates[i].total_intensity-total_int_input)) )
+        print(" Final PSF intensity diff:", np.abs(intermediates[3].total_intensity-total_int_input) - expected)
 
     conf.use_fftw, conf.use_cuda, conf.use_opencl = defaults
 
@@ -247,30 +247,30 @@ def test_cuda_vs_numpyfft(verbose=False):
     sys = setup_test_osys()
 
     conf.use_cuda = False
-    psf_numpy, interimediates_numpy = sys.calc_psf(wavelength=1e-6, return_interimediates=True)
+    psf_numpy, intermediates_numpy = sys.calc_psf(wavelength=1e-6, return_intermediates=True)
 
     conf.use_cuda = True
-    psf_cuda, interimediates_cuda = sys.calc_psf(wavelength=1e-6, return_interimediates=True)
+    psf_cuda, intermediates_cuda = sys.calc_psf(wavelength=1e-6, return_intermediates=True)
 
     # check the final PSFs are consistent
     assert np.abs(psf_cuda[0].data-psf_numpy[0].data).max() < 1e-6
 
-    # Check flux conservation for the interimediate arrays behaves properly
-    interimediates = interimediates_cuda
-    epsilon = np.finfo(interimediates[0].wavefront.dtype).eps
-    total_int_input = interimediates_numpy[0].total_intensity
+    # Check flux conservation for the intermediate arrays behaves properly
+    intermediates = intermediates_cuda
+    epsilon = np.finfo(intermediates[0].wavefront.dtype).eps
+    total_int_input = intermediates_numpy[0].total_intensity
     for i in [1,2]:
-        assert np.abs(interimediates[i].total_intensity - total_int_input) < 5*epsilon
+        assert np.abs(intermediates[i].total_intensity - total_int_input) < 5*epsilon
 
     # Check flux in output array is about 0.5% less than input array (due to finite FOV)
     expected = 0.004949550538272617927759
-    assert np.abs(interimediates[3].total_intensity - total_int_input) - expected < 5*epsilon
+    assert np.abs(intermediates[3].total_intensity - total_int_input) - expected < 5*epsilon
 
     if verbose:
         print ("PSF difference: ", np.abs(psf_cuda[0].data-psf_numpy[0].data).max())
         for i in [1,2]:
-            print(" Int. WF {} intensity diff: {}".format(i, np.abs(interimediates[i].total_intensity-total_int_input)) )
-        print(" Final PSF intensity diff:", np.abs(interimediates[3].total_intensity-total_int_input) - expected)
+            print(" Int. WF {} intensity diff: {}".format(i, np.abs(intermediates[i].total_intensity-total_int_input)) )
+        print(" Final PSF intensity diff:", np.abs(intermediates[3].total_intensity-total_int_input) - expected)
 
     conf.use_fftw, conf.use_cuda, conf.use_opencl = defaults
 
@@ -287,30 +287,30 @@ def test_opencl_vs_numpyfft(verbose=False):
     sys = setup_test_osys()
 
     conf.use_opencl = False
-    psf_numpy, interimediates_numpy = sys.calc_psf(wavelength=1e-6, return_interimediates=True)
+    psf_numpy, intermediates_numpy = sys.calc_psf(wavelength=1e-6, return_intermediates=True)
 
     conf.use_opencl = True
-    psf_opencl, interimediates_opencl = sys.calc_psf(wavelength=1e-6, return_interimediates=True)
+    psf_opencl, intermediates_opencl = sys.calc_psf(wavelength=1e-6, return_intermediates=True)
 
     # check the final PSFs are consistent
     assert np.abs(psf_opencl[0].data-psf_numpy[0].data).max() < 1e-6
 
-    # Check flux conservation for the interimediate arrays behaves the same for both
-    interimediates = interimediates_opencl
-    epsilon = np.finfo(interimediates[0].wavefront.dtype).eps
-    total_int_input = interimediates_numpy[0].total_intensity
+    # Check flux conservation for the intermediate arrays behaves the same for both
+    intermediates = intermediates_opencl
+    epsilon = np.finfo(intermediates[0].wavefront.dtype).eps
+    total_int_input = intermediates_numpy[0].total_intensity
     for i in [1,2]:
-        assert np.abs(interimediates[i].total_intensity - total_int_input) < 5*epsilon
+        assert np.abs(intermediates[i].total_intensity - total_int_input) < 5*epsilon
 
     # Check flux in output array is about 0.5% less than input array (due to finite FOV)
     expected = 0.004949550538272617927759
-    assert np.abs(interimediates[3].total_intensity - total_int_input) - expected < 5*epsilon
+    assert np.abs(intermediates[3].total_intensity - total_int_input) - expected < 5*epsilon
 
     if verbose:
         print ("PSF difference: ", np.abs(psf_opencl[0].data-psf_numpy[0].data).max())
         for i in [1,2]:
-            print(" Int. WF {} intensity diff: {}".format(i, np.abs(interimediates[i].total_intensity-total_int_input)) )
-        print(" Final PSF intensity diff:", np.abs(interimediates[3].total_intensity-total_int_input) - expected)
+            print(" Int. WF {} intensity diff: {}".format(i, np.abs(intermediates[i].total_intensity-total_int_input)) )
+        print(" Final PSF intensity diff:", np.abs(intermediates[3].total_intensity-total_int_input) - expected)
 
     conf.use_fftw, conf.use_cuda, conf.use_opencl = defaults
 

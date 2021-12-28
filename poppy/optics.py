@@ -2111,7 +2111,7 @@ def fixed_sampling_optic(optic, wavefront, oversample=2):
     Also, you can use this to evaluate any optic on a finer sampling scale and then bin the
     results to the desired scale, using the so-called gray-pixel approximation. (i.e. the
     value for each output pixel is computed as the average of N*N finer pixels in an
-    interimediate array.)
+    intermediate array.)
 
     Parameters
     ----------

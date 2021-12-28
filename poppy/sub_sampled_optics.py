@@ -52,7 +52,7 @@ class Subapertures(poppy.OpticalElement):
         defines a detector for the subapertures
     overwrite_inputwavefront: boolean
         option to replace the input wavefront with the subsampled wavefront array
-    display_interimediates: boolean
+    display_intermediates: boolean
         option to display each wavefront as it is subsampled/propagated to detector (this will take a while if there are many subapertures)
     optical_system: None, not implemented yet
     input_wavefront: None or poppy.Wavefront
@@ -68,7 +68,7 @@ class Subapertures(poppy.OpticalElement):
                  x_y_offset=(0, 0),
                  detector=None,
                  overwrite_inputwavefront=False,
-                 display_interimediates=False,
+                 display_intermediates=False,
                  optical_system=None,
                  **kwargs):
         dimensions = optic_array.shape
@@ -96,7 +96,7 @@ class Subapertures(poppy.OpticalElement):
         # initialize array of subsampled output wavefronts:
         self.wf_array = np.empty(self.optic_array.shape, dtype=np.object_)
         self.overwrite_inputwavefront = overwrite_inputwavefront
-        self.display_interimediates = display_interimediates
+        self.display_intermediates = display_intermediates
         self._propagated_flag = False  # can't have propagated when initializing
         self._centroided_flag = False  # can't have centroids without propagating
 
@@ -141,7 +141,7 @@ class Subapertures(poppy.OpticalElement):
                 # multiply by subaperture optic:
                 self.wf_array[i][j] = sub_wf*opt
 
-                if self.display_interimediates:
+                if self.display_intermediates:
                     plt.figure()
                     self.wf_array[i][j].display()
         return
@@ -206,7 +206,7 @@ class Subapertures(poppy.OpticalElement):
                 sub_wf = self.wf_array[i][j]
                 sub_wf.propagate_to(self.detector)
 
-                if self.display_interimediates:
+                if self.display_intermediates:
                     plt.figure()
                     sub_wf.display()
 

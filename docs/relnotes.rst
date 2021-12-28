@@ -297,7 +297,7 @@ improved upon in a future release.
    (@mperrin)
  * Single-precision floating point mode added, for cases that do not require the default double
    precision floating point and can benefit from the increased speed. (Experimental / beta; some
-   interimediate calculations may still be done in double precision, thus reducing speed gains).
+   intermediate calculations may still be done in double precision, thus reducing speed gains).
 
 **New Functionality:**
 
@@ -429,7 +429,7 @@ some lingering bugs. As always, please let us know of any issues encountered via
  * Improved capabilities for handling complex coordinate systems:
 
      * Added new `CoordinateInversion` class to represent a change in orientation of axes, for instance the
-       flipping "upside down" of a pupil image after passage through an interimediate image plane.
+       flipping "upside down" of a pupil image after passage through an intermediate image plane.
      * ``OpticalSystem.input_wavefront()`` became smart enough to check for ``CoordinateInversion`` and ``Rotation`` planes,
        and, if the user has requested a source offset,  adjust the input tilts such that the source will move as requested in
        the final focal plane regardless of intervening coordinate transformations.
@@ -456,7 +456,7 @@ And some smaller enhancements and fixes:
    diverging. (`#164 <https://github.com/spacetelescope/poppy/issues/164>`_; @mperrin)
  * New ``wavefront_display_hint`` optional attribute on OpticalElements in an OpticalSystem allows customization of
    whether phase or intensity is displayed for wavefronts at that plane. Applies to ``calc_psf`` calls
-   with ``display_interimediates=True``. (@mperrin)
+   with ``display_intermediates=True``. (@mperrin)
  * When displaying wavefront phases, mask out and don't show the phase for any region with intensity less than
    1/100th of the mean intensity of the wavefront. This is to make the display less visually cluttered with near-meaningless
    noise, especially in cases where a Rotation has sprayed numerical interpolation noise outside
@@ -559,7 +559,7 @@ And a few more significant enhancements:
 
    * redundant colorbar display (`#82 <https://github.com/spacetelescope/poppy/pull/82>`_)
    * Unnecessary DeprecationWarnings in :py:func:`poppy.utils.imshow_with_mouseover` (`#53 <https://github.com/spacetelescope/poppy/issues/53>`_)
-   * Error in saving interimediate planes during calculation (`#81 <https://github.com/spacetelescope/poppy/issues/81>`_)
+   * Error in saving intermediate planes during calculation (`#81 <https://github.com/spacetelescope/poppy/issues/81>`_)
    * Multiprocessing causes Python to hang if used with Apple Accelerate (`#23 <https://github.com/spacetelescope/poppy/issues/23>`_, n.b. the fix depends on Python 3.4)
    * Copy in-memory FITS HDULists that are passed in to FITSOpticalElement so that in-place modifications don't affect the caller's copy of the data (`#89 <https://github.com/spacetelescope/poppy/issues/89>`_)
    * Error in the :py:func:`poppy.utils.measure_EE` function produced values for the edges of the radial bins that were too large, biasing EE values and leading to weird interpolation behavior near r = 0. (`#96 <https://github.com/spacetelescope/poppy/pull/96>`_)
@@ -574,7 +574,7 @@ And a few more significant enhancements:
  * Continued improvement in unit testing (@mperrin, @josephoenix)
  * Continued improvement in documentation (@josephoenix, @mperrin)
  * Functions such as addImage, addPupil now also return a reference to the added optic, for convenience (@josephoenix)
- * Multiprocessing code and semi-analytic coronagraph method can now return interimediate wavefront planes (@josephoenix)
+ * Multiprocessing code and semi-analytic coronagraph method can now return intermediate wavefront planes (@josephoenix)
  * Display methods for radial profile and encircled energy gain a normalization keyword (@douglase)
  * matrixDFT: refactor into unified function for all centering types (@josephoenix)
  * matrixDFT bug fix for axes parity flip versus FFT transforms (Anand Sivaramakrishnan, @josephoenix, @mperrin)

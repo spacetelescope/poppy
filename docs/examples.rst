@@ -161,7 +161,7 @@ As an example of a more complicated calculation, here's a NIRCam-style band limi
 
     osys.source_offset_theta = 45.
     osys.source_offset_r =  0.1  # arcsec
-    psf = osys.calc_psf(wavelength=wavelength, display_interimediates=True)
+    psf = osys.calc_psf(wavelength=wavelength, display_intermediates=True)
 
 .. image:: ./example_BLC_offset.png
    :scale: 60%
@@ -186,7 +186,7 @@ FFT result with the center of the phase mask. This is done using a virtual optic
     optsys.add_detector(pixelscale=0.01, fov_arcsec=10.0)
 
 
-    psf = optsys.calc_psf(wavelength=2e-6, display_interimediates=True)
+    psf = optsys.calc_psf(wavelength=2e-6, display_intermediates=True)
 
 .. image:: ./example_FQPM.png
    :scale: 60%
@@ -216,7 +216,7 @@ opaque circular obscuration. The latter we can make using the InverseTransmissio
 
     optsys.display()
 
-    psf = optsys.calc_psf(wavelength=2e-6, display_interimediates=True)
+    psf = optsys.calc_psf(wavelength=2e-6, display_intermediates=True)
 
 
 .. image:: ./example_FQPM_obscured.png
@@ -254,12 +254,12 @@ The following code performs the same calculation both ways and compares their sp
 
         import time
         t0s = time.time()
-        psf_sam = sam_osys.calc_psf(display_interimediates=True)
+        psf_sam = sam_osys.calc_psf(display_intermediates=True)
         t1s = time.time()
 
         plt.figure(2)
         t0f = time.time()
-        psf_fft = osys.calc_psf(display_interimediates=True)
+        psf_fft = osys.calc_psf(display_intermediates=True)
         t1f = time.time()
 
         plt.figure(3)
@@ -340,11 +340,11 @@ Adjusting Display of Intermediate Wavefronts
 ----------------------------------------------
 
 
-When calculating a wavefront, you can display each interimediate wavefront plane, which often helps to visualize what's happening in a given propagation calculation. This is done by setting `display_interimediates=True`::
+When calculating a wavefront, you can display each intermediate wavefront plane, which often helps to visualize what's happening in a given propagation calculation. This is done by setting `display_intermediates=True`::
 
-        psf = osys.calc_psf(display_interimediates=True)
+        psf = osys.calc_psf(display_intermediates=True)
 
-Poppy attempts to guess reasonable defaults for displaying each interimediate planes, but sometimes you may wish to override these defaults. This can be done by setting
+Poppy attempts to guess reasonable defaults for displaying each intermediate planes, but sometimes you may wish to override these defaults. This can be done by setting
 "display hint" attributes on the planes of your optical system. Available options include
 
  * `wavefront_display_hint` = `"intensity"` or `"phase"` to set what kind of display is shown for the complex wavefront at that plane
@@ -379,7 +379,7 @@ For instance, here's a variation of the above coronagraph calculation with some 
     osys.planes[-1].wavefront_display_vmin_hint =  1e-6   
 
     plt.figure(figsize=(8,8))
-    psf = osys.calc_psf(wavelength = 1*u.micron, display_interimediates=True)
+    psf = osys.calc_psf(wavelength = 1*u.micron, display_intermediates=True)
 
 .. image:: ./example_display_hints.png
    :scale: 100%

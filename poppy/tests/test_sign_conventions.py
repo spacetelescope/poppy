@@ -254,7 +254,7 @@ def test_segment_tilt_sign_and_direction(display=False):
         plt.figure(figsize=(14, 5))
         plt.suptitle("Segment tilt sign test (Fraunhofer propagation)", fontweight='bold')
 
-    psf2 = osys2.calc_psf(display_interimediates=display)
+    psf2 = osys2.calc_psf(display_intermediates=display)
 
     diff_psf = psf2[0].data - psf_ref[0].data
 

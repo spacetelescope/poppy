@@ -41,7 +41,7 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
     @utils.quantity_input(z=u.m)
     def __init__(self,
                  z=1.0 * u.m,  # FIXME consider renaming fl? z seems ambiguous with distance.
-                 planetype=PlaneType.interimediate,
+                 planetype=PlaneType.intermediate,
                  name='Quadratic Wavefront Curvature Operator',
                  **kwargs):
         poppy.AnalyticOpticalElement.__init__(self,
@@ -170,7 +170,7 @@ class FixedSamplingImagePlaneElement(FITSOpticalElement):
     This class allows the definition of focal plane masks using .fits files that will be applied to a 
     wavefront via an FFT/MFT sequence to achieve the correct sampling at the assumed focal plane.
     
-    This element will only function as an interimediate planetype due to pixelscale and display functionality
+    This element will only function as an intermediate planetype due to pixelscale and display functionality
     when propagating to this plane. 
     Note: if an image planetype were to be used, the wavefront at this plane may have infinite pixelscales, 
     making it impossible to display the wavefront with extents.
@@ -198,7 +198,7 @@ class FixedSamplingImagePlaneElement(FITSOpticalElement):
         
     '''
     def __init__(self, name="unnamed FPM element", transmission=None, opd=None, opdunits=None,
-                 planetype=PlaneType.interimediate,
+                 planetype=PlaneType.intermediate,
                  wavelength_c=None, entrance_pupil_diam=None, pixelscale=None, centering='ADJUSTABLE',
                  **kwargs):
         
@@ -207,8 +207,8 @@ class FixedSamplingImagePlaneElement(FITSOpticalElement):
 
         self.centering = centering
 
-        if planetype is not PlaneType.interimediate:
-            raise ValueError('For this optic, the planetype must be an interimediate '
+        if planetype is not PlaneType.intermediate:
+            raise ValueError('For this optic, the planetype must be an intermediate '
                              'plane in order for pixelscales to be accurate after '
                              'propagation and for display functionality.')
 
@@ -841,7 +841,7 @@ class FresnelWavefront(BaseWavefront):
         delta_z :  float
             the distance from the current location to propagate the beam.
         display_intermed : boolean
-             If True, display the complex start, interimediates waist and end surfaces.
+             If True, display the complex start, intermediates waist and end surfaces.
 
 
         """
@@ -894,7 +894,7 @@ class FresnelWavefront(BaseWavefront):
             self.display('both', colorbar=True)
 
         self.wavefront = accel_math._fftshift(self.wavefront)
-        self.planetype = PlaneType.interimediate
+        self.planetype = PlaneType.intermediate
         _log.debug("------ Propagated to plane of type " + str(self.planetype) + " at z = {0:0.2e} ------".format(z))
 
     def __imul__(self, optic):
@@ -1278,14 +1278,14 @@ class FresnelOpticalSystem(BaseOpticalSystem):
     def propagate(self,
                   wavefront,
                   normalize='none',
-                  return_interimediates=False,
-                  display_interimediates=False):
+                  return_intermediates=False,
+                  display_intermediates=False):
         """ Core low-level routine for propagating a wavefront through an optical system
 
         See docstring of OpticalSystem.propagate for details
 
         """
-        interimediate_wfs = []
+        intermediate_wfs = []
 
         for optic, distance in zip(self.planes, self.distances):
 
@@ -1319,14 +1319,14 @@ class FresnelOpticalSystem(BaseOpticalSystem):
             if poppy.conf.enable_flux_tests:
                 _log.debug("  Flux === " + str(wavefront.total_intensity))
 
-            if return_interimediates:  # save interimediate wavefront, summed for polychromatic if needed
-                interimediate_wfs.append(wavefront.copy())
+            if return_intermediates:  # save intermediate wavefront, summed for polychromatic if needed
+                intermediate_wfs.append(wavefront.copy())
 
             if poppy.conf.enable_speed_tests:  # pragma: no cover
                 s1 = time.time()
                 _log.debug(f"\tTIME {s1-s0:.4f} s\t for propagating past optic '{optic.name}'.")
 
-            if display_interimediates:
+            if display_intermediates:
                 if poppy.conf.enable_speed_tests:  # pragma: no cover
                     t0 = time.time()
 
@@ -1340,8 +1340,8 @@ class FresnelOpticalSystem(BaseOpticalSystem):
             t_stop = time.time()
             _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop - t_start))
 
-        if return_interimediates:
-            return wavefront, interimediate_wfs
+        if return_intermediates:
+            return wavefront, intermediate_wfs
         else:
             return wavefront
 

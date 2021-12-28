@@ -335,14 +335,14 @@ def test_DFT_rect_fov_sampling(fov_npix = (500,1000), pixelscale=0.03, display=F
     osys.add_detector(pixelscale=0.02, fov_pixels=fov_npix)
 
 
-    psf, interimediates = osys.calc_psf(wavelength=1e-6, return_interimediates=True)
+    psf, intermediates = osys.calc_psf(wavelength=1e-6, return_intermediates=True)
 
     delta = 100
 
     plane=1
 
-    cut_h = interimediates[plane].intensity[fov_npix[0]//2, fov_npix[1]//2-delta:fov_npix[1]//2+delta]
-    cut_v = interimediates[plane].intensity[fov_npix[0]//2-delta:fov_npix[0]//2+delta, fov_npix[1]//2]
+    cut_h = intermediates[plane].intensity[fov_npix[0]//2, fov_npix[1]//2-delta:fov_npix[1]//2+delta]
+    cut_v = intermediates[plane].intensity[fov_npix[0]//2-delta:fov_npix[0]//2+delta, fov_npix[1]//2]
 
     assert(np.all(np.abs(cut_h-cut_v) < 1e-12))
 
@@ -540,7 +540,7 @@ def test_parity_MFT_forward_inverse(display = False):
     sys.add_pupil()
     sys.add_detector(pixelscale=pixscale, fov_pixels=npix)
 
-    psf, planes = sys.calc_psf(display=display, return_interimediates=True)
+    psf, planes = sys.calc_psf(display=display, return_intermediates=True)
 
     # the wavefronts are padded by 0s. With the current API the most convenient
     # way to ensure we get unpadded versions is via the as_fits function.
@@ -670,7 +670,7 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(tmpdir, display=False, source_offs
     fftsys.source_offset_r = source_offset
     fftsys.source_offset_theta = 90
 
-    fftpsf, fftplanes = fftsys.calc_psf(display=False, return_interimediates=True)
+    fftpsf, fftplanes = fftsys.calc_psf(display=False, return_intermediates=True)
 
     # set up equivalent using an MFT, tuned to get the exact same scale
     # for the image plane
@@ -680,7 +680,7 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(tmpdir, display=False, source_offs
     mftsys.source_offset_r = source_offset
     mftsys.source_offset_theta = 90
 
-    mftpsf, mftplanes = mftsys.calc_psf(display=False, return_interimediates=True)
+    mftpsf, mftplanes = mftsys.calc_psf(display=False, return_intermediates=True)
 
 
     if display:
