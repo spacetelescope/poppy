@@ -27,7 +27,7 @@ def test_clipping():
     assert res.max() <= 1.0
 
 
-# Come up with some representative plausible test cases for whcih we know the answers
+# Come up with some representative plausible test cases for which we know the answers
 
 
 # Test effect of shifting the center of the image by integer pixels
