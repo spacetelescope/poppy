@@ -645,7 +645,7 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(tmpdir, display=False, source_offs
     Wavefront class's _propagateTo() machinery, which is not
     tested in the above function. Hence the two closely related tests.
 
-    This test now includes a source offset, to test equivalnce of handling for
+    This test now includes a source offset, to test equivalence of handling for
     nonzero WFE, in this case for tilts.
     """
 
