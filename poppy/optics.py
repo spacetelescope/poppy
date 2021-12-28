@@ -505,7 +505,7 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
 
             # add in the ND squares. Note the positions are not exactly the same in the two wedges.
             # See the figures  in Krist et al. of how the 6 ND squares are spaced among the 5
-            # corongraph regions
+            # coronagraph regions
             # Also add in the opaque border of the coronagraph mask holder.
             if self.sigma > 4:
                 # MASK210R has one in the corner and one half in the other corner
@@ -572,7 +572,7 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
 
             # add in the ND squares. Note the positions are not exactly the same in the two wedges.
             # See the figures in Krist et al. of how the 6 ND squares are spaced among the 5
-            # corongraph regions. Also add in the opaque border of the coronagraph mask holder.
+            # coronagraph regions. Also add in the opaque border of the coronagraph mask holder.
             if np.abs(self.wavelength - 2.1e-6) < 0.1e-6:
                 # half ND square on each side
                 wnd = (
