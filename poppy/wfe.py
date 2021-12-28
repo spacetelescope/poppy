@@ -416,7 +416,7 @@ class PowerSpectrumWFE(WavefrontError):
             surf_roughness: astropy quantity
                 Surface roughness normalization. Should match units of PSD.
     psd_weight: iterable list of floats
-        Specifies the weight muliplier to set onto each model PSD
+        Specifies the weight multiplier to set onto each model PSD
     seed : integer
         Seed for the random phase screen generator
     apply_reflection: boolean
