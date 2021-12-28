@@ -439,7 +439,7 @@ some lingering bugs. As always, please let us know of any issues encountered via
  * Update many function names for `PEP8 style guide compliance <https://www.python.org/dev/peps/pep-0008/>`_.
    For instance `calc_psf` replaces `calcPSF`.  This was done with back compatible aliases to ensure
    that existing code continues to run with no changes required at this time, but *at some
-   future point* (but not soon!) the older names will go away, so users are encouranged to migrate to the new names.
+   future point* (but not soon!) the older names will go away, so users are encouraged to migrate to the new names.
    (@mperrin, josephoenix)
 
 And some smaller enhancements and fixes:
