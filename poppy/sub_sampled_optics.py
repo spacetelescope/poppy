@@ -29,7 +29,7 @@ class Subapertures(poppy.OpticalElement):
     #initialize this new class, where the array of optics define the subapertures (e.g. lenslets)
 
     Subapertures.sample_wf(wf) #this function takes the wavefront and subsamples it by the area of each optic
-    Subapertures.get_wavefront_array() #returns an array of input sub-wavefronts multipled by subaperture optics
+    Subapertures.get_wavefront_array() #returns an array of input sub-wavefronts multiplied by subaperture optics
     Subapertures.get_psfs() #fraunhofer or fresnel propagation of each pupil  to the image/ waist
     image=Subapertures.get_composite_wavefont() # returns wavefront of image plane of all the spots put back together
     Subapertures.opd #single array made up of subapertures
