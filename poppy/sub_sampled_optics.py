@@ -434,7 +434,7 @@ class ShackHartmannWavefrontSensor(Subapertures):
         http://ebooks.spiedigitallibrary.org/book.aspx?doi=10.1117/3.769212.
         Modified to work with rectangular spotfields
         Modified from Greg Allan's master's thesis (Simulation and Testing of Wavefront Reconstruction Algorithms
-        for the Deformable Mirror (DeMi) Cubesat. Master's Thesis, Massachusetts Institute of Techonology, 2018)
+        for the Deformable Mirror (DeMi) Cubesat. Master's Thesis, Massachusetts Institute of Technology, 2018)
 
         inputs:
         centroids_x: np array
