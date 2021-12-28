@@ -33,7 +33,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
             actuator_spacing : float or astropy Quantity with dimension length
                 Spacing between adjacent actuators as seen in that plane
             influence_func : Influence function filename. Optional. If not supplied,
-                a Gaussian model approximatly representative of an influence function
+                a Gaussian model approximately representative of an influence function
                 for a Boston MEMS DMs will be used. This parameter can let you provide
                 a more detailed model for your particular mirror.
             radius : float or Quantity with dimension length
