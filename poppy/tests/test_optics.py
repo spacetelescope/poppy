@@ -291,7 +291,7 @@ def test_rotations():
 #
 #    # First let's do a rotation of the wavefront itself by 90^0 after an optic
 #
-#    # now try a 90^0 rotation for the field stop at that optic. Assuming perfect system w/ no aberrations when comparing rsults. ?
+#    # now try a 90^0 rotation for the field stop at that optic. Assuming perfect system w/ no aberrations when comparing results. ?
 #    fs = poppy_core.RectangularFieldStop(width=1, height=10, ang;le=90)
 #    wave = poppy_core.Wavefront(npix=100, pixelscale=0.1, wavelength=1e-6) # 10x10 arcsec square
 #
