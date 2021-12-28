@@ -2347,7 +2347,7 @@ class OpticalElement(object):
     i.e. an identity function on transmitted wavefronts.) Use one of the many subclasses to
     create a nontrivial optic.
 
-    The OpticalElement class follows the behavoior of the Wavefront class, using units
+    The OpticalElement class follows the behavior of the Wavefront class, using units
     of meters/pixel in pupil space and arcsec/pixel in image space.
 
     The internal implementation of this class represents an optic with an array
