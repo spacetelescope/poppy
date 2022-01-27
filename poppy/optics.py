@@ -329,8 +329,8 @@ class AnalyticOpticalElement(OpticalElement):
             angle = np.deg2rad(self.rotation)
             xp = np.cos(angle) * x + np.sin(angle) * y
             yp = -np.sin(angle) * x + np.cos(angle) * y
-            x = np.trunc(xp * 1e9) / 1e9  # handle vectorization of numpy umath that lowers precision
-            y = np.trunc(yp * 1e9) / 1e9
+            x = xp
+            y = yp
         # inclination around X axis rescales Y, and vice versa:
         if hasattr(self, "inclination_x"):
             y /= np.cos(np.deg2rad(self.inclination_x))
