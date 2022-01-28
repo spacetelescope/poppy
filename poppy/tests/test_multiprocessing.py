@@ -10,7 +10,6 @@ import astropy
 import astropy.io.fits as fits
 import sys
 from distutils.version import LooseVersion
-from astropy.tests.helper import remote_data
 
 try:
     import pytest
@@ -21,7 +20,7 @@ except:
 
 if _HAVE_PYTEST:
 
-    #@pytest.mark.xfail
+    @pytest.mark.xfail
     # Just skip this test entirely for right now because sometimes it hangs the
     # entire Python process...
 

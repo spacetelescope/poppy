@@ -38,7 +38,7 @@ improvements if you are spending substantial time running calculations. See
 * `psutil <https://pypi.python.org/pypi/psutil>`__ enables slightly better
   automatic selection of numbers of processes for multiprocess calculations.
 * `pyFFTW <https://pypi.python.org/pypi/pyFFTW>`__. The FFTW library can speed
-  up the FFTs used in multi-plane optical simulations such as coronagraphiy or
+  up the FFTs used in multi-plane optical simulations such as coronagraphy or
   slit spectroscopy. Since direct imaging simulations use a discrete matrix FFT
   instead, direct imaging simulation speed is unchanged.  pyFFTW is recommended
   if you expect to perform many coronagraphic calculations, particularly for

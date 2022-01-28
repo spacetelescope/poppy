@@ -271,8 +271,8 @@ def test_rotations():
     # Some simple tests of the rotation code on AnalyticOpticalElements. Incomplete!
 
     # rotating a square by +45 and -45 should give the same result
-    ar1 = optics.SquareAperture(rotation=45, size=np.sqrt(2)).sample(npix=256, grid_size=2)
-    ar2 = optics.SquareAperture(rotation=-45, size=np.sqrt(2)).sample(npix=256, grid_size=2)
+    ar1 = optics.SquareAperture(rotation=45, size=np.sqrt(2)).sample(npix=255, grid_size=2)
+    ar2 = optics.SquareAperture(rotation=-45, size=np.sqrt(2)).sample(npix=255, grid_size=2)
     assert np.allclose(ar1,ar2)
 
     # rotating a rectangle with flipped side lengths by 90 degrees should give the same result
@@ -291,7 +291,7 @@ def test_rotations():
 #
 #    # First let's do a rotation of the wavefront itself by 90^0 after an optic
 #
-#    # now try a 90^0 rotation for the field stop at that optic. Assuming perfect system w/ no aberrations when comparing rsults. ?
+#    # now try a 90^0 rotation for the field stop at that optic. Assuming perfect system w/ no aberrations when comparing results. ?
 #    fs = poppy_core.RectangularFieldStop(width=1, height=10, ang;le=90)
 #    wave = poppy_core.Wavefront(npix=100, pixelscale=0.1, wavelength=1e-6) # 10x10 arcsec square
 #
@@ -365,7 +365,7 @@ def test_MultiHexagonAperture(display=False):
 def test_NgonAperture(display=False):
     """ Test n-gon aperture
 
-    Note we could better test this if we impemented symmetry checks using the rotation argument?
+    Note we could better test this if we implemented symmetry checks using the rotation argument?
     """
     # should make n-gon PSF for n=4, 6 and compare to square and hex apertures
     optic= optics.NgonAperture(nsides=4, radius=1, rotation=45)

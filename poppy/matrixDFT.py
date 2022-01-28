@@ -9,7 +9,7 @@
     the Fourier transform is located, i.e. where the PSF center ends up.
 
         - 'FFTSTYLE' centered on one pixel
-        - 'SYMMETRIC' centerd on crosshairs between middle pixel
+        - 'SYMMETRIC' centered on crosshairs between middle pixel
         - 'ADJUSTABLE', always centered in output array depending on
           whether it is even or odd
 

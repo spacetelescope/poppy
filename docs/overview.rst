@@ -52,7 +52,7 @@ sampling becomes wavelength dependent. To avoid these constraints, for
 transforms onto the final `~poppy.Detector` plane, instead a Matrix Fourier Transform
 (MFT) algorithm is used (See `Soummer et al. 2007 Optics Express <http://adsabs.harvard.edu/abs/2007OExpr..1515935S>`_).  This allows
 computation of the PSF directly on the desired detector pixel scale or an
-arbitrarily finely subsampled version therof. For equivalent array sizes *N*,
+arbitrarily finely subsampled version thereof. For equivalent array sizes *N*,
 the MFT is slower than the FFT(*O(N^3)*), but in practice the ability to freely
 choose a more appropriate *N* (and to avoid the need for post-FFT interpolation
 onto a common pixel scale) more than makes up for this and the MFT is faster.

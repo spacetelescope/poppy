@@ -36,7 +36,7 @@ pass
 #
 #    utils.display_psf(psf)
 #
-#    # we need to be a little careful here due to floating point math comparision equality issues...
+#    # we need to be a little careful here due to floating point math comparison equality issues...
 #    # Can't just do a strict equality
 #    assert abs(psf[0].data.max() - 0.201) < 0.001
 #

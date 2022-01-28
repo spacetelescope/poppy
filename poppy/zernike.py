@@ -297,7 +297,7 @@ def cached_zernike1(j, shape, pixelscale, pupil_radius, outside=np.nan, noll_nor
     """Compute Zernike based on Noll index *j*, using an LRU cache
     for efficiency. Refer to the `zernike1` docstring for details.
 
-    Note: all arguents should be plain ints, tuples, floats etc rather than
+    Note: all arguments should be plain ints, tuples, floats etc rather than
     Astropy Quantities.
     """
     y, x = Wavefront.pupil_coordinates(shape, pixelscale)
@@ -835,7 +835,7 @@ class Segment_PTT_Basis(object):
         the MultiHexagonAperture class. Set that when creating
         an instance of this class, then you can call the resulting function object
         to generate a basis set with the desired sampling, or pass it to
-        the compse_opd_from_basis or decompse_opd_segments functions.
+        the compose_opd_from_basis or decompose_opd_segments functions.
 
         The basis is generated over a square array that exactly circumscribes
         the hexagonal aperture.

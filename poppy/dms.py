@@ -33,7 +33,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
             actuator_spacing : float or astropy Quantity with dimension length
                 Spacing between adjacent actuators as seen in that plane
             influence_func : Influence function filename. Optional. If not supplied,
-                a Gaussian model approximatly representative of an influence function
+                a Gaussian model approximately representative of an influence function
                 for a Boston MEMS DMs will be used. This parameter can let you provide
                 a more detailed model for your particular mirror.
             radius : float or Quantity with dimension length
@@ -329,7 +329,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         if hasattr(self, 'shift_x') or hasattr(self, 'shift_y'):
             # Apply shifts here, if necessary. Doing it this way lets the same shift code apply
             # across all of the above 3 potential ingredients into the OPD, potentially at some
-            # small cost in accuracy rather than shifting each individuall at a subpixel level.
+            # small cost in accuracy rather than shifting each individually at a subpixel level.
 
             # suppress irrelevant scipy warning from ndzoom calls
             import warnings
@@ -391,7 +391,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
         interpolated_surface = np.zeros(wave.shape)
 
-        crosstalk = 0.15  # amount of crosstalk on advancent actuator
+        crosstalk = 0.15  # amount of crosstalk on adjacent actuator
         sigma = self.actuator_spacing.to(u.meter).value / np.sqrt((-np.log(crosstalk)))
 
         pixelscale = x[0, 1] - x[0, 0]  # scale of x,y
@@ -662,7 +662,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         if self.influence_type == 'from file':
             act_space_m = self.actuator_spacing.to(u.meter).value
             r = np.linspace(0, 4 * act_space_m, 50)
-            crosstalk = 0.15  # amount of crosstalk on advancent actuator
+            crosstalk = 0.15  # amount of crosstalk on adjacent actuator
             sigma = act_space_m / np.sqrt((-np.log(crosstalk)))
             plt.plot(r, np.exp(- (r / sigma) ** 2))
             plt.xlabel('Separation [m]')
@@ -815,7 +815,7 @@ class CircularSegmentedDeformableMirror(SegmentedDeformableMirror, optics.MultiC
             ----------
             rings, segment_radius, gap, center : various
                 All keywords for defining the segmented aperture geometry are inherited from
-                the MultiCircularperture class. See that class for details.
+                the MultiCircularAperture class. See that class for details.
 
              include_factor_of_two : Bool
                 include the factor of two due to reflection in the OPD function (optional, default False).

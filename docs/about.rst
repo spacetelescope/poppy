@@ -22,7 +22,7 @@ The Team
 -----------------
 
 POPPY is developed primarily by a team of astronomers at the `Space Telescope
-Science Insitute <http://www.stsci.edu/>`_, but is open to contributions from
+Science Institute <http://www.stsci.edu/>`_, but is open to contributions from
 scientists and software developers around the world. Development takes place
 on Github at http://github.com/spacetelescope/poppy. See that page for the most up-to-date
 list of contributors. 

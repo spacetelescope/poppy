@@ -90,7 +90,7 @@ def test_cross_zernikes():
     that Zernike times N other ones.
 
     Note that the Zernikes are only strictly orthonormal over a
-    fully circular aperture evauated analytically. For any discrete
+    fully circular aperture evaluated analytically. For any discrete
     aperture the orthonormality is only approximate.
     """
     for testj in (2, 3, 4, 5, 6):
@@ -137,7 +137,7 @@ def test_cross_hexikes():
     that Hexike times N other ones.
 
     Note that the Hexike are only strictly orthonormal over a
-    fully hexagonal aperture evauated analytically. For any discrete
+    fully hexagonal aperture evaluated analytically. For any discrete
     aperture the orthonormality is only approximate.
     """
     for testj in (2, 3, 4, 5, 6):
@@ -198,7 +198,7 @@ def test_cross_arbitrary_basis():
     each function times N other ones.
 
     Note that the Hexike are only strictly orthonormal over a
-    fully hexagonal aperture evauated analytically. For any discrete
+    fully hexagonal aperture evaluated analytically. For any discrete
     aperture the orthonormality is only approximate.
     """
     for testj in (2, 3, 4, 5, 6):

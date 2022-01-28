@@ -449,7 +449,7 @@ class BaseWavefront(ABC):
         halfpix = self.pixelscale.to_value(pixelscale_unit) * 0.5
         extent = [x.min() - halfpix, x.max() + halfpix, y.min() - halfpix, y.max() + halfpix]
 
-        # implement semi-intellegent selection of what to display, if the user wants
+        # implement semi-intelligent selection of what to display, if the user wants
         if what == 'best':
             if self.planetype == PlaneType.image:
                 what = 'intensity'  # always show intensity for image planes
@@ -1000,7 +1000,7 @@ class Wavefront(BaseWavefront):
         """
         if self.planetype == optic.planetype:
             if isinstance(optic, Detector):
-                _log.debug("  Resampling wavefront to match detector pixellation.")
+                _log.debug("  Resampling wavefront to match detector pixelation.")
                 self._resample_wavefront_pixelscale(optic)
             else:
                 _log.debug("  Wavefront and optic %s already at same plane type, no propagation needed." % optic.name)
@@ -1604,7 +1604,7 @@ class BaseOpticalSystem(ABC):
         if _USE_FFTW:
             utils.fftw_load_wisdom()
 
-        if conf.use_multiprocessing and len(wavelength) > 1:  # ######## Parallellized computation ############
+        if conf.use_multiprocessing and len(wavelength) > 1:  # ######## Parallelized computation ############
             # Avoid a Mac OS incompatibility that can lead to hard-to-reproduce crashes.
             # see issues #23 and #176
 
@@ -2347,7 +2347,7 @@ class OpticalElement(object):
     i.e. an identity function on transmitted wavefronts.) Use one of the many subclasses to
     create a nontrivial optic.
 
-    The OpticalElement class follows the behavoior of the Wavefront class, using units
+    The OpticalElement class follows the behavior of the Wavefront class, using units
     of meters/pixel in pupil space and arcsec/pixel in image space.
 
     The internal implementation of this class represents an optic with an array

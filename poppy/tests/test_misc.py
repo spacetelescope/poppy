@@ -90,7 +90,7 @@ def test_sinc2_2d(display=False):
     assert fn2d.shape == (511, 511)
     assert fn2d[255,255] == 1.0
 
-    # and the horizontal axis should be 2x as spaced out as the vertcal, given the rectangular aperture above.
+    # and the horizontal axis should be 2x as spaced out as the vertical, given the rectangular aperture above.
     assert cut_v[20] == cut_h[10]
     assert cut_v[200] == cut_h[100]
 

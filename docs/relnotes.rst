@@ -5,6 +5,21 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+1.0.2
+-----
+
+.. _rel1.0.2:
+
+*2022 January 28*
+
+This is a minor release, mostly to accomodate upstream changes in recent numpy and astropy versions.
+
+**Software Infrastructure Updates and Internals:**
+ * Update code due to changes in Astropy API (:pr:`482` by :user:`WilliamJamieson`)
+ * Update one test for numerical robustness with numpy's use of Intel avx512 instructions on some platforms (:pr:`487` by :user:`shanosborne`)
+ * Fix spelling mistakes across code base  (:pr:`479` by :user:`jsoref`)
+ * Updates to recommended (not minimum) dependency versions to track latest numpy, matplotlib, etc (various PRs by :user:`shanosborne`)
+
 1.0.1
 -----
 
@@ -125,7 +140,7 @@ This is a minor release primarily for updates in packaging infrastructure, plus 
  * `calc_datacube` function now allows `nwavelengths>100`, removing a prior limitation of this function. (:pr:`351` by :user:`ojustino`)
  * `radial_profile` function can now be applied to datacubes, with a `slice` keyword to specify which slice of the cube should be examined. (:pr:`352` by :user:`mperrin`)
  * Improved the Zernike basis expansion function for segmented apertures, `opd_expand_segments`, to allow optional masking out of pixels at the segment borders. This can be useful in some circumstances for avoiding edge effects from partially illuminated pixels or interpolation artifacts when evaluating Zernike or hexike coefficients per segment. (:pr:`353` by :user:`mperrin`)
- * Allows `Segmented_PTT_Basis` to pass through keyword arguments to parent class `MultiHexagonAperture`, in particular for selecting/excluding particular segments from the apreture geometry. (:pr:`357` by :user:`kjbrooks`)
+ * Allows `Segmented_PTT_Basis` to pass through keyword arguments to parent class `MultiHexagonAperture`, in particular for selecting/excluding particular segments from the aperture geometry. (:pr:`357` by :user:`kjbrooks`)
  * Fix a log string formatting bug encountered in MFT propagation under certain conditions (:pr:`360` by :user:`mperrin`)
 
 **Software Infrastructure Updates and Internals:**
@@ -389,7 +404,7 @@ improved upon in a future release.
 
  * Fix ConfigParser import (see `astropy/package-template#172 <https://github.com/astropy/package-template/pull/172>`_)
  * Fixes to formatting of ``astropy.units.Quantity`` values (`#171 <https://github.com/spacetelescope/poppy/issues/171>`_, `#174 <https://github.com/mperrin/poppy/pull/174>`_, `#179 <https://github.com/mperrin/poppy/pull/174>`_; @josephoenix, @neilzim)
- * Fixes to ``fftw_save_wisdom`` and ``fftw_load_wisdom`` (`#177 <https://github.com/spacetelescope/poppy/issues/177>`_, `#178 <https://github.com/mperrin/poppy/pull/178>`_; @mmecthley)
+ * Fixes to ``fftw_save_wisdom`` and ``fftw_load_wisdom`` (`#177 <https://github.com/spacetelescope/poppy/issues/177>`_, `#178 <https://github.com/mperrin/poppy/pull/178>`_; @mmechtley)
  * Add ``calc_datacube`` method to ``poppy.Instrument`` (`#182 <https://github.com/spacetelescope/poppy/issues/182>`_; @mperrin)
  * Test for Apple Accelerate more narrowly (`#176 <https://github.com/spacetelescope/poppy/issues/176>`_; @mperrin)
  * ``Wavefront.display()`` correctly handles ``vmin`` and ``vmax`` args (`#183 <https://github.com/spacetelescope/poppy/pull/183>`_; @neilzim)
@@ -420,7 +435,7 @@ some lingering bugs. As always, please let us know of any issues encountered via
    (`#145 <https://github.com/spacetelescope/poppy/issues/145>`_, `#165 <https://github.com/mperrin/poppy/pull/165>`_; @mperrin, douglase)
  * The ``getPhasor`` function for all OpticalElements has been refactored to split it into 3
    functions: ``get_transmission`` (for electric field amplitude transmission), ``get_opd``
-   (for the optical path difference affectig the phase), and ``get_phasor`` (which combines transmission
+   (for the optical path difference affecting the phase), and ``get_phasor`` (which combines transmission
    and OPD into the complex phasor). This division simplifies and makes more flexible the subclassing
    of optics, since in many cases (such as aperture stops) one only cares about setting either the
    transmission or the OPD.  Again, there are back compatibility hooks to allow existing code calling
@@ -439,7 +454,7 @@ some lingering bugs. As always, please let us know of any issues encountered via
  * Update many function names for `PEP8 style guide compliance <https://www.python.org/dev/peps/pep-0008/>`_.
    For instance `calc_psf` replaces `calcPSF`.  This was done with back compatible aliases to ensure
    that existing code continues to run with no changes required at this time, but *at some
-   future point* (but not soon!) the older names will go away, so users are encouranged to migrate to the new names.
+   future point* (but not soon!) the older names will go away, so users are encouraged to migrate to the new names.
    (@mperrin, josephoenix)
 
 And some smaller enhancements and fixes:
@@ -659,7 +674,7 @@ Released April 7, 2014
  * Added support for pyFFTW in addition to PyFFTW3.
  * pyFFTW will auto save wisdom to disk for more rapid execution on subsequent invocations
  * InverseTransmission of an AnalyticElement is now allowed inside a CompoundAnalyticOptic
- * Added SecondaryObscuration optic to conveniently model an opaque secondary mirror and adjustible support spiders.
+ * Added SecondaryObscuration optic to conveniently model an opaque secondary mirror and adjustable support spiders.
  * Added RectangleAperture. Added rotation keywords for RectangleAperture and SquareAperture.
  * Added AnalyticOpticalElement.sample() function to sample analytic functions onto a user defined grid. Refactored
    the display() and toFITS() functions. Improved functionality of display for CompoundAnalyticOptics.
@@ -669,7 +684,7 @@ Released April 7, 2014
 0.2.8
 -----
 
- * First release as a standalone package (previously was integrated as part of webbpsf). See the release notes for WebbPSF for prior verions.
+ * First release as a standalone package (previously was integrated as part of webbpsf). See the release notes for WebbPSF for prior versions.
  * switched package building to use `setuptools` instead of `distutils`/`stsci_distutils_hack`
  * new `Instrument` class in poppy provides much of the functionality previously in JWInstrument, to make it
    easier to model generic non-JWST instruments using this code.

@@ -168,7 +168,7 @@ class ConicLens(poppy.optics.CircularAperture):
 class FixedSamplingImagePlaneElement(FITSOpticalElement):
     '''
     This class allows the definition of focal plane masks using .fits files that will be applied to a 
-    wavefront via an FFT/MFT sequence to acheive the correct sampling at the assumed focal plane.
+    wavefront via an FFT/MFT sequence to achieve the correct sampling at the assumed focal plane.
     
     This element will only function as an intermediate planetype due to pixelscale and display functionality
     when propagating to this plane. 
