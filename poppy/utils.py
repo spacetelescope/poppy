@@ -1340,7 +1340,7 @@ class BackCompatibleQuantityInput(object):
         self.decorator_kwargs = kwargs
 
     def __call__(self, wrapped_function):
-        from astropy.utils.decorators import wraps
+        from functools import wraps
         from astropy.units import UnitsError, add_enabled_equivalencies, Quantity
         import inspect
 

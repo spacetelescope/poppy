@@ -271,8 +271,8 @@ def test_rotations():
     # Some simple tests of the rotation code on AnalyticOpticalElements. Incomplete!
 
     # rotating a square by +45 and -45 should give the same result
-    ar1 = optics.SquareAperture(rotation=45, size=np.sqrt(2)).sample(npix=256, grid_size=2)
-    ar2 = optics.SquareAperture(rotation=-45, size=np.sqrt(2)).sample(npix=256, grid_size=2)
+    ar1 = optics.SquareAperture(rotation=45, size=np.sqrt(2)).sample(npix=255, grid_size=2)
+    ar2 = optics.SquareAperture(rotation=-45, size=np.sqrt(2)).sample(npix=255, grid_size=2)
     assert np.allclose(ar1,ar2)
 
     # rotating a rectangle with flipped side lengths by 90 degrees should give the same result
