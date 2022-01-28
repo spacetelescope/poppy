@@ -20,7 +20,7 @@ except:
 
 if _HAVE_PYTEST:
 
-    #@pytest.mark.xfail
+    @pytest.mark.xfail
     # Just skip this test entirely for right now because sometimes it hangs the
     # entire Python process...
 

@@ -589,7 +589,7 @@ def test_fresnel_return_complex():
     # physical radius values
     M1_radius = 3. * u.m
     fl_M1 = M1_radius/2.0
-    # intermediate distances
+    # intermediary distances
 
     tel = fresnel.FresnelOpticalSystem(pupil_diameter=2.4*u.m)
     gl=fresnel.QuadraticLens(500*u.cm)
