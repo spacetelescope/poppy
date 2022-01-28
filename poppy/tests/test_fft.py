@@ -39,7 +39,7 @@ def test_fft_normalization():
     osys.add_pupil(pupil)
     osys.add_image() # null plane to force FFT
     osys.add_pupil() # null plane to force FFT
-    osys.add_detector(pixelscale=0.01, fov_arcsec=10.0) # use a large FOV so we grab essentially all the ligh
+    osys.add_detector(pixelscale=0.01, fov_arcsec=10.0) # use a large FOV so we grab essentially all the light
 
     poppy_core._log.info('TEST: wavelen = {0}, radius = {1}'.format(wavelen, radius))
 

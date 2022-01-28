@@ -828,7 +828,7 @@ class Instrument(object):
         bandpasslist : dict
             dictionary of string names for use by synphot
 
-        This could probably be folded into one using an OrderdDict. FIXME do that later
+        This could probably be folded into one using an OrderedDict. FIXME do that later
 
         """
 
@@ -976,9 +976,9 @@ class Instrument(object):
             wavelengths = wavelengths * units.Unit(waveunit)
             lrange = wavelengths[throughputs > 0.4].to_value(units.m)  # convert from Angstroms to Meters
             # get evenly spaced points within the range of allowed lambdas, centered on each bin
-            lambd = np.linspace(np.min(lrange), np.max(lrange), nlambda, endpoint=False) + (
-                    np.max(lrange) - np.min(lrange)) / (2 * nlambda)
+            points = np.linspace(np.min(lrange), np.max(lrange), nlambda, endpoint=False) + (
+                     np.max(lrange) - np.min(lrange)) / (2 * nlambda)
             filter_fn = scipy.interpolate.interp1d(wavelengths.to_value(units.m), throughputs, kind='cubic',
                                                    bounds_error=False)
-            weights = filter_fn(lambd)
-            return lambd, weights
+            weights = filter_fn(points)
+            return points, weights

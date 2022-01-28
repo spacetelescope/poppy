@@ -72,7 +72,7 @@ def imshow_with_mouseover(image, ax=None, *args, **kwargs):
 
     def report_pixel(x, y):
         # map data coords back to pixel coords
-        # and be sure to clip appropriatedly to avoid array bounds errors
+        # and be sure to clip appropriately to avoid array bounds errors
         img_y = np.floor((y - imext[2]) / (imext[3] - imext[2]) * imsize[0])
         img_y = int(img_y.clip(0, imsize[0] - 1))
 
@@ -1633,7 +1633,7 @@ def spectrum_from_spectral_type(sptype, return_list=False, catalog=None):
             raise LookupError(errmsg)
 
 
-# Back compatibility allias
+# Back compatibility alias
 specFromSpectralType = spectrum_from_spectral_type
 
 
@@ -1683,7 +1683,7 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
                                                                                             wavefrontsize))
         # The following is a very rough estimate
         # empirical tests show that an 8192x8192 propagation results in Python sessions with ~4 GB memory used w/ FFTW
-        # usingg mumpy FT, the memory usage per process can exceed 5 GB for an 8192x8192 propagation.
+        # using numpy FT, the memory usage per process can exceed 5 GB for an 8192x8192 propagation.
         padding_factor = 4 if conf.use_fftw else 5
     else:
         # oversampling not relevant for memory size in MFT mode

@@ -68,7 +68,7 @@ class Conf(_config.ConfigNamespace):
             'is available)?')
     use_opencl = _config.ConfigItem(True, 'Use OpenCL for FFTs on GPU (assuming it' +
             'is available)?')
-    use_numexpr = _config.ConfigItem(True, 'Use NumExpr to accelarate array math (assuming it' +
+    use_numexpr = _config.ConfigItem(True, 'Use NumExpr to accelerate array math (assuming it' +
             'is available)?')
 
     double_precision = _config.ConfigItem(True, 'Floating point values use float64 and complex128 if True,' +

@@ -27,7 +27,7 @@ def test_clipping():
     assert res.max() <= 1.0
 
 
-# Come up with some representative plausible test cases for whcih we know the answers
+# Come up with some representative plausible test cases for which we know the answers
 
 
 # Test effect of shifting the center of the image by integer pixels
@@ -35,7 +35,7 @@ def test_clipping():
 # Test effect of shifting the center of the image by fractional pixels
     # cross correlation of shifted & unshifted to demonstrate 1/2 pixel shifts?
 
-# Test using subpixel scaling of incput X and Y arrays
+# Test using subpixel scaling of input X and Y arrays
 
 # Test the specific case at fault here.
 

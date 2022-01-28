@@ -33,7 +33,7 @@ Example skeleton code::
 
     class myCustomOptic(poppy.AnalyticOpticalElement):
         def __init__(self, *args, **kwargs):
-            """ If your optic has adjustible parameters, then save them as attributes here """
+            """ If your optic has adjustable parameters, then save them as attributes here """
             super().__init__(**kwargs)
 
         def get_opd(self,wave):
@@ -51,7 +51,7 @@ Example skeleton code::
 
 
 Note the use of the `self.get_coordinates()` helper function, which returns `y` and
-`x` arrays giving the coordinates as appopriate for the sampling of the supplied
+`x` arrays giving the coordinates as appropriate for the sampling of the supplied
 `wave` object (by default in units of meters for most optics such as pupil planes,
 in arcseconds for image plane optics).  You can use these coordinates to
 calculate the transmission and path delay appropriate for your optic.  If

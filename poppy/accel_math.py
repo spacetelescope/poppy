@@ -136,7 +136,7 @@ def _ifftshift(x):
     Otherwise defaults to numpy.
     Note, ifftshift and fftshift are identical for even-length x,
     the functions differ by one sample for odd-length x. This function
-    implictly assumes that if using CUDA, the array size must be even,
+    implicitly assumes that if using CUDA, the array size must be even,
     so we can use the same algorithm as fftshift.
 
     Note - TODO write an OpenCL version
@@ -564,7 +564,7 @@ def benchmark_2d_ffts(mode='poppy', max_pow=13, verbose=False, savefig=False):
             pyfftw.interfaces.numpy_fft.fft2(it, thread=1)
 
         def fftw(it):
-            # explictly try multithreaded here
+            # explicitly try multithreaded here
             pyfftw.interfaces.numpy_fft.fft2(it, threads=threads)
 
         def mklfft(it):

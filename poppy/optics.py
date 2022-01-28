@@ -505,7 +505,7 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
 
             # add in the ND squares. Note the positions are not exactly the same in the two wedges.
             # See the figures  in Krist et al. of how the 6 ND squares are spaced among the 5
-            # corongraph regions
+            # coronagraph regions
             # Also add in the opaque border of the coronagraph mask holder.
             if self.sigma > 4:
                 # MASK210R has one in the corner and one half in the other corner
@@ -540,7 +540,7 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
             # either end
             # scalefact = np.linspace(1,7, x.shape[1]).clip(2,6)
 
-            # the scale fact should depent on X coord in arcsec, scaling across a 20 arcsec FOV.
+            # the scale fact should depend on X coord in arcsec, scaling across a 20 arcsec FOV.
             # map flat regions to 2.5 arcsec each?
             # map -7.5 to 2, +7.5 to 6. slope is 4/15, offset is +9.5
             scalefact = (2 + (-x + 7.5) * 4 / 15).clip(2, 6)
@@ -572,7 +572,7 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
 
             # add in the ND squares. Note the positions are not exactly the same in the two wedges.
             # See the figures in Krist et al. of how the 6 ND squares are spaced among the 5
-            # corongraph regions. Also add in the opaque border of the coronagraph mask holder.
+            # coronagraph regions. Also add in the opaque border of the coronagraph mask holder.
             if np.abs(self.wavelength - 2.1e-6) < 0.1e-6:
                 # half ND square on each side
                 wnd = (
@@ -657,7 +657,7 @@ class CircularPhaseMask(AnalyticImagePlaneElement):
         Wavelength in meters for which the phase mask was designed
     retardance : float
         Optical path delay at that wavelength, specified in waves
-        relative to the reference wavelengt. Default is 0.5.
+        relative to the reference wavelength. Default is 0.5.
 
     """
 
@@ -1407,7 +1407,7 @@ class MultiHexagonAperture(MultiSegmentAperture):
 
     Note that this routine becomes a bit slow for nrings >4. For repeated computations on
     the same aperture, avoid repeated evaluations of this function. It will be faster to create
-    this aperture, evalute it once, and save the result onto a discrete array, via either
+    this aperture, evaluate it once, and save the result onto a discrete array, via either
        (1) saving it to a FITS file using the to_fits() method, and then use that in a
        FITSOpticalElement, or
        (2) Use the fixed_sampling_optic function to create an ArrayOpticalElement with
@@ -1520,7 +1520,7 @@ class MultiCircularAperture(MultiSegmentAperture):
          The number of rings of hexagons to include, not counting the central segment
     segment_radius : float, optional
         radius of the circular sub-apertures in meters, default is 1 meters
-    gap: float, otional
+    gap: float, optional
         Gap between adjacent segments, in meters. Default is 0.01 m = 1 cm
     center : bool, optional
         should the central segment be included? Default is True.
@@ -2126,7 +2126,7 @@ def fixed_sampling_optic(optic, wavefront, oversample=2):
     Returns
     -------
     new_array_optic : poppy.ArrayOpticalElement
-        A version ofthe input optic with fixed arrays for OPD and transmission.
+        A version of the input optic with fixed arrays for OPD and transmission.
 
     """
     from .poppy_core import ArrayOpticalElement
