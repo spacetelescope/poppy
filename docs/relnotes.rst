@@ -5,6 +5,20 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+1.0.2
+-----
+
+.. _rel1.0.2:
+
+*2022 January 28*
+
+This is a minor release for the JWST Calibration Pipeline team
+
+**Software Infrastructure Updates and Internals:**
+ * Updates code due to changes in Astropy API (:pr:`482` by :user:`WilliamJamieson`)
+ * Fix spelling mistakes across code base  (:pr:`479` by :user:`jsoref`)
+ * Updates to recommended (not minimum) dependency versions to track latest numpy, matplotlib, etc (various PRs by :user:`shanosborne`)
+
 1.0.1
 -----
 
