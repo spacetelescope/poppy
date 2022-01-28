@@ -5,6 +5,21 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+1.0.2
+-----
+
+.. _rel1.0.2:
+
+*2022 January 28*
+
+This is a minor release, mostly to accomodate upstream changes in recent numpy and astropy versions.
+
+**Software Infrastructure Updates and Internals:**
+ * Update code due to changes in Astropy API (:pr:`482` by :user:`WilliamJamieson`)
+ * Update one test for numerical robustness with numpy's use of Intel avx512 instructions on some platforms (:pr:`487` by :user:`shanosborne`)
+ * Fix spelling mistakes across code base  (:pr:`479` by :user:`jsoref`)
+ * Updates to recommended (not minimum) dependency versions to track latest numpy, matplotlib, etc (various PRs by :user:`shanosborne`)
+
 1.0.1
 -----
 
