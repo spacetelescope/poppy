@@ -11,6 +11,9 @@ from . import accel_math
 if accel_math._USE_NUMEXPR:
     import numexpr as ne
     pi = np.pi  # needed for evaluation inside numexpr strings.
+    
+if accel_math._USE_CUPY:
+    import cupy as cp
 
 _log = logging.getLogger('poppy')
 
@@ -332,6 +335,8 @@ class FresnelWavefront(BaseWavefront):
 
         if self.oversample > 1 and not self.ispadded:  # add padding for oversampling, if necessary
             self.wavefront = utils.pad_to_oversample(self.wavefront, self.oversample)
+            if accel_math._USE_CUPY:
+                self.wavefront_gpu = utils.pad_to_oversample(self.wavefront_gpu, self.oversample)
             self.ispadded = True
             logmsg = "Padded WF array for oversampling by {0:.3f}, to {1}.".format(
                 self.oversample,
@@ -428,13 +433,21 @@ class FresnelWavefront(BaseWavefront):
         """
         Apply normalized forward 2D Fast Fourier Transform to wavefront
         """
-        self.wavefront = accel_math.fft_2d(self.wavefront, forward=True, fftshift=False)
+#         self.wavefront = accel_math.fft_2d(self.wavefront, forward=True, fftshift=False)
+        if accel_math._USE_CUPY:
+            self.wavefront_gpu = accel_math.fft_2d(self.wavefront_gpu, forward=True, fftshift=False)
+        else:
+            self.wavefront = accel_math.fft_2d(self.wavefront, forward=True, fftshift=False)
 
     def _inv_fft(self):
         """
         Apply normalized Inverse 2D Fast Fourier Transform to wavefront
         """
-        self.wavefront = accel_math.fft_2d(self.wavefront, forward=False, fftshift=False)
+#         self.wavefront = accel_math.fft_2d(self.wavefront, forward=False, fftshift=False)
+        if accel_math._USE_CUPY:
+            self.wavefront_gpu = accel_math.fft_2d(self.wavefront_gpu, forward=False, fftshift=False)
+        else:
+            self.wavefront = accel_math.fft_2d(self.wavefront, forward=False, fftshift=False)
 
     def r_c(self, z=None):
         """
@@ -674,6 +687,8 @@ class FresnelWavefront(BaseWavefront):
             self.location = 'at detector ' + optic.name
         else:
             self.location = 'before ' + optic.name
+            
+#         print('\t\tCOMPLETED: propagate_to')
 
     @utils.quantity_input(dz=u.meter)
     def _propagate_ptp(self, dz):
@@ -713,8 +728,11 @@ class FresnelWavefront(BaseWavefront):
 
         x, y = self.coordinates()  # meters
         meter_per_pix = self.pixelscale.to(u.m / u.pix).value
-        rhosqr = accel_math._fftshift((x / (meter_per_pix ** 2 * self.n)) ** 2 + (
-            y / (meter_per_pix ** 2 * self.n)) ** 2)
+        rhosqr = accel_math._fftshift((x / (meter_per_pix ** 2 * self.n)) ** 2 + (y / (meter_per_pix ** 2 * self.n)) ** 2)
+        if accel_math._USE_CUPY:
+            rhosqr = (accel_math._fftshift((x / (meter_per_pix ** 2 * self.n)) ** 2).get() + (y / (meter_per_pix ** 2 * self.n)) ** 2)
+        else:
+            rhosqr = accel_math._fftshift((x / (meter_per_pix ** 2 * self.n)) ** 2 + (y / (meter_per_pix ** 2 * self.n)) ** 2)
         # Transfer Function of diffraction propagation eq. 22, eq. 87
         wavelen_m = self.wavelength.to(u.m).value
 
@@ -851,7 +869,11 @@ class FresnelWavefront(BaseWavefront):
             plt.figure()
             self.display('both', colorbar=True, title="Starting Surface")
 
-        self.wavefront = accel_math._fftshift(self.wavefront)
+#         self.wavefront = accel_math._fftshift(self.wavefront)
+        if accel_math._USE_CUPY:
+            self.wavefront_gpu = accel_math._fftshift(self.wavefront_gpu)
+        else:
+            self.wavefront = accel_math._fftshift(self.wavefront)
         _log.debug("Beginning Fresnel Prop. Waist at z = " + str(self.z_w0))
 
         if not self.spherical:
@@ -893,11 +915,16 @@ class FresnelWavefront(BaseWavefront):
             plt.figure()
             self.display('both', colorbar=True)
 
-        self.wavefront = accel_math._fftshift(self.wavefront)
+#         self.wavefront = accel_math._fftshift(self.wavefront)
+        if accel_math._USE_CUPY:
+            self.wavefront_gpu = accel_math._fftshift(self.wavefront_gpu)
+        else:
+            self.wavefront = accel_math._fftshift(self.wavefront)
         self.planetype = PlaneType.intermediate
         _log.debug("------ Propagated to plane of type " + str(self.planetype) + " at z = {0:0.2e} ------".format(z))
 
     def __imul__(self, optic):
+#         print('\t\t',optic)
         """Multiply a Wavefront by an OpticalElement or scalar"""
         if isinstance(optic, QuadraticLens):
             # Special case: if we have a lens, call the routine for that,
@@ -1072,13 +1099,31 @@ class FresnelWavefront(BaseWavefront):
 
         mft = poppy.matrixDFT.MatrixFourierTransform(centering=optic.centering)
 
-        self.wavefront = accel_math._ifftshift(self.wavefront)
-        self.wavefront = accel_math.fft_2d(self.wavefront, forward=False, fftshift=True) # do a forward FFT to virtual pupil
-        self.wavefront = mft.perform(self.wavefront, nfpmlamD, nfpm) # MFT back to highly sampled focal plane
-        self.wavefront *= fpm_phasor
-        self.wavefront = mft.inverse(self.wavefront, nfpmlamD, n) # MFT to virtual pupil
-        self.wavefront = accel_math.fft_2d(self.wavefront, forward=True, fftshift=True) # FFT back to normally-sampled focal plane
-        self.wavefront = accel_math._fftshift(self.wavefront)
+#         self.wavefront = accel_math._ifftshift(self.wavefront)
+#         self.wavefront = accel_math.fft_2d(self.wavefront, forward=False, fftshift=True) # do a forward FFT to virtual pupil
+#         self.wavefront = mft.perform(self.wavefront, nfpmlamD, nfpm) # MFT back to highly sampled focal plane
+#         self.wavefront *= fpm_phasor
+#         self.wavefront = mft.inverse(self.wavefront, nfpmlamD, n) # MFT to virtual pupil
+#         self.wavefront = accel_math.fft_2d(self.wavefront, forward=True, fftshift=True) # FFT back to normally-sampled focal plane
+#         self.wavefront = accel_math._fftshift(self.wavefront)
+        
+        if accel_math._USE_CUPY:
+            self.wavefront_gpu = accel_math._ifftshift(self.wavefront_gpu)
+            self.wavefront_gpu = accel_math.fft_2d(self.wavefront_gpu, forward=False, fftshift=True) 
+            self.wavefront_gpu = mft.perform(self.wavefront_gpu, nfpmlamD, nfpm) 
+            self.wavefront_gpu *= cp.array(fpm_phasor)
+            self.wavefront_gpu = mft.inverse(self.wavefront, nfpmlamD, n) 
+            self.wavefront_gpu = accel_math.fft_2d(self.wavefront_gpu, forward=True, fftshift=True) 
+            self.wavefront_gpu = accel_math._fftshift(self.wavefront_gpu)
+        else: 
+            self.wavefront = accel_math._ifftshift(self.wavefront)
+            self.wavefront = accel_math.fft_2d(self.wavefront, forward=False, fftshift=True) 
+            self.wavefront = mft.perform(self.wavefront, nfpmlamD, nfpm) 
+            self.wavefront *= fpm_phasor
+            self.wavefront = mft.inverse(self.wavefront, nfpmlamD, n) 
+            self.wavefront = accel_math.fft_2d(self.wavefront, forward=True, fftshift=True) 
+            self.wavefront = accel_math._fftshift(self.wavefront)
+            
         
         _log.debug("------ FixedSamplingImagePlaneElement: " + str(optic.name) + " applied ------")
 

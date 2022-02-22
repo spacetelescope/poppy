@@ -420,7 +420,7 @@ def zernike_basis_faster(nterms=15, npix=512, outside=np.nan):
         else:
             for k in range(int((n - m) / 2) + 1):
                 coef = ((-1) ** k * factorial(n - k) /
-                        (factorial(k) * factorial(int((n + m) / 2) - k) * factorial(int((n - m) / 2) - k)))
+                        (factorial(k) * factorial((n + m) / 2. - k) * factorial((n - m) / 2. - k)))
                 output += coef * rho ** (n - 2 * k)
             return output
 

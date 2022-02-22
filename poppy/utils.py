@@ -28,6 +28,10 @@ try:
 except ImportError:
     pyfftw = None
 
+from . import accel_math
+if accel_math._USE_CUPY:
+    import cupy as cp
+    
 _log = logging.getLogger('poppy')
 
 _loaded_fftw_wisdom = False
@@ -1089,7 +1093,11 @@ def pad_to_oversample(array, oversample):
     """
     npix = array.shape[0]
     n = int(np.round(npix * oversample))
-    padded = np.zeros(shape=(n, n), dtype=array.dtype)
+#     padded = np.zeros(shape=(n, n), dtype=array.dtype)
+    if isinstance(array, cp.ndarray):
+        padded = cp.zeros(shape=(n, n), dtype=array.dtype)
+    else:
+        padded = np.zeros(shape=(n, n), dtype=array.dtype)
     n0 = float(npix) * (oversample - 1) / 2
     n1 = n0 + npix
     n0 = int(round(n0))  # because astropy test_plugins enforces integer indices

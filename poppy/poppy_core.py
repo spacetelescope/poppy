@@ -22,6 +22,9 @@ from .accel_math import _float, _complex
 
 if accel_math._USE_NUMEXPR:
     import numexpr as ne
+    
+if accel_math._USE_CUPY:
+    import cupy as cp
 
 import logging
 
@@ -139,6 +142,12 @@ class BaseWavefront(ABC):
         self.current_plane_index = 0  # For tracking stages in a calculation
 
         accel_math.update_math_settings()                   # ensure optimal propagation based on user settings
+        
+        '''MY CHANGE: Added a GPU wavefront attribute'''
+        if accel_math._USE_CUPY:
+            import cupy as cp
+            self.wavefront_gpu = cp.array(self.wavefront)
+        
 
     def __str__(self):
         # TODO add switches for image/pupil planes
@@ -183,8 +192,13 @@ class BaseWavefront(ABC):
         if not np.isscalar(phasor) and phasor.size > 1:
             assert self.wavefront.shape == phasor.shape, "Phasor shape {} does not match wavefront shape {}".format(
                 phasor.shape, self.wavefront.shape)
-
-        self.wavefront *= phasor
+            
+#         self.wavefront *= phasor
+        if accel_math._USE_CUPY:
+            self.wavefront_gpu *= cp.array(phasor)
+        else:
+            self.wavefront *= phasor
+        
         msg = "  Multiplied WF by phasor for " + str(optic)
         _log.debug(msg)
         self.history.append(msg)
@@ -690,22 +704,32 @@ class BaseWavefront(ABC):
     @property
     def amplitude(self):
         """Electric field amplitude of the wavefront """
-        return np.abs(self.wavefront)
+#         return np.abs(self.wavefront)
+        if accel_math._USE_CUPY:
+            return (cp.abs(self.wavefront_gpu)).get()
+        else:    
+            return np.abs(self.wavefront)
 
     @property
     def intensity(self):
         """Electric field intensity of the wavefront (i.e. field amplitude squared)"""
-        if accel_math._USE_NUMEXPR:
+        if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
             w = self.wavefront
             return ne.evaluate("real(abs(w))**2")
+        elif accel_math._USE_CUPY:
+            return (cp.abs(self.wavefront_gpu)).get()
         else:
             return np.abs(self.wavefront) ** 2
 
     @property
     def phase(self):
         """Phase of the wavefront, in radians"""
-        return np.angle(self.wavefront)
-
+#         return np.angle(self.wavefront)
+        if accel_math._USE_CUPY:
+            return (cp.angle(self.wavefront_gpu)).get()
+        else:    
+            return np.angle(self.wavefront)
+        
     @property
     def wfe(self):
         """Wavefront error of the wavefront, in meters"""
