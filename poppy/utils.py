@@ -28,6 +28,7 @@ try:
 except ImportError:
     pyfftw = None
 
+import sys
 from . import accel_math
 if accel_math._USE_CUPY:
     import cupy as cp
@@ -1094,6 +1095,13 @@ def pad_to_oversample(array, oversample):
     npix = array.shape[0]
     n = int(np.round(npix * oversample))
 #     padded = np.zeros(shape=(n, n), dtype=array.dtype)
+#     if 'cupy' in sys.modules:
+#         if isinstance(array, cp.ndarray):
+#             padded = cp.zeros(shape=(n, n), dtype=array.dtype)
+#         else:
+#             padded = np.zeros(shape=(n, n), dtype=array.dtype)
+#     else:
+#         padded = np.zeros(shape=(n, n), dtype=array.dtype)
     if isinstance(array, cp.ndarray):
         padded = cp.zeros(shape=(n, n), dtype=array.dtype)
     else:
@@ -1155,7 +1163,7 @@ def pad_or_crop_to_shape(array, target_shape):
 
     Parameters
     ----------
-    array : complex ndarray
+    array : complex ndarray (numpy or cupy)
         The phasor, produced by some call to get_phasor of an OpticalElement
     target_shape : 2-tuple
         The shape we should pad or crop that phasor to
@@ -1182,9 +1190,12 @@ def pad_or_crop_to_shape(array, target_shape):
     if (lx < lx_w) or (ly < ly_w):
         _log.debug("Array shape " + str(array.shape) + " is smaller than desired shape " + str(
             [lx_w, ly_w]) + "; will attempt to zero-pad the array")
-
-        resampled_array = np.zeros(shape=(lx_w, ly_w), dtype=array.dtype)
-        resampled_array[border_x:border_x + lx, border_y:border_y + ly] = array
+#         resampled_array = np.zeros(shape=(lx_w, ly_w), dtype=array.dtype)
+        if isinstance(array, cp.ndarray):
+            resampled_array = cp.zeros(shape=(lx_w, ly_w), dtype=array.dtype)
+        else:
+            resampled_array = np.zeros(shape=(lx_w, ly_w), dtype=array.dtype)
+        resampled_array[border_x:border_x + lx, border_y:border_y + ly] = array # FUCK THIS LINE OF CODE
         _log.debug("  Padded with a {:d} x {:d} border to "
                    " match the desired shape".format(border_x, border_y))
 

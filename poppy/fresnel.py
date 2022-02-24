@@ -72,6 +72,8 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
             # OPD should be flat
             _log.debug("infinite radius of curvature -> quad phase becomes 0")
             return 0
+#         if wave.wavefront_gpu is not None:
+#             wavefront
         if accel_math._USE_NUMEXPR:
             opd = ne.evaluate("(x ** 2 + y ** 2) / (2.0 * z)")
         else:
@@ -335,8 +337,9 @@ class FresnelWavefront(BaseWavefront):
 
         if self.oversample > 1 and not self.ispadded:  # add padding for oversampling, if necessary
             self.wavefront = utils.pad_to_oversample(self.wavefront, self.oversample)
-            if accel_math._USE_CUPY:
+            if self.wavefront_gpu is not None:
                 self.wavefront_gpu = utils.pad_to_oversample(self.wavefront_gpu, self.oversample)
+            
             self.ispadded = True
             logmsg = "Padded WF array for oversampling by {0:.3f}, to {1}.".format(
                 self.oversample,
@@ -1112,7 +1115,7 @@ class FresnelWavefront(BaseWavefront):
             self.wavefront_gpu = accel_math.fft_2d(self.wavefront_gpu, forward=False, fftshift=True) 
             self.wavefront_gpu = mft.perform(self.wavefront_gpu, nfpmlamD, nfpm) 
             self.wavefront_gpu *= cp.array(fpm_phasor)
-            self.wavefront_gpu = mft.inverse(self.wavefront, nfpmlamD, n) 
+            self.wavefront_gpu = mft.inverse(self.wavefront_gpu, nfpmlamD, n) 
             self.wavefront_gpu = accel_math.fft_2d(self.wavefront_gpu, forward=True, fftshift=True) 
             self.wavefront_gpu = accel_math._fftshift(self.wavefront_gpu)
         else: 
@@ -1150,11 +1153,15 @@ class FresnelWavefront(BaseWavefront):
             raise NotImplementedError("Resampling to detector doesn't yet work in angular coordinates for Fresnel.")
 
         pixscale_ratio = (self.pixelscale / detector.pixelscale).decompose().value
-
+        
         if np.abs(pixscale_ratio - 1.0) < 1e-3:
             _log.debug("Wavefront is already at desired pixel scale "
                        "{:.4g}.  No resampling needed.".format(self.pixelscale))
-            self.wavefront = utils.pad_or_crop_to_shape(self.wavefront, detector.shape)
+#             self.wavefront = utils.pad_or_crop_to_shape(self.wavefront, detector.shape)
+            if accel_math._USE_CUPY:
+                self.wavefront_gpu = utils.pad_or_crop_to_shape(self.wavefront_gpu, detector.shape)
+            else:
+                self.wavefront = utils.pad_or_crop_to_shape(self.wavefront, detector.shape)
             return
 
         super(FresnelWavefront, self)._resample_wavefront_pixelscale(detector)
@@ -1340,7 +1347,7 @@ class FresnelOpticalSystem(BaseOpticalSystem):
             # The actual propagation:
             wavefront.propagate_to(optic, distance)
             wavefront *= optic
-
+            
             # Normalize if appropriate:
             if normalize.lower() == 'first' and wavefront.current_plane_index == 1:  # set entrance plane to 1.
                 wavefront.normalize()

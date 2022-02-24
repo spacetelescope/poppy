@@ -332,7 +332,7 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         # See comment above in this function.
         wavefront = _fftshift(wavefront)
         
-    print('\t\t', normalization, wavefront.dtype, isinstance(wavefront, cp.ndarray))
+#     print('\t\t', normalization, wavefront.dtype, isinstance(wavefront, cp.ndarray))
     wavefront *= normalization
     t3 = time.time()
     _log.debug("    FFT_2D: FFT in {:3f} s, full function  in {:.3f} s".format(t2-t1, t3-t0))
