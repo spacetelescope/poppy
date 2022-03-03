@@ -50,17 +50,6 @@ except ImportError:
     pyculib = None
     _CUDA_AVAILABLE = False
 
-    
-try: ###############################################################
-    import cupy as cp
-    from numba import cuda
-    _CUPY_PLANS = {} 
-    _CUPY_AVAILABLE = True
-except:
-    cp = None
-    _CUPY_AVAILABLE = False
-    
-
 try:
     # try to import OpenCL packages to see if they are is available
     import pyopencl
@@ -71,24 +60,32 @@ try:
 except ImportError:
     _OPENCL_AVAILABLE = False
 
+try: ###############################################################
+    import cupy as cp
+    _CUPY_PLANS = {} 
+    _CUPY_AVAILABLE = True
+except:
+    cp = None
+    _CUPY_AVAILABLE = False    
+
+_USE_CUPY = (conf.use_cupy and _CUPY_AVAILABLE)
 _USE_CUDA = (conf.use_cuda and _CUDA_AVAILABLE)
 _USE_OPENCL = (conf.use_opencl and _OPENCL_AVAILABLE)
 _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
 _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
 _USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE)
-_USE_CUPY = (conf.use_cupy and _CUPY_AVAILABLE) ###############################################################
 
 
 def update_math_settings():
     """ Update the module-level math flags, based on user settings
     """
-    global _USE_CUDA, _USE_OPENCL, _USE_NUMEXPR, _USE_FFTW, _USE_MKL, _USE_CUPY
+    global _USE_CUDA, _USE_OPENCL, _USE_NUMEXPR, _USE_FFTW, _USE_MKL
+    _USE_CUPY = (conf.use_cupy and _CUPY_AVAILABLE)
     _USE_CUDA = (conf.use_cuda and _CUDA_AVAILABLE)
     _USE_OPENCL = (conf.use_opencl and _OPENCL_AVAILABLE)
     _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
     _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
     _USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE)
-    _USE_CUPY = (conf.use_cupy and _CUPY_AVAILABLE)
 
 
 def _float():
@@ -118,19 +115,19 @@ def _exp(x):
     Otherwise defaults to np.exp()
 
     """
-    if _USE_NUMEXPR:
+    if _USE_NUMEXPR and not _USE_CUPY:
         return ne.evaluate("exp(x)", optimization='moderate', )
+    elif _USE_CUPY:
+        return cp.exp(x)
     else:
         return np.exp(x)
 
-def _fftshift(x): 
+def _fftshift(x):
     """ FFT shifts of array contents, using CUDA if available.
     Otherwise defaults to numpy.
 
     Note - TODO write an OpenCL version
-    
-    NOTE: ADD CUPY FFTSHIFT
-    
+
     See also ifftshift
     """
 
@@ -144,8 +141,6 @@ def _fftshift(x):
         cufftShift_2D_kernel[numBlocks, blockdim](x.ravel(),N)
         return x
     elif _USE_CUPY:
-#         print('Using cupy fftshift')
-#         return cp.fft.fftshift(cp.array(x)).get()
         return cp.fft.fftshift(x)
     else:
         return np.fft.fftshift(x)
@@ -173,9 +168,7 @@ def _ifftshift(x):
         cufftShift_2D_kernel[numBlocks, blockdim](x.ravel(),N)
         return x
     elif _USE_CUPY:
-#         print('Using cupy ifftshift')
-#         return cp.fft.ifftshift(cp.array(x)).get()
-        return cp.fft.fftshift(x)
+        return cp.fft.ifftshift(x)
     else:
         return np.fft.ifftshift(x)
 
@@ -215,7 +208,7 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
 
     """
     ## To use a fast FFT, it must both be enabled and the library itself has to be present
-    global _USE_OPENCL, _USE_CUDA # need to declare global in case we need to change it, below
+    global _USE_OPENCL, _USE_CUDA, _USE_CUPY # need to declare global in case we need to change it, below
     t0 = time.time()
 
     # OpenCL cfFFT only can FFT certain array sizes.
@@ -227,10 +220,10 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
     # This annoyingly complicated if/elif is just for the debug print statement
     if _USE_CUDA:
         method = 'pyculib (CUDA GPU)'
-    elif _USE_CUPY:
-        method = 'cupy (CUDA GPU)'
     elif _USE_OPENCL:
         method = 'pyopencl (OpenCL GPU)'
+    elif _USE_CUPY:
+        method = 'cupy (GPU)'
     elif _USE_MKL:
         method = 'mkl_fft'
     elif _USE_FFTW:
@@ -268,13 +261,6 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
             cufftplan.forward(wavefront, out=wavefront)
         else:
             cufftplan.inverse(wavefront, out=wavefront)
-            
-    if _USE_CUPY: #########################################################################
-        do_fft = cp.fft.fft2 if forward else cp.fft.ifft2
-        if normalization is None:
-            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
-#         wavefront = do_fft(cp.array(wavefront)).get()
-        wavefront = do_fft(wavefront)
 
     elif _USE_OPENCL:
         if normalization is None:
@@ -287,7 +273,13 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         event.wait()
         wavefront[:] = wf_on_gpu.get()
         del wf_on_gpu
-
+        
+    if _USE_CUPY: #########################################################################
+        do_fft = cp.fft.fft2 if forward else cp.fft.ifft2
+        if normalization is None:
+            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
+        wavefront = do_fft(wavefront)
+    
     elif _USE_MKL:
         # Intel MKL is a drop-in replacement for numpy fft but much faster
         do_fft = mkl_fft.fft2 if forward else mkl_fft.ifft2
@@ -331,8 +323,7 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         # This needs to be a fftshift here, since we use ifftshift above
         # See comment above in this function.
         wavefront = _fftshift(wavefront)
-        
-#     print('\t\t', normalization, wavefront.dtype, isinstance(wavefront, cp.ndarray))
+
     wavefront *= normalization
     t3 = time.time()
     _log.debug("    FFT_2D: FFT in {:3f} s, full function  in {:.3f} s".format(t2-t1, t3-t0))

@@ -23,16 +23,24 @@ import astropy.io.fits as fits
 
 import poppy
 
+from importlib import reload
+
+from . import accel_math
+
+if accel_math._USE_CUPY:
+    import cupy as np
+    import numpy
+    
+    rnd = numpy.round
+else:
+    import numpy as np
+    rnd = np.round
+
 try:
     import pyfftw
 except ImportError:
     pyfftw = None
 
-import sys
-from . import accel_math
-if accel_math._USE_CUPY:
-    import cupy as cp
-    
 _log = logging.getLogger('poppy')
 
 _loaded_fftw_wisdom = False
@@ -274,7 +282,7 @@ def display_psf(hdulist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
                 orientation=colorbar_orientation
             )
         if scale.lower() == 'log':
-            ticks = np.logspace(np.log10(vmin), np.log10(vmax), int(np.round(np.log10(vmax / vmin) + 1)))
+            ticks = np.logspace(np.log10(vmin), np.log10(vmax), int(rnd(np.log10(vmax / vmin) + 1)))
             if colorbar_orientation == 'horizontal' and vmax == 1e-1 and vmin == 1e-8:
                 ticks = [1e-8, 1e-6, 1e-4, 1e-2, 1e-1]  # looks better
             cb.set_ticks(ticks)
@@ -1093,19 +1101,8 @@ def pad_to_oversample(array, oversample):
     padToSize
     """
     npix = array.shape[0]
-    n = int(np.round(npix * oversample))
-#     padded = np.zeros(shape=(n, n), dtype=array.dtype)
-#     if 'cupy' in sys.modules:
-#         if isinstance(array, cp.ndarray):
-#             padded = cp.zeros(shape=(n, n), dtype=array.dtype)
-#         else:
-#             padded = np.zeros(shape=(n, n), dtype=array.dtype)
-#     else:
-#         padded = np.zeros(shape=(n, n), dtype=array.dtype)
-    if isinstance(array, cp.ndarray):
-        padded = cp.zeros(shape=(n, n), dtype=array.dtype)
-    else:
-        padded = np.zeros(shape=(n, n), dtype=array.dtype)
+    n = int(rnd(npix * oversample))
+    padded = np.zeros(shape=(n, n), dtype=array.dtype)
     n0 = float(npix) * (oversample - 1) / 2
     n1 = n0 + npix
     n0 = int(round(n0))  # because astropy test_plugins enforces integer indices
@@ -1163,7 +1160,7 @@ def pad_or_crop_to_shape(array, target_shape):
 
     Parameters
     ----------
-    array : complex ndarray (numpy or cupy)
+    array : complex ndarray
         The phasor, produced by some call to get_phasor of an OpticalElement
     target_shape : 2-tuple
         The shape we should pad or crop that phasor to
@@ -1190,12 +1187,9 @@ def pad_or_crop_to_shape(array, target_shape):
     if (lx < lx_w) or (ly < ly_w):
         _log.debug("Array shape " + str(array.shape) + " is smaller than desired shape " + str(
             [lx_w, ly_w]) + "; will attempt to zero-pad the array")
-#         resampled_array = np.zeros(shape=(lx_w, ly_w), dtype=array.dtype)
-        if isinstance(array, cp.ndarray):
-            resampled_array = cp.zeros(shape=(lx_w, ly_w), dtype=array.dtype)
-        else:
-            resampled_array = np.zeros(shape=(lx_w, ly_w), dtype=array.dtype)
-        resampled_array[border_x:border_x + lx, border_y:border_y + ly] = array # FUCK THIS LINE OF CODE
+
+        resampled_array = np.zeros(shape=(lx_w, ly_w), dtype=array.dtype)
+        resampled_array[border_x:border_x + lx, border_y:border_y + ly] = array
         _log.debug("  Padded with a {:d} x {:d} border to "
                    " match the desired shape".format(border_x, border_y))
 

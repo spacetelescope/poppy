@@ -6,7 +6,6 @@ import warnings
 import textwrap
 from abc import ABC, abstractmethod
 
-import numpy as np
 import matplotlib.pyplot as plt
 import scipy.ndimage.interpolation
 import matplotlib
@@ -22,9 +21,12 @@ from .accel_math import _float, _complex
 
 if accel_math._USE_NUMEXPR:
     import numexpr as ne
-    
+
+import numpy
 if accel_math._USE_CUPY:
-    import cupy as cp
+    import cupy as np
+else:
+    import numpy as np
 
 import logging
 
@@ -142,13 +144,6 @@ class BaseWavefront(ABC):
         self.current_plane_index = 0  # For tracking stages in a calculation
 
         accel_math.update_math_settings()                   # ensure optimal propagation based on user settings
-        
-        '''MY CHANGE: Added a GPU wavefront attribute'''
-        if accel_math._USE_CUPY:
-            self.wavefront_gpu = cp.array(self.wavefront)
-        else: 
-            self.wavefront_gpu = None
-        
 
     def __str__(self):
         # TODO add switches for image/pupil planes
@@ -161,7 +156,7 @@ class BaseWavefront(ABC):
         """Return a copy of the wavefront as a different object."""
         return copy.deepcopy(self)
 
-    def normalize(self): ###########
+    def normalize(self):
         """Set this wavefront's total intensity to 1 """
         sqrt_ti = np.sqrt(self.total_intensity)
         if sqrt_ti == 0:
@@ -169,11 +164,7 @@ class BaseWavefront(ABC):
         elif not np.isfinite(sqrt_ti):
             _log.warning("Total intensity is NaN or Inf when trying to normalize the wavefront. Cannot normalize.")
         else:
-#             self.wavefront /= sqrt_ti
-            if self.wavefront_gpu is not None:
-                self.wavefront_gpu /= sqrt_ti
-            else:
-                self.wavefront /= sqrt_ti
+            self.wavefront /= sqrt_ti
 
     def __imul__(self, optic):
         """Multiply a Wavefront by an OpticalElement or scalar"""
@@ -182,8 +173,6 @@ class BaseWavefront(ABC):
             # but instead via forcing a call to rotate() or invert() in propagate_to...
         elif np.isscalar(optic):
             self.wavefront *= optic  # it's just a scalar
-            if self.wavefront_gpu is not None:
-                self.wavefront_gpu *= optic  # it's just a scalar
             self.history.append("Multiplied WF by scalar value " + str(optic))
             return self
         elif not isinstance(optic, OpticalElement):
@@ -199,13 +188,8 @@ class BaseWavefront(ABC):
         if not np.isscalar(phasor) and phasor.size > 1:
             assert self.wavefront.shape == phasor.shape, "Phasor shape {} does not match wavefront shape {}".format(
                 phasor.shape, self.wavefront.shape)
-            
-#         self.wavefront *= phasor
-        if self.wavefront_gpu is not None:
-            self.wavefront_gpu *= cp.array(phasor)
-        else:
-            self.wavefront *= phasor
-        
+
+        self.wavefront *= phasor
         msg = "  Multiplied WF by phasor for " + str(optic)
         _log.debug(msg)
         self.history.append(msg)
@@ -289,7 +273,7 @@ class BaseWavefront(ABC):
             outfits[0].header['PLANE1'] = 'Wavefront Amplitude'
             outfits[0].header['PLANE2'] = 'Wavefront Phase'
         elif what.lower() == 'intensity':
-            outfits = fits.HDUList(fits.PrimaryHDU(get_unpadded(self.intensity)))
+            outfits = fits.HDUList(fits.PrimaryHDU(get_unpadded(self.intensity.get() if accel_math._USE_CUPY else self.intensity)))
             outfits[0].header['PLANE1'] = 'Wavefront Intensity'
         elif what.lower() == 'phase':
             outfits = fits.HDUList(fits.PrimaryHDU(get_unpadded(self.phase)))
@@ -427,7 +411,7 @@ class BaseWavefront(ABC):
         """
         if scale is None:
             scale = 'log' if self.planetype == PlaneType.image else 'linear'
-        
+
         if row is None:
             row = self.current_plane_index
 
@@ -711,34 +695,22 @@ class BaseWavefront(ABC):
     @property
     def amplitude(self):
         """Electric field amplitude of the wavefront """
-#         return np.abs(self.wavefront)
-        if self.wavefront_gpu is not None:
-            return (cp.abs(self.wavefront_gpu)).get()
-        else:    
-            return np.abs(self.wavefront)
+        return np.abs(self.wavefront)
 
     @property
     def intensity(self):
         """Electric field intensity of the wavefront (i.e. field amplitude squared)"""
-#         if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
-        if accel_math._USE_NUMEXPR and self.wavefront_gpu is None:
+        if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
             w = self.wavefront
             return ne.evaluate("real(abs(w))**2")
-        elif self.wavefront_gpu is not None:
-            return (cp.abs(self.wavefront_gpu)**2).get()
         else:
             return np.abs(self.wavefront) ** 2
-        
 
     @property
     def phase(self):
         """Phase of the wavefront, in radians"""
-#         return np.angle(self.wavefront)
-        if self.wavefront_gpu is not None:
-            return (cp.angle(self.wavefront_gpu)).get()
-        else:    
-            return np.angle(self.wavefront)
-        
+        return np.angle(self.wavefront)
+
     @property
     def wfe(self):
         """Wavefront error of the wavefront, in meters"""
@@ -790,12 +762,12 @@ class BaseWavefront(ABC):
         _log.info("Resampling wavefront to detector with {} pixels and {}. Zoom factor is {:.5f}".format(
             detector.shape, detector.pixelscale, pixscale_ratio))
 
-        _log.debug("Wavefront pixel scale:        {:.3e}".format(self.pixelscale.to(detector.pixelscale.unit)))
-        _log.debug("Desired detector pixel scale: {:.3e}".format(detector.pixelscale))
+        _log.debug("Wavefront pixel scale:        {:.3f}".format(self.pixelscale.to(detector.pixelscale.unit)))
+        _log.debug("Desired detector pixel scale: {:.3f}".format(detector.pixelscale))
         _log.debug("Wavefront FOV:        {} pixels, {:.3f}".format(self.shape,
                                                                     self.shape[0]*u.pixel*self.pixelscale.to(
                                                                     detector.pixelscale.unit)))
-        _log.debug("Desired detector FOV: {} pixels, {:.3e}".format(detector.shape,
+        _log.debug("Desired detector FOV: {} pixels, {:.3f}".format(detector.shape,
                                                                     detector.shape[0]*u.pixel*detector.pixelscale))
 
         def make_axis(npix, step):
@@ -809,11 +781,8 @@ class BaseWavefront(ABC):
 
         # Crop wavefront down to detector size + margin- don't waste computation interpolating
         # parts of plane that get cropped out later anyways
-#         cropped_wf = utils.pad_or_crop_to_shape(self.wavefront, crop_shape)
-        if self.wavefront_gpu is not None:
-            cropped_wf = utils.pad_or_crop_to_shape(self.wavefront_gpu, crop_shape)
-        else:
-            cropped_wf = utils.pad_or_crop_to_shape(self.wavefront, crop_shape)
+        cropped_wf = utils.pad_or_crop_to_shape(self.wavefront, crop_shape)
+
         # Input and output axes for interpolation.  The interpolated wavefront will be evaluated
         # directly onto the detector axis, so don't need to crop afterwards.
         x_in = make_axis(crop_shape[0], self.pixelscale.to(u.m/u.pix).value)
@@ -826,8 +795,6 @@ class BaseWavefront(ABC):
             Bind arguments to scipy's RectBivariateSpline function.
             For data on a regular 2D grid, RectBivariateSpline is more efficient than interp2d.
             """
-            if accel_math._USE_CUPY:
-                arr = arr.get()
             return scipy.interpolate.RectBivariateSpline(
                 x_in, y_in, arr, kx=detector.interp_order, ky=detector.interp_order)
 
@@ -840,12 +807,7 @@ class BaseWavefront(ABC):
         new_wf *= 1. / pixscale_ratio
 
         self.ispadded = False   # if a pupil detector, avoid auto-cropping padded pixels on output
-#         self.wavefront = new_wf
-        if accel_math._USE_CUPY:
-            print('\t\tNew wavefront assigned to wavefront_gpu.', isinstance(new_wf, cp.ndarray))
-            self.wavefront_gpu = cp.array(new_wf)
-        else:
-            self.wavefront = new_wf
+        self.wavefront = new_wf
         self.pixelscale = detector.pixelscale
 
     @utils.quantity_input(Xangle=u.arcsec, Yangle=u.arcsec)
@@ -1621,7 +1583,7 @@ class BaseOpticalSystem(ABC):
         # ensure wavelength is a quantity which is iterable:
         # (the check for a quantity of type length is applied in the decorator)
         if np.isscalar(wavelength.value):
-            wavelength = np.asarray([wavelength.value], dtype=_float()) * wavelength.unit
+            wavelength = numpy.asarray([wavelength.value], dtype=_float()) * wavelength.unit
 
         if weight is None:
             weight = [1.0] * len(wavelength)
@@ -1640,7 +1602,7 @@ class BaseOpticalSystem(ABC):
         else:
             retain_intermediates = False
 
-        normwts = np.asarray(weight, dtype=_float())
+        normwts = numpy.asarray(weight, dtype=_float())
         normwts /= normwts.sum()
 
         _USE_FFTW = (conf.use_fftw and accel_math._FFTW_AVAILABLE)
@@ -1765,8 +1727,8 @@ class BaseOpticalSystem(ABC):
             utils.fftw_save_wisdom()
 
         # TODO update FITS header for oversampling here if detector is different from regular?
-        waves = np.asarray([w.to_value(u.meter) for w in wavelength])
-        wts = np.asarray(weight)
+        waves = numpy.asarray([w.to_value(u.meter) for w in wavelength])
+        wts = numpy.asarray(weight)
         mnwave = (waves * wts).sum() / wts.sum()
         outfits[0].header['WAVELEN'] = (mnwave, 'Weighted mean wavelength in meters')
         outfits[0].header['NWAVES'] = (waves.size, 'Number of wavelengths used in calculation')
@@ -3181,10 +3143,6 @@ class FITSOpticalElement(OpticalElement):
 
                 self.amplitude = scipy.ndimage.shift(self.amplitude, (rolly, rollx))
                 self.opd = scipy.ndimage.shift(self.opd, (rolly, rollx))
-                
-        if accel_math._USE_CUPY:
-            self.amplitude_gpu = cp.array(self.amplitude)
-            self.opd_gpu = cp.array(self.opd)
 
     @property
     def pupil_diam(self):

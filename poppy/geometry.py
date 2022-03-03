@@ -4,9 +4,14 @@
 #  at subpixel precision. (or at least reasonably proper; no
 #  guarantees for utter mathematical exactness at machine precision.)
 
-import numpy as np
-
 from . import accel_math
+
+import numpy
+if accel_math._USE_CUPY:
+    import cupy as np
+else:
+    import numpy as np
+
 if accel_math._USE_NUMEXPR:
     import numexpr as ne
 
@@ -34,8 +39,8 @@ def _arc(x, y0, y1, r):
     is traversed clockwise then the area is negative, otherwise it is
     positive.
     """
-    with np.errstate(divide='ignore'):
-        if accel_math._USE_NUMEXPR:
+    with numpy.errstate(divide='ignore'):
+        if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
             return ne.evaluate("0.5 * r**2 * (arctan(y1/x) - arctan(y0/x))")
         else:
             return 0.5 * r**2 * (np.arctan(y1/x) - np.arctan(y0/x))
