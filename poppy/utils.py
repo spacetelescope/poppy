@@ -1181,8 +1181,10 @@ def pad_or_crop_to_shape(array, target_shape):
 
     lx, ly = array.shape
     lx_w, ly_w = target_shape
-    border_x = np.abs(lx - lx_w) // 2
-    border_y = np.abs(ly - ly_w) // 2
+#     border_x = np.abs(lx - lx_w) // 2
+#     border_y = np.abs(ly - ly_w) // 2
+    border_x = abs(lx - lx_w) // 2
+    border_y = abs(ly - ly_w) // 2
 
     if (lx < lx_w) or (ly < ly_w):
         _log.debug("Array shape " + str(array.shape) + " is smaller than desired shape " + str(

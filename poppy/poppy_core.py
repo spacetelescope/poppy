@@ -7,7 +7,6 @@ import textwrap
 from abc import ABC, abstractmethod
 
 import matplotlib.pyplot as plt
-import scipy.ndimage.interpolation
 import matplotlib
 
 import astropy.io.fits as fits
@@ -25,8 +24,11 @@ if accel_math._USE_NUMEXPR:
 import numpy
 if accel_math._USE_CUPY:
     import cupy as np
+    import cupyx.scipy.ndimage as ndimage
 else:
     import numpy as np
+    import scipy.ndimage as ndimage
+    
 
 import logging
 
@@ -2469,13 +2471,9 @@ class OpticalElement(object):
                 # raise NotImplementedError("Need to implement resampling.")
                 zoom = (self.pixelscale / wave.pixelscale).decompose().value
                 original_opd = self.get_opd(wave)
-                resampled_opd = scipy.ndimage.interpolation.zoom(original_opd, zoom,
-                                                                 output=original_opd.dtype,
-                                                                 order=self.interp_order)
+                resampled_opd = ndimage.zoom(original_opd, zoom, output=original_opd.dtype, order=self.interp_order)
                 original_amplitude = self.get_transmission(wave)
-                resampled_amplitude = scipy.ndimage.interpolation.zoom(original_amplitude, zoom,
-                                                                       output=original_amplitude.dtype,
-                                                                       order=self.interp_order)
+                resampled_amplitude = ndimage.zoom(original_amplitude, zoom, output=original_amplitude.dtype, order=self.interp_order)
                 _log.debug("resampled optic to match wavefront via spline interpolation by a" +
                            " zoom factor of {:.3g}".format(zoom))
                 _log.debug("resampled optic shape: {}   wavefront shape: {}".format(resampled_amplitude.shape,
@@ -2511,7 +2509,7 @@ class OpticalElement(object):
 
         else:
             # compute the phasor directly, without any need to rescale.
-            if accel_math._USE_NUMEXPR:
+            if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
                 trans = self.get_transmission(wave)
                 opd = self.get_opd(wave)
                 self.phasor = ne.evaluate("trans * exp(1.j * opd * scale)")
@@ -2890,6 +2888,9 @@ class FITSOpticalElement(OpticalElement):
                     self.amplitude_file = transmission
                     self.amplitude, self.amplitude_header = fits.getdata(self.amplitude_file, header=True)
                     self.amplitude = self.amplitude.astype('=f8')  # ensure native byte order, see #213
+                    
+                    self.amplitude = np.array(self.amplitude) # sets to CuPy array if np is cupy
+                    
                     if self.name == 'unnamed optic':
                         self.name = 'Optic from ' + self.amplitude_file
                     _log.info(self.name + ": Loaded amplitude transmission from " + self.amplitude_file)
@@ -2936,6 +2937,9 @@ class FITSOpticalElement(OpticalElement):
                 self.opd_file = opd
                 self.opd, self.opd_header = fits.getdata(self.opd_file, header=True)
                 self.opd = self.opd.astype('=f8')
+                
+                self.opd = np.array(self.opd) # sets to CuPy array if np is cupy
+                
                 if self.name == 'unnamed optic': self.name = 'OPD from ' + self.opd_file
                 _log.info(self.name + ": Loaded OPD from " + self.opd_file)
 
