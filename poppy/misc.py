@@ -4,10 +4,20 @@
 #
 ############################################################################
 
-import numpy as np
-import scipy
 import matplotlib.pyplot as plt
 
+from . import accel_math
+
+if accel_math._USE_NUMEXPR:
+    import numexpr as ne
+
+import numpy
+if accel_math._USE_CUPY:
+    import cupy as np
+    from cupyx.scipy.special import j1
+else:
+    import numpy as np
+    from scipy.special import j1
 
 _RADtoARCSEC = 180.*60*60/np.pi  # ~ 206265
 _ARCSECtoRAD = np.pi/(180.*60*60)
@@ -48,7 +58,8 @@ def airy_1d(diameter=1.0, wavelength=1e-6, length=512, pixelscale=0.010,
     # pedantically avoid divide by 0 by setting 0s to minimum nonzero number
     v[v == 0] = np.finfo(v.dtype).eps
 
-    airy = 1./(1-e**2)**2 * ((2*scipy.special.jn(1, v) - e*2*scipy.special.jn(1, e*v))/v)**2
+#     airy = 1./(1-e**2)**2 * ((2*scipy.special.jn(1, v) - e*2*scipy.special.jn(1, e*v))/v)**2
+    airy = 1./(1-e**2)**2 * ((2*j1(v) - e*2*j1(e*v))/v)**2
     # see e.g. Schroeder, Astronomical Optics, 2nd ed. page 248
 
     if plot:
@@ -96,7 +107,8 @@ def airy_2d(diameter=1.0, wavelength=1e-6, shape=(512, 512), pixelscale=0.010,
     # pedantically avoid divide by 0 by setting 0s to minimum nonzero number
     v[v == 0] = np.finfo(v.dtype).eps
 
-    airy = 1./(1-e**2)**2 * ((2*scipy.special.jn(1, v) - e*2*scipy.special.jn(1, e*v))/v)**2
+#     airy = 1./(1-e**2)**2 * ((2*scipy.special.jn(1, v) - e*2*scipy.special.jn(1, e*v))/v)**2
+    airy = 1./(1-e**2)**2 * ((2*j1(v) - e*2*j1(e*v))/v)**2
     # see e.g. Schroeder, Astronomical Optics, 2nd ed. page 248
     return airy
 

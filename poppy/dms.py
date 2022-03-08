@@ -1,7 +1,6 @@
 # Code for modeling deformable mirrors
 # By Neil Zimmerman based on Marshall's dms.py in the gpipsfs repo
 
-import numpy as np
 import matplotlib.pyplot as plt
 import scipy.ndimage.interpolation
 import scipy.signal
@@ -10,6 +9,14 @@ import astropy.units as u
 from abc import ABC, abstractmethod
 
 from . import utils, accel_math, poppy_core, optics
+
+import numpy
+if accel_math._USE_CUPY:
+    import cupy as np
+    import cupyx.scipy.ndimage as ndimage
+else:
+    import numpy as np
+    import scipy.ndimage as ndimage
 
 import logging
 

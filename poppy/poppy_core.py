@@ -792,18 +792,26 @@ class BaseWavefront(ABC):
         x_out = make_axis(detector.shape[0], detector.pixelscale.to(u.m/u.pix).value)
         y_out = make_axis(detector.shape[1], detector.pixelscale.to(u.m/u.pix).value)
 
-        def interpolator(arr):
+        def interpolator(arr): # FIXME: NOT CUPY OPTIMIZED YET
             """
             Bind arguments to scipy's RectBivariateSpline function.
             For data on a regular 2D grid, RectBivariateSpline is more efficient than interp2d.
             """
-            return scipy.interpolate.RectBivariateSpline(
-                x_in, y_in, arr, kx=detector.interp_order, ky=detector.interp_order)
+#             if accel_math._USE_CUPY:
+#                 x_in, y_in = ( x_in.get(), y_in.get() )
+            return scipy.interpolate.RectBivariateSpline(x_in, y_in, arr, 
+                                                         kx=detector.interp_order, ky=detector.interp_order)
 
         # Interpolate real and imaginary parts separately
-        real_resampled = interpolator(cropped_wf.real)(x_out, y_out)
-        imag_resampled = interpolator(cropped_wf.imag)(x_out, y_out)
-        new_wf = real_resampled + 1j * imag_resampled
+        if accel_math._USE_CUPY:
+            x_in, y_in = ( x_in.get(), y_in.get() )
+            x_out, y_out = ( x_out.get(), y_out.get() )
+            wfarr = cropped_wf.get()
+        else:
+            wfarr = cropped_wf
+        real_resampled = interpolator(wfarr.real)(x_out, y_out)
+        imag_resampled = interpolator(wfarr.imag)(x_out, y_out)
+        new_wf = np.array(real_resampled + 1j * imag_resampled)
 
         # enforce conservation of energy:
         new_wf *= 1. / pixscale_ratio
@@ -1252,7 +1260,7 @@ class Wavefront(BaseWavefront):
         else:
             pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
 
-        if accel_math._USE_NUMEXPR:
+        if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
             ny, nx = shape
             return (ne.evaluate("pixel_scale_y * (y - (ny-1)/2)"),
                     ne.evaluate("pixel_scale_x * (x - (nx-1)/2)") )
@@ -3333,14 +3341,14 @@ class Detector(OpticalElement):
         if fov_pixels is None and fov_arcsec is None:
             raise ValueError("Either fov_pixels or fov_arcsec must be specified!")
         elif fov_pixels is not None:
-            self.fov_pixels = np.round(fov_pixels)
+            self.fov_pixels = numpy.round(fov_pixels)
             self.fov_arcsec = self.fov_pixels * self.pixelscale
         else:
             # set field of view to closest value possible to requested,
             # consistent with having an integer number of pixels
-            self.fov_pixels = np.round((fov_arcsec.to(u.arcsec) / self.pixelscale).to(u.pixel))
+            self.fov_pixels = numpy.round((fov_arcsec.to(u.arcsec) / self.pixelscale).to(u.pixel))
             self.fov_arcsec = self.fov_pixels * self.pixelscale
-        if np.any(self.fov_pixels <= 0):
+        if numpy.any(self.fov_pixels <= 0):
             raise ValueError("FOV in pixels must be a positive quantity. Invalid: " + str(self.fov_pixels))
 
         self.amplitude = 1

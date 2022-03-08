@@ -27,10 +27,9 @@ from importlib import reload
 
 from . import accel_math
 
+import numpy
 if accel_math._USE_CUPY:
     import cupy as np
-    import numpy
-    
     rnd = numpy.round
 else:
     import numpy as np

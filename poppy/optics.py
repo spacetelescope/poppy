@@ -148,6 +148,8 @@ class AnalyticOpticalElement(OpticalElement):
                 return np.asarray(result, _complex())
 
         else:
+            import cupy
+            print(isinstance(self.get_opd(wave), cupy.ndarray), isinstance(self.get_transmission(wave), cupy.ndarray))
             return self.get_transmission(wave) * np.exp(1.j * self.get_opd(wave) * scale)
 
     @utils.quantity_input(wavelength=u.meter)
@@ -1431,8 +1433,8 @@ class MultiHexagonAperture(MultiSegmentAperture):
         elif side is not None:
             self.side = side
         else:
-            self.side = flattoflat / np.sqrt(3.)
-        self.flattoflat = self.side * np.sqrt(3)
+            self.side = flattoflat / numpy.sqrt(3.)
+        self.flattoflat = self.side * numpy.sqrt(3)
 
         super().__init__(name=name, segment_size=self.flattoflat,
                          gap=gap, rings=rings, segmentlist=segmentlist, center=center, **kwargs)
@@ -2062,6 +2064,7 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
                     else:
                         self._default_display_size = optic._default_display_size
                 if hasattr(optic, 'pupil_diam'):
+                    print(optic.pupil_diam)
                     if not hasattr(self, 'pupil_diam'):
                         self.pupil_diam = optic.pupil_diam
                     else:

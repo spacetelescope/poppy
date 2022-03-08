@@ -1066,13 +1066,13 @@ class FresnelWavefront(BaseWavefront):
 
         # get the fpm phasor either using numexpr or numpy
         scale = 2. * np.pi / self.wavelength.to(u.meter).value
-        if accel_math._USE_NUMEXPR:
+        if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
             _log.debug("Calculating FPM phasor from numexpr.")
             trans = optic.get_transmission(self)
             opd = optic.get_opd(self)
             fpm_phasor = ne.evaluate("trans * exp(1.j * opd * scale)")
         else:
-            _log.debug("numexpr not available, calculating FPM phasor with numpy.")
+            _log.debug("Calculating FPM phasor with numpy/cupy.")
             fpm_phasor = optic.get_transmission(self) * np.exp(1.j * optic.get_opd(self) * scale)
         
         nfpm = fpm_phasor.shape[0]

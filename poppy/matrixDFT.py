@@ -54,11 +54,18 @@
 
 __all__ = ['MatrixFourierTransform']
 
-import numpy as np
 from . import conf
 from . import accel_math
 if accel_math._USE_NUMEXPR:
     import numexpr as ne
+    
+import numpy
+if accel_math._USE_CUPY:
+    import cupy as np
+    rnd = numpy.round
+else:
+    import numpy as np
+    rnd = np.round
 
 import logging
 _log = logging.getLogger('poppy')
@@ -121,7 +128,7 @@ def matrix_dft(plane, nlamD, npix,
         (offsetY, offsetX).
     """
 
-    if accel_math._USE_NUMEXPR:
+    if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
         return matrix_dft_numexpr(plane, nlamD, npix,
                offset=offset, inverse=inverse, centering=centering)
     float = accel_math._float()
