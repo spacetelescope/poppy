@@ -14,10 +14,11 @@ import numpy
 if accel_math._USE_CUPY:
     import cupy as np
     import cupyx.scipy.ndimage as ndimage
+    import cupyx.scipy.signal as signal
 else:
     import numpy as np
     import scipy.ndimage as ndimage
-
+    import scipy.signal as signal
 import logging
 
 _log = logging.getLogger('poppy')
@@ -117,7 +118,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         self.pupil_center = (dm_shape[0] - 1.) / 2  # center of clear aperture in actuator units
 
         # the poppy-standard attribute 'pupil_diam' is used for default display or input wavefront sizes
-        self.pupil_diam = max(np.max(dm_shape) * self.actuator_spacing, self.radius_reflective*2)  # see note above
+        self.pupil_diam = max(numpy.max(dm_shape) * self.actuator_spacing, self.radius_reflective*2)  # see note above
 
         self.include_actuator_print_through = include_actuator_print_through
 
@@ -163,7 +164,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         else:
             raise RuntimeError("must supply exactly one of the filename and hdulist arguments.")
 
-        self.influence_func = hdulist[0].data.copy()
+        self.influence_func = np.array(hdulist[0].data.copy())
         self.influence_header = hdulist[0].header.copy()
         if len(self.influence_func.shape) != 2:
             raise RuntimeError("Influence function file must contain a 2D array.")
@@ -189,7 +190,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         import warnings
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
-            return scipy.ndimage.zoom(self.influence_func, scale)
+            return ndimage.zoom(self.influence_func, scale)
 
     def _get_rescaled_actuator_surface(self, pixelscale):
         """ Return the actuator surface print-through, rescaled onto the
@@ -412,7 +413,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
                     continue
 
                 # 2d Gaussian
-                if accel_math._USE_NUMEXPR:
+                if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
                     roversigma2 = ne.evaluate("((x - xc)**2 + (y-yc)**2)/sigma**2")
                 else:
                     roversigma2 = ((x - xc) ** 2 + (y - yc) ** 2) / sigma ** 2
@@ -468,8 +469,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
         # Now we can convolve with the influence function to get the full continuous surface.
         influence_rescaled = self._get_rescaled_influence_func(wave.pixelscale)
-        dm_surface = scipy.signal.fftconvolve(self._surface_trace_flat.reshape(wave.shape),
-                                              influence_rescaled, mode='same')
+        dm_surface = signal.fftconvolve(self._surface_trace_flat.reshape(wave.shape), influence_rescaled, mode='same')
 
         return dm_surface
 

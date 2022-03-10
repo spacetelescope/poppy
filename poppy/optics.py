@@ -148,8 +148,6 @@ class AnalyticOpticalElement(OpticalElement):
                 return np.asarray(result, _complex())
 
         else:
-            import cupy
-            print(isinstance(self.get_opd(wave), cupy.ndarray), isinstance(self.get_transmission(wave), cupy.ndarray))
             return self.get_transmission(wave) * np.exp(1.j * self.get_opd(wave) * scale)
 
     @utils.quantity_input(wavelength=u.meter)
