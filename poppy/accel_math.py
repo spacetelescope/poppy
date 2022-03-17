@@ -103,7 +103,7 @@ def _complex():
 def _r(x, y):
     """ Function to speed up computing the radius given x and y, using Numexpr if available
     Otherwise defaults to numpy. """
-    if _USE_NUMEXPR:
+    if _USE_NUMEXPR and not _USE_CUPY:
         return ne.evaluate("sqrt(x**2+y**2)")
     else:
         return np.sqrt(x ** 2 + y ** 2)

@@ -435,12 +435,11 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
         # check for flips
         surface, act_mask = self._get_surface_arrays_with_orientation()
-
+        
         if self.include_actuator_mask:
             target_val = (surface * act_mask).ravel()
         else:
             target_val = surface.ravel()
-
         # Compute the 'surface trace', i.e the values for each actuator, projected
         # into the appropriate locations on the detector. For each actuator, we
         # weight the surface value across a 2x2 square of pixels to account for subpixel
@@ -462,15 +461,19 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
                 xweight = fracpart[1] if ix==1 else (1-fracpart[1])
                 yweight = fracpart[0] if iy==1 else (1-fracpart[0])
                 try:
-                    self._surface_trace_flat[self._act_ind_flat[0] + ix + iy*wave.shape[0]] = (xweight*yweight).flat*target_val
+#                     self._surface_trace_flat[self._act_ind_flat[0] + ix + iy*wave.shape[0]]=(xweight*yweight).flat*target_val
+                    self._surface_trace_flat[self._act_ind_flat[0] + ix + iy*wave.shape[0]]=(xweight*yweight).flatten()*target_val
+                    # for some reason you can't use .flat and multiply the array in CuPy, you have to use .flatten()
+                    # don't know if this has other implications but seems to work as intended on normal numpy arrays
                 except:
                     pass # Ignore any actuators outside the FoV
-
-
+        
         # Now we can convolve with the influence function to get the full continuous surface.
         influence_rescaled = self._get_rescaled_influence_func(wave.pixelscale)
         dm_surface = signal.fftconvolve(self._surface_trace_flat.reshape(wave.shape), influence_rescaled, mode='same')
-
+#         import misc
+#         try: misc.myimshow(dm_surface.get(), 'dm_surface from cupy')
+#         except: misc.myimshow(dm_surface, 'dm_surface')
         return dm_surface
 
     def _setup_actuator_indices(self, wave):

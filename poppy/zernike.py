@@ -24,7 +24,6 @@ Gram-Schmidt orthonormalization process as applied to this case is
 
 import inspect
 from math import factorial
-import numpy as np
 import scipy
 
 import sys
@@ -33,6 +32,14 @@ import logging
 import astropy.units as u
 
 from poppy.poppy_core import Wavefront
+
+from . import accel_math
+
+import numpy
+if accel_math._USE_CUPY:
+    import cupy as np
+else:
+    import numpy as np
 
 from functools import lru_cache
 
@@ -243,7 +250,7 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
         raise ValueError("If you provide either the `theta` or `rho` input array, you must "
                          "provide both of them.")
 
-    if not np.all(rho.shape == theta.shape):
+    if not numpy.all(rho.shape == theta.shape):
         raise ValueError('The rho and theta arrays do not have consistent shape.')
 
     aperture = (rho <= 1)

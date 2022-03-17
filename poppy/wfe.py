@@ -13,7 +13,6 @@ error in an OpticalSystem
 
 import collections
 from functools import wraps
-import numpy as np
 import astropy.units as u
 
 from .optics import AnalyticOpticalElement, CircularAperture
@@ -24,6 +23,13 @@ from .physical_wavefront import PhysicalFresnelWavefront
 from . import zernike
 from . import utils
 from . import accel_math
+
+import numpy
+if accel_math._USE_CUPY:
+    import cupy as np
+else:
+    import numpy as np
+
 
 __all__ = ['WavefrontError', 'ParameterizedWFE', 'ZernikeWFE', 'SineWaveWFE',
         'StatisticalPSDWFE', 'PowerSpectrumWFE', 'KolmogorovWFE', 'ThermalBloomingWFE']
@@ -93,7 +99,7 @@ def _wave_y_x_to_rho_theta(y, x, pupil_radius):
         Radius (in meters) of a circle circumscribing the pupil.
     """
 
-    if accel_math._USE_NUMEXPR:
+    if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
         rho = accel_math.ne.evaluate("sqrt(x**2+y**2)/pupil_radius")
         theta = accel_math.ne.evaluate("arctan2(y / pupil_radius, x / pupil_radius)")
     else:
@@ -343,16 +349,18 @@ class StatisticalPSDWFE(WavefrontError):
         """
         y, x = self.get_coordinates(wave)
         rho, theta = _wave_y_x_to_rho_theta(y, x, self.radius.to(u.meter).value)
-        psd = np.power(rho, -self.index)   # generate power-law PSD
+        rho[rho == 0] = 0.00001 # get rid of infinity: see Issue #452
+        
+        psd = np.power(rho, -self.index) # generate power-law PSD
 
         psd_random_state = np.random.RandomState()
         psd_random_state.seed(self.seed)   # if provided, set a seed for random number generator
         rndm_phase = psd_random_state.normal(size=(len(y), len(x)))   # generate random phase screen
         rndm_psd = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(rndm_phase)))   # FT of random phase screen to get random PSD
         scaled = np.sqrt(psd) * rndm_psd    # scale random PSD by power-law PSD
-        phase_screen = np.fft.ifftshift(np.fft.ifft2(np.fft.ifftshift(scaled))).real   # FT of scaled random PSD makes phase screen
-
+        phase_screen = np.fft.ifftshift(np.fft.ifft2(np.fft.ifftshift(scaled))).real # FT of scaled random PSD makes phase screen
         phase_screen -= np.mean(phase_screen)  # force zero-mean
+        
         self.opd = phase_screen / np.std(phase_screen) * self.wfe.to(u.m).value  # normalize to wanted input rms wfe
 
         return self.opd
@@ -554,7 +562,8 @@ class PowerSpectrumWFE(WavefrontError):
         rndm_noise = np.fft.fftshift(np.fft.fft2(psd_random.normal(size=(self.screen_size, self.screen_size))))
         
         psd_scaled = (np.sqrt(psd/(wave.pixelscale.value**2)) * rndm_noise)
-        opd = ((np.fft.ifft2(np.fft.ifftshift(psd_scaled)).real*surf_unit).to(u.m)).value 
+#         opd = ((np.fft.ifft2(np.fft.ifftshift(psd_scaled)).real*surf_unit).to(u.m)).value 
+        opd = ((np.fft.ifft2(np.fft.ifftshift(psd_scaled)).real))*1e-9 # this is assuming the opd is calculated in nm
         
         # Set rms value based on the active region of beam
         if self.rms is not None:
@@ -567,7 +576,7 @@ class PowerSpectrumWFE(WavefrontError):
             
         # apply the angle adjustment for rms
         if self.incident_angle.value != 0:
-            opd /= np.cos(self.incident_angle).value
+            opd /= np.cos(self.incident_angle.to(u.radian).value) # for cupy, convert angle to radians to use just the value
         
         # Set reflection OPD
         if self.apply_reflection == True:
@@ -680,7 +689,7 @@ class KolmogorovWFE(WavefrontError):
         
         # calculate OPD
         # Note: Factor dq consequence of delta function having a unit
-        opd_FFT = dq*a*np.sqrt(2.0*np.pi*self.dz*phi)
+        opd_FFT = dq.value*a*np.sqrt(2.0*np.pi*self.dz.value*phi)
         opd = npix**2*np.fft.ifft2(opd_FFT)
         
         self.opd = np.real(opd)
@@ -769,7 +778,7 @@ class KolmogorovWFE(WavefrontError):
         b = self.rand_symmetrized(npix, -1)
         
         # create complex-valued random number with required variance
-        c = (a + 1j*b)/np.sqrt(2.0)
+        c = (a + 1j*b)/numpy.sqrt(2.0)
         
         return c
     
@@ -800,7 +809,7 @@ class KolmogorovWFE(WavefrontError):
         npix = coordinates[0].shape[0]
         pixelscale = wave.pixelscale.to(u.m/u.pixel) * u.pix
         
-        q = np.fft.fftfreq(npix, d=pixelscale)*2.0*np.pi
+        q = np.fft.fftfreq(npix, d=pixelscale.value)*2.0*np.pi
         
         qx, qy = np.meshgrid(q, q)
         
@@ -814,7 +823,7 @@ class KolmogorovWFE(WavefrontError):
                                  must be provided.')
         q2[0, 0] = np.inf # this is to avoid a possible error message in the next line
         
-        phi = 0.0330054*Cn2*q2**(-11.0/6.0)
+        phi = 0.0330054*Cn2.value*q2**(-11.0/6.0)
         
         if kind=='Tatarski' or kind=='von Karman' or kind=='Hill':
             if self.inner_scale is not None:

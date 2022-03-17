@@ -1607,7 +1607,7 @@ class RectangleAperture(AnalyticOpticalElement):
             name = "Rectangle, size= {s.width:.1f} wide * {s.height:.1f} high".format(s=self)
         AnalyticOpticalElement.__init__(self, name=name, planetype=PlaneType.pupil, rotation=rotation, **kwargs)
         # for creating input wavefronts:
-        self.pupil_diam = np.sqrt(self.height ** 2 + self.width ** 2)
+        self.pupil_diam = numpy.sqrt(self.height ** 2 + self.width ** 2)
 
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the occulter.
@@ -1757,18 +1757,18 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
                  support_offset_x=0.0, support_offset_y=0.0, **kwargs):
         SecondaryObscuration.__init__(self, n_supports=len(support_angle), **kwargs)
 
-        self.support_angle = np.asarray(support_angle)
+        self.support_angle = numpy.asarray(support_angle)
 
-        if np.isscalar(support_width.value):
-            support_width = np.zeros(len(support_angle)) + support_width
+        if numpy.isscalar(support_width.value):
+            support_width = numpy.zeros(len(support_angle)) + support_width
         self.support_width = support_width
 
-        if np.isscalar(support_offset_x):
-            support_offset_x = np.zeros(len(support_angle)) + support_offset_x
+        if numpy.isscalar(support_offset_x):
+            support_offset_x = numpy.zeros(len(support_angle)) + support_offset_x
         self.support_offset_x = support_offset_x
 
-        if np.isscalar(support_offset_y):
-            support_offset_y = np.zeros(len(support_angle)) + support_offset_y
+        if numpy.isscalar(support_offset_y):
+            support_offset_y = numpy.zeros(len(support_angle)) + support_offset_y
         self.support_offset_y = support_offset_y
 
     def get_transmission(self, wave):
@@ -1897,7 +1897,7 @@ class GaussianAperture(AnalyticOpticalElement):
         elif w is not None:
             self.w = w
         elif fwhm is not None:
-            self.w = fwhm / (2 * np.sqrt(np.log(2)))
+            self.w = fwhm / (2 * numpy.sqrt(numpy.log(2)))
 
         if pupil_diam is None:
             pupil_diam = 3 * self.fwhm  # for creating input wavefronts
@@ -1908,7 +1908,7 @@ class GaussianAperture(AnalyticOpticalElement):
 
     @property
     def fwhm(self):
-        return self.w * (2 * np.sqrt(np.log(2)))
+        return self.w * (2 * numpy.sqrt(numpy.log(2)))
 
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the aperture.
