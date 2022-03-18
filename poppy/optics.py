@@ -1216,7 +1216,7 @@ class HexagonAperture(AnalyticOpticalElement):
         elif diameter is not None:
             self.side = diameter / 2
         else:
-            self.side = flattoflat / np.sqrt(3.)
+            self.side = flattoflat / numpy.sqrt(3.)
 
         self.pupil_diam = 2 * self.side  # for creating input wavefronts
         self._default_display_size = 3 * self.side
@@ -2062,7 +2062,6 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
                     else:
                         self._default_display_size = optic._default_display_size
                 if hasattr(optic, 'pupil_diam'):
-                    print(optic.pupil_diam)
                     if not hasattr(self, 'pupil_diam'):
                         self.pupil_diam = optic.pupil_diam
                     else:
