@@ -2486,7 +2486,7 @@ class OpticalElement(object):
                            " zoom factor of {:.3g}".format(zoom))
                 _log.debug("resampled optic shape: {}   wavefront shape: {}".format(resampled_amplitude.shape,
                                                                                     wave.shape))
-
+                
                 lx, ly = resampled_amplitude.shape
                 # crop down to match size of wavefront:
                 lx_w, ly_w = wave.amplitude.shape
@@ -2755,7 +2755,7 @@ class ArrayOpticalElement(OpticalElement):
     """ Defines an arbitrary optic, based on amplitude transmission and/or OPD given as numpy arrays.
 
     This is a very lightweight wrapper for the base OpticalElement class, which just provides some
-    additional convenience features in the initializer..
+    additional convenience features in the initializer.
     """
 
     def __init__(self, opd=None, transmission=None, pixelscale=None, **kwargs):
@@ -2766,6 +2766,8 @@ class ArrayOpticalElement(OpticalElement):
             self.amplitude = transmission
             if opd is None:
                 self.opd = np.zeros_like(transmission)
+        elif transmission is None and opd is not None:
+            self.amplitude = np.ones_like(opd)
 
         if pixelscale is not None:
             self.pixelscale = pixelscale

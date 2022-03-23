@@ -11,7 +11,6 @@ import time
 import logging
 _log = logging.getLogger('poppy')
 
-
 try:
     # try to import FFTW to see if it is available
     import pyfftw

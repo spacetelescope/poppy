@@ -20,8 +20,10 @@ from importlib import reload
 import numpy
 if accel_math._USE_CUPY:
     import cupy as np
+    from cupyx.scipy.special import j1
 else:
     import numpy as np
+    from scipy.special import j1
 
 if accel_math._USE_NUMEXPR:
     import numexpr as ne
@@ -472,8 +474,8 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
             raise ValueError("Invalid value for kind of BLC: " + self.kind)
         self.sigma = float(sigma)  # size parameter. See section 2.1 of Krist et al. SPIE 2007, 2009
         if wavelength is not None:
-            self.wavelength = float(wavelength)  # wavelength, for selecting the
-            # linear wedge option only
+            self.wavelength = float(wavelength.value)  # wavelength, for selecting the
+            # linear wedge option only, FIXED by adding .value
         self._default_display_size = 20. * u.arcsec  # default size for onscreen display, sized for NIRCam
 
     def get_transmission(self, wave):
@@ -501,7 +503,8 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
             sigmar = self.sigma * r
             sigmar.clip(np.finfo(sigmar.dtype).tiny, out=sigmar)  # avoid divide by zero -> NaNs
 
-            self.transmission = (1 - (2 * scipy.special.jn(1, sigmar) / sigmar) ** 2)
+#             self.transmission = (1 - (2 * scipy.special.jn(1, sigmar) / sigmar) ** 2)
+            self.transmission = (1 - (2 * j1(sigmar) / sigmar) ** 2)
             self.transmission[r == 0] = 0  # special case center point (value based on L'Hopital's rule)
         elif self.kind == 'nircamcircular':
             # larger sigma implies narrower peak? TBD verify if this is correct
@@ -1483,6 +1486,8 @@ class NgonAperture(AnalyticOpticalElement):
         radius to the vertices, meters. Default is 1.
     rotation : float
         Rotation angle to first vertex, in degrees counterclockwise from the +X axis. Default is 0.
+        
+    TODO: get_transmission() extremely slow when using CuPy, find better solution
     """
 
     @utils.quantity_input(radius=u.meter)
@@ -1505,14 +1510,19 @@ class NgonAperture(AnalyticOpticalElement):
         phase = self.rotation * np.pi / 180
         vertices = np.zeros((self.nsides, 2), dtype=_float())
         for i in range(self.nsides):
-            vertices[i] = [np.cos(i * 2 * np.pi / self.nsides + phase),
-                           np.sin(i * 2 * np.pi / self.nsides + phase)]
+#             vertices[i] = [np.cos(i * 2 * np.pi / self.nsides + phase),
+#                            np.sin(i * 2 * np.pi / self.nsides + phase)]
+            vertices[i,0] = np.cos(i * 2 * np.pi / self.nsides + phase)
+            vertices[i,1] = np.sin(i * 2 * np.pi / self.nsides + phase)
         vertices *= self.radius.to(u.meter).value
 
         self.transmission = np.zeros(wave.shape, dtype=_float())
         for row in range(wave.shape[0]):
             pts = np.asarray(list(zip(x[row], y[row])))
-            ok = matplotlib.path.Path(vertices).contains_points(pts)
+            if accel_math._USE_CUPY:
+                ok = matplotlib.path.Path(vertices.get()).contains_points(pts.get()) # extremely slow
+            else: 
+                ok = matplotlib.path.Path(vertices).contains_points(pts)
             self.transmission[row][ok] = 1.0
 
         return self.transmission
