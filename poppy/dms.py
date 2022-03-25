@@ -728,9 +728,9 @@ class SegmentedDeformableMirror(ABC):
 
         if segnum not in self.segmentlist:
             raise ValueError("Segment {} is not present for this DM instance.".format(segnum))
-        self._surface[segnum] = [piston.to(u.meter).value,
-                                 tip.to(u.radian).value,
-                                 tilt.to(u.radian).value]
+        self._surface[segnum] = np.array([piston.to(u.meter).value,
+                                          tip.to(u.radian).value,
+                                          tilt.to(u.radian).value])
 
     def _setup_arrays(self, npix, pixelscale, wave=None):
         """ Set up the arrays to compute an OPD into.
