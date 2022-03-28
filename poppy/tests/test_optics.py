@@ -12,8 +12,6 @@ from .test_core import check_wavefront
 
 wavelength=1e-6
 
-
-
 #def test_OpticalElement():
 #    pass
 

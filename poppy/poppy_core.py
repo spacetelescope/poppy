@@ -797,8 +797,6 @@ class BaseWavefront(ABC):
             Bind arguments to scipy's RectBivariateSpline function.
             For data on a regular 2D grid, RectBivariateSpline is more efficient than interp2d.
             """
-#             if accel_math._USE_CUPY:
-#                 x_in, y_in = ( x_in.get(), y_in.get() )
             return scipy.interpolate.RectBivariateSpline(x_in, y_in, arr, 
                                                          kx=detector.interp_order, ky=detector.interp_order)
 
@@ -903,8 +901,8 @@ class BaseWavefront(ABC):
             rot_imag = np.rot90(self.wavefront.imag, k=-k)
         else:
             # arbitrary free rotation with interpolation
-            rot_real = scipy.ndimage.interpolation.rotate(self.wavefront.real, -angle, reshape=False)  # negative = CCW
-            rot_imag = scipy.ndimage.interpolation.rotate(self.wavefront.imag, -angle, reshape=False)
+            rot_real = ndimage.interpolation.rotate(self.wavefront.real, -angle, reshape=False)  # negative = CCW
+            rot_imag = ndimage.interpolation.rotate(self.wavefront.imag, -angle, reshape=False)
         self.wavefront = rot_real + 1.j * rot_imag
 
         self.history.append('Rotated by {:.2f} degrees, CCW'.format(angle))
@@ -3047,11 +3045,11 @@ class FITSOpticalElement(OpticalElement):
                     # arbitrary free rotation with interpolation
                     # do rotation with interpolation, but try to clean up some of the artifacts afterwards.
                     # this is imperfect at best, of course...
-                    self.amplitude = scipy.ndimage.interpolation.rotate(self.amplitude, -rotation,  # negative = CCW
-                                                                        reshape=False).clip(min=0, max=1.0)
+                    self.amplitude = ndimage.interpolation.rotate(self.amplitude, -rotation,  # negative = CCW
+                                                                  reshape=False).clip(min=0, max=1.0)
                     wnoise = (self.amplitude < 1e-3) & (self.amplitude > 0)
                     self.amplitude[wnoise] = 0
-                    self.opd = scipy.ndimage.interpolation.rotate(self.opd, -rotation, reshape=False)  # negative = CCW
+                    self.opd = ndimage.interpolation.rotate(self.opd, -rotation, reshape=False)  # negative = CCW
                 _log.info("  Rotated optic by %f degrees counter clockwise." % rotation)
                 self._rotation = rotation
 
@@ -3155,8 +3153,8 @@ class FITSOpticalElement(OpticalElement):
                               rollx * 1.0 / self.amplitude.shape[1], rolly * 1.0 / self.amplitude.shape[0]))
                     self._shift = (rollx * 1.0 / self.amplitude.shape[1], rolly * 1.0 / self.amplitude.shape[0])
 
-                self.amplitude = scipy.ndimage.shift(self.amplitude, (rolly, rollx))
-                self.opd = scipy.ndimage.shift(self.opd, (rolly, rollx))
+                self.amplitude = ndimage.shift(self.amplitude, (rolly, rollx))
+                self.opd = ndimage.shift(self.opd, (rolly, rollx))
 
     @property
     def pupil_diam(self):

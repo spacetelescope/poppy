@@ -830,6 +830,7 @@ class KolmogorovWFE(WavefrontError):
                 k2 = (qx**2 + qy**2)
                 if kind=='Tatarski' or kind=='von Karman':
                     m = (5.92/self.inner_scale.to(u.m))**2
+                    print(k2, m, -k2/m)
                     phi *= np.exp(-k2/m)
                 elif kind=='Hill':
                     m = np.sqrt(k2)*self.inner_scale.to(u.m)
