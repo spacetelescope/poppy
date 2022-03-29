@@ -809,14 +809,14 @@ class KolmogorovWFE(WavefrontError):
         npix = coordinates[0].shape[0]
         pixelscale = wave.pixelscale.to(u.m/u.pixel) * u.pix
         
-        q = np.fft.fftfreq(npix, d=pixelscale.value)*2.0*np.pi
+        q = np.fft.fftfreq(npix, d=pixelscale.value)*2.0*np.pi # so q has units of 1/m?
         
         qx, qy = np.meshgrid(q, q)
         
         q2 = (qx**2 + qy**2)
         if kind=='von Karman':
             if self.outer_scale is not None:
-                q2 += 1.0/self.outer_scale.to(u.m)**2
+                q2 += 1.0/self.outer_scale.to(u.m).value**2
             else:
                 raise ValueError('If von Karman kind of turbulent phase \
                                  screen is chosen, the outer scale L_0 \
@@ -829,13 +829,12 @@ class KolmogorovWFE(WavefrontError):
             if self.inner_scale is not None:
                 k2 = (qx**2 + qy**2)
                 if kind=='Tatarski' or kind=='von Karman':
-                    m = (5.92/self.inner_scale.to(u.m))**2
-                    print(k2, m, -k2/m)
+                    m = (5.92/self.inner_scale.to(u.m).value)**2
                     phi *= np.exp(-k2/m)
                 elif kind=='Hill':
-                    m = np.sqrt(k2)*self.inner_scale.to(u.m)
+                    m = np.sqrt(k2)*self.inner_scale.to(u.m).value # m is supposed to be dimensionless?
                     phi *= (1.0 + 0.70937*m + 2.8235*m**2
-                            - 0.28086*m**3 + 0.08277*m**4) * np.exp(-1.109*m)
+                            - 0.28086*m**3 + 0.08277*m**4) * np.exp(-1.109*m) 
             else:
                 raise ValueError('If von Karman, Hill, or Tatarski kind \
                                  of turbulent phase screen is chosen, the \
