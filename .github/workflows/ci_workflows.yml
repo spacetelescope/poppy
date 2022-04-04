@@ -16,7 +16,7 @@ jobs:
 
           - name: Coverage test in Python 3
             os: ubuntu-latest
-            python: 3.10
+            python: '3.10'
             toxenv: py310-syn-cov
 
           - name: Check for Sphinx doc build errors
@@ -36,7 +36,7 @@ jobs:
 
           - name: Try latest versions of all dependencies
             os: ubuntu-latest
-            python: 3.10
+            python: '3.10'
             toxenv: py310-latest-test
 
           - name: Try minimum supported versions
