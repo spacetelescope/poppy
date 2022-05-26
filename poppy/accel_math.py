@@ -61,6 +61,7 @@ except ImportError:
 
 try: ###############################################################
     import cupy as cp
+    cp.cuda.Device() # checks if a GPU exists
     _CUPY_PLANS = {} 
     _CUPY_AVAILABLE = True
 except:

@@ -336,9 +336,6 @@ class AnalyticOpticalElement(OpticalElement):
             else:
                 y -= float(self.shift_y)
         if hasattr(self, "rotation"):
-#             angle = np.deg2rad(self.rotation)
-#             xp = np.cos(angle) * x + np.sin(angle) * y
-#             yp = -np.sin(angle) * x + np.cos(angle) * y
             angle = numpy.deg2rad(self.rotation)
             xp = numpy.cos(angle).value * x + numpy.sin(angle).value * y
             yp = -numpy.sin(angle).value * x + numpy.cos(angle).value * y
