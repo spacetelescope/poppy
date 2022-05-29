@@ -91,7 +91,7 @@ def str_zernike(n, m):
     terms = []
     for k in range(int((n - m) / 2) + 1):
         coef = ((-1) ** k * factorial(n - k) /
-                (factorial(k) * factorial((n + m) / 2. - k) * factorial((n - m) / 2. - k)))
+                (factorial(k) * factorial(int((n + m) / 2) - k) * factorial(int((n - m) / 2) - k)))
         if coef != 0:
             formatcode = "{0:d}" if k == 0 else "{0:+d}"
             terms.append((formatcode + " r^{1:d} ").format(int(coef), n - 2 * k))
@@ -178,7 +178,7 @@ def R(n, m, rho):
     else:
         for k in range(int((n - m) / 2) + 1):
             coef = ((-1) ** k * factorial(n - k) /
-                    (factorial(k) * factorial((n + m) / 2. - k) * factorial((n - m) / 2. - k)))
+                    (factorial(k) * factorial(int((n + m) / 2) - k) * factorial(int((n - m) / 2) - k)))
             output += coef * rho ** (n - 2 * k)
         return output
 
