@@ -23,7 +23,7 @@ try:
 except ImportError:
     __version__ = ''
 
-__minimum_python_version__ = "3.7"
+__minimum_python_version__ = "3.8"
 
 class UnsupportedPythonError(Exception):
     pass

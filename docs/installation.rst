@@ -19,7 +19,7 @@ POPPY may be installed one of three different ways.
 Requirements
 --------------
 
-* Python 3.7, or more recent.
+* Python 3.8, or more recent.
 * The standard Python scientific stack: :py:mod:`numpy`, :py:mod:`scipy`,
   :py:mod:`matplotlib`
 * POPPY relies upon the `astropy
