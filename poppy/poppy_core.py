@@ -15,8 +15,13 @@ import astropy.units as u
 from .matrixDFT import MatrixFourierTransform
 from . import utils
 from . import conf
+
 from . import accel_math
 from .accel_math import _float, _complex
+
+accel_math.update_math_settings()
+global _ncp
+from .accel_math import _ncp
 
 if accel_math._USE_NUMEXPR:
     import numexpr as ne
@@ -29,7 +34,6 @@ else:
     import numpy as np
     import scipy.ndimage as ndimage
     
-
 import logging
 
 _log = logging.getLogger('poppy')
@@ -114,7 +118,11 @@ class BaseWavefront(ABC):
     @utils.quantity_input(wavelength=u.meter, diam=u.meter)
     def __init__(self, wavelength=1e-6 * u.meter, npix=1024, dtype=None, diam=1.0 * u.meter,
                  oversample=2):
-
+        
+        accel_math.update_math_settings()                   # ensure optimal propagation based on user settings
+        global _ncp
+        from .accel_math import _ncp
+        
         self.oversample = oversample
 
         self.wavelength = wavelength  # Wavelength in meters (or other unit if specified)
@@ -134,7 +142,7 @@ class BaseWavefront(ABC):
 
         if dtype is None:
             dtype = _complex()
-        self.wavefront = np.ones((npix, npix), dtype=dtype)  # the actual complex wavefront array
+        self.wavefront = _ncp.ones((npix, npix), dtype=dtype)  # the actual complex wavefront array
         self.ispadded = False  # is the wavefront padded for oversampling?
         self.history = []  # List of strings giving a descriptive history of actions
                            # performed on the wavefront. Saved to FITS headers.
@@ -145,7 +153,7 @@ class BaseWavefront(ABC):
 
         self.current_plane_index = 0  # For tracking stages in a calculation
 
-        accel_math.update_math_settings()                   # ensure optimal propagation based on user settings
+#         accel_math.update_math_settings()                   # ensure optimal propagation based on user settings
 
     def __str__(self):
         # TODO add switches for image/pupil planes
@@ -1403,6 +1411,11 @@ class BaseOpticalSystem(ABC):
     """
     def __init__(self, name="unnamed system", verbose=True, oversample=2,
                  npix=None, pupil_diameter=None):
+        
+        accel_math.update_math_settings()
+        global _ncp
+        from .accel_math import _ncp
+        
         self.name = name
         self.verbose = verbose
         self.planes = []  # List of OpticalElements
@@ -2391,7 +2404,11 @@ class OpticalElement(object):
 
     def __init__(self, name="unnamed optic", verbose=True, planetype=PlaneType.unspecified,
                  oversample=1, interp_order=3):
-
+        
+        accel_math.update_math_settings()
+        global _ncp
+        from .accel_math import _ncp
+        
         self.name = name
         """ string. Descriptive Name of this optic"""
         self.verbose = verbose

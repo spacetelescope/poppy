@@ -10,12 +10,15 @@ from abc import ABC, abstractmethod
 
 from . import utils
 from . import conf
-from . import accel_math
 from .poppy_core import OpticalElement, Wavefront, BaseWavefront, PlaneType, _RADIANStoARCSEC
-from .accel_math import _exp, _r, _float, _complex
 from . import geometry
 
-from importlib import reload
+from . import accel_math
+from .accel_math import _exp, _r, _float, _complex
+
+accel_math.update_math_settings()
+global _ncp
+from .accel_math import _ncp
 
 import numpy
 if accel_math._USE_CUPY:

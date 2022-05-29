@@ -35,6 +35,10 @@ else:
     import numpy as np
     rnd = np.round
 
+accel_math.update_math_settings()
+global _ncp
+from .accel_math import _ncp
+
 try:
     import pyfftw
 except ImportError:
@@ -1099,9 +1103,11 @@ def pad_to_oversample(array, oversample):
     ---------
     padToSize
     """
+    global _ncp
+    from .accel_math import _ncp
     npix = array.shape[0]
     n = int(rnd(npix * oversample))
-    padded = np.zeros(shape=(n, n), dtype=array.dtype)
+    padded = _ncp.zeros(shape=(n, n), dtype=array.dtype)
     n0 = float(npix) * (oversample - 1) / 2
     n1 = n0 + npix
     n0 = int(round(n0))  # because astropy test_plugins enforces integer indices
@@ -1131,7 +1137,9 @@ def pad_to_size(array, padded_shape):
     ---------
     pad_to_oversample, pad_or_crop_to_shape
     """
-
+    global _ncp
+    from .accel_math import _ncp
+    
     if len(padded_shape) < 2:
         outsize0 = padded_shape
         outsize1 = padded_shape
@@ -1174,7 +1182,9 @@ def pad_or_crop_to_shape(array, target_shape):
     pad_to_oversample, pad_to_size
 
     """
-
+    global _ncp
+    from .accel_math import _ncp
+    
     if array.shape == target_shape:
         return array
 
@@ -1189,7 +1199,7 @@ def pad_or_crop_to_shape(array, target_shape):
         _log.debug("Array shape " + str(array.shape) + " is smaller than desired shape " + str(
             [lx_w, ly_w]) + "; will attempt to zero-pad the array")
 
-        resampled_array = np.zeros(shape=(lx_w, ly_w), dtype=array.dtype)
+        resampled_array = _ncp.zeros(shape=(lx_w, ly_w), dtype=array.dtype)
         resampled_array[border_x:border_x + lx, border_y:border_y + ly] = array
         _log.debug("  Padded with a {:d} x {:d} border to "
                    " match the desired shape".format(border_x, border_y))
@@ -1236,7 +1246,9 @@ def rebin_array(a=None, rc=(2, 2), verbose=False):
     anand@stsci.edu
 
     """
-
+    global _ncp
+    from .accel_math import _ncp
+    
     r, c = rc
 
     R = a.shape[0]
@@ -1254,7 +1266,7 @@ def rebin_array(a=None, rc=(2, 2), verbose=False):
             print("row loop")
         for ci in range(0, nc):
             Clo = ci * c
-            b[ri, ci] = np.add.reduce(a[Rlo:Rlo + r, Clo:Clo + c].copy().flat)
+            b[ri, ci] = _ncp.add.reduce(a[Rlo:Rlo + r, Clo:Clo + c].copy().flat)
             if verbose:
                 print("    [%d:%d, %d:%d]" % (Rlo, Rlo + r, Clo, Clo + c))
                 print("%4.0f" % np.add.reduce(a[Rlo:Rlo + r, Clo:Clo + c].copy().flat))

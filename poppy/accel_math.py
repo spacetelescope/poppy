@@ -3,6 +3,7 @@
 # Various functions related to accelerated computations using FFTW, CUDA, numexpr, and related.
 #
 import numpy as np
+import scipy
 import multiprocessing
 import matplotlib.pyplot as plt
 from . import conf
@@ -61,6 +62,7 @@ except ImportError:
 
 try: ###############################################################
     import cupy as cp
+    import cupyx.scipy.ndimage
     cp.cuda.Device() # checks if a GPU exists
     _CUPY_PLANS = {} 
     _CUPY_AVAILABLE = True
@@ -75,18 +77,27 @@ _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
 _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
 _USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE)
 
+_ncp = np
+_scipy = scipy
 
 def update_math_settings():
     """ Update the module-level math flags, based on user settings
     """
-    global _USE_CUDA, _USE_OPENCL, _USE_NUMEXPR, _USE_FFTW, _USE_MKL
+    global _USE_CUPY, _USE_CUDA, _USE_OPENCL, _USE_NUMEXPR, _USE_FFTW, _USE_MKL
     _USE_CUPY = (conf.use_cupy and _CUPY_AVAILABLE)
     _USE_CUDA = (conf.use_cuda and _CUDA_AVAILABLE)
     _USE_OPENCL = (conf.use_opencl and _OPENCL_AVAILABLE)
     _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
     _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
     _USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE)
-
+    
+    global _ncp, _scipy
+    if _USE_CUPY:
+        _ncp = cp
+        _scipy = cupyx.scipy
+    else:
+        _ncp = np
+        _scipy = scipy
 
 def _float():
     """ Returns numpy data type for desired precision based on configuration """
@@ -218,12 +229,12 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         _USE_OPENCL = False
 
     # This annoyingly complicated if/elif is just for the debug print statement
-    if _USE_CUDA:
-        method = 'pyculib (CUDA GPU)'
+    if _USE_CUPY:
+        method = 'cupy (GPU)'
     elif _USE_OPENCL:
         method = 'pyopencl (OpenCL GPU)'
-    elif _USE_CUPY:
-        method = 'cupy (GPU)'
+    elif _USE_CUDA:
+        method = 'pyculib (CUDA GPU)'
     elif _USE_MKL:
         method = 'mkl_fft'
     elif _USE_FFTW:

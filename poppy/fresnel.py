@@ -11,6 +11,10 @@ from poppy.poppy_core import PlaneType, Wavefront, BaseWavefront, BaseOpticalSys
 from . import utils
 from . import accel_math
 
+accel_math.update_math_settings()
+global _ncp
+from .accel_math import _ncp
+
 import numpy
 if accel_math._USE_CUPY:
     import cupy as np
@@ -84,7 +88,6 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
             opd = (x ** 2 + y ** 2)  / (2.0 *z)
 
         return opd
-
 
 
 class _QuadPhaseShifted(QuadPhase):

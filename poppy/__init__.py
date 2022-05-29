@@ -25,7 +25,6 @@ except ImportError:
 
 __minimum_python_version__ = "3.7"
 
-
 class UnsupportedPythonError(Exception):
     pass
 
@@ -68,7 +67,7 @@ class Conf(_config.ConfigNamespace):
             'is available)?')
     use_opencl = _config.ConfigItem(True, 'Use OpenCL for FFTs on GPU (assuming it' +
             'is available)?')
-    use_cupy = _config.ConfigItem(True, 'Use cupy for FFTs on GPU (assuming it' +
+    use_cupy = _config.ConfigItem(True, 'Use CuPy for FFTs on GPU (assuming it' +
             'is available)?')
     
     use_numexpr = _config.ConfigItem(True, 'Use NumExpr to accelerate array math (assuming it' +
@@ -114,6 +113,17 @@ from . import physical_wavefront
 from . import wfe
 from . import dms
 from . import active_optics
+
+# from importlib import reload
+# reload(poppy_core)
+# reload(utils)
+# reload(optics)
+# reload(misc)
+# reload(fresnel)
+# reload(physical_wavefront)
+# reload(wfe)
+# reload(dms)
+# reload(active_optics)
 
 from .poppy_core import *
 from .utils import *
