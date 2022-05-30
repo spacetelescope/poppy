@@ -22,6 +22,7 @@ Gram-Schmidt orthonormalization process as applied to this case is
     Mahajan and Dai, 2006. Optics Letters Vol 31, 16, p 2462:
 """
 
+import numpy as np
 import inspect
 from math import factorial
 import scipy
@@ -35,11 +36,15 @@ from poppy.poppy_core import Wavefront
 
 from . import accel_math
 
-import numpy
-if accel_math._USE_CUPY:
-    import cupy as np
-else:
-    import numpy as np
+accel_math.update_math_settings()
+global _ncp
+from .accel_math import _ncp
+
+# import numpy
+# if accel_math._USE_CUPY:
+#     import cupy as np
+# else:
+#     import numpy as np
 
 from functools import lru_cache
 
@@ -172,7 +177,7 @@ def R(n, m, rho):
 
     m = int(np.abs(m))
     n = int(np.abs(n))
-    output = np.zeros(rho.shape)
+    output = _ncp.zeros(rho.shape)
     if _is_odd(n - m):
         return 0
     else:
@@ -240,17 +245,20 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
     _log.debug("Zernike(n=%d, m=%d)" % (n, m))
 
     if theta is None and rho is None:
-        x = (np.arange(npix, dtype=np.float64) - (npix - 1) / 2.) / ((npix - 1) / 2.)
+        x = (_ncp.arange(npix, dtype=_ncp.float64) - (npix - 1) / 2.) / ((npix - 1) / 2.)
         y = x
-        xx, yy = np.meshgrid(x, y)
+        xx, yy = _ncp.meshgrid(x, y)
 
-        rho = np.sqrt(xx ** 2 + yy ** 2)
-        theta = np.arctan2(yy, xx)
+        rho = _ncp.sqrt(xx ** 2 + yy ** 2)
+        theta = _ncp.arctan2(yy, xx)
     elif (theta is None and rho is not None) or (theta is not None and rho is None):
         raise ValueError("If you provide either the `theta` or `rho` input array, you must "
                          "provide both of them.")
-
-    if not numpy.all(rho.shape == theta.shape):
+        
+    print(type(rho), type(theta))
+    print(rho.shape, theta.shape)
+    print(rho.shape == theta.shape)
+    if not _ncp.all(_ncp.asarray(rho.shape == theta.shape)):
         raise ValueError('The rho and theta arrays do not have consistent shape.')
 
     aperture = (rho <= 1)
@@ -263,10 +271,10 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
             zernike_result = norm_coeff * R(n, m, rho) * aperture
     elif m > 0:
         norm_coeff = np.sqrt(2) * np.sqrt(n + 1) if noll_normalize else 1
-        zernike_result = norm_coeff * R(n, m, rho) * np.cos(np.abs(m) * theta) * aperture
+        zernike_result = norm_coeff * R(n, m, rho) * _ncp.cos(np.abs(m) * theta) * aperture
     else:
         norm_coeff = np.sqrt(2) * np.sqrt(n + 1) if noll_normalize else 1
-        zernike_result = norm_coeff * R(n, m, rho) * np.sin(np.abs(m) * theta) * aperture
+        zernike_result = norm_coeff * R(n, m, rho) * _ncp.sin(np.abs(m) * theta) * aperture
 
     zernike_result[(rho > 1)] = outside
     return zernike_result
@@ -307,11 +315,16 @@ def cached_zernike1(j, shape, pixelscale, pupil_radius, outside=np.nan, noll_nor
     Note: all arguments should be plain ints, tuples, floats etc rather than
     Astropy Quantities.
     """
+    
+    accel_math.update_math_settings()
+    global _ncp
+    from .accel_math import _ncp
+    
     y, x = Wavefront.pupil_coordinates(shape, pixelscale)
-    r = np.sqrt(x ** 2 + y ** 2)
+    r = _ncp.sqrt(x ** 2 + y ** 2)
 
     rho = r / pupil_radius
-    theta = np.arctan2(y / pupil_radius, x / pupil_radius)
+    theta = _ncp.arctan2(y / pupil_radius, x / pupil_radius)
 
     n, m = noll_indices(j)
     result = zernike(n, m, rho=rho, theta=theta, outside=outside, noll_normalize=noll_normalize)

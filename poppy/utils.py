@@ -27,17 +27,17 @@ from importlib import reload
 
 from . import accel_math
 
-import numpy
-if accel_math._USE_CUPY:
-    import cupy as np
-    rnd = numpy.round
-else:
-    import numpy as np
-    rnd = np.round
-
 accel_math.update_math_settings()
-global _ncp
-from .accel_math import _ncp
+global _ncp, _scipy
+from .accel_math import _ncp, _scipy
+
+# import numpy
+# if accel_math._USE_CUPY:
+#     import cupy as np
+#     rnd = numpy.round
+# else:
+#     import numpy as np
+#     rnd = np.round
 
 try:
     import pyfftw
@@ -1106,7 +1106,7 @@ def pad_to_oversample(array, oversample):
     global _ncp
     from .accel_math import _ncp
     npix = array.shape[0]
-    n = int(rnd(npix * oversample))
+    n = int(np.round(npix * oversample))
     padded = _ncp.zeros(shape=(n, n), dtype=array.dtype)
     n0 = float(npix) * (oversample - 1) / 2
     n1 = n0 + npix
@@ -1147,7 +1147,7 @@ def pad_to_size(array, padded_shape):
         outsize0 = padded_shape[0]
         outsize1 = padded_shape[1]
     # npix = array.shape[0]
-    padded = np.zeros(shape=padded_shape, dtype=array.dtype)
+    padded = _ncp.zeros(shape=padded_shape, dtype=array.dtype)
     n0 = (outsize0 - array.shape[0]) // 2  # pixel offset for the inner array
     m0 = (outsize1 - array.shape[1]) // 2  # pixel offset in second dimension
     n1 = n0 + array.shape[0]
@@ -1190,10 +1190,8 @@ def pad_or_crop_to_shape(array, target_shape):
 
     lx, ly = array.shape
     lx_w, ly_w = target_shape
-#     border_x = np.abs(lx - lx_w) // 2
-#     border_y = np.abs(ly - ly_w) // 2
-    border_x = abs(lx - lx_w) // 2
-    border_y = abs(ly - ly_w) // 2
+    border_x = _ncp.abs(lx - lx_w) // 2
+    border_y = _ncp.abs(ly - ly_w) // 2
 
     if (lx < lx_w) or (ly < ly_w):
         _log.debug("Array shape " + str(array.shape) + " is smaller than desired shape " + str(

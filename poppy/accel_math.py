@@ -63,6 +63,8 @@ except ImportError:
 try: ###############################################################
     import cupy as cp
     import cupyx.scipy.ndimage
+    import cupyx.scipy.signal
+    import cupyx.scipy.special
     cp.cuda.Device() # checks if a GPU exists
     _CUPY_PLANS = {} 
     _CUPY_AVAILABLE = True
@@ -95,9 +97,11 @@ def update_math_settings():
     if _USE_CUPY:
         _ncp = cp
         _scipy = cupyx.scipy
+#         print('Accelerated math settings updated: using CuPy')
     else:
         _ncp = np
         _scipy = scipy
+#         print('Accelerated math settings updated: using standard Numpy')
 
 def _float():
     """ Returns numpy data type for desired precision based on configuration """

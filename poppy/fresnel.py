@@ -4,8 +4,6 @@ import astropy.units as u
 import logging
 import time
 
-from importlib import reload
-
 import poppy
 from poppy.poppy_core import PlaneType, Wavefront, BaseWavefront, BaseOpticalSystem, FITSOpticalElement
 from . import utils
@@ -15,11 +13,11 @@ accel_math.update_math_settings()
 global _ncp
 from .accel_math import _ncp
 
-import numpy
-if accel_math._USE_CUPY:
-    import cupy as np
-else:
-    import numpy as np
+# import numpy
+# if accel_math._USE_CUPY:
+#     import cupy as np
+# else:
+#     import numpy as np
     
 if accel_math._USE_NUMEXPR:
     import numexpr as ne
@@ -309,6 +307,11 @@ class FresnelWavefront(BaseWavefront):
         - Andersen, T., and A. Enmark (2011), Integrated Modeling of Telescopes, Springer Science & Business Media.
 
         """
+        
+        accel_math.update_math_settings()
+        global _ncp, _scipy
+        from .accel_math import _ncp, _scipy
+        
         super(FresnelWavefront, self).__init__(
             diam=beam_radius.to(u.m).value * 2.0,
             oversample=oversample,
@@ -358,9 +361,14 @@ class FresnelWavefront(BaseWavefront):
         if self.oversample < 2:
             _log.warning("Oversampling > 2x suggested for reliable results in Fresnel propagation.")
 
-        self._y, self._x = np.indices(self.shape, dtype=float)
+        self._y, self._x = _ncp.indices(self.shape, dtype=float)
         self._y -= (self.wavefront.shape[0]) / 2.0
         self._x -= (self.wavefront.shape[1]) / 2.0
+        
+#         print('\nFrom __init__() in FresnelWavefront(): ')
+#         print('\t', type(self._x))
+#         print('\t', _ncp)
+        
         """saves x and y indices for future use"""
 
         # FIXME MP: this self.n attribute appears unnecessary?
@@ -488,7 +496,7 @@ class FresnelWavefront(BaseWavefront):
         """
         if z is None:
             z = self.z
-        return self.w_0 * numpy.sqrt(1.0 + ((z - self.z_w0) / self.z_r) ** 2)
+        return self.w_0 * np.sqrt(1.0 + ((z - self.z_w0) / self.z_r) ** 2)
 
     #  methods supporting coordinates, including switching between distance and angular units
 
@@ -516,16 +524,19 @@ class FresnelWavefront(BaseWavefront):
         # This function is intentionally distinct from the regular Wavefront.coordinates(), and behaves
         # slightly differently. This is required for use in the angular spectrum propagation in the PTP and
         # Direct propagations.
-
+        
+#         print('\npupil_coordinates in FresnelWavefront called.\n')
         pixelscale_mpix = pixelscale.to(u.meter / u.pixel).value
         if not np.isscalar(pixelscale_mpix):
             pixel_scale_x, pixel_scale_y = pixelscale_mpix
         else:
             pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
-
+        
         if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
+#             print('Using NE')
             return ne.evaluate("pixel_scale_y * y"), ne.evaluate("pixel_scale_x * x")
         else:
+#             print('Not using NE')
             return pixel_scale_y * y, pixel_scale_x * x
 
     def coordinates(self):
@@ -549,9 +560,12 @@ class FresnelWavefront(BaseWavefront):
         Y, X :  array_like
             Wavefront coordinates in either meters or arcseconds for pupil and image, respectively
         """
-
+        
         y, x = type(self).pupil_coordinates(self._x, self._y, self._pixelscale_m)
-
+#         print('\nFrom coordinates() in FresnelWavefront(): ')
+#         print('\t', type(x))
+#         print('\t', _ncp)
+        
         # If the wavefront been explicitly set to use angular units,
         # for instance at an image plane,then
         # then convert to angular coordinates using the focal length
@@ -583,8 +597,7 @@ class FresnelWavefront(BaseWavefront):
     def fov(self):
         """ FOV in arcseconds, if applicable"""
         if self.angular_coordinates:
-#             return np.asarray(self.wavefront.shape) * u.pixel * self.pixelscale
-            return numpy.asarray(self.wavefront.shape) * u.pixel * self.pixelscale
+            return np.asarray(self.wavefront.shape) * u.pixel * self.pixelscale
         else:
             return None
 
@@ -615,8 +628,8 @@ class FresnelWavefront(BaseWavefront):
             "Propagation Parameters: k={0:0.2e},".format(k) + "S={0:0.2e},".format(s) + "z={0:0.2e},".format(z_direct))
 
         # TODO the following exponential code could be accelerated with numexpr
-        quadphase_1st = np.exp(1.0j * k * (x ** 2 + y ** 2) / (2 * z_direct))  # eq. 6.68
-        quadphase_2nd = np.exp(1.0j * k * z_direct) / (1.0j * self.wavelength.to(u.m).value * z_direct) * np.exp(
+        quadphase_1st = _ncp.exp(1.0j * k * (x ** 2 + y ** 2) / (2 * z_direct))  # eq. 6.68
+        quadphase_2nd = _ncp.exp(1.0j * k * z_direct) / (1.0j * self.wavelength.to(u.m).value * z_direct) * _ncp.exp(
             1.0j * k * (x ** 2 + y ** 2) / (2 * z_direct))  # eq. 6.70
 
         stage1 = self.wavefront * quadphase_1st  # eq.6.67
@@ -734,7 +747,7 @@ class FresnelWavefront(BaseWavefront):
         if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
             exp_t = ne.evaluate("exp(-1.0j * pi * wavelen_m * (z_direct) * rhosqr)")
         else:
-            exp_t = np.exp(-1.0j * np.pi * wavelen_m * z_direct * rhosqr)
+            exp_t = _ncp.exp(-1.0j * np.pi * wavelen_m * z_direct * rhosqr)
 
         self._fft()
 
@@ -979,7 +992,7 @@ class FresnelWavefront(BaseWavefront):
         else:
             self.z_w0 = -r_output_beam / (
                 1.0 + (self.wavelength * r_output_beam / (np.pi * spot_radius ** 2)) ** 2) + self.z
-            self.w_0 = spot_radius / numpy.sqrt(1.0 + (np.pi * spot_radius ** 2 / (self.wavelength * r_output_beam)) ** 2)
+            self.w_0 = spot_radius / np.sqrt(1.0 + (np.pi * spot_radius ** 2 / (self.wavelength * r_output_beam)) ** 2)
             _log.debug(str(optic.name) + " has a curvature of ={0:0.2e}".format(r_output_beam))
             _log.debug(str(optic.name) + " has a curved output wavefront, with waist at {}".format(self.z_w0))
 
@@ -988,7 +1001,7 @@ class FresnelWavefront(BaseWavefront):
         # Update the focal length of the beam. This is closely related to but tracked separately from
         # the beam waist and radius of curvature; we keep track of it to use in optional conversion
         # of coordinates to angular units.
-        if not numpy.isfinite(self.focal_length):
+        if not np.isfinite(self.focal_length):
             self.focal_length = 1 * optic.fl
             _log.debug("Set output beam focal length to {}".format(self.focal_length))
         else:
@@ -1075,8 +1088,8 @@ class FresnelWavefront(BaseWavefront):
             opd = optic.get_opd(self)
             fpm_phasor = ne.evaluate("trans * exp(1.j * opd * scale)")
         else:
-            _log.debug("Calculating FPM phasor with numpy/cupy.")
-            fpm_phasor = optic.get_transmission(self) * np.exp(1.j * optic.get_opd(self) * scale)
+            _log.debug("Calculating FPM phasor with Numpy/CuPy.")
+            fpm_phasor = optic.get_transmission(self) * _ncp.exp(1.j * optic.get_opd(self) * scale)
         
         nfpm = fpm_phasor.shape[0]
         n = self.wavefront.shape[0]

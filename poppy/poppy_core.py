@@ -1,3 +1,4 @@
+import numpy as np
 import multiprocessing
 import copy
 import time
@@ -20,19 +21,19 @@ from . import accel_math
 from .accel_math import _float, _complex
 
 accel_math.update_math_settings()
-global _ncp
-from .accel_math import _ncp
+global _ncp, _scipy
+from .accel_math import _ncp, _scipy
 
 if accel_math._USE_NUMEXPR:
     import numexpr as ne
 
-import numpy
-if accel_math._USE_CUPY:
-    import cupy as np
-    import cupyx.scipy.ndimage as ndimage
-else:
-    import numpy as np
-    import scipy.ndimage as ndimage
+# import numpy
+# if accel_math._USE_CUPY:
+#     import cupy as np
+#     import cupyx.scipy.ndimage as ndimage
+# else:
+#     import numpy as np
+#     import scipy.ndimage as ndimage
     
 import logging
 
@@ -118,10 +119,6 @@ class BaseWavefront(ABC):
     @utils.quantity_input(wavelength=u.meter, diam=u.meter)
     def __init__(self, wavelength=1e-6 * u.meter, npix=1024, dtype=None, diam=1.0 * u.meter,
                  oversample=2):
-        
-        accel_math.update_math_settings()                   # ensure optimal propagation based on user settings
-        global _ncp
-        from .accel_math import _ncp
         
         self.oversample = oversample
 
@@ -266,34 +263,34 @@ class BaseWavefront(ABC):
 
         if what.lower() == 'all':
             intens = get_unpadded(self.intensity)
-            outarr = np.zeros((3, intens.shape[0], intens.shape[1]))
+            outarr = _ncp.zeros((3, intens.shape[0], intens.shape[1]))
             outarr[0, :, :] = intens
             outarr[1, :, :] = get_unpadded(self.amplitude)
             outarr[2, :, :] = get_unpadded(self.phase)
-            outfits = fits.HDUList(fits.PrimaryHDU(outarr))
+            outfits = fits.HDUList(fits.PrimaryHDU(outarr.get() if accel_math._USE_CUPY else outarr))
             outfits[0].header['PLANE1'] = 'Wavefront Intensity'
             outfits[0].header['PLANE2'] = 'Wavefront Amplitude'
             outfits[0].header['PLANE3'] = 'Wavefront Phase'
         elif what.lower() == 'parts':
             amp = get_unpadded(self.amplitude)
-            outarr = np.zeros((2, amp.shape[0], amp.shape[1]))
+            outarr = _ncp.zeros((2, amp.shape[0], amp.shape[1]))
             outarr[0, :, :] = amp
             outarr[1, :, :] = get_unpadded(self.phase)
-            outfits = fits.HDUList(fits.PrimaryHDU(outarr))
+            outfits = fits.HDUList(fits.PrimaryHDU(outarr.get() if accel_math._USE_CUPY else outarr))
             outfits[0].header['PLANE1'] = 'Wavefront Amplitude'
             outfits[0].header['PLANE2'] = 'Wavefront Phase'
         elif what.lower() == 'intensity':
             outfits = fits.HDUList(fits.PrimaryHDU(get_unpadded(self.intensity.get() if accel_math._USE_CUPY else self.intensity)))
             outfits[0].header['PLANE1'] = 'Wavefront Intensity'
         elif what.lower() == 'phase':
-            outfits = fits.HDUList(fits.PrimaryHDU(get_unpadded(self.phase)))
+            outfits = fits.HDUList(fits.PrimaryHDU(get_unpadded(self.phase.get() if accel_math._USE_CUPY else self.phase)))
             outfits[0].header['PLANE1'] = 'Phase'
         elif what.lower() == 'complex':
             real = get_unpadded(self.wavefront.real)
-            outarr = np.zeros((2, real.shape[0], real.shape[1]))
+            outarr = _ncp.zeros((2, real.shape[0], real.shape[1]))
             outarr[0, :, :] = real
             outarr[1, :, :] = get_unpadded(self.wavefront.imag)
-            outfits = fits.HDUList(fits.PrimaryHDU(outarr))
+            outfits = fits.HDUList(fits.PrimaryHDU(outarr.get() if accel_math._USE_CUPY else outarr))
             outfits[0].header['PLANE1'] = 'Real part of complex wavefront'
             outfits[0].header['PLANE2'] = 'Imaginary part of complex wavefront'
         else:
@@ -764,6 +761,8 @@ class BaseWavefront(ABC):
         Returns
         -------
         The wavefront object is modified to have the appropriate pixel scale and spatial extent.
+        
+        FIXME: Figure out a way to resample with CuPy without transferring arrays from GPU.
 
         """
         import scipy.interpolate
@@ -782,7 +781,7 @@ class BaseWavefront(ABC):
 
         def make_axis(npix, step):
             """ Helper function to make coordinate axis for interpolation """
-            return step * np.arange(-npix // 2, npix // 2, dtype=np.float64)
+            return step * _ncp.arange(-npix // 2, npix // 2, dtype=_ncp.float64)
 
         # Provide 2-pixel margin around image to reduce interpolation errors at edge, but also make
         # sure that image is centered properly after it gets cropped down to detector size
@@ -817,7 +816,7 @@ class BaseWavefront(ABC):
             wfarr = cropped_wf
         real_resampled = interpolator(wfarr.real)(x_out, y_out)
         imag_resampled = interpolator(wfarr.imag)(x_out, y_out)
-        new_wf = np.array(real_resampled + 1j * imag_resampled)
+        new_wf = _ncp.array(real_resampled + 1j * imag_resampled)
 
         # enforce conservation of energy:
         new_wf *= 1. / pixscale_ratio
@@ -987,6 +986,11 @@ class Wavefront(BaseWavefront):
     @utils.quantity_input(wavelength=u.meter, diam=u.meter, pixelscale=u.arcsec / u.pixel)
     def __init__(self, wavelength=1e-6 * u.meter, npix=1024, dtype=None, diam=8.0 * u.meter,
                  oversample=2, pixelscale=None):
+        
+        accel_math.update_math_settings()                   # ensure optimal propagation based on user settings
+        global _ncp
+        from .accel_math import _ncp
+        
         super(Wavefront, self).__init__(wavelength=wavelength,
                                         npix=npix,
                                         dtype=dtype,
@@ -1259,7 +1263,7 @@ class Wavefront(BaseWavefront):
             the pixel scale in meters/pixel, optionally different in
             X and Y
         """
-        y, x = np.indices(shape, dtype=_float())
+        y, x = _ncp.indices(shape, dtype=_float())
         pixelscale_mpix = pixelscale.to(u.meter / u.pixel).value if isinstance(pixelscale, u.Quantity) else pixelscale
         if not np.isscalar(pixelscale_mpix):
             pixel_scale_x, pixel_scale_y = pixelscale_mpix
@@ -1295,7 +1299,7 @@ class Wavefront(BaseWavefront):
             Was POPPY trying to keeping the center of the image on
             a pixel, crosshairs ('array_center'), or corner?
         """
-        y, x = np.indices(shape, dtype=_float())
+        y, x = _ncp.indices(shape, dtype=_float())
         pixelscale_arcsecperpix = pixelscale.to(u.arcsec / u.pixel).value
         if not np.isscalar(pixelscale_arcsecperpix):
             pixel_scale_x, pixel_scale_y = pixelscale_arcsecperpix
@@ -1604,7 +1608,7 @@ class BaseOpticalSystem(ABC):
         # ensure wavelength is a quantity which is iterable:
         # (the check for a quantity of type length is applied in the decorator)
         if np.isscalar(wavelength.value):
-            wavelength = numpy.asarray([wavelength.value], dtype=_float()) * wavelength.unit
+            wavelength = np.asarray([wavelength.value], dtype=_float()) * wavelength.unit
 
         if weight is None:
             weight = [1.0] * len(wavelength)
@@ -1623,7 +1627,7 @@ class BaseOpticalSystem(ABC):
         else:
             retain_intermediates = False
 
-        normwts = numpy.asarray(weight, dtype=_float())
+        normwts = np.asarray(weight, dtype=_float())
         normwts /= normwts.sum()
 
         _USE_FFTW = (conf.use_fftw and accel_math._FFTW_AVAILABLE)
@@ -1748,8 +1752,8 @@ class BaseOpticalSystem(ABC):
             utils.fftw_save_wisdom()
 
         # TODO update FITS header for oversampling here if detector is different from regular?
-        waves = numpy.asarray([w.to_value(u.meter) for w in wavelength])
-        wts = numpy.asarray(weight)
+        waves = np.asarray([w.to_value(u.meter) for w in wavelength])
+        wts = np.asarray(weight)
         mnwave = (waves * wts).sum() / wts.sum()
         outfits[0].header['WAVELEN'] = (mnwave, 'Weighted mean wavelength in meters')
         outfits[0].header['NWAVES'] = (waves.size, 'Number of wavelengths used in calculation')
@@ -3358,14 +3362,14 @@ class Detector(OpticalElement):
         if fov_pixels is None and fov_arcsec is None:
             raise ValueError("Either fov_pixels or fov_arcsec must be specified!")
         elif fov_pixels is not None:
-            self.fov_pixels = numpy.round(fov_pixels)
+            self.fov_pixels = np.round(fov_pixels)
             self.fov_arcsec = self.fov_pixels * self.pixelscale
         else:
             # set field of view to closest value possible to requested,
             # consistent with having an integer number of pixels
-            self.fov_pixels = numpy.round((fov_arcsec.to(u.arcsec) / self.pixelscale).to(u.pixel))
+            self.fov_pixels = np.round((fov_arcsec.to(u.arcsec) / self.pixelscale).to(u.pixel))
             self.fov_arcsec = self.fov_pixels * self.pixelscale
-        if numpy.any(self.fov_pixels <= 0):
+        if np.any(self.fov_pixels <= 0):
             raise ValueError("FOV in pixels must be a positive quantity. Invalid: " + str(self.fov_pixels))
 
         self.amplitude = 1

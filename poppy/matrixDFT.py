@@ -54,18 +54,23 @@
 
 __all__ = ['MatrixFourierTransform']
 
+import numpy as np
 from . import conf
 from . import accel_math
+
+accel_math.update_math_settings()
+global _ncp
+from .accel_math import _ncp
+
 if accel_math._USE_NUMEXPR:
     import numexpr as ne
     
-import numpy
-if accel_math._USE_CUPY:
-    import cupy as np
-    rnd = numpy.round
-else:
-    import numpy as np
-    rnd = np.round
+# if accel_math._USE_CUPY:
+#     import cupy as np
+#     rnd = numpy.round
+# else:
+#     import numpy as np
+#     rnd = np.round
 
 import logging
 _log = logging.getLogger('poppy')
@@ -127,7 +132,11 @@ def matrix_dft(plane, nlamD, npix,
         will be displaced from the central pixel (or cross). Given as
         (offsetY, offsetX).
     """
-
+    
+    accel_math.update_math_settings()
+    global _ncp
+    from .accel_math import _ncp
+    
     if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
         return matrix_dft_numexpr(plane, nlamD, npix,
                offset=offset, inverse=inverse, centering=centering)
@@ -440,6 +449,11 @@ class MatrixFourierTransform:
     """
 
     def __init__(self, centering="ADJUSTABLE", verbose=False):
+        
+        accel_math.update_math_settings()
+        global _ncp
+        from .accel_math import _ncp
+        
         self.verbose = verbose
         centering = centering.upper()
         if centering == FFTRECT:  # for backwards compatibility
