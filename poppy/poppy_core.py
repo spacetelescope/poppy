@@ -2485,7 +2485,7 @@ class OpticalElement(object):
             if hasattr(self, '_resampled_scale') and abs(
                     self._resampled_scale - wave.pixelscale) / self._resampled_scale >= float_tolerance:
                 # we already did this same resampling, so just re-use it!
-                self.phasor = self._resampled_amplitude * np.exp(1.j * self._resampled_opd * scale)
+                self.phasor = self._resampled_amplitude * _ncp.exp(1.j * self._resampled_opd * scale)
             else:
                 # raise NotImplementedError("Need to implement resampling.")
                 zoom = (self.pixelscale / wave.pixelscale).decompose().value
@@ -2776,9 +2776,9 @@ class ArrayOpticalElement(OpticalElement):
         if transmission is not None:
             self.amplitude = transmission
             if opd is None:
-                self.opd = np.zeros_like(transmission)
+                self.opd = _ncp.zeros_like(transmission)
         elif transmission is None and opd is not None:
-            self.amplitude = np.ones_like(opd)
+            self.amplitude = _ncp.ones_like(opd)
 
         if pixelscale is not None:
             self.pixelscale = pixelscale
@@ -2990,7 +2990,7 @@ class FITSOpticalElement(OpticalElement):
 
             if transmission is None:
                 _log.info("No info supplied on amplitude transmission; assuming uniform throughput = 1")
-                self.amplitude = np.ones(self.opd.shape)
+                self.amplitude = _ncp.ones(self.opd.shape)
 
             if opdunits is None:
                 try:
