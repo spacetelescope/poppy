@@ -285,7 +285,7 @@ def display_psf(hdulist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
                 orientation=colorbar_orientation
             )
         if scale.lower() == 'log':
-            ticks = np.logspace(np.log10(vmin), np.log10(vmax), int(rnd(np.log10(vmax / vmin) + 1)))
+            ticks = np.logspace(np.log10(vmin), np.log10(vmax), int(np.round(np.log10(vmax / vmin) + 1)))
             if colorbar_orientation == 'horizontal' and vmax == 1e-1 and vmin == 1e-8:
                 ticks = [1e-8, 1e-6, 1e-4, 1e-2, 1e-1]  # looks better
             cb.set_ticks(ticks)

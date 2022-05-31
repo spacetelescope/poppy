@@ -519,7 +519,7 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
             sigmar.clip(np.finfo(sigmar.dtype).tiny, out=sigmar)  # avoid divide by zero -> NaNs
 
 #             self.transmission = (1 - (2 * scipy.special.jn(1, sigmar) / sigmar) ** 2)
-            self.transmission = (1 - (2 * j1(sigmar) / sigmar) ** 2)
+            self.transmission = (1 - (2 * _scipy.special.j1(sigmar) / sigmar) ** 2)
             self.transmission[r == 0] = 0  # special case center point (value based on L'Hopital's rule)
         elif self.kind == 'nircamcircular':
             # larger sigma implies narrower peak? TBD verify if this is correct

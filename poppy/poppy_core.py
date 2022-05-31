@@ -908,8 +908,8 @@ class BaseWavefront(ABC):
             rot_imag = np.rot90(self.wavefront.imag, k=-k)
         else:
             # arbitrary free rotation with interpolation
-            rot_real = ndimage.interpolation.rotate(self.wavefront.real, -angle, reshape=False)  # negative = CCW
-            rot_imag = ndimage.interpolation.rotate(self.wavefront.imag, -angle, reshape=False)
+            rot_real = _scipy.ndimage.interpolation.rotate(self.wavefront.real, -angle, reshape=False)  # negative = CCW
+            rot_imag = _scipy.ndimage.interpolation.rotate(self.wavefront.imag, -angle, reshape=False)
         self.wavefront = rot_real + 1.j * rot_imag
 
         self.history.append('Rotated by {:.2f} degrees, CCW'.format(angle))
@@ -988,8 +988,8 @@ class Wavefront(BaseWavefront):
                  oversample=2, pixelscale=None):
         
         accel_math.update_math_settings()                   # ensure optimal propagation based on user settings
-        global _ncp
-        from .accel_math import _ncp
+        global _ncp, _scipy
+        from .accel_math import _ncp, _scipy
         
         super(Wavefront, self).__init__(wavelength=wavelength,
                                         npix=npix,
@@ -2498,9 +2498,9 @@ class OpticalElement(object):
                 # raise NotImplementedError("Need to implement resampling.")
                 zoom = (self.pixelscale / wave.pixelscale).decompose().value
                 original_opd = self.get_opd(wave)
-                resampled_opd = ndimage.zoom(original_opd, zoom, output=original_opd.dtype, order=self.interp_order)
+                resampled_opd = _scipy.ndimage.zoom(original_opd, zoom, output=original_opd.dtype, order=self.interp_order)
                 original_amplitude = self.get_transmission(wave)
-                resampled_amplitude = ndimage.zoom(original_amplitude, zoom, output=original_amplitude.dtype, order=self.interp_order)
+                resampled_amplitude = _scipy.ndimage.zoom(original_amplitude, zoom, output=original_amplitude.dtype, order=self.interp_order)
                 _log.debug("resampled optic to match wavefront via spline interpolation by a" +
                            " zoom factor of {:.3g}".format(zoom))
                 _log.debug("resampled optic shape: {}   wavefront shape: {}".format(resampled_amplitude.shape,
@@ -3066,11 +3066,11 @@ class FITSOpticalElement(OpticalElement):
                     # arbitrary free rotation with interpolation
                     # do rotation with interpolation, but try to clean up some of the artifacts afterwards.
                     # this is imperfect at best, of course...
-                    self.amplitude = ndimage.interpolation.rotate(self.amplitude, -rotation,  # negative = CCW
+                    self.amplitude = _scipy.ndimage.interpolation.rotate(self.amplitude, -rotation,  # negative = CCW
                                                                   reshape=False).clip(min=0, max=1.0)
                     wnoise = (self.amplitude < 1e-3) & (self.amplitude > 0)
                     self.amplitude[wnoise] = 0
-                    self.opd = ndimage.interpolation.rotate(self.opd, -rotation, reshape=False)  # negative = CCW
+                    self.opd = _scipy.ndimage.interpolation.rotate(self.opd, -rotation, reshape=False)  # negative = CCW
                 _log.info("  Rotated optic by %f degrees counter clockwise." % rotation)
                 self._rotation = rotation
 
@@ -3174,8 +3174,8 @@ class FITSOpticalElement(OpticalElement):
                               rollx * 1.0 / self.amplitude.shape[1], rolly * 1.0 / self.amplitude.shape[0]))
                     self._shift = (rollx * 1.0 / self.amplitude.shape[1], rolly * 1.0 / self.amplitude.shape[0])
 
-                self.amplitude = ndimage.shift(self.amplitude, (rolly, rollx))
-                self.opd = ndimage.shift(self.opd, (rolly, rollx))
+                self.amplitude = _scipy.ndimage.shift(self.amplitude, (rolly, rollx))
+                self.opd = _scipy.ndimage.shift(self.opd, (rolly, rollx))
 
     @property
     def pupil_diam(self):
