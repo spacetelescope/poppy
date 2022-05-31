@@ -26,14 +26,6 @@ from .accel_math import _ncp, _scipy
 
 if accel_math._USE_NUMEXPR:
     import numexpr as ne
-
-# import numpy
-# if accel_math._USE_CUPY:
-#     import cupy as np
-#     import cupyx.scipy.ndimage as ndimage
-# else:
-#     import numpy as np
-#     import scipy.ndimage as ndimage
     
 import logging
 

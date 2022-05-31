@@ -40,12 +40,6 @@ accel_math.update_math_settings()
 global _ncp
 from .accel_math import _ncp
 
-# import numpy
-# if accel_math._USE_CUPY:
-#     import cupy as np
-# else:
-#     import numpy as np
-
 from functools import lru_cache
 
 __all__ = [
@@ -255,9 +249,6 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
         raise ValueError("If you provide either the `theta` or `rho` input array, you must "
                          "provide both of them.")
         
-    print(type(rho), type(theta))
-    print(rho.shape, theta.shape)
-    print(rho.shape == theta.shape)
     if not _ncp.all(_ncp.asarray(rho.shape == theta.shape)):
         raise ValueError('The rho and theta arrays do not have consistent shape.')
 

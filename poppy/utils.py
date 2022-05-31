@@ -31,14 +31,6 @@ accel_math.update_math_settings()
 global _ncp, _scipy
 from .accel_math import _ncp, _scipy
 
-# import numpy
-# if accel_math._USE_CUPY:
-#     import cupy as np
-#     rnd = numpy.round
-# else:
-#     import numpy as np
-#     rnd = np.round
-
 try:
     import pyfftw
 except ImportError:

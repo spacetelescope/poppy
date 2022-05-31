@@ -114,17 +114,6 @@ from . import wfe
 from . import dms
 from . import active_optics
 
-# from importlib import reload
-# reload(poppy_core)
-# reload(utils)
-# reload(optics)
-# reload(misc)
-# reload(fresnel)
-# reload(physical_wavefront)
-# reload(wfe)
-# reload(dms)
-# reload(active_optics)
-
 from .poppy_core import *
 from .utils import *
 from .optics import *

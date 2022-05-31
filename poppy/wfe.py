@@ -29,12 +29,6 @@ accel_math.update_math_settings()
 global _ncp
 from .accel_math import _ncp
 
-# import numpy
-# if accel_math._USE_CUPY:
-#     import cupy as np
-# else:
-#     import numpy as np
-
 
 __all__ = ['WavefrontError', 'ParameterizedWFE', 'ZernikeWFE', 'SineWaveWFE',
         'StatisticalPSDWFE', 'PowerSpectrumWFE', 'KolmogorovWFE', 'ThermalBloomingWFE']
@@ -229,9 +223,6 @@ class ZernikeWFE(WavefrontError):
             scale, or a float giving the wavelength in meters
             for a temporary Wavefront used to compute the OPD.
         """
-        
-        print(_ncp)
-        
         # the Zernike optic, being normalized on a circle, is
         # implicitly also a circular aperture:
         aperture_intensity = self.circular_aperture.get_transmission(wave)

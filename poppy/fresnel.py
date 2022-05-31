@@ -12,16 +12,10 @@ from . import accel_math
 accel_math.update_math_settings()
 global _ncp
 from .accel_math import _ncp
-
-# import numpy
-# if accel_math._USE_CUPY:
-#     import cupy as np
-# else:
-#     import numpy as np
     
 if accel_math._USE_NUMEXPR:
     import numexpr as ne
-    pi = numpy.pi  # needed for evaluation inside numexpr strings.
+    pi = np.pi  # needed for evaluation inside numexpr strings.
 
 _log = logging.getLogger('poppy')
 
@@ -365,10 +359,6 @@ class FresnelWavefront(BaseWavefront):
         self._y -= (self.wavefront.shape[0]) / 2.0
         self._x -= (self.wavefront.shape[1]) / 2.0
         
-#         print('\nFrom __init__() in FresnelWavefront(): ')
-#         print('\t', type(self._x))
-#         print('\t', _ncp)
-        
         """saves x and y indices for future use"""
 
         # FIXME MP: this self.n attribute appears unnecessary?
@@ -533,10 +523,8 @@ class FresnelWavefront(BaseWavefront):
             pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
         
         if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
-#             print('Using NE')
             return ne.evaluate("pixel_scale_y * y"), ne.evaluate("pixel_scale_x * x")
         else:
-#             print('Not using NE')
             return pixel_scale_y * y, pixel_scale_x * x
 
     def coordinates(self):
@@ -562,10 +550,7 @@ class FresnelWavefront(BaseWavefront):
         """
         
         y, x = type(self).pupil_coordinates(self._x, self._y, self._pixelscale_m)
-#         print('\nFrom coordinates() in FresnelWavefront(): ')
-#         print('\t', type(x))
-#         print('\t', _ncp)
-        
+
         # If the wavefront been explicitly set to use angular units,
         # for instance at an image plane,then
         # then convert to angular coordinates using the focal length

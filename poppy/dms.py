@@ -15,15 +15,6 @@ accel_math.update_math_settings()
 global _ncp, _scipy
 from .accel_math import _ncp, _scipy
 
-# import numpy
-# if accel_math._USE_CUPY:
-#     import cupy as np
-#     import cupyx.scipy.ndimage as ndimage
-#     import cupyx.scipy.signal as signal
-# else:
-#     import numpy as np
-#     import scipy.ndimage as ndimage
-#     import scipy.signal as signal
 import logging
 
 _log = logging.getLogger('poppy')

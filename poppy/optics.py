@@ -20,14 +20,6 @@ accel_math.update_math_settings()
 global _ncp
 from .accel_math import _ncp
 
-# import numpy
-# if accel_math._USE_CUPY:
-#     import cupy as np
-#     from cupyx.scipy.special import j1
-# else:
-#     import numpy as np
-#     from scipy.special import j1
-
 if accel_math._USE_NUMEXPR:
     import numexpr as ne
 
@@ -329,9 +321,6 @@ class AnalyticOpticalElement(OpticalElement):
         """
 
         y, x = wave.coordinates()
-#         print('\nFrom get_coordiantes() in OpticalElement(): ')
-#         print('\t', type(x))
-#         print('\t', _ncp)
         
         if hasattr(self, "shift_x"):
             if isinstance(self.shift_x, u.Quantity):
@@ -1200,9 +1189,6 @@ class CircularAperture(AnalyticOpticalElement):
         
         if self._use_gray_pixel:
             pixscale = wave.pixelscale.to(u.meter/u.pixel).value
-#             print('\nIn get_transmission() from CircularAperture(): ') 
-#             print('\t',type(x/pixscale))
-#             print('\t',_ncp)
             self.transmission = geometry.filled_circle_aa(wave.shape, 0, 0, radius/pixscale, x/pixscale, y/pixscale)
         else:
             r = _r(x, y)

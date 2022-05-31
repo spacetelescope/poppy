@@ -12,12 +12,6 @@ accel_math.update_math_settings()
 global _ncp
 from .accel_math import _ncp
 
-# import numpy
-# if accel_math._USE_CUPY:
-#     import cupy as np
-# else:
-#     import numpy as np
-
 if accel_math._USE_NUMEXPR:
     import numexpr as ne
 
@@ -209,10 +203,7 @@ def filled_circle_aa(shape, xcenter, ycenter, radius, xarray=None, yarray=None,
 
     if xarray is None or yarray is None:
         yarray, xarray = _ncp.indices(shape)
-    
-#     print('\nIn filled_circle_aa(): ') 
-#     print('\t',type(xarray))
-#     print('\t',_ncp)
+        
     r = _ncp.sqrt( (xarray-xcenter)**2 + (yarray-ycenter)**2)
     array[r < radius ]  = fillvalue
 
