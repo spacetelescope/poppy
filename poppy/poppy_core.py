@@ -2415,8 +2415,8 @@ class OpticalElement(object):
         self._suppress_display = False  # should we avoid displaying this optic on screen?
                                         # (useful for 'virtual' optics like FQPM aligner)
 
-        self.amplitude = np.asarray([1.])
-        self.opd = np.asarray([0.])
+        self.amplitude = _ncp.asarray([1.])
+        self.opd = _ncp.asarray([0.])
         self.pixelscale = None
         self.interp_order = interp_order
 
@@ -2508,8 +2508,8 @@ class OpticalElement(object):
                     _log.warning("After resampling, optic phasor shape " + str(np.shape(resampled_opd)) +
                                  " is smaller than input wavefront " + str(
                                  (lx_w, ly_w)) + "; will zero-pad the rescaled array.")
-                    self._resampled_opd = np.zeros([lx_w, ly_w])
-                    self._resampled_amplitude = np.zeros([lx_w, ly_w])
+                    self._resampled_opd = _ncp.zeros([lx_w, ly_w])
+                    self._resampled_amplitude = _ncp.zeros([lx_w, ly_w])
 
                     self._resampled_opd[border_x:border_x + resampled_opd.shape[0],
                                         border_y:border_y + resampled_opd.shape[1]] = resampled_opd
@@ -2524,7 +2524,7 @@ class OpticalElement(object):
                     _log.debug("trimmed a border of {:d} x {:d} pixels from "
                                "optic to match the wavefront".format(border_x, border_y))
 
-                self.phasor = self._resampled_amplitude * np.exp(1.j * self._resampled_opd * scale)
+                self.phasor = self._resampled_amplitude * _ncp.exp(1.j * self._resampled_opd * scale)
 
         else:
             # compute the phasor directly, without any need to rescale.
@@ -2533,7 +2533,7 @@ class OpticalElement(object):
                 opd = self.get_opd(wave)
                 self.phasor = ne.evaluate("trans * exp(1.j * opd * scale)")
             else:
-                self.phasor = self.get_transmission(wave) * np.exp(1.j * self.get_opd(wave) * scale)
+                self.phasor = self.get_transmission(wave) * _ncp.exp(1.j * self.get_opd(wave) * scale)
 
         # check whether we need to pad or crop the array before returning or not.
         # note: do not pad the phasor if it's just a scalar!
@@ -2898,8 +2898,8 @@ class FITSOpticalElement(OpticalElement):
         if opd is None and transmission is None:  # no input files, so just make a scalar
             _log.warning("No input files specified. You should set transmission=filename or opd=filename.")
             _log.warning("Creating a null optical element. Are you sure that's what you want to do?")
-            self.amplitude = np.asarray([1.])
-            self.opd = np.asarray([0.])
+            self.amplitude = _ncp.asarray([1.])
+            self.opd = _ncp.asarray([0.])
             self.pixelscale = None
             self.name = "-empty-"
         else:
@@ -2910,7 +2910,7 @@ class FITSOpticalElement(OpticalElement):
                     self.amplitude, self.amplitude_header = fits.getdata(self.amplitude_file, header=True)
                     self.amplitude = self.amplitude.astype('=f8')  # ensure native byte order, see #213
                     
-                    self.amplitude = np.array(self.amplitude) # sets to CuPy array if np is cupy
+                    self.amplitude = _ncp.array(self.amplitude) # sets to CuPy array if np is cupy
                     
                     if self.name == 'unnamed optic':
                         self.name = 'Optic from ' + self.amplitude_file
@@ -2942,7 +2942,7 @@ class FITSOpticalElement(OpticalElement):
             # ---- Load OPD file. ---
             if opd is None:
                 # if only amplitude set, create an array of 0s with same size.
-                self.opd = np.zeros(self.amplitude.shape)
+                self.opd = _ncp.zeros(self.amplitude.shape)
                 opdunits = 'meter'  # doesn't matter, it's all zeros, but this will indicate no need to rescale below.
 
             elif isinstance(opd, fits.HDUList):
@@ -2959,7 +2959,7 @@ class FITSOpticalElement(OpticalElement):
                 self.opd, self.opd_header = fits.getdata(self.opd_file, header=True)
                 self.opd = self.opd.astype('=f8')
                 
-                self.opd = np.array(self.opd) # sets to CuPy array if np is cupy
+                self.opd = _ncp.array(self.opd) # sets to CuPy array if np is cupy
                 
                 if self.name == 'unnamed optic': self.name = 'OPD from ' + self.opd_file
                 _log.info(self.name + ": Loaded OPD from " + self.opd_file)
@@ -3052,8 +3052,8 @@ class FITSOpticalElement(OpticalElement):
                 k,remainder = np.divmod(rotation, 90)
                 if remainder==0:
                     # rotation is a multiple of 90
-                    self.amplitude = np.rot90(self.amplitude, k=-k)   # negative = CCW
-                    self.opd = np.rot90(self.opd, k=-k)
+                    self.amplitude = _ncp.rot90(self.amplitude, k=-k)   # negative = CCW
+                    self.opd = _ncp.rot90(self.opd, k=-k)
                 else:
                     # arbitrary free rotation with interpolation
                     # do rotation with interpolation, but try to clean up some of the artifacts afterwards.

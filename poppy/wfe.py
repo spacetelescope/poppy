@@ -478,7 +478,7 @@ class PowerSpectrumWFE(WavefrontError):
         self.incident_angle = incident_angle
             
         if psd_weight is None:
-            self.psd_weight = np.ones((len(psd_parameters))) # default to equal weights
+            self.psd_weight = _ncp.ones((len(psd_parameters))) # default to equal weights
         else:
             self.psd_weight = psd_weight
         
@@ -514,13 +514,13 @@ class PowerSpectrumWFE(WavefrontError):
         
         # build spatial frequency map
         cen = int(self.screen_size/2)
-        maskY, maskX = np.mgrid[-cen:cen, -cen:cen]
+        maskY, maskX = _ncp.mgrid[-cen:cen, -cen:cen]
         ky = maskY*dk.to_value(1./u.m)
         kx = maskX*dk.to_value(1./u.m)
-        k_map = np.sqrt(kx**2 + ky**2) # unitless for the math, but actually 1/m
+        k_map = _ncp.sqrt(kx**2 + ky**2) # unitless for the math, but actually 1/m
         
         # calculate the PSD
-        psd = np.zeros_like(k_map) # initialize the total PSD matrix
+        psd = _ncp.zeros_like(k_map) # initialize the total PSD matrix
         for n in range(0, len(self.psd_weight)):
             # loop-internal localized PSD variables
             alpha = self.psd_parameters[n][0]
@@ -535,7 +535,7 @@ class PowerSpectrumWFE(WavefrontError):
             surf_unit = (psd_units*(dk.unit**2))**(0.5)
             
             # initialize loop-internal PSD matrix
-            psd_local = np.zeros_like(psd)
+            psd_local = _ncp.zeros_like(psd)
             
             # Calculate the PSD equation denominator based on outer_scale presence
             if outer_scale.value == 0: # skip out or else PSD explodes
@@ -544,14 +544,14 @@ class PowerSpectrumWFE(WavefrontError):
                 # calculate PSD as normal
                 psd_denom = (k_map**2)**(alpha/2)
                 # calculate the immediate PSD value
-                psd_interm = (beta.value*np.exp(-((k_map*inner_scale)**2))/psd_denom)
+                psd_interm = (beta.value*_ncp.exp(-((k_map*inner_scale)**2))/psd_denom)
                 # overwrite PSD at k=0 to be 0 instead of the original infinity
                 psd_interm[cen][cen] = 0
                 # return k_map to original state
                 k_map[cen][cen] = 0
             else:
                 psd_denom = ((outer_scale.value**(-2)) + (k_map**2))**(alpha/2) # unitless currently
-                psd_interm = (beta.value*np.exp(-((k_map*inner_scale)**2))/psd_denom)
+                psd_interm = (beta.value*_ncp.exp(-((k_map*inner_scale)**2))/psd_denom)
             
             # apply surface roughness
             psd_interm = psd_interm + surf_roughness.value
@@ -560,13 +560,13 @@ class PowerSpectrumWFE(WavefrontError):
             psd = psd + (self.psd_weight[n] * psd_interm) # this should all be m2 [surf_unit]2, but stay unitless for all calculations
         
         # set the random noise
-        psd_random = np.random.RandomState()
+        psd_random = _ncp.random.RandomState()
         psd_random.seed(self.seed)
-        rndm_noise = np.fft.fftshift(np.fft.fft2(psd_random.normal(size=(self.screen_size, self.screen_size))))
+        rndm_noise = _ncp.fft.fftshift(_ncp.fft.fft2(psd_random.normal(size=(self.screen_size, self.screen_size))))
         
-        psd_scaled = (np.sqrt(psd/(wave.pixelscale.value**2)) * rndm_noise)
+        psd_scaled = (_ncp.sqrt(psd/(wave.pixelscale.value**2)) * rndm_noise)
 #         opd = ((np.fft.ifft2(np.fft.ifftshift(psd_scaled)).real*surf_unit).to(u.m)).value 
-        opd = ((np.fft.ifft2(np.fft.ifftshift(psd_scaled)).real))*1e-9 # this is assuming the opd is calculated in nm
+        opd = ((_ncp.fft.ifft2(_ncp.fft.ifftshift(psd_scaled)).real))*1e-9 # this is assuming the opd is calculated in nm
         
         # Set rms value based on the active region of beam
         if self.rms is not None:
@@ -574,7 +574,7 @@ class PowerSpectrumWFE(WavefrontError):
             ap = circ.get_transmission(wave)
             opd_crop = utils.pad_or_crop_to_shape(array=opd, target_shape=wave.shape)
             active_ap = opd_crop[ap==True]
-            rms_measure = np.sqrt(np.mean(np.square(active_ap))) # measured rms from aperture
+            rms_measure = _ncp.sqrt(_ncp.mean(_ncp.square(active_ap))) # measured rms from aperture
             opd *= self.rms.to(u.m).value/rms_measure # appropriately scales entire OPD
             
         # apply the angle adjustment for rms
