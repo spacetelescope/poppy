@@ -771,48 +771,96 @@ class BaseWavefront(ABC):
         _log.debug("Desired detector FOV: {} pixels, {:.3f}".format(detector.shape,
                                                                     detector.shape[0]*u.pixel*detector.pixelscale))
 
-        def make_axis(npix, step):
-            """ Helper function to make coordinate axis for interpolation """
-            return step * _ncp.arange(-npix // 2, npix // 2, dtype=_ncp.float64)
-
         # Provide 2-pixel margin around image to reduce interpolation errors at edge, but also make
         # sure that image is centered properly after it gets cropped down to detector size
+        
         margin = 2
         crop_shape = [margin + shape for shape in self.wavefront.shape]
 
         # Crop wavefront down to detector size + margin- don't waste computation interpolating
         # parts of plane that get cropped out later anyways
         cropped_wf = utils.pad_or_crop_to_shape(self.wavefront, crop_shape)
+        
+#         def make_axis(npix, step):
+#             """ Helper function to make coordinate axis for interpolation """
+#             return step * _ncp.arange(-npix // 2, npix // 2, dtype=_ncp.float64)
+        
+#         x_in = make_axis(crop_shape[0], self.pixelscale.to(u.m/u.pix).value)
+#         y_in = make_axis(crop_shape[1], self.pixelscale.to(u.m/u.pix).value)
+#         x_out = make_axis(detector.shape[0], detector.pixelscale.to(u.m/u.pix).value)
+#         y_out = make_axis(detector.shape[1], detector.pixelscale.to(u.m/u.pix).value)
 
-        # Input and output axes for interpolation.  The interpolated wavefront will be evaluated
-        # directly onto the detector axis, so don't need to crop afterwards.
-        x_in = make_axis(crop_shape[0], self.pixelscale.to(u.m/u.pix).value)
-        y_in = make_axis(crop_shape[1], self.pixelscale.to(u.m/u.pix).value)
-        x_out = make_axis(detector.shape[0], detector.pixelscale.to(u.m/u.pix).value)
-        y_out = make_axis(detector.shape[1], detector.pixelscale.to(u.m/u.pix).value)
+#         def interpolator(arr):
+#             """
+#             Bind arguments to scipy's RectBivariateSpline function.
+#             For data on a regular 2D grid, RectBivariateSpline is more efficient than interp2d.
+#             """
+#             return scipy.interpolate.RectBivariateSpline(x_in, y_in, arr, 
+#                                                              kx=detector.interp_order, ky=detector.interp_order)
 
-        def interpolator(arr): # FIXME: NOT CUPY OPTIMIZED YET
-            """
-            Bind arguments to scipy's RectBivariateSpline function.
-            For data on a regular 2D grid, RectBivariateSpline is more efficient than interp2d.
-            """
-            return scipy.interpolate.RectBivariateSpline(x_in, y_in, arr, 
-                                                         kx=detector.interp_order, ky=detector.interp_order)
+#         # Interpolate real and imaginary parts separately
+#         if accel_math._USE_CUPY:
+#             x_in, y_in = ( x_in.get(), y_in.get() )
+#             x_out, y_out = ( x_out.get(), y_out.get() )
+#             wfarr = cropped_wf.get()
+#         else:
+#             wfarr = cropped_wf
+#         real_resampled = interpolator(wfarr.real)(x_out, y_out)
+#         imag_resampled = interpolator(wfarr.imag)(x_out, y_out)
+#         new_wf = _ncp.array(real_resampled + 1j * imag_resampled)
 
-        # Interpolate real and imaginary parts separately
-        if accel_math._USE_CUPY:
-            x_in, y_in = ( x_in.get(), y_in.get() )
-            x_out, y_out = ( x_out.get(), y_out.get() )
-            wfarr = cropped_wf.get()
+#         # enforce conservation of energy:
+#         new_wf *= 1. / pixscale_ratio
+        
+        if not accel_math._USE_CUPY:
+            def make_axis(npix, step):
+                """ Helper function to make coordinate axis for interpolation """
+                return step * _ncp.arange(-npix // 2, npix // 2, dtype=_ncp.float64)
+            
+            # Input and output axes for interpolation.  The interpolated wavefront will be evaluated
+            # directly onto the detector axis, so don't need to crop afterwards.
+            x_in = make_axis(crop_shape[0], self.pixelscale.to(u.m/u.pix).value)
+            y_in = make_axis(crop_shape[1], self.pixelscale.to(u.m/u.pix).value)
+            x_out = make_axis(detector.shape[0], detector.pixelscale.to(u.m/u.pix).value)
+            y_out = make_axis(detector.shape[1], detector.pixelscale.to(u.m/u.pix).value)
+
+            def interpolator(arr):
+                """
+                Bind arguments to scipy's RectBivariateSpline function.
+                For data on a regular 2D grid, RectBivariateSpline is more efficient than interp2d.
+                """
+                return scipy.interpolate.RectBivariateSpline(x_in, y_in, arr, 
+                                                             kx=detector.interp_order, ky=detector.interp_order)
+
+            # Interpolate real and imaginary parts separately
+            real_resampled = interpolator(cropped_wf.real)(x_out, y_out)
+            imag_resampled = interpolator(cropped_wf.imag)(x_out, y_out)
+            new_wf = _ncp.array(real_resampled + 1j * imag_resampled)
         else:
-            wfarr = cropped_wf
-        real_resampled = interpolator(wfarr.real)(x_out, y_out)
-        imag_resampled = interpolator(wfarr.imag)(x_out, y_out)
-        new_wf = _ncp.array(real_resampled + 1j * imag_resampled)
+            # cupyx does not have RectBivariateSpline or interp2d so wavefront resampling 
+            # is implemented with map_coordinates
+            wf_xmax = self.pixelscale.to(u.m/u.pix).value * cropped_wf.shape[0]/2
+            x,y = _ncp.ogrid[-wf_xmax:wf_xmax:cropped_wf.shape[0]*1j,
+                             -wf_xmax:wf_xmax:cropped_wf.shape[1]*1j]
 
+            det_xmax = detector.pixelscale.to(u.m/u.pix).value * detector.shape[0]/2
+            newx,newy = _ncp.mgrid[-det_xmax:det_xmax:detector.shape[0]*1j,
+                                   -det_xmax:det_xmax:detector.shape[1]*1j]
+            x0 = x[0,0]
+            y0 = y[0,0]
+            dx = x[1,0] - x0
+            dy = y[0,1] - y0
+            
+            ivals = (newx - x0)/dx
+            jvals = (newy - y0)/dy
+
+            coords = _ncp.array([ivals, jvals])
+            
+            new_wf = _scipy.ndimage.map_coordinates(cropped_wf, coords, order=detector.interp_order)
+        
         # enforce conservation of energy:
         new_wf *= 1. / pixscale_ratio
-
+            
         self.ispadded = False   # if a pupil detector, avoid auto-cropping padded pixels on output
         self.wavefront = new_wf
         self.pixelscale = detector.pixelscale
@@ -854,7 +902,7 @@ class BaseWavefront(ABC):
                 pixelscale = self.pixelscale
 
             npix = self.wavefront.shape[0]
-            V, U = np.indices(self.wavefront.shape, dtype=_float())
+            V, U = _ncp.indices(self.wavefront.shape, dtype=_float())
             V -= (npix - 1) / 2.0
             V *= pixelscale
             U -= (npix - 1) / 2.0
@@ -864,7 +912,7 @@ class BaseWavefront(ABC):
             #     Tilt in a wavefront affects the image by causing a shift of its center location in the Gaussian
             #     image plane. A tilt causing a positive OPD change in the +x direction will cause the image to
             #     shift in the -x direction
-            tiltphasor = np.exp(-2.0j * np.pi * (U * xangle_rad + V * yangle_rad) / self.wavelength.to(u.meter).value)
+            tiltphasor = _ncp.exp(-2.0j * np.pi * (U * xangle_rad + V * yangle_rad) / self.wavelength.to(u.meter).value)
             self.wavefront *= tiltphasor
             self.history.append("Tilted wavefront by "
                                 "X={:2.2}, Y={:2.2} arcsec".format(Xangle, Yangle))
@@ -896,8 +944,8 @@ class BaseWavefront(ABC):
         k, remainder = np.divmod(angle, 90)
         if remainder == 0:
             # rotation is a multiple of 90
-            rot_real = np.rot90(self.wavefront.real, k=-k)  # negative = CCW
-            rot_imag = np.rot90(self.wavefront.imag, k=-k)
+            rot_real = _ncp.rot90(self.wavefront.real, k=-k)  # negative = CCW
+            rot_imag = _ncp.rot90(self.wavefront.imag, k=-k)
         else:
             # arbitrary free rotation with interpolation
             rot_real = _scipy.ndimage.interpolation.rotate(self.wavefront.real, -angle, reshape=False)  # negative = CCW
