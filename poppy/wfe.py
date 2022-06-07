@@ -201,7 +201,11 @@ class ZernikeWFE(WavefrontError):
     @utils.quantity_input(coefficients=u.meter, radius=u.meter)
     def __init__(self, name="Zernike WFE", coefficients=None, radius=None,
             aperture_stop=False, **kwargs):
-
+        
+#         accel_math.update_math_settings()
+#         global _ncp
+#         from .accel_math import _ncp
+        
         if radius is None:
             raise ValueError("You must specify a radius for the unit circle "
                              "over which the Zernike polynomials are normalized")
@@ -250,14 +254,26 @@ class ZernikeWFE(WavefrontError):
                     noll_normalize=True
                 )
             else:
-                combined_zernikes += k_in_m * zernike.cached_zernike1(
-                    j,
-                    wave.shape,
-                    pixelscale_m,
-                    self.radius.to(u.meter).value,
-                    outside=0.0,
-                    noll_normalize=True
-                )
+                try:
+                    combined_zernikes += k_in_m * zernike.cached_zernike1(
+                        j,
+                        wave.shape,
+                        pixelscale_m,
+                        self.radius.to(u.meter).value,
+                        outside=0.0,
+                        noll_normalize=True
+                    )
+                except: # can't use cached_zernikes if the user changed between CPU and CuPy
+                    y, x = self.get_coordinates(wave)
+                    rho, theta = _wave_y_x_to_rho_theta(y, x, self.radius.to(u.meter).value)
+                    
+                    combined_zernikes += k_in_m * zernike.zernike1(
+                        j,
+                        rho=rho,
+                        theta=theta,
+                        outside=0.0,
+                        noll_normalize=True
+                    )
 
         combined_zernikes[aperture_intensity==0] = 0
         return combined_zernikes

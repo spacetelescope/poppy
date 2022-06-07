@@ -118,7 +118,11 @@ def noll_indices(j):
         Starts at 1.
 
     """
-
+    
+    accel_math.update_math_settings()
+    global _ncp
+    from .accel_math import _ncp
+    
     if j < 1:
         raise ValueError("Zernike index j must be a positive integer.")
 
@@ -231,6 +235,11 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
     zern : 2D numpy array
         Z(m,n) evaluated at each (rho, theta)
     """
+    
+    accel_math.update_math_settings()
+    global _ncp
+    from .accel_math import _ncp
+    
     if not n >= m:
         raise ValueError("Zernike index m must be >= index n")
     if (n - m) % 2 != 0:
@@ -358,7 +367,7 @@ def zernike_basis(nterms=15, npix=512, rho=None, theta=None, **kwargs):
         shape = (npix, npix)
         use_polar = False
 
-    zern_output = np.zeros((nterms,) + shape)
+    zern_output = _ncp.zeros((nterms,) + shape)
 
     if use_polar:
         for j in range(nterms):
@@ -397,16 +406,16 @@ def zernike_basis_faster(nterms=15, npix=512, outside=np.nan):
     """
     shape = (npix, npix)
 
-    zern_output = np.zeros((nterms,) + shape)
+    zern_output = _ncp.zeros((nterms,) + shape)
 
-    x = (np.arange(npix, dtype=np.float64) - (npix - 1) / 2.) / ((npix - 1) / 2.)
+    x = (_ncp.arange(npix, dtype=_ncp.float64) - (npix - 1) / 2.) / ((npix - 1) / 2.)
     y = x
-    xx, yy = np.meshgrid(x, y)
+    xx, yy = _ncp.meshgrid(x, y)
 
-    rho = np.sqrt(xx ** 2 + yy ** 2)
-    theta = np.arctan2(yy, xx)
+    rho = _ncp.sqrt(xx ** 2 + yy ** 2)
+    theta = _ncp.arctan2(yy, xx)
 
-    aperture = np.ones_like(rho)
+    aperture = _ncp.ones_like(rho)
     aperture[rho > 1] = 0.0  # this is the aperture mask
     noll_normalize = True
 
@@ -425,7 +434,7 @@ def zernike_basis_faster(nterms=15, npix=512, outside=np.nan):
 
         m = int(np.abs(m))
         n = int(np.abs(n))
-        output = np.zeros(rho.shape)
+        output = _ncp.zeros(rho.shape)
         if _is_odd(n - m):
             return 0
         else:
