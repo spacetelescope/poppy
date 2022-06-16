@@ -778,14 +778,18 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
         be 0.0 sometimes.
     """
     # code submitted by Arthur Vigan - see https://github.com/mperrin/poppy/issues/166
-
+    
+    accel_math.update_math_settings()
+    global _ncp
+    from .accel_math import _ncp
+    
     shape = aperture.shape
     assert len(shape) == 2 and shape[0] == shape[1], \
         "only square aperture arrays are supported"
-
+    
     # any pixels with zero or NaN in the aperture are outside the area
-    apmask = (np.isfinite(aperture) & (aperture > 0))
-    apmask_float = np.asarray(apmask, float)
+    apmask = (_ncp.isfinite(aperture) & (aperture > 0))
+    apmask_float = _ncp.asarray(apmask, float)
     A = apmask.sum()
 
     if theta is None and rho is None:
@@ -795,30 +799,30 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
         # requested array size and cut the aperture out of it.
 
         # get max extent of aperture from array center
-        yind, xind = np.where(apmask)
-        distance = np.sqrt((yind - (shape[0] - 1) / 2.) ** 2 + (xind - (shape[1] - 1) / 2.) ** 2)
+        yind, xind = _ncp.where(apmask)
+        distance = _ncp.sqrt((yind - (shape[0] - 1) / 2.) ** 2 + (xind - (shape[1] - 1) / 2.) ** 2)
         max_extent = distance.max()
 
         # calculate padding for oversizing zernike_basis
-        ceil = lambda x: np.ceil(x) if x > 0 else 0  # avoid negative values
+        ceil = lambda x: _ncp.ceil(x) if x > 0 else 0  # avoid negative values
         padding = (int(ceil((max_extent - (shape[0] - 1) / 2.))),
                    int(ceil((max_extent - (shape[1] - 1) / 2.))))
         padded_shape = (shape[0] + padding[0] * 2, shape[1] + padding[1] * 2)
         npix = padded_shape[0]
 
         # precompute zernikes on oversized array
-        Z = np.zeros((nterms + 1,) + padded_shape)
+        Z = _ncp.zeros((nterms + 1,) + padded_shape)
         Z[1:] = zernike_basis(nterms=nterms, npix=npix, rho=rho, theta=theta, outside=0.0)
         # slice down to original aperture array size
         Z = Z[:, padding[0]:padded_shape[0] - padding[0],
               padding[1]:padded_shape[1] - padding[1]]
     else:
         # precompute zernikes on user-defined rho, theta
-        Z = np.zeros((nterms + 1,) + shape)
+        Z = _ncp.zeros((nterms + 1,) + shape)
         Z[1:] = zernike_basis(nterms=nterms, rho=rho, theta=theta, outside=0.0)
 
-    G = [np.zeros(shape), np.ones(shape)]  # array of G_i etc. intermediate fn
-    H = [np.zeros(shape), apmask_float.copy()]  # array of zernikes on arbitrary basis
+    G = [_ncp.zeros(shape), _ncp.ones(shape)]  # array of G_i etc. intermediate fn
+    H = [_ncp.zeros(shape), apmask_float.copy()]  # array of zernikes on arbitrary basis
     c = {}  # coefficients hash
 
     for j in np.arange(nterms - 1) + 1:  # can do one less since we already have the piston term
@@ -831,7 +835,7 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
                 nextG += c[(j + 1, k)] * H[k]
             _log.debug("    c[%s] = %f", str((j + 1, k)), c[(j + 1, k)])
 
-        nextH = nextG / np.sqrt((nextG ** 2).sum() / A)
+        nextH = nextG / _ncp.sqrt((nextG ** 2).sum() / A)
 
         G.append(nextG)
         H.append(nextH)
@@ -839,7 +843,7 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
         # TODO - contemplate whether the above algorithm is numerically stable
         # cf. modified gram-schmidt algorithm discussion on wikipedia.
 
-    basis = np.asarray(H[1:])  # drop the 0th null element
+    basis = _ncp.asarray(H[1:])  # drop the 0th null element
     basis[:, ~apmask] = outside
 
     return basis

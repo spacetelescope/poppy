@@ -112,6 +112,10 @@ class BaseWavefront(ABC):
     def __init__(self, wavelength=1e-6 * u.meter, npix=1024, dtype=None, diam=1.0 * u.meter,
                  oversample=2):
         
+        accel_math.update_math_settings()
+        global _ncp, _scipy
+        from .accel_math import _ncp, _scipy
+        
         self.oversample = oversample
 
         self.wavelength = wavelength  # Wavelength in meters (or other unit if specified)
