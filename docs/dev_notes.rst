@@ -28,6 +28,10 @@ Release Process
 Releasing a new version through AstroConda
 ------------------------------------------
 
+.. admonition:: **Consider this section deprecated as of version 1.0.3!**
+
+ AstroConda is currently limited to Python <=3.7, while POPPY only supports Python >=3.8 as of v1.0.3.
+
 Do this after you've done the above.
 
 To test that an Astroconda package builds, you will need ``conda-build``::

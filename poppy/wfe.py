@@ -144,7 +144,7 @@ class ParameterizedWFE(WavefrontError):
     @utils.quantity_input(coefficients=u.meter, radius=u.meter)
     def __init__(self, name="Parameterized Distortion", coefficients=None, radius=1*u.meter,
                  basis_factory=None, **kwargs):
-        if not isinstance(basis_factory, collections.Callable):
+        if not isinstance(basis_factory, collections.abc.Callable):
             raise ValueError("'basis_factory' must be a callable that can "
                              "calculate basis functions")
         self.radius = radius
