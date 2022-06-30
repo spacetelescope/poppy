@@ -1,15 +1,13 @@
 Installation
 ==================
 
-POPPY may be installed one of three different ways.
+POPPY may be installed one of two different ways.
 
-1. Using ``conda`` through the `AstroConda channel <https://astroconda.readthedocs.io/en/latest/>`__. This is the recommended channel for most users on MacOS and Linux. But note that AstroConda does not support Windows.
-
-2. Using PyPi in the usual manner for Python packages::
+1. Using PyPI in the usual manner for Python packages::
 
     % pip install poppy --upgrade
 
-3. Cloning the source code hosted in `this repository on GitHub <https://github.com/spacetelescope/poppy>`_. It is possible to directly install the latest development version using your locally installed ``git`` package::
+2. Cloning the source code hosted in `this repository on GitHub <https://github.com/spacetelescope/poppy>`_. It is possible to directly install the latest development version using your locally installed ``git`` package::
 
     % git clone https://github.com/spacetelescope/poppy.git
     % cd poppy
