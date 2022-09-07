@@ -1935,7 +1935,7 @@ class TiltOpticalPathDifference(AnalyticOpticalElement):
     """
     def __init__(self, name='Tilt', tilt_angle=0.1 * u.arcsec, rotation=0, **kwargs):
         self.tilt_angle=tilt_angle
-        super().__init__(name=name, rotation=0, **kwargs)
+        super().__init__(name=name, rotation=rotation, **kwargs)
 
     def get_opd(self, wave):
         # Get local coordinates for this wave; note this will implicitly include any
