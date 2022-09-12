@@ -1274,7 +1274,7 @@ class MultiSegmentAperture(AnalyticOpticalElement, ABC):
         # spacing between segment centers
         self._segment_spacing = (segment_size + gap).to_value(u.meter)
 
-        self.pupil_diam = (self._segment_spacing) * (2 * self.rings + 1)
+        self.pupil_diam = (self._segment_spacing) * (2 * self.rings + 1) * u.m
 
         # make a list of all the segments included in this hex aperture
         if segmentlist is not None:
