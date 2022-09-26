@@ -283,7 +283,7 @@ class ZernikeWFE(WavefrontError):
         if self.aperture_stop:
             return self.circular_aperture.get_transmission(wave)
         else:
-            return np.ones(wave.shape)
+            return _ncp.ones(wave.shape)
 
 
 class SineWaveWFE(WavefrontError):

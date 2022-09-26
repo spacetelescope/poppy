@@ -128,10 +128,11 @@ class AnalyticOpticalElement(OpticalElement):
         else:
             wavelength = wave
         scale = 2. * np.pi / wavelength.to(u.meter).value
-
+        
         if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
             trans = self.get_transmission(wave)
             opd = self.get_opd(wave)
+            
             # we first multiply the two scalars, for a slight performance gain
             scalars = 1.j * scale
             # warning, numexpr exp is crash-prone if fed complex64, so we

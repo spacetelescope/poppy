@@ -20,7 +20,8 @@ if accel_math._USE_NUMEXPR:
 _log = logging.getLogger('poppy')
 
 
-__all__ = ['QuadPhase', 'QuadraticLens', 'FresnelWavefront', 'FresnelOpticalSystem', 'FixedSamplingImagePlaneElement']
+__all__ = ['QuadPhase', 'QuadraticLens', 'FresnelWavefront', 'FresnelOpticalSystem', 
+           'FixedSamplingImagePlaneElement']
 
 
 class QuadPhase(poppy.optics.AnalyticOpticalElement):
@@ -921,6 +922,9 @@ class FresnelWavefront(BaseWavefront):
             # which will apply an amplitude transmission to the wavefront. 
             self.apply_image_plane_fftmft(optic)
             return self
+        elif isinstance(optic, VectorVortex):
+            self.apply_vortex(optic)
+            return self
         else:
             # Otherwise fall back to the parent class
             return super(FresnelWavefront, self).__imul__(optic)
@@ -1093,7 +1097,6 @@ class FresnelWavefront(BaseWavefront):
         
         _log.debug("------ FixedSamplingImagePlaneElement: " + str(optic.name) + " applied ------")
 
-
     def _resample_wavefront_pixelscale(self, detector):
         """ Resample a Fresnel wavefront to a desired detector sampling.
 
@@ -1169,7 +1172,6 @@ class FresnelWavefront(BaseWavefront):
         new_wf.location = wf.location
 
         return new_wf
-
 
 class FresnelOpticalSystem(BaseOpticalSystem):
     """ Class representing a series of optical elements,

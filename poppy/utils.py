@@ -1184,7 +1184,7 @@ def pad_or_crop_to_shape(array, target_shape):
     lx_w, ly_w = target_shape
     border_x = _ncp.abs(lx - lx_w) // 2
     border_y = _ncp.abs(ly - ly_w) // 2
-
+    
     if (lx < lx_w) or (ly < ly_w):
         _log.debug("Array shape " + str(array.shape) + " is smaller than desired shape " + str(
             [lx_w, ly_w]) + "; will attempt to zero-pad the array")
