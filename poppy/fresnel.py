@@ -922,9 +922,6 @@ class FresnelWavefront(BaseWavefront):
             # which will apply an amplitude transmission to the wavefront. 
             self.apply_image_plane_fftmft(optic)
             return self
-        elif isinstance(optic, VectorVortex):
-            self.apply_vortex(optic)
-            return self
         else:
             # Otherwise fall back to the parent class
             return super(FresnelWavefront, self).__imul__(optic)
