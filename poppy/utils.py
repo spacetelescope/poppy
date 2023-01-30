@@ -459,7 +459,7 @@ def display_ee(hdulist_or_filename=None, ext=0, overplot=False, ax=None, mark_le
         ax.set_ylabel("Encircled Energy")
 
     if mark_levels:
-        if levels not None:
+        if levels is not None:
             markers=levels
         else:
             markers=[0.5, 0.8, 0.95]
