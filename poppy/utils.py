@@ -417,7 +417,7 @@ def display_psf_difference(hdulist_or_filename1=None, hdulist_or_filename2=None,
             return ax
 
 
-def display_ee(hdulist_or_filename=None, ext=0, overplot=False, ax=None, mark_levels=True, **kwargs):
+def display_ee(hdulist_or_filename=None, ext=0, overplot=False, ax=None, mark_levels=True, levels=None, **kwargs):
     """ Display Encircled Energy curve for a PSF
 
     The azimuthally averaged encircled energy is plotted as a function of radius.
@@ -435,7 +435,9 @@ def display_ee(hdulist_or_filename=None, ext=0, overplot=False, ax=None, mark_le
     mark_levels : bool
         If set, mark and label on the plots the radii for 50%, 80%, 95% encircled energy.
         Default is True
-
+    levels : list 
+        if not None and mark_levels is true then this list specifies alternative levels
+        
     """
     if isinstance(hdulist_or_filename, str):
         hdu_list = fits.open(hdulist_or_filename)
@@ -457,7 +459,11 @@ def display_ee(hdulist_or_filename=None, ext=0, overplot=False, ax=None, mark_le
         ax.set_ylabel("Encircled Energy")
 
     if mark_levels:
-        for level in [0.5, 0.8, 0.95]:
+        if levels not None:
+            markers=levels
+        else:
+            markers=[0.5, 0.8, 0.95]
+        for level in markers:
             ee_lev = radius[np.where(ee > level)[0][0]]
             yoffset = 0 if level < 0.9 else -0.05
             plt.text(ee_lev + 0.1, level + yoffset, 'EE=%2d%% at r=%.3f"' % (level * 100, ee_lev))
