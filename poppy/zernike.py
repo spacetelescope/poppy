@@ -1007,7 +1007,7 @@ def decompose_opd(opd, aperture=None, nterms=15, basis=zernike_basis,
     if aperture is None:
         _log.warning("No aperture supplied - "
                   "using the finite (non-NaN) part of the OPD map as a guess.")
-        aperture = np.isfinite(opd)  # . astype(np.float)
+        aperture = np.isfinite(opd)  # . astype(np.float_)
 
     # any pixels with zero or NaN in the aperture are outside the area
     apmask = (np.isfinite(aperture) & (aperture > 0))
