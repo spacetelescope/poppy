@@ -1,8 +1,57 @@
 [build-system]
-requires = ["setuptools >= 38.0.0",
+requires = ["setuptools >= 61.2",
             "setuptools_scm[toml]>=3.4.3",
             "wheel"]
 build-backend = 'setuptools.build_meta'
+
+[project]
+name = "poppy"
+description = "Physical optics propagation (wavefront diffraction) for optical simulations, particularly of telescopes."
+authors = [{name = "Marshall Perrin", email = "mperrin@stsci.edu"}]
+license = {text = "BSD-3-Clause"}
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.18.0",
+    "scipy>=1.5.0",
+    "matplotlib>=3.2.0",
+    "astropy>=4.0.0",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+all = ["synphot"]
+test = [
+    "pytest",
+    "pytest-astropy",
+]
+docs = [
+    "nbsphinx",
+    "stsci_rtd_theme",
+    "sphinx-astropy",
+    "sphinx_rtd_theme",
+    "sphinx-automodapi",
+    "sphinx-issues",
+]
+
+[project.urls]
+Homepage = "https://github.com/spacetelescope/poppy"
+Documentation = "https://poppy-optics.readthedocs.io/"
+"Bug Tracker" = "https://github.com/spacetelescope/poppy/issues"
+
+[project.readme]
+text = '"POPPY (**P**\ hysical **O**\ ptics **P**\ ropagation in **Py**\ thon) is a Python package that simulates physical optical propagation including diffraction. It implements a flexible framework for modeling Fraunhofer and Fresnel diffraction and point spread function formation, particularly in the context of astronomical telescopes."'
+content-type = "text/markdown"
+
+[tool.setuptools]
+zip-safe = false
+include-package-data = false
+
+[tool.setuptools.packages]
+find = {namespaces = false}
+
+[tool.setuptools.package-data]
+"*" = ["*.fits", "*.csv"]
+"poppy.tests" = ["data/*"]
 
 [tool.setuptools_scm]
 write_to = "poppy/version.py"
