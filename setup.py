@@ -48,4 +48,4 @@ if 'build_docs' in sys.argv or 'build_sphinx' in sys.argv:
     print(DOCS_HELP)
     sys.exit(1)
 
-setup(use_scm_version={'write_to': os.path.join('poppy', 'version.py')})
+setup()
