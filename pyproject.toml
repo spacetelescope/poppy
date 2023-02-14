@@ -1,5 +1,8 @@
 [build-system]
 requires = ["setuptools >= 38.0.0",
-            "setuptools_scm >= 2.0.0",
+            "setuptools_scm[toml]>=7",
             "wheel"]
 build-backend = 'setuptools.build_meta'
+
+[tool.setuptools_scm]
+write_to = "poppy/version.py"
