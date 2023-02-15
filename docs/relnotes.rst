@@ -5,6 +5,24 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+1.0.3
+-----
+
+.. _rel1.0.3:
+
+*2022 June 30*
+
+This is another incremental release that introduces support and makes internal adjustments for Python 3.10.
+
+**Other enhancements and fixes:**
+ * zernike.py factorial() calls were corrected to ensure internal values are integers in Python 3.10 (:pr:`493` by :user:`AarynnCarter`)
+
+**Software Infrastructure Updates and Internals:**
+ * Fix for Astropy Development CI test (:pr:`498` by :user:`shanosborne`)
+ * Increase all CI test versions by 1, removing Python 3.7 and adding Python 3.10 (:pr:`503` by :user:`shanosborne`)
+ * Accept various dependabot updates to recommended (not minimum) dependency versions (various PRs by :user:`shanosborne` and :user:`mperrin`)
+ * Updated installation and release instructions to move away from AstroConda (:pr:`509` by :user:`ojustino`)
+
 1.0.2
 -----
 
@@ -37,7 +55,7 @@ This is a very minor re-release, to fix some documentation formatting and releas
 
 *2021 December 7*
 
-This is a major release with significant enhancements and changes, in particular with regards to changes in wavefront sign convention representations. 
+This is a major release with significant enhancements and changes, in particular with regards to changes in wavefront sign convention representations.
 
 .. admonition:: Changes and Clarifications in Signs for Wavefront Error and Phase
 
@@ -51,8 +69,8 @@ This is a major release with significant enhancements and changes, in particular
     changes in the signs of complex exponentials in some Fourier propagation calculations. Depending on your use case this may result in some changes in output PSFs or
     different signs or orientations from prior results.
 
-    See `Sign Conventions for Coordinates, Phase, and Wavefront Error <https://poppy-optics.readthedocs.io/en/latest/sign_conventions_for_coordinates_and_phase.html>`_ for details, discussion, and demonstration. 
-    
+    See `Sign Conventions for Coordinates, Phase, and Wavefront Error <https://poppy-optics.readthedocs.io/en/latest/sign_conventions_for_coordinates_and_phase.html>`_ for details, discussion, and demonstration.
+
     Many thanks to Derek
     Sabatke (Ball Aerospace); Matthew Bergkoetter, Alden Jurling, and Tom Zielinski (NASA GSFC); and
     Randal Telfer (STScI) for invaluable discussions and aid in getting these
@@ -95,7 +113,7 @@ This is a major release with significant enhancements and changes, in particular
 
 *2021 Feb 11*
 
-This release includes several updated optical element classes, bug fixes, and improved documentation. This is intended as a maintenance release shortly before v 1.0 which will introduce some backwards-incompatible changes. 
+This release includes several updated optical element classes, bug fixes, and improved documentation. This is intended as a maintenance release shortly before v 1.0 which will introduce some backwards-incompatible changes.
 
 **New Functionality:**
  * New OpticalElement classes for ScalarOpticalPathDifference, LetterFAperture, and LetterFOpticalPathDifference. (:pr:`386` by :user:`mperrin`)
@@ -172,7 +190,7 @@ This is a minor release primarily for updates in packaging infrastructure, plus 
    transformation only applies the cosine scaling to the optic's appearance, and does *not* introduce wavefront for
    tilt. (:pr:`329` by :user:`mperrin`)
 
- * **Many improvements to the Continuous Deformable Mirror class**: 
+ * **Many improvements to the Continuous Deformable Mirror class**:
 
     * Enhance model of DM actuator influence functions for more precise subpixel spacing of DM actuators, rather than
       pokes separated by integer pixel spacing. This applies to the 'convolution by influence function' method for
@@ -196,7 +214,7 @@ This is a minor release primarily for updates in packaging infrastructure, plus 
 
 **Software Infrastructure Updates and Internals:**
  * PR :pr:`290` for CompoundOpticalSystem involved refactoring the Wavefront and FresnelWavefront classes to both be child classes of a new abstract base class BaseWavefront. This change should be transparent for most/all users and requires no changes in calling code.
- * PR :pr:`306` for wavelength-independent phase subsequently required refactoring of the optical element display code to correctly handle all cases. As a result the display code internals were clarified and made more consistent. (:pr:`314` and :pr:`321`  by :user:`mperrin` with contributions from :user:`ivalaginja` and :user:`shanosborne`). Again this change should be transparent for users. 
+ * PR :pr:`306` for wavelength-independent phase subsequently required refactoring of the optical element display code to correctly handle all cases. As a result the display code internals were clarified and made more consistent. (:pr:`314` and :pr:`321`  by :user:`mperrin` with contributions from :user:`ivalaginja` and :user:`shanosborne`). Again this change should be transparent for users.
  * Removed deprecated / unused decorator function in WFE classes, making their `get_opd` function API consistent with the rest of poppy. (:pr:`322` by :user:`mperrin`)
  * Accomodate some upstream changes in astropy (:pr:`294` by :user:`shanosborne`, :pr:`330` by :user:`mperrin`)
  * The `poppy.Instrument._get_optical_system` function, which has heretofore been an internal method (private, starting with
@@ -225,7 +243,7 @@ This is a minor release primarily for updates in packaging infrastructure, plus 
 apertures such as from inclined optics. You may see warnings about this in cases when you use `inclination_y` or
 `inclination_x` attributes on a circular aperture. This warning is generally benign; the calculation is still more
 accurate than it would be without the subpixel sampling, though not perfectly precise. This known issue will likely be
-improved upon in a future release. 
+improved upon in a future release.
 
 
 0.8.0

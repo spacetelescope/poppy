@@ -1291,7 +1291,7 @@ class MultiSegmentAperture(AnalyticOpticalElement, ABC):
         # spacing between segment centers
         self._segment_spacing = (segment_size + gap).to_value(u.meter)
 
-        self.pupil_diam = (self._segment_spacing) * (2 * self.rings + 1)
+        self.pupil_diam = (self._segment_spacing) * (2 * self.rings + 1) * u.m
 
         # make a list of all the segments included in this hex aperture
         if segmentlist is not None:
@@ -1959,7 +1959,7 @@ class TiltOpticalPathDifference(AnalyticOpticalElement):
     """
     def __init__(self, name='Tilt', tilt_angle=0.1 * u.arcsec, rotation=0, **kwargs):
         self.tilt_angle=tilt_angle
-        super().__init__(name=name, rotation=0, **kwargs)
+        super().__init__(name=name, rotation=rotation, **kwargs)
 
     def get_opd(self, wave):
         # Get local coordinates for this wave; note this will implicitly include any
