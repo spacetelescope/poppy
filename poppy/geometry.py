@@ -68,8 +68,8 @@ def _oneside(x, y0, y1, r):
     if _ncp.isscalar(y0): y0 = _ncp.asarray(y0)
     if _ncp.isscalar(y1): y1 = _ncp.asarray(y1)
     sx = x.shape
-    ans = _ncp.zeros(sx, dtype=_ncp.float)
-    yh = _ncp.zeros(sx, dtype=_ncp.float)
+    ans = _ncp.zeros(sx, dtype=_ncp.float64)
+    yh = _ncp.zeros(sx, dtype=_ncp.float64)
     to = (abs(x) >= r)
     ti = (abs(x) < r)
     if _ncp.any(to):
