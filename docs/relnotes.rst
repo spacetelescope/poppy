@@ -5,15 +5,23 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
- 1.1.0
- -----
+.. _rel1.1.0:
 
- .. _rel1.1.0::
+1.1.0
+-----
 
- *2023 date TBD*
+This release introduces support for much faster (20-80x) optical calculations using GPU acceleration via the CuPy library for NVidia GPUs. Credit to Kian Milani (:user:`kian1337`) for this significant and complex improvement. 
+
+
+*2023 date TBD*
+
+ **Performance Enhancements:**
+  * Implement CuPy GPU acceleration for calculations throughout poppy. (PR :pr:`499` by :user:`kian1377` and :user:`mperrin`)
 
  **Software Infrastructure Updates and Internals:**
-  * Increase all CI test versions by 1, removing Python 3.8 and adding Python 3.11. Update minimum supported versions of astropy and numpy as well. (PR TBD by :user:`mperrin`)
+  * Increase all CI test versions by 1, removing Python 3.8 and adding Python 3.11. Update minimum supported versions of astropy and numpy as well. (PR :pr:`551` by :user:`BradleySappington`)
+  * Updates to dependencies (various PRs)
+  * Bug fix for a recent change in numpy interface (:pr:`545` by :user:`adambolton`)
 
 
 1.0.3

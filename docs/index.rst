@@ -67,6 +67,7 @@ Contents
   about.rst
   performance.rst
   fft_optimization.rst
+  gpu_acceleration.rst
   dev_notes.rst
 
 
