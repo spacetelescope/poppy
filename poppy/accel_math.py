@@ -449,14 +449,14 @@ tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
     print("Timing performance of FFT for {npix} x {npix}, {complextype}, with {iterations} iterations".format(
         npix=npix, iterations=iterations, complextype=complextype))
 
-    defaults = (poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda,
+    defaults = (poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cupy,
             poppy.conf.use_opencl, poppy.conf.double_precision)
     poppy.conf.double_precision = double_precision
 
     # Time baseline performance in numpy
     print("Timing performance in plain numpy:")
 
-    poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda, poppy.conf.use_opencl = (False, False, False, False, False)
+    poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cupy, poppy.conf.use_opencl = (False, False, False, False, False)
     update_math_settings()
     time_numpy = timer.timeit(number=iterations) / iterations
     print("  {:.3f} s".format(time_numpy))
@@ -511,14 +511,14 @@ tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
         time_opencl = np.NaN
 
 
-    poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda,\
+    poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cupy,\
             poppy.conf.use_opencl, poppy.conf.double_precision = defaults
 
     return {'numpy': time_numpy,
             'fftw': time_fftw,
             'numexpr': time_numexpr,
             'mkl': time_mkl,
-            'cuda': time_cuda,
+            'cupy': time_cuda,
             'opencl': time_opencl}
 
 

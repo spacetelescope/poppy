@@ -1,5 +1,6 @@
 import warnings
 import numpy as np
+from poppy.accel_math import _ncp as _np
 import astropy.io.fits as fits
 import pytest
 
@@ -17,7 +18,7 @@ def test_pad_to_size():
 
     for starting_shape in [(20,20), (21,21), (300,300), (128,256)]:
 
-        square = np.ones(starting_shape)
+        square = _np.ones(starting_shape)
 
         for desiredshape in [ (500, 500), (400,632), (2048, 312)]:
             newshape = utils.pad_to_size(square, desiredshape).shape
