@@ -956,8 +956,8 @@ class BaseWavefront(ABC):
             rot_imag = _ncp.rot90(self.wavefront.imag, k=-k)
         else:
             # arbitrary free rotation with interpolation
-            rot_real = _scipy.ndimage.interpolation.rotate(self.wavefront.real, -angle, reshape=False)  # negative = CCW
-            rot_imag = _scipy.ndimage.interpolation.rotate(self.wavefront.imag, -angle, reshape=False)
+            rot_real = _scipy.ndimage.rotate(self.wavefront.real, -angle, reshape=False)  # negative = CCW
+            rot_imag = _scipy.ndimage.rotate(self.wavefront.imag, -angle, reshape=False)
         self.wavefront = rot_real + 1.j * rot_imag
 
         self.history.append('Rotated by {:.2f} degrees, CCW'.format(angle))
@@ -2501,7 +2501,7 @@ class OpticalElement(object):
         ndarray giving electric field amplitude transmission between 0 - 1.0
 
         """
-        return self.amplitude
+        return _ncp.asarray(self.amplitude)
 
     def get_opd(self, wave):
         """ Return the optical path difference, given a wavelength.
@@ -2522,7 +2522,7 @@ class OpticalElement(object):
         ndarray giving OPD in meters
 
         """
-        return self.opd
+        return _ncp.asarray(self.opd)
 
     def get_phasor(self, wave):
         """ Compute a complex phasor from an OPD, given a wavelength.
@@ -3126,11 +3126,11 @@ class FITSOpticalElement(OpticalElement):
                     # arbitrary free rotation with interpolation
                     # do rotation with interpolation, but try to clean up some of the artifacts afterwards.
                     # this is imperfect at best, of course...
-                    self.amplitude = _scipy.ndimage.interpolation.rotate(self.amplitude, -rotation,  # negative = CCW
+                    self.amplitude = _scipy.ndimage.rotate(_ncp.asarray(self.amplitude) , -rotation,  # negative = CCW
                                                                   reshape=False).clip(min=0, max=1.0)
                     wnoise = (self.amplitude < 1e-3) & (self.amplitude > 0)
                     self.amplitude[wnoise] = 0
-                    self.opd = _scipy.ndimage.interpolation.rotate(self.opd, -rotation, reshape=False)  # negative = CCW
+                    self.opd = _scipy.ndimage.rotate(self.opd, -rotation, reshape=False)  # negative = CCW
                 _log.info("  Rotated optic by %f degrees counter clockwise." % rotation)
                 self._rotation = rotation
 
@@ -3265,9 +3265,10 @@ class FITSOpticalElement(OpticalElement):
             wavelength = wave.wavelength
         else:
             wavelength = wave
+        # casts to _ncp.asarray here needed to support the GPU case
         if self._opd_in_radians:
-            return self.opd * wavelength.to(u.m).value / (2 * np.pi)
-        return self.opd
+            return _ncp.asarray(self.opd * wavelength.to(u.m).value / (2 * np.pi))
+        return _ncp.asarray(self.opd)
 
 
 class CoordinateTransform(OpticalElement):
