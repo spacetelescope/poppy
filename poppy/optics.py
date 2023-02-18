@@ -266,6 +266,7 @@ class AnalyticOpticalElement(OpticalElement):
 
         output_array, pixelscale = self.sample(wavelength=wavelength, npix=npix, what=what,
                                                **kwargs)
+        output_array = accel_math.ensure_not_on_gpu(output_array)
         long_contents = {'amplitude': "Electric field amplitude transmission",
                          'intensity': "Electric field intensity transmission",
                          'opd': "Optical path difference",

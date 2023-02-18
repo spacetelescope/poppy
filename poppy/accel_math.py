@@ -732,3 +732,19 @@ def benchmark_2d_mfts(max_pow=13, savefig=False):
 
     if savefig:
         plt.savefig(f"bench_mfts.png")
+
+
+def is_on_gpu(array):
+    """Simple utility function to check if an array is on the GPU
+    (only possible if using CuPY currently)
+    """
+    if _USE_CUPY:
+        if isinstance(array, cp.ndarray):
+            return True
+    return False
+
+def ensure_not_on_gpu(array):
+    """Utility function to ensure an array is in CPU memory,
+    copying it from the GPU memory if necessary
+    """
+    return array.get() if is_on_gpu(array) else array

@@ -428,6 +428,10 @@ class BaseWavefront(ABC):
         amp = self.amplitude
 
         y, x = self.coordinates()
+        # GPU arrays don't work in matplotlib
+        y = accel_math.ensure_not_on_gpu(y)
+        x = accel_math.ensure_not_on_gpu(x)
+
         if self.planetype == PlaneType.pupil and self.ispadded and not showpadding:
             intens = utils.remove_padding(intens, self.oversample)
             phase = utils.remove_padding(phase, self.oversample)
@@ -455,7 +459,7 @@ class BaseWavefront(ABC):
         # This is needed to get the coordinates right when displaying very small arrays
 
         halfpix = self.pixelscale.to_value(pixelscale_unit) * 0.5
-        extent = [x.min() - halfpix, x.max() + halfpix, y.min() - halfpix, y.max() + halfpix]
+        extent = np.asarray([x.min() - halfpix, x.max() + halfpix, y.min() - halfpix, y.max() + halfpix])
 
         # implement semi-intelligent selection of what to display, if the user wants
         if what == 'best':
@@ -1432,6 +1436,18 @@ class Wavefront(BaseWavefront):
         new_wf.location = wf.location
 
         return new_wf
+
+    @property
+    def _on_gpu(self):
+        """Where is the data for this wavefront, in GPU memory or CPU memory?
+
+        Returns True if data is in GPU memory (only possible with CUPY)
+        """
+        if not accel_math._USE_CUPY:
+            return False
+        else:
+            import cupy as cp
+            return isinstance(self.wavefront, cp.ndarray)
 
 # ------ core Optical System classes -------
 

@@ -57,8 +57,12 @@ __all__ = ['display_psf', 'display_psf_difference', 'display_ee', 'measure_ee', 
 #    Display functions
 #
 
+def imshow(image, *args, **kwargs):
+    """If needed, fetch array fromm GPU before imshow"""
+    return plt.imshow( accel_math.ensure_not_on_gpu(image),
+                       *args, **kwargs)
 
-def imshow_with_mouseover(image, ax=None, *args, **kwargs):
+def imshow_with_mouseover(image0, ax=None, *args, **kwargs):
     """Wrapper for matplotlib imshow that displays the value under the
     cursor position
 
@@ -68,6 +72,9 @@ def imshow_with_mouseover(image, ax=None, *args, **kwargs):
     """
     if ax is None:
         ax = plt.gca()
+
+    image = accel_math.ensure_not_on_gpu(image0)
+
     ax.imshow(image, *args, **kwargs)
     aximage = ax.images[0].properties()['array']
     # need to account for half pixel offset of array coordinates for mouseover relative to pixel center,

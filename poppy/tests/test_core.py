@@ -359,10 +359,10 @@ def test_return_complex():
     psf = osys.calc_psf(2e-6,return_final=True)
     assert len(psf[1])==1 #make sure only one element was returned
     #test that the wavefront returned is the final wavefront:
-    assert np.allclose(psf[1][0].intensity,psf[0][0].data)
+    assert _np.allclose(psf[1][0].intensity, psf[0][0].data)
 
 
-def test_displays():
+def test_displays(close=True):
     # Right now doesn't check the outputs are as expected in any way
     # TODO consider doing that? But it's hard given variations in matplotlib version etc
 
@@ -400,7 +400,8 @@ def test_displays():
     # Test wavefront display, implicitly including other units
     waves[-1].display()
 
-    plt.close('all')
+    if close:
+        plt.close('all')
 
 
 def test_rotation_in_OpticalSystem(display=False, npix=1024):
