@@ -3,12 +3,13 @@
 #
 #
 
-import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import astropy.io.fits as fits
-
 import os
+
+from poppy.accel_math import _ncp as np   # May or may not be on GPU
+
 from .. import poppy_core
 from .. import optics
 from .. import matrixDFT
@@ -62,7 +63,7 @@ def makedisk(s=None, c=None, r=None, inside=1.0, outside=0.0, grey=None, t=None)
     # fft style or sft asymmetric style - center = nx/2, ny/2
     # see ellipseDriver.py for details on symm...
 
-    disk = np.where(euclid2(s, c=c) <= r*r, inside, outside)
+    disk = np.where(euclid2(s, c=c) <= r * r, inside, outside)
     return disk
 
 
@@ -108,7 +109,7 @@ def test_MFT_flux_conservation(centering='FFTSTYLE', outdir=None, outname='test_
     pupil = makedisk(s=(npupil, npupil), c=ctr, r=float(npupil)/2.0001, t=np.float64, grey=0)
     pupil /= np.sqrt(pupil.sum())
     if outdir is not None:
-        fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", overwrite=True)
+        fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir + os.sep + outname + "pupil.fits", overwrite=True)
 
     # MFT setup style and execute
     mft = matrixDFT.MatrixFourierTransform(centering=centering, verbose=True)
@@ -126,11 +127,11 @@ def test_MFT_flux_conservation(centering='FFTSTYLE', outdir=None, outname='test_
     if outdir is not None:
         complexinfo(a, str="mft1 asf")
         asf = a.real.copy()
-        fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", overwrite=True)
+        fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir + os.sep + outname + "asf.fits", overwrite=True)
         cpsf = a * a.conjugate()
         psf = cpsf.real.copy()
         #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), overwrite='y')
-        fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", overwrite=True)
+        fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir + os.sep + outname + "psf.fits", overwrite=True)
 
     assert np.abs(1.0 - ratio) < precision
 
@@ -205,7 +206,7 @@ def test_DFT_rect(centering='FFTSTYLE', outdir=None, outname='DFT1R_', npix=None
 
 
     if outdir is not None:
-        fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", overwrite=True)
+        fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir + os.sep + outname + "pupil.fits", overwrite=True)
 
     _log.info('performing MFT with pupil shape: '+ str(pupil.shape)+ ' nlambda: '+ str( nlambda)+ '  npix: '+ str(npix))
     a = mft1.perform(pupil, nlambda, npix)
@@ -233,11 +234,11 @@ def test_DFT_rect(centering='FFTSTYLE', outdir=None, outname='DFT1R_', npix=None
     #_log.info(complexinfo(a, str=",ft1 asf"))
     asf = a.real.copy()
     if outdir is not None:
-        fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", overwrite=True)
+        fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir + os.sep + outname + "asf.fits", overwrite=True)
     cpsf = a * a.conjugate()
     psf = cpsf.real.copy()
     if outdir is not None:
-        fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", overwrite=True)
+        fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir + os.sep + outname + "psf.fits", overwrite=True)
 
     # Inverse transform:
     pupil2 = mft1.inverse(a, u, npupil)
@@ -294,7 +295,7 @@ def test_DFT_center( npix=100, outdir=None, outname='DFT1'):
     pupil /= np.sqrt(pupil.sum())
 
     if outdir is not None:
-        fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", overwrite=True)
+        fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir + os.sep + outname + "pupil.fits", overwrite=True)
 
     a = mft1.perform(pupil, u, npix)
 
@@ -316,8 +317,8 @@ def test_DFT_center( npix=100, outdir=None, outname='DFT1'):
     psf = cpsf.real.copy()
     #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), overwrite='y')
     if outdir is not None:
-        fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", overwrite=True)
-        fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", overwrite=True)
+        fits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir + os.sep + outname + "asf.fits", overwrite=True)
+        fits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir + os.sep + outname + "psf.fits", overwrite=True)
 
 def test_DFT_rect_fov_sampling(fov_npix = (500,1000), pixelscale=0.03, display=False):
     """ Test that we can create a rectangular FOV which nonetheless
@@ -344,7 +345,7 @@ def test_DFT_rect_fov_sampling(fov_npix = (500,1000), pixelscale=0.03, display=F
     cut_h = intermediates[plane].intensity[fov_npix[0]//2, fov_npix[1]//2-delta:fov_npix[1]//2+delta]
     cut_v = intermediates[plane].intensity[fov_npix[0]//2-delta:fov_npix[0]//2+delta, fov_npix[1]//2]
 
-    assert(np.all(np.abs(cut_h-cut_v) < 1e-12))
+    assert(np.all(np.abs(cut_h - cut_v) < 1e-12))
 
 
 
@@ -447,7 +448,7 @@ def run_all_MFS_tests_DFT(outdir=None, outname='DFT1'):
     pupil /= np.sqrt(pupil.sum())
 
     if outdir is not None:
-        fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", overwrite=True)
+        fits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir + os.sep + outname + "pupil.fits", overwrite=True)
 
     npix=512
     a1 = DFT_combined(pupil, u, npix, centering='FFTSTYLE')
@@ -553,7 +554,7 @@ def test_parity_MFT_forward_inverse(display = False):
     # intensity =0, so don't check the complex field or phase here.
 
 
-    absdiff = (np.abs(p0[0].data - p2[0].data))
+    absdiff = np.abs(np.asarray(p0[0].data - p2[0].data))   # extra asarray helps with optional GPU support
     maxabsdiff = np.max(absdiff)
     # TODO this test could be more stringent if we used a better aperture
     # which is band-limited in the FFT so you don't get all the
@@ -694,5 +695,5 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(tmpdir, display=False, source_offs
         poppy.display_psf_difference(fftpsf, mftpsf, title='Diff FFT-MFT')
 
 
-
-    assert( np.all(  np.abs(mftpsf[0].data-fftpsf[0].data) < 1e-10 ))
+    absdiff = np.abs(np.asarray(mftpsf[0].data - fftpsf[0].data))   # Extra asarray helps with optional GPU support
+    assert(np.all(absdiff < 1e-10))
