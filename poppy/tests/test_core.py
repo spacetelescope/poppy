@@ -30,9 +30,8 @@ def check_wavefront(filename_or_hdulist, slice=0, ext=0, test='nearzero', commen
     elif isinstance(filename_or_hdulist, fits.HDUList):
         hdulist = filename_or_hdulist
         filename = 'input HDUlist'
-    imstack = hdulist[ext].data
+    imstack = _np.asarray(hdulist[ext].data)  # extra asarray helps with GPU compatibility here
     im = imstack[slice,:,:]
-
 
     if test=='nearzero':
         return _np.all(_np.abs(im) < _np.finfo(im.dtype).eps * 10)
