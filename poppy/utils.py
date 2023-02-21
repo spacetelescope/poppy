@@ -1263,10 +1263,10 @@ def rebin_array(a=None, rc=(2, 2), verbose=False):
             print("row loop")
         for ci in range(0, nc):
             Clo = ci * c
-            b[ri, ci] = _ncp.add.reduce(a[Rlo:Rlo + r, Clo:Clo + c].copy().flat)
+            b[ri, ci] = a[Rlo:Rlo + r, Clo:Clo + c].sum()
             if verbose:
                 print("    [%d:%d, %d:%d]" % (Rlo, Rlo + r, Clo, Clo + c))
-                print("%4.0f" % np.add.reduce(a[Rlo:Rlo + r, Clo:Clo + c].copy().flat))
+                print("%4.0f" % b[ri, ci])
     return b
 
 
