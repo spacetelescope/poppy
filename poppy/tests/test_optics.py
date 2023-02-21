@@ -11,10 +11,8 @@ from .test_core import check_wavefront
 
 from .. import accel_math
 import numpy
-if accel_math._USE_CUPY:
-    import cupy as np
-else: 
-    import numpy as np
+import numpy as np
+from poppy.accel_math import _ncp as _np
 
 wavelength=1e-6
 
@@ -33,18 +31,18 @@ def test_InverseTransmission():
     wave = poppy_core.Wavefront(npix=100, wavelength=wavelength)
 
     # vary uniform scalar transmission
-    for transmission in np.arange(10, dtype=float)/10:
+    for transmission in np.arange(10, dtype=float) / 10:
 
         optic = optics.ScalarTransmission(transmission=transmission)
         inverted = optics.InverseTransmission(optic)
-        assert( np.all(  np.abs(optic.get_phasor(wave) - (1-inverted.get_phasor(wave))) < 1e-10 ))
+        assert(_np.all(abs(optic.get_phasor(wave) - (1 - inverted.get_phasor(wave))) < 1e-10))
 
     # vary 2d shape
-    for radius in np.arange(1, 11, dtype=float)/10:
+    for radius in np.arange(1, 11, dtype=float) / 10:
 
         optic = optics.CircularAperture(radius=radius)
         inverted = optics.InverseTransmission(optic)
-        assert( np.all(  np.abs(optic.get_phasor(wave) - (1-inverted.get_phasor(wave))) < 1e-10 ))
+        assert(_np.all(abs(optic.get_phasor(wave) - (1 - inverted.get_phasor(wave))) < 1e-10))
 
         assert optic.shape==inverted.shape
 
@@ -58,7 +56,7 @@ def test_scalar_transmission():
     for transmission in [1.0, 1.0e-3, 0.0]:
 
         optic = optics.ScalarTransmission(transmission=transmission)
-        assert( np.all(optic.get_phasor(wave) == transmission))
+        assert(_np.all(optic.get_phasor(wave) == transmission))
 
 
 def test_scalar_opd():
@@ -68,11 +66,11 @@ def test_scalar_opd():
     for opd in [1.0*u.micron, 1.0e-7*u.m, 0.0*u.m]:
 
         optic = optics.ScalarOpticalPathDifference(opd=opd)
-        assert np.all(optic.get_opd(wave) == opd.to_value(u.m)), "OPD value not as expected"
+        assert _np.all(optic.get_opd(wave) == opd.to_value(u.m)), "OPD value not as expected"
 
     # Also test with bare floats, which should be interpreted as meters
     optic = optics.ScalarOpticalPathDifference(opd=2e-6)
-    assert np.all(optic.get_opd(wave) == 2e-6), "OPD value not as expected"
+    assert _np.all(optic.get_opd(wave) == 2e-6), "OPD value not as expected"
 
 
 def test_roundtrip_through_FITS():
@@ -81,6 +79,7 @@ def test_roundtrip_through_FITS():
     """
     optic = optics.ParityTestAperture()
     array = optic.sample(npix=512)
+    array = accel_math.ensure_not_on_gpu(array)
 
     fitsfile = optic.to_fits(npix=512)
     optic2 = poppy_core.FITSOpticalElement(transmission=fitsfile)
@@ -96,7 +95,7 @@ def test_shifting_optics( npix=30,  grid_size = 3, display=False):
     """
     import poppy
     pixsize = grid_size/npix
-    shift_size = np.round(0.2/pixsize)*pixsize  # by construction, an integer # of pixels
+    shift_size = np.round(0.2 / pixsize) * pixsize  # by construction, an integer # of pixels
 
     # Create a reference array
     circ = poppy.CircularAperture()
@@ -108,13 +107,13 @@ def test_shifting_optics( npix=30,  grid_size = 3, display=False):
 
     if display:
         plt.imshow(circ_samp-circ_shift_samp)
-    assert np.allclose(circ_samp, circ_shift_samp) is False, "Shift didn't change array"
+    assert _np.allclose(circ_samp, circ_shift_samp) is False, "Shift didn't change array"
 
     # create shifted version, using explicit units rather than implicitly in meters.
     # Verify that gives the same result as without explicit units
     circ_shift_via_units = poppy.CircularAperture( shift_x=shift_size*1000*u.millimeter)
     circ_shift_via_units_samp = circ_shift_via_units.sample(npix=npix, grid_size=grid_size)
-    assert np.allclose(circ_shift_samp, circ_shift_via_units_samp), "Shift with value as Quantity didn't give same result as shift with value as bare float in meters"
+    assert _np.allclose(circ_shift_samp, circ_shift_via_units_samp), "Shift with value as Quantity didn't give same result as shift with value as bare float in meters"
 
     # Make a FITS element.
     circ_fits = circ.to_fits(npix=npix, grid_size=grid_size)
@@ -122,25 +121,25 @@ def test_shifting_optics( npix=30,  grid_size = 3, display=False):
     # Show we can shift that and get the same result as shifting the analytic element
     fits_shifted = poppy.FITSOpticalElement(transmission=circ_fits, shift_x=shift_size)
     np.testing.assert_allclose(fits_shifted.amplitude, circ_shift_samp, atol=1e-9,
-                                       err_msg="Shifting Analytic and FITS versions are not consistent (v1, via shift_x)")
+                                err_msg="Shifting Analytic and FITS versions are not consistent (v1, via shift_x)")
 
     # FITSOpticalElement also lets you specify shifts via fraction of the array. Let's
     # show that is  consistent.  This is older syntax that is discouraged, and may be
     # deprecated and removed eventually. But while available it should be correct.
     array_frac = shift_size/grid_size
     fits_shifted_v2 = poppy.FITSOpticalElement(transmission=circ_fits, shift=(array_frac, 0))
-    np.testing.assert_allclose(fits_shifted.amplitude, fits_shifted_v2.amplitude, atol=1e-9,
-                                       err_msg="Shifting FITS via shift/shift_x are not consistent")
-    np.testing.assert_allclose(fits_shifted.amplitude, circ_shift_samp, atol=1e-9,
-                                       err_msg="Shifting Analytic and FITS versions are not consistent (v2, via shift)")
+    _np.testing.assert_allclose(fits_shifted.amplitude, fits_shifted_v2.amplitude, atol=1e-9,
+                                err_msg="Shifting FITS via shift/shift_x are not consistent")
+    _np.testing.assert_allclose(fits_shifted.amplitude, circ_shift_samp, atol=1e-9,
+                                err_msg="Shifting Analytic and FITS versions are not consistent (v2, via shift)")
 
 
     # Check in a 1D cut that the amount of shift is as expected -
     # this is implicitly also checked above via the match of Analytic and FITS
     # which use totally different methods to perform the shift.
     shift_in_pixels = int(shift_size/pixsize)
-    assert np.allclose(np.roll(circ_samp[npix//2], shift_in_pixels),
-                               circ_shift_samp[npix//2])
+    assert _np.allclose(_np.roll(circ_samp[npix // 2], shift_in_pixels),
+                        circ_shift_samp[npix//2])
 
 
 def test_shift_rotation_consistency(npix=30, grid_size = 1.5, angle=35, display=False):
@@ -594,7 +593,7 @@ def test_GaussianAperture(display=False):
 
     w *= ga
 
-    assert(ga.w == ga.fwhm/(2*np.sqrt(np.log(2))))
+    assert(ga.w.to_value(u.m) == ga.fwhm.to_value(u.m) / (2 * _np.sqrt(_np.log(2))))
 
     assert(w.intensity.max() ==1)
 

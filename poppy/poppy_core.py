@@ -819,7 +819,8 @@ class BaseWavefront(ABC):
 
 #         # enforce conservation of energy:
 #         new_wf *= 1. / pixscale_ratio
-        
+        pixscale_in = self.pixelscale.to(u.m/u.pix).value
+        pixscale_out = detector.pixelscale.to(u.m / u.pix).value
         if not accel_math._USE_CUPY:
             def make_axis(npix, step):
                 """ Helper function to make coordinate axis for interpolation """
@@ -827,10 +828,11 @@ class BaseWavefront(ABC):
             
             # Input and output axes for interpolation.  The interpolated wavefront will be evaluated
             # directly onto the detector axis, so don't need to crop afterwards.
-            x_in = make_axis(crop_shape[0], self.pixelscale.to(u.m/u.pix).value)
-            y_in = make_axis(crop_shape[1], self.pixelscale.to(u.m/u.pix).value)
-            x_out = make_axis(detector.shape[0], detector.pixelscale.to(u.m/u.pix).value)
-            y_out = make_axis(detector.shape[1], detector.pixelscale.to(u.m/u.pix).value)
+            x_in = make_axis(crop_shape[0], pixscale_in)
+            y_in = make_axis(crop_shape[1], pixscale_in)
+            x_out = make_axis(detector.shape[0], pixscale_out)
+            y_out = make_axis(detector.shape[1], pixscale_out)
+            print(x_in.min(), x_in.max(), x_out.min(), x_out.max())
 
             def interpolator(arr):
                 """
@@ -847,13 +849,19 @@ class BaseWavefront(ABC):
         else:
             # cupyx does not have RectBivariateSpline or interp2d so wavefront resampling 
             # is implemented with map_coordinates
-            wf_xmax = self.pixelscale.to(u.m/u.pix).value * cropped_wf.shape[0]/2
-            x,y = _ncp.ogrid[-wf_xmax:wf_xmax:cropped_wf.shape[0]*1j,
-                             -wf_xmax:wf_xmax:cropped_wf.shape[1]*1j]
+            #wf_xmin = pixscale * cropped_wf.shape[0]/2
+            # Note, carefully handle the offset-by-one to be consistent with
+            # the use of arange above; avoid fencepost error.
+            wf_xmax = pixscale_in * cropped_wf.shape[0]/2
 
-            det_xmax = detector.pixelscale.to(u.m/u.pix).value * detector.shape[0]/2
-            newx,newy = _ncp.mgrid[-det_xmax:det_xmax:detector.shape[0]*1j,
-                                   -det_xmax:det_xmax:detector.shape[1]*1j]
+            x,y = _ncp.ogrid[-wf_xmax:wf_xmax-pixscale_in:cropped_wf.shape[0]*1j,
+                             -wf_xmax:wf_xmax-pixscale_in:cropped_wf.shape[1]*1j]
+
+            det_xmax = pixscale_out * detector.shape[0]/2
+            newx,newy = _ncp.mgrid[-det_xmax:det_xmax-pixscale_out:detector.shape[0]*1j,
+                                   -det_xmax:det_xmax-pixscale_out:detector.shape[1]*1j]
+            print(x.min(), x.max(), newx.min(), newx.max())
+
             x0 = x[0,0]
             y0 = y[0,0]
             dx = x[1,0] - x0
