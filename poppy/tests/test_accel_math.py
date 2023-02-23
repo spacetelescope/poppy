@@ -10,6 +10,7 @@ from .. import matrixDFT
 from .. import accel_math
 from .. import optics
 
+@pytest.mark.skipif(accel_math._USE_CUPY, reason="Test not relavent if using CuPy")
 @pytest.mark.skipif(accel_math._NUMEXPR_AVAILABLE is False, reason="numexpr not available")
 def test_MFT_MFTwithnumexpr_equivalence(display=False, displaycrop=None):
     """ Test that the basic MFT transform is numerically equivalent to the
@@ -83,6 +84,7 @@ def test_exp_numexpr():
 
     accel_math._USE_NUMEXPR = default_use_numexpr
 
+@pytest.mark.skipif(accel_math._USE_CUPY, reason="Test not relavent if using CuPy")
 def test_benchmark_fft():
     # minimalist case for speed, but at least it tests the function:
     accel_math.benchmark_fft(npix=512, iterations=2)
