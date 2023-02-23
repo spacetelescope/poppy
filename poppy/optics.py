@@ -20,7 +20,7 @@ accel_math.update_math_settings()
 global _ncp
 from .accel_math import _ncp
 
-if accel_math._USE_NUMEXPR:
+if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
 
 _log = logging.getLogger('poppy')
@@ -70,7 +70,7 @@ class AnalyticOpticalElement(OpticalElement):
         accel_math.update_math_settings()
         global _ncp, _scipy
         from .accel_math import _ncp, _scipy
-        
+            
         OpticalElement.__init__(self, **kwargs)
 
         if shift_x is not None: self.shift_x = shift_x

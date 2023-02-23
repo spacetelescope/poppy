@@ -19,7 +19,7 @@ import logging
 
 _log = logging.getLogger('poppy')
 
-if accel_math._USE_NUMEXPR:
+if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
 
 __all__ = ['ContinuousDeformableMirror', 'HexSegmentedDeformableMirror', 'CircularSegmentedDeformableMirror']

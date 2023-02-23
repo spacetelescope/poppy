@@ -202,10 +202,6 @@ class ZernikeWFE(WavefrontError):
     def __init__(self, name="Zernike WFE", coefficients=None, radius=None,
             aperture_stop=False, **kwargs):
         
-#         accel_math.update_math_settings()
-#         global _ncp
-#         from .accel_math import _ncp
-        
         if radius is None:
             raise ValueError("You must specify a radius for the unit circle "
                              "over which the Zernike polynomials are normalized")
@@ -263,7 +259,7 @@ class ZernikeWFE(WavefrontError):
                         outside=0.0,
                         noll_normalize=True
                     )
-                except: # can't use cached_zernikes if the user changed between CPU and CuPy
+                except TypeError: # can't use cached_zernikes if the user changed between CPU and CuPy
                     y, x = self.get_coordinates(wave)
                     rho, theta = _wave_y_x_to_rho_theta(y, x, self.radius.to(u.meter).value)
                     

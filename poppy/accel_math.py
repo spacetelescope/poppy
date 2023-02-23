@@ -75,7 +75,8 @@ except:
 _USE_CUPY = (conf.use_cupy and _CUPY_AVAILABLE)
 _USE_CUDA = (conf.use_cuda and _CUDA_AVAILABLE)
 _USE_OPENCL = (conf.use_opencl and _OPENCL_AVAILABLE)
-_USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
+# _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
+_USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE and not _USE_CUPY)
 _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
 _USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE)
 
@@ -89,7 +90,8 @@ def update_math_settings():
     _USE_CUPY = (conf.use_cupy and _CUPY_AVAILABLE)
     _USE_CUDA = (conf.use_cuda and _CUDA_AVAILABLE)
     _USE_OPENCL = (conf.use_opencl and _OPENCL_AVAILABLE)
-    _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
+#     _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
+    _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE and not _USE_CUPY)
     _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
     _USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE)
     
@@ -116,7 +118,7 @@ def _complex():
 def _r(x, y):
     """ Function to speed up computing the radius given x and y, using Numexpr if available
     Otherwise defaults to numpy. """
-    if _USE_NUMEXPR and not _USE_CUPY:
+    if _USE_NUMEXPR: # and not _USE_CUPY:
         return ne.evaluate("sqrt(x**2+y**2)")
     else:
         return np.sqrt(x ** 2 + y ** 2)
@@ -128,7 +130,7 @@ def _exp(x):
     Otherwise defaults to np.exp()
 
     """
-    if _USE_NUMEXPR and not _USE_CUPY:
+    if _USE_NUMEXPR: # and not _USE_CUPY:
         return ne.evaluate("exp(x)", optimization='moderate', )
     elif _USE_CUPY:
         return cp.exp(x)

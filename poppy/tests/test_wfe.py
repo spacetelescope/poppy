@@ -325,10 +325,6 @@ def test_KolmogorovWFE():
         ps3 = KolmogorovWFE.power_spectrum(wf, kind='von Karman')
         ps4 = KolmogorovWFE.power_spectrum(wf, kind='Hill')
         
-#         assert(np.round(ps1[0,0].value, 9) == np.round(0.0, 9))
-#         assert(np.round(ps2[0,0].value, 9) == np.round(0.0, 9))
-#         assert(np.round(ps3[0,0].value, 9) == np.round(0.0, 9))
-#         assert(np.round(ps4[0,0].value, 9) == np.round(0.0, 9))
         assert(np.round(ps1[0,0], 9) == np.round(0.0, 9))
         assert(np.round(ps2[0,0], 9) == np.round(0.0, 9))
         assert(np.round(ps3[0,0], 9) == np.round(0.0, 9))

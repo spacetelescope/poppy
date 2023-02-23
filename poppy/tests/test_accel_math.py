@@ -36,7 +36,6 @@ def test_MFT_MFTwithnumexpr_equivalence(display=False, displaycrop=None):
         # the forward transform, while we want to more symmetrically apply 1/sqrt(n) in both directions.
         fftout = np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(imgin))) * np.sqrt(imgin.shape[0] * imgin.shape[1])
 
-
         norm_factor = abs(mftout).sum()
 
         absdiff = abs(mftout-fftout) / norm_factor

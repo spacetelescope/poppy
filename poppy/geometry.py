@@ -12,7 +12,7 @@ accel_math.update_math_settings()
 global _ncp
 from .accel_math import _ncp
 
-if accel_math._USE_NUMEXPR:
+if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
 
 import logging
@@ -40,7 +40,7 @@ def _arc(x, y0, y1, r):
     positive.
     """
     with np.errstate(divide='ignore'):
-        if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
+        if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
             return ne.evaluate("0.5 * r**2 * (arctan(y1/x) - arctan(y0/x))")
         else:
             return 0.5 * r**2 * (_ncp.arctan(y1/x) - _ncp.arctan(y0/x))

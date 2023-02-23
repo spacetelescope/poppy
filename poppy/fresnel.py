@@ -13,7 +13,7 @@ accel_math.update_math_settings()
 global _ncp
 from .accel_math import _ncp
     
-if accel_math._USE_NUMEXPR:
+if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
     pi = np.pi  # needed for evaluation inside numexpr strings.
 
@@ -75,7 +75,7 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
             # OPD should be flat
             _log.debug("infinite radius of curvature -> quad phase becomes 0")
             return 0
-        if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
+        if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
             opd = ne.evaluate("(x ** 2 + y ** 2) / (2.0 * z)")
         else:
             opd = (x ** 2 + y ** 2)  / (2.0 *z)
@@ -304,9 +304,9 @@ class FresnelWavefront(BaseWavefront):
         """
         
         accel_math.update_math_settings()
-        global _ncp, _scipy
-        from .accel_math import _ncp, _scipy
-        
+        global _ncp
+        from .accel_math import _ncp
+            
         super(FresnelWavefront, self).__init__(
             diam=beam_radius.to(u.m).value * 2.0,
             oversample=oversample,
@@ -516,14 +516,13 @@ class FresnelWavefront(BaseWavefront):
         # slightly differently. This is required for use in the angular spectrum propagation in the PTP and
         # Direct propagations.
         
-#         print('\npupil_coordinates in FresnelWavefront called.\n')
         pixelscale_mpix = pixelscale.to(u.meter / u.pixel).value
         if not np.isscalar(pixelscale_mpix):
             pixel_scale_x, pixel_scale_y = pixelscale_mpix
         else:
             pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
         
-        if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
+        if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
             return ne.evaluate("pixel_scale_y * y"), ne.evaluate("pixel_scale_x * x")
         else:
             return pixel_scale_y * y, pixel_scale_x * x
@@ -730,7 +729,7 @@ class FresnelWavefront(BaseWavefront):
         # Transfer Function of diffraction propagation eq. 22, eq. 87
         wavelen_m = self.wavelength.to(u.m).value
 
-        if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
+        if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
             exp_t = ne.evaluate("exp(-1.0j * pi * wavelen_m * (z_direct) * rhosqr)")
         else:
             exp_t = _ncp.exp(-1.0j * np.pi * wavelen_m * z_direct * rhosqr)
@@ -1068,7 +1067,7 @@ class FresnelWavefront(BaseWavefront):
 
         # get the fpm phasor either using numexpr or numpy
         scale = 2. * np.pi / self.wavelength.to(u.meter).value
-        if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
+        if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
             _log.debug("Calculating FPM phasor from numexpr.")
             trans = optic.get_transmission(self)
             opd = optic.get_opd(self)

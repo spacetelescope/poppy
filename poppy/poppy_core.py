@@ -21,10 +21,11 @@ from . import accel_math
 from .accel_math import _float, _complex
 
 accel_math.update_math_settings()
-global _ncp, _scipy
+global _ncp, _scipy # dont actually need to declare these as globals here since they are automatically global
 from .accel_math import _ncp, _scipy
 
-if accel_math._USE_NUMEXPR:
+if accel_math._NUMEXPR_AVAILABLE: 
+    # whether or not numexpr is going to be used, have it ready in case user switches from gpu to cpu
     import numexpr as ne
     
 import logging
@@ -112,10 +113,10 @@ class BaseWavefront(ABC):
     def __init__(self, wavelength=1e-6 * u.meter, npix=1024, dtype=None, diam=1.0 * u.meter,
                  oversample=2):
         
-        accel_math.update_math_settings()
+        accel_math.update_math_settings() # maybe we could just make the user call this every time a conf is changed
         global _ncp, _scipy
         from .accel_math import _ncp, _scipy
-        
+            
         self.oversample = oversample
 
         self.wavelength = wavelength  # Wavelength in meters (or other unit if specified)
@@ -145,8 +146,6 @@ class BaseWavefront(ABC):
                                             # Used mostly for titling displayed plots.
 
         self.current_plane_index = 0  # For tracking stages in a calculation
-
-#         accel_math.update_math_settings()                   # ensure optimal propagation based on user settings
 
     def __str__(self):
         # TODO add switches for image/pupil planes
@@ -707,7 +706,7 @@ class BaseWavefront(ABC):
     @property
     def intensity(self):
         """Electric field intensity of the wavefront (i.e. field amplitude squared)"""
-        if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
+        if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
             w = self.wavefront
             return ne.evaluate("real(abs(w))**2")
         else:
@@ -766,8 +765,6 @@ class BaseWavefront(ABC):
         -------
         The wavefront object is modified to have the appropriate pixel scale and spatial extent.
         
-        FIXME: Figure out a way to resample with CuPy without transferring arrays from GPU.
-
         """
         import scipy.interpolate
 
@@ -793,36 +790,6 @@ class BaseWavefront(ABC):
         # parts of plane that get cropped out later anyways
         cropped_wf = utils.pad_or_crop_to_shape(self.wavefront, crop_shape)
         
-#         def make_axis(npix, step):
-#             """ Helper function to make coordinate axis for interpolation """
-#             return step * _ncp.arange(-npix // 2, npix // 2, dtype=_ncp.float64)
-        
-#         x_in = make_axis(crop_shape[0], self.pixelscale.to(u.m/u.pix).value)
-#         y_in = make_axis(crop_shape[1], self.pixelscale.to(u.m/u.pix).value)
-#         x_out = make_axis(detector.shape[0], detector.pixelscale.to(u.m/u.pix).value)
-#         y_out = make_axis(detector.shape[1], detector.pixelscale.to(u.m/u.pix).value)
-
-#         def interpolator(arr):
-#             """
-#             Bind arguments to scipy's RectBivariateSpline function.
-#             For data on a regular 2D grid, RectBivariateSpline is more efficient than interp2d.
-#             """
-#             return scipy.interpolate.RectBivariateSpline(x_in, y_in, arr, 
-#                                                              kx=detector.interp_order, ky=detector.interp_order)
-
-#         # Interpolate real and imaginary parts separately
-#         if accel_math._USE_CUPY:
-#             x_in, y_in = ( x_in.get(), y_in.get() )
-#             x_out, y_out = ( x_out.get(), y_out.get() )
-#             wfarr = cropped_wf.get()
-#         else:
-#             wfarr = cropped_wf
-#         real_resampled = interpolator(wfarr.real)(x_out, y_out)
-#         imag_resampled = interpolator(wfarr.imag)(x_out, y_out)
-#         new_wf = _ncp.array(real_resampled + 1j * imag_resampled)
-
-#         # enforce conservation of energy:
-#         new_wf *= 1. / pixscale_ratio
         pixscale_in = self.pixelscale.to(u.m/u.pix).value
         pixscale_out = detector.pixelscale.to(u.m / u.pix).value
         if not accel_math._USE_CUPY:
@@ -1330,7 +1297,7 @@ class Wavefront(BaseWavefront):
         else:
             pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
 
-        if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
+        if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
             ny, nx = shape
             return (ne.evaluate("pixel_scale_y * (y - (ny-1)/2)"),
                     ne.evaluate("pixel_scale_x * (x - (nx-1)/2)") )
@@ -2608,7 +2575,7 @@ class OpticalElement(object):
 
         else:
             # compute the phasor directly, without any need to rescale.
-            if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
+            if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
                 trans = self.get_transmission(wave)
                 opd = self.get_opd(wave)
                 self.phasor = ne.evaluate("trans * exp(1.j * opd * scale)")
