@@ -62,7 +62,7 @@ def _oneside(x, y0, y1, r):
     this path takes you clockwise the area will be negative.
     """
 
-    if _ncp.all((x==0)): return x
+    if _ncp.all(_ncp.equal(x, 0)): return x
 
     if _ncp.isscalar(x): x = _ncp.asarray(x)
     if _ncp.isscalar(y0): y0 = _ncp.asarray(y0)
