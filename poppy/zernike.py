@@ -498,20 +498,20 @@ def hex_aperture(npix=1024, rho=None, theta=None, vertical=False, outside=0):
             raise ValueError("If you provide either the `theta` or `rho` input array, "
                              "you must provide both of them.")
         # easier to define a hexagon in cartesian, so...
-        x = rho * np.cos(theta)
-        y = rho * np.sin(theta)
+        x = rho * _ncp.cos(theta)
+        y = rho * _ncp.sin(theta)
     else:
         # the coordinates here must be consistent with those used elsewhere in poppy
         # see issue #111
-        x_ = (np.arange(npix, dtype=np.float64) - (npix - 1) / 2.) / (npix / 2.)
-        x, y = np.meshgrid(x_, x_)
+        x_ = (_ncp.arange(npix, dtype=_ncp.float64) - (npix - 1) / 2.) / (npix / 2.)
+        x, y = _ncp.meshgrid(x_, x_)
 
-    absy = np.abs(y)
+    absy = _ncp.abs(y)
 
-    aperture = np.full(x.shape, outside)
-    w_rect = ((np.abs(x) <= 0.5) & (np.abs(y) <= np.sqrt(3) / 2))
-    w_left_tri = ((x <= -0.5) & (x >= -1) & (absy <= (x + 1) * np.sqrt(3)))
-    w_right_tri = ((x >= 0.5) & (x <= 1) & (absy <= (1 - x) * np.sqrt(3)))
+    aperture = _ncp.full(x.shape, outside)
+    w_rect = ((_ncp.abs(x) <= 0.5) & (abs(y) <= _ncp.sqrt(3) / 2))
+    w_left_tri = ((x <= -0.5) & (x >= -1) & (absy <= (x + 1) * _ncp.sqrt(3)))
+    w_right_tri = ((x >= 0.5) & (x <= 1) & (absy <= (1 - x) * _ncp.sqrt(3)))
     aperture[w_rect] = 1
     aperture[w_left_tri] = 1
     aperture[w_right_tri] = 1
@@ -574,15 +574,15 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
 
     # any pixels with zero or NaN in the aperture are outside the area
     apmask = (np.isfinite(aperture) & (aperture > 0))
-    apmask_float = np.asarray(apmask, float)
+    apmask_float = _ncp.asarray(apmask, float)
     A = apmask.sum()
 
     # precompute zernikes
-    Z = np.full((nterms + 1,) + shape, outside, dtype=float)
+    Z = _ncp.full((nterms + 1,) + shape, outside, dtype=float)
     Z[1:] = zernike_basis(nterms=nterms, npix=npix, rho=rho, theta=theta, outside=0.0)
 
-    G = [np.zeros(shape), np.ones(shape)]  # array of G_i etc. intermediate fn
-    H = [np.zeros(shape), apmask_float.copy()]  # array of hexikes
+    G = [_ncp.zeros(shape), _ncp.ones(shape)]  # array of G_i etc. intermediate fn
+    H = [_ncp.zeros(shape), apmask_float.copy()]  # array of hexikes
     c = {}  # coefficients hash
 
     for j in np.arange(nterms - 1) + 1:  # can do one less since we already have the piston term
@@ -603,7 +603,7 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
         # TODO - contemplate whether the above algorithm is numerically stable
         # cf. modified gram-schmidt algorithm discussion on wikipedia.
 
-    basis = np.asarray(H[1:])  # drop the 0th null element
+    basis = _ncp.asarray(H[1:])  # drop the 0th null element
     basis[:, ~apmask] = outside
     return basis
 
@@ -927,7 +927,7 @@ class Segment_PTT_Basis(object):
 
         # For simplicity we always generate the basis for all the segments
         # even if for some reason the user has set a smaller nterms.
-        basis = np.zeros((self.nsegments*3, npix, npix))
+        basis = _ncp.zeros((self.nsegments*3, npix, npix))
         basis[:] = outside
         for i, segi in enumerate(self.hexdm.segmentlist):
             wseg = self.hexdm._seg_indices[segi]
@@ -963,7 +963,7 @@ class Segment_Piston_Basis(Segment_PTT_Basis):
 
         # For simplicity we always generate the basis for all the segments
         # even if for some reason the user has set a smaller nterms.
-        basis = np.zeros((self.nsegments, npix, npix))
+        basis = _ncp.zeros((self.nsegments, npix, npix))
         basis[:] = outside
         for i, segi in enumerate(self.hexdm.segmentlist):
             wseg = self.hexdm._seg_indices[segi]
@@ -1189,7 +1189,7 @@ def compose_opd_from_basis(coeffs, basis=zernike_basis_faster, aperture=None, ou
 
     if constant_support:
         # we can just sum the whole arrays using an Einstein sum
-        output = np.einsum('i,ijk->jk', coeffs, basis_set)
+        output = _ncp.einsum('i,ijk->jk', _ncp.asarray(coeffs), basis_set)
     else:
         # we have to use different good pixel areas per each basis element
         for i, b in enumerate(basis_set):
@@ -1275,22 +1275,27 @@ def decompose_opd_segments(opd, aperture=None, nterms=15, basis=None,
         **kwargs
     )
 
-    coeffs = np.zeros(nterms)
-    opd_copy = np.copy(opd)
+    coeffs = _ncp.zeros(nterms)
+    opd_copy = _ncp.copy(opd)
 
     for count in range(iterations):
         for i, b in enumerate(basis_set):
             # The number of good pixels can vary per each segment
             # So we must determine an appropriate mask per each basis element
-            this_seg_mask = apmask & np.isfinite(basis_set[i])
+            this_seg_mask = apmask & _ncp.isfinite(basis_set[i])
 
             if ignore_border:
                 # erode off N pixels from around the edge of the segment mask before doing
                 # the fitting.
-                this_seg_mask = scipy.ndimage.morphology.binary_erosion(this_seg_mask,
-                        iterations=ignore_border)
 
-            wgood = np.where(this_seg_mask)
+                # Having trouble getting this to work on GPU, so
+                # ensure this step runs on CPU
+                this_seg_mask = accel_math.ensure_not_on_gpu(this_seg_mask)
+                this_seg_mask = scipy.ndimage.binary_erosion(this_seg_mask,
+                        iterations=ignore_border)
+                this_seg_mask = _ncp.asarray(this_seg_mask)  # put back on GPU, if necessary
+
+            wgood = _ncp.where(this_seg_mask)
             ngood = this_seg_mask.sum()
 
             # The piston and tip/tilt terms are likely not normalized

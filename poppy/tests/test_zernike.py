@@ -2,7 +2,8 @@ import numpy as np
 from poppy import poppy_core
 from poppy import optics
 from poppy import zernike
-
+from poppy.accel_math import _ncp as np
+import poppy.accel_math
 
 def test_zernikes_rms(nterms=10, size=500):
     """Verify RMS(Zernike[n,m]) == 1."""
@@ -43,11 +44,16 @@ def test_cached_zernike1(nterms=10):
         uncached_output = zernike.zernike1(j, rho=rho, theta=theta, outside=0.0)
         assert np.allclose(cached_output, uncached_output)
 
-    try:
-        cached_output[0, 0] = np.nan
-        assert False, "Shouldn't be able to assign to a cached output array!"
-    except ValueError:
-        pass
+    if not poppy. accel_math._USE_CUPY:
+        # For numpy, lru_cache marks results as read-only with array.flags.writable=False
+        # but that feature doesn't exist for GPU arrays.
+        # Having the cache results be unwritable is not a critical feature, so just
+        # skip this test in the GPU case.
+        try:
+            cached_output[0, 0] = np.nan
+            assert False, "Shouldn't be able to assign to a cached output array!"
+        except ValueError:
+            pass
 
     # Check that we're getting cached copies
     for j, array_ref in enumerate(cached_results, start=1):
