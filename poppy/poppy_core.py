@@ -720,8 +720,12 @@ class BaseWavefront(ABC):
 
     @property
     def wfe(self):
-        """Wavefront error of the wavefront, in meters"""
-        return self.phase * (self.wavelength/(2*np.pi))
+        """Wavefront error of the wavefront, in meters as an astropy.Quantity"""
+        if accel_math._USE_CUPY:
+            # since this returns an astropy quantity, the array must not be in GPU memory
+            return accel_math.ensure_not_on_gpu(self.phase) * (self.wavelength / (2 * np.pi))
+        else:
+            return self.phase * (self.wavelength/(2*np.pi))
 
     @property
     def shape(self):
