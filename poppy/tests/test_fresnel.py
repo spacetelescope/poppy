@@ -228,7 +228,8 @@ def test_Circular_Aperture_PTP_short(display=False, npix=512, oversample=4, incl
     # The results have different pixel scales so we need to resize
     # in order to compare them
     scalefactor = (wf_direct.pixelscale/wf_fresnel.pixelscale).decompose().value
-    zoomed_direct=zoom(wf_direct.intensity,scalefactor)
+    direct = poppy.accel_math.ensure_not_on_gpu(wf_direct.intensity)
+    zoomed_direct=zoom(direct,scalefactor)
     print(f"Rescaling by {scalefactor} to match pixel scales")
     n = zoomed_direct.shape[0]
     center_npix = npix*oversample/2
