@@ -1515,17 +1515,17 @@ class NgonAperture(AnalyticOpticalElement):
         y, x = self.get_coordinates(wave)
 
         phase = self.rotation * np.pi / 180
-        vertices = np.zeros((self.nsides, 2), dtype=_float())
+        vertices = _ncp.zeros((self.nsides, 2), dtype=_float())
         for i in range(self.nsides):
 #             vertices[i] = [np.cos(i * 2 * np.pi / self.nsides + phase),
 #                            np.sin(i * 2 * np.pi / self.nsides + phase)]
-            vertices[i,0] = np.cos(i * 2 * np.pi / self.nsides + phase)
-            vertices[i,1] = np.sin(i * 2 * np.pi / self.nsides + phase)
+            vertices[i,0] = _ncp.cos(i * 2 * _ncp.pi / self.nsides + phase)
+            vertices[i,1] = _ncp.sin(i * 2 * _ncp.pi / self.nsides + phase)
         vertices *= self.radius.to(u.meter).value
 
-        self.transmission = np.zeros(wave.shape, dtype=_float())
+        self.transmission = _ncp.zeros(wave.shape, dtype=_float())
         for row in range(wave.shape[0]):
-            pts = np.asarray(list(zip(x[row], y[row])))
+            pts = _ncp.asarray(list(zip(x[row], y[row])))
             if accel_math._USE_CUPY:
                 ok = matplotlib.path.Path(vertices.get()).contains_points(pts.get()) # extremely slow
             else: 

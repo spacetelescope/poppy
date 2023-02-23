@@ -2994,6 +2994,7 @@ class FITSOpticalElement(OpticalElement):
                 elif isinstance(transmission, fits.HDUList):
                     self.amplitude_file = 'supplied as fits.HDUList object'
                     self.amplitude = transmission[0].data.astype('=f8')  # ensure native byte order, see #213
+                    self.amplitude = _ncp.array(self.amplitude)   # sets to CuPy array if np is cupy
                     self.amplitude_header = transmission[0].header.copy()
                     if self.name == 'unnamed optic':
                         self.name = 'Optic from fits.HDUList object'
