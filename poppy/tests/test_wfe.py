@@ -1,5 +1,7 @@
 
 import numpy as np
+from poppy.accel_math import _ncp as _np
+from poppy.accel_math import ensure_not_on_gpu
 import astropy.units as u
 from astropy.io import fits
 
@@ -103,8 +105,8 @@ def test_ParameterizedAberration():
     pd_wave *= pupil
     pd_wave *= parameterized_distortion
 
-    np.testing.assert_allclose(pd_wave.phase, zern_wave.phase,
-                               err_msg="ParameterizedAberration disagrees with ZernikeAberration")
+    _np.testing.assert_allclose(pd_wave.phase, zern_wave.phase,
+                                err_msg="ParameterizedAberration disagrees with ZernikeAberration")
 
 
 def test_StatisticalPSDWFE(index=3, seed=123456, plot=False):
@@ -139,7 +141,7 @@ def test_StatisticalPSDWFE(index=3, seed=123456, plot=False):
         results : tuple
             Tuple containing (radius, profile).
         """
-
+        image = ensure_not_on_gpu(image)
         y, x = np.indices(image.shape, dtype=float)
         if center is None:
             # get exact center of image
@@ -178,7 +180,7 @@ def test_StatisticalPSDWFE(index=3, seed=123456, plot=False):
 
         return rr, radialprofile2
 
-    inv_psd = np.fft.ifftshift(np.fft.ifft2(np.fft.ifftshift(psd_opd)))
+    inv_psd = _np.fft.ifftshift(_np.fft.ifft2(_np.fft.ifftshift(psd_opd)))
     rad, prof = radial_profile(np.abs(inv_psd) ** 2, center=(int(NPIX/2), int(NPIX/2)))
 
     # Test that the output power law matches the requested input power law.

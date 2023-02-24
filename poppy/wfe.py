@@ -31,7 +31,7 @@ from .accel_math import _ncp
 
 
 __all__ = ['WavefrontError', 'ParameterizedWFE', 'ZernikeWFE', 'SineWaveWFE',
-        'StatisticalPSDWFE', 'PowerSpectrumWFE', 'KolmogorovWFE', 'ThermalBloomingWFE']
+           'StatisticalPSDWFE', 'PowerSpectrumWFE', 'KolmogorovWFE', 'ThermalBloomingWFE']
 
 def _check_wavefront_arg(f):
     """Decorator that ensures the first positional method argument
@@ -168,7 +168,7 @@ class ParameterizedWFE(WavefrontError):
         y, x = self.get_coordinates(wave)
         rho, theta = _wave_y_x_to_rho_theta(y, x, self.radius.to(u.meter).value)
 
-        combined_distortion = np.zeros(rho.shape)
+        combined_distortion = _ncp.zeros(rho.shape)
 
         nterms = len(self.coefficients)
         computed_terms = self.basis_factory(nterms=nterms, rho=rho, theta=theta, outside=0.0)

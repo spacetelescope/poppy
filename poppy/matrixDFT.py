@@ -62,7 +62,7 @@ accel_math.update_math_settings()
 global _ncp
 from .accel_math import _ncp
 
-if accel_math._USE_NUMEXPR:
+if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
     
 # if accel_math._USE_CUPY:
@@ -137,7 +137,7 @@ def matrix_dft(plane, nlamD, npix,
     global _ncp
     from .accel_math import _ncp
     
-    if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
+    if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
         return matrix_dft_numexpr(plane, nlamD, npix,
                                   offset=offset, inverse=inverse, centering=centering)
     float = accel_math._float()
