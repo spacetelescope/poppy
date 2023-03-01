@@ -8,7 +8,17 @@ from scipy.linalg import lstsq
 
 from poppy.fresnel import FresnelWavefront, QuadraticLens
 
+from . import accel_math
+accel_math.update_math_settings()
+from .accel_math import _ncp
+from .accel_math import ensure_not_on_gpu
 
+import scipy
+if accel_math._USE_CUPY:
+    lstsq = _ncp.linalg.lstsq
+else:
+    lstsq = scipy.linalg.lstsq
+    
 class PhysicalFresnelWavefront(FresnelWavefront):
     """
     This class extends the capabilities of poppy's FresnelWavefront class.
@@ -58,7 +68,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
         """Spatial grid (m)."""
         y, x = self.coordinates()
 
-        return x[0, :]
+        return ensure_not_on_gpu(x[0, :])
 
     @property
     def dx(self):
@@ -71,13 +81,13 @@ class PhysicalFresnelWavefront(FresnelWavefront):
         """Spatial grid (m) as 2 dimensional array."""
         y, x = self.coordinates()
 
-        return np.array([x.flatten(), y.flatten()]).T
+        return _ncp.array([x.flatten(), y.flatten()]).T
 
     @property
     def q(self):
         """Momentum grid (m^-1)."""
 
-        return np.fft.fftfreq(self.npix, d=self.dx) * 2.0 * np.pi
+        return _ncp.fft.fftfreq(self.npix, d=self.dx) * 2.0 * np.pi
 
     @property
     def dq(self):
@@ -89,13 +99,13 @@ class PhysicalFresnelWavefront(FresnelWavefront):
     def intensity(self):
         """Intensity distribution (W.m^-2)."""
 
-        return const.c * self.n0 * const.epsilon_0 * np.abs(self.amplitude) ** 2 / 2.0
+        return const.c * self.n0 * const.epsilon_0 * _ncp.abs(self.amplitude) ** 2 / 2.0
 
     @property
     def power(self):
         """Power of the wavefront (W)."""
 
-        return (self.dx ** 2) * self.total_intensity
+        return ensure_not_on_gpu((self.dx ** 2) * self.total_intensity)
 
     def scale_power(self, P):
         """
@@ -107,7 +117,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
             The desired power of the wavefront.
         """
 
-        P0 = self.power
+        P0 = _ncp.array(self.power)
         self.wavefront *= np.sqrt(P / P0)
 
     def normalize(self):
@@ -128,9 +138,9 @@ class PhysicalFresnelWavefront(FresnelWavefront):
             Attenuation coefficient (m^-1).
         """
 
-        pow = self.power
+        pow = _ncp.array(self.power)
         super(PhysicalFresnelWavefront, self).propagate_fresnel(z, **kwargs)
-        self.scale_power(pow * np.exp(-attenuation_coeff * z.to(u.m).value))
+        self.scale_power(pow * _ncp.exp(-attenuation_coeff * z.to(u.m).value))
 
     def center(self, mask=1.0):
         """
@@ -147,7 +157,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
         power = self.power
         x = self.x
         dx = self.dx
-        intensity = self.intensity * mask
+        intensity = ensure_not_on_gpu(self.intensity) * mask
         center_y = dx ** 2 * np.sum(np.dot(intensity, x)) / power
         center_x = dx ** 2 * np.sum(np.dot(x, intensity)) / power
 
@@ -168,7 +178,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
         pow = self.power
         x = self.x
         dx = self.dx
-        intensity = self.intensity * mask
+        intensity = ensure_not_on_gpu(self.intensity) * mask
         sigma_xx = dx ** 2 * np.sum(np.dot((x - center_x) ** 2, intensity)) / pow
         sigma_yy = dx ** 2 * np.sum(np.dot(intensity, (x - center_y) ** 2)) / pow
         sigma_xy = dx ** 2 * np.dot(np.dot((x - center_y), intensity), (x - center_y)) / pow
@@ -176,7 +186,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
         return sigma_xx, sigma_yy, sigma_xy
 
     @property
-    def radius(self):
+    def radius(self): # this is extremely slow on GPU for some reason
         """
         Calculates the beam radius (m) and the ellipticity based on the
         2nd moments according to DIN EN ISO 11146-1.
@@ -189,12 +199,12 @@ class PhysicalFresnelWavefront(FresnelWavefront):
         num = self.npix
         mask = np.ones((num, num), dtype=float)
         x = self.x
-
+        
         for idx in range(30):
             w_buf = w
 
             center_x, center_y = self.center(mask)
-
+            
             mask[:, :] = 0.0
             for idx_x in range(num):
                 for idx_y in range(num):
@@ -259,7 +269,6 @@ class PhysicalFresnelWavefront(FresnelWavefront):
         rayleigh_length : float
             Raleigh length (m).
         """
-
         wf_ini = deepcopy(self)
 
         # Apply a very short focal length
@@ -272,7 +281,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
         dz *= L / num_z
         z = np.zeros(num_z, dtype=float)
         caustic = np.zeros(num_z, dtype=float)
-        A = np.zeros((num_z, 3), dtype=float)
+        A = _ncp.zeros((num_z, 3), dtype=float)
         k = 2.0 * np.pi / wf_ini.lam
         M2 = 0.0
         M2_old = 1.0
@@ -290,9 +299,8 @@ class PhysicalFresnelWavefront(FresnelWavefront):
                     _, _, w, _ = wf_work.radius
                 else:
                     raise AttributeError('Direction not correctly defined in M2.')
-
                 caustic[idx_z] = w
-                z[idx_z] = np.sum(dz[0:idx_z + 1])
+                z[idx_z] = _ncp.sum(dz[0:idx_z + 1])
 
             A[:, :] = 0.0
             A[:, 0] = 1.0
@@ -302,13 +310,16 @@ class PhysicalFresnelWavefront(FresnelWavefront):
 
             b = 4.0 * caustic ** 2
 
-            x, _, _, _ = lstsq(A, b, lapack_driver='gelsd')
+            if accel_math._USE_CUPY:
+                x, _, _, _ = lstsq(A, _ncp.array(b)) # kwarg not an option for cupy.linalg.lstsq
+            else:
+                x, _, _, _ = lstsq(A, b, lapack_driver='gelsd')
 
-            z_fine = np.linspace(z.min(), z.max(), 100000)
-            w_fit = np.sqrt(x[0] + x[1] * z_fine + x[2] * z_fine ** 2) / 2
+            z_fine = _ncp.linspace(z.min(), z.max(), 100000)
+            w_fit = _ncp.sqrt(x[0] + x[1] * z_fine + x[2] * z_fine ** 2) / 2
 
-            rayleigh_length = np.sqrt(4.0 * x[0] * x[2] - x[1] ** 2) / 2.0 / x[2]
-            M2 = k * np.sqrt(4.0 * x[0] * x[2] - x[1] ** 2) / 16.0
+            rayleigh_length = _ncp.sqrt(4.0 * x[0] * x[2] - x[1] ** 2) / 2.0 / x[2]
+            M2 = k * _ncp.sqrt(4.0 * x[0] * x[2] - x[1] ** 2) / 16.0
 
             if abs((M2_old - M2) / M2_old) < 1.0e-3 and idx > 3:
                 break

@@ -662,7 +662,7 @@ class KolmogorovWFE(WavefrontError):
         self.r0 = r0
         self.Cn2 = Cn2
         self.seed = seed
-        self.dz = dz.to(u.m)
+        self.dz = dz
         self.inner_scale = inner_scale
         self.outer_scale = outer_scale
         self.kind = kind
@@ -704,7 +704,7 @@ class KolmogorovWFE(WavefrontError):
         
         # calculate OPD
         # Note: Factor dq consequence of delta function having a unit
-        opd_FFT = dq.value*a*_ncp.sqrt(2.0*np.pi*self.dz.value*phi)
+        opd_FFT = dq.value*a*_ncp.sqrt(2.0*np.pi*self.dz.to_value(u.m)*phi)
         opd = npix**2*_ncp.fft.ifft2(opd_FFT)
         
         self.opd = _ncp.real(opd)
@@ -822,21 +822,50 @@ class KolmogorovWFE(WavefrontError):
         Cn2 = self.get_Cn2(wave.wavelength)
         coordinates = wave.coordinates()
         npix = coordinates[0].shape[0]
-        pixelscale = wave.pixelscale.to(u.m/u.pixel) * u.pix
+        pixelscale = wave.pixelscale.to(u.m/u.pixel) * u.pixel
         
         q = _ncp.fft.fftfreq(npix, d=pixelscale.value)*2.0*np.pi # so q has units of 1/m?
         
-        qx, qy = np.meshgrid(q, q)
+#         qx, qy = np.meshgrid(q, q)
+        
+#         q2 = (qx**2 + qy**2)
+#         if kind=='von Karman':
+#             if self.outer_scale is not None:
+#                 q2 += 1.0/self.outer_scale.to(u.m).value**2
+#             else:
+#                 raise ValueError('If von Karman kind of turbulent phase \
+#                                  screen is chosen, the outer scale L_0 \
+#                                  must be provided.')
+#         q2[0, 0] = np.inf # this is to avoid a possible error message in the next line
+        
+#         phi = 0.0330054*Cn2.value*q2**(-11.0/6.0)
+        
+#         if kind=='Tatarski' or kind=='von Karman' or kind=='Hill':
+#             if self.inner_scale is not None:
+#                 k2 = (qx**2 + qy**2)
+#                 if kind=='Tatarski' or kind=='von Karman':
+#                     m = (5.92/self.inner_scale.to_value(u.m))**2
+#                     phi *= _ncp.exp(-k2/m)
+#                 elif kind=='Hill':
+#                     m = _ncp.sqrt(k2)*self.inner_scale.to(u.m).value # m is supposed to be dimensionless?
+#                     phi *= (1.0 + 0.70937*m + 2.8235*m**2
+#                             - 0.28086*m**3 + 0.08277*m**4) * np.exp(-1.109*m) 
+#             else:
+#                 raise ValueError('If von Karman, Hill, or Tatarski kind \
+#                                  of turbulent phase screen is chosen, the \
+#                                  inner scale l_0 must be provided.')
+
+        qx, qy = _ncp.meshgrid(q, q)
         
         q2 = (qx**2 + qy**2)
         if kind=='von Karman':
             if self.outer_scale is not None:
-                q2 += 1.0/self.outer_scale.to(u.m).value**2
+                q2 += 1.0/self.outer_scale.to_value(u.m)**2
             else:
                 raise ValueError('If von Karman kind of turbulent phase \
                                  screen is chosen, the outer scale L_0 \
                                  must be provided.')
-        q2[0, 0] = np.inf # this is to avoid a possible error message in the next line
+        q2[0, 0] = _ncp.inf # this is to avoid a possible error message in the next line
         
         phi = 0.0330054*Cn2.value*q2**(-11.0/6.0)
         
@@ -844,17 +873,17 @@ class KolmogorovWFE(WavefrontError):
             if self.inner_scale is not None:
                 k2 = (qx**2 + qy**2)
                 if kind=='Tatarski' or kind=='von Karman':
-                    m = (5.92/self.inner_scale.to(u.m).value)**2
+                    m = (5.92/self.inner_scale.to_value(u.m))**2
                     phi *= _ncp.exp(-k2/m)
                 elif kind=='Hill':
-                    m = _ncp.sqrt(k2)*self.inner_scale.to(u.m).value # m is supposed to be dimensionless?
+                    m = _ncp.sqrt(k2)*self.inner_scale.to_value(u.m) # m is supposed to be dimensionless?
                     phi *= (1.0 + 0.70937*m + 2.8235*m**2
                             - 0.28086*m**3 + 0.08277*m**4) * np.exp(-1.109*m) 
             else:
                 raise ValueError('If von Karman, Hill, or Tatarski kind \
                                  of turbulent phase screen is chosen, the \
                                  inner scale l_0 must be provided.')
-        
+                
         return phi
 
 

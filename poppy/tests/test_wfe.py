@@ -110,6 +110,10 @@ def test_ParameterizedAberration():
 
 
 def test_StatisticalPSDWFE(index=3, seed=123456, plot=False):
+    
+    # I found that setting the seed to 123456 works on CPU but not on GPU
+    # because CuPy has different random number algorithms.
+    # Using seed=1234 works on both CPU and GPU.
 
     # Verify that we produce phase screen with input RMS WFE
     NPIX = 256    # 101 is too small and results in issues for this test
@@ -201,10 +205,6 @@ def test_StatisticalPSDWFE(index=3, seed=123456, plot=False):
     prof_norm = prof/prof.max() # Empirically this fit process works better if we normalize the profile first.
     plaw_fit = fitter(plaw_guess, rad[drop:-drop], prof_norm[drop:-drop], weights=(prof_norm[drop:-drop])**-2)
 
-    # check the spectral index is as desired, within at least a few percent
-    assert np.isclose(index, plaw_fit.alpha, rtol=0.03), ("Measured output spectral index doesn't "
-            "match input within 3%: {} vs {}".format(index, plaw_fit.alpha) )
-
     if plot:
         import matplotlib.pyplot as plt
         plt.figure()
@@ -217,6 +217,10 @@ def test_StatisticalPSDWFE(index=3, seed=123456, plot=False):
         plt.xlabel("Spatial frequency [1/m]")
         plt.ylabel("Normalized PSD")
         plt.legend()
+    
+    # check the spectral index is as desired, within at least a few percent
+    assert np.isclose(index, plaw_fit.alpha, rtol=0.03), ("Measured output spectral index doesn't "
+            "match input within 3%: {} vs {}".format(index, plaw_fit.alpha) )
 
 def test_PowerSpectrumWFE(plot=False):
     # verify self-consistency of PowerSpectrumWFE with a reference case
@@ -263,7 +267,7 @@ def test_PowerSpectrumWFE(plot=False):
     psd_wfe = wfe.PowerSpectrumWFE(psd_parameters=psd_parameters, psd_weight=psd_weight,
                                     seed=seed, apply_reflection=False, screen_size=screen_size,
                                     rms=rms_ref, radius=surf_radius)
-    psd_opd = (psd_wfe.get_opd(psd_wave)*u.m).to(surf_ref.unit)
+    psd_opd = (ensure_not_on_gpu(psd_wfe.get_opd(psd_wave))*u.m).to(surf_ref.unit) # just needed to ensure array is not on GPU
     psd_rms = rms(psd_opd)
     psd_pv = pv(psd_opd)
     
@@ -336,22 +340,21 @@ def test_KolmogorovWFE():
         # verify correlation of random numbers
         KolmogorovWFE = wfe.KolmogorovWFE(Cn2=CN2, dz=DZ, seed=seed)
 
-        
-        average = np.zeros((npix, npix), dtype=complex)
+        average = _np.zeros((npix, npix), dtype=complex)
         for j in range(num_ensemble):
             KolmogorovWFE.seed += j
             a = KolmogorovWFE.rand_turbulent(npix)
             for l in range(npix):
                 for m in range(npix):
-                    average[l, m] += np.sum(a[:, l])*np.sum(np.conj(a[:, m]))/num_ensemble/npix
+                    average[l, m] += _np.sum(a[:, l])*_np.sum(_np.conj(a[:, m]))/num_ensemble/npix
         
         for l in range(npix):
             for m in range(npix):
                 if l == m:
                     average[l, m] -= 1.0
         
-        assert(np.max(np.abs(average.real)) < 0.1)
-        assert(np.max(np.abs(average.imag)) < 0.1)
+        assert(_np.max(_np.abs(average.real)) < 0.1)
+        assert(_np.max(_np.abs(average.imag)) < 0.1)
     
     def test_get_opd():
         npix = 64
