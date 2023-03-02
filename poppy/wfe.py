@@ -27,7 +27,7 @@ from . import accel_math
 
 accel_math.update_math_settings()
 global _ncp
-from .accel_math import _ncp
+from .accel_math import _ncp, ensure_not_on_gpu
 
 
 __all__ = ['WavefrontError', 'ParameterizedWFE', 'ZernikeWFE', 'SineWaveWFE',
@@ -825,35 +825,6 @@ class KolmogorovWFE(WavefrontError):
         pixelscale = wave.pixelscale.to(u.m/u.pixel) * u.pixel
         
         q = _ncp.fft.fftfreq(npix, d=pixelscale.value)*2.0*np.pi # so q has units of 1/m?
-        
-#         qx, qy = np.meshgrid(q, q)
-        
-#         q2 = (qx**2 + qy**2)
-#         if kind=='von Karman':
-#             if self.outer_scale is not None:
-#                 q2 += 1.0/self.outer_scale.to(u.m).value**2
-#             else:
-#                 raise ValueError('If von Karman kind of turbulent phase \
-#                                  screen is chosen, the outer scale L_0 \
-#                                  must be provided.')
-#         q2[0, 0] = np.inf # this is to avoid a possible error message in the next line
-        
-#         phi = 0.0330054*Cn2.value*q2**(-11.0/6.0)
-        
-#         if kind=='Tatarski' or kind=='von Karman' or kind=='Hill':
-#             if self.inner_scale is not None:
-#                 k2 = (qx**2 + qy**2)
-#                 if kind=='Tatarski' or kind=='von Karman':
-#                     m = (5.92/self.inner_scale.to_value(u.m))**2
-#                     phi *= _ncp.exp(-k2/m)
-#                 elif kind=='Hill':
-#                     m = _ncp.sqrt(k2)*self.inner_scale.to(u.m).value # m is supposed to be dimensionless?
-#                     phi *= (1.0 + 0.70937*m + 2.8235*m**2
-#                             - 0.28086*m**3 + 0.08277*m**4) * np.exp(-1.109*m) 
-#             else:
-#                 raise ValueError('If von Karman, Hill, or Tatarski kind \
-#                                  of turbulent phase screen is chosen, the \
-#                                  inner scale l_0 must be provided.')
 
         qx, qy = _ncp.meshgrid(q, q)
         
@@ -1031,7 +1002,7 @@ class ThermalBloomingWFE(WavefrontError):
         opd = (wave.n0-1.0)*rho*self.dz/(wave.n0*self.rho0)
         self.opd = opd
         
-        return opd
+        return _ncp.array(opd)
     
     def rho(self, wave):
         """ Top-level routine to calculate density changes (kg.m^-3).
@@ -1066,7 +1037,7 @@ class ThermalBloomingWFE(WavefrontError):
         
         gamma = self.gamma
         cs2 = self.cs2
-        intens = wave.intensity
+        intens = ensure_not_on_gpu(wave.intensity)
         npix = wave.npix
         dx = wave.dx
         rho = np.zeros((npix, npix))
@@ -1096,7 +1067,7 @@ class ThermalBloomingWFE(WavefrontError):
         
         rho *= -(gamma-1.0)*self.abs_coeff*dx/cs2/np.abs(v0)
         
-        return rho
+        return _ncp.array(rho)
     
     def rho_dot_FT(self, wave):
         """ Fourier transform of the derivative of the non-isobaric density variation (unit?).
@@ -1120,10 +1091,10 @@ class ThermalBloomingWFE(WavefrontError):
         gamma = self.gamma
         cs2 = self.cs2
         rho0 = self.rho0
-        intens = wave.intensity
+        intens = ensure_not_on_gpu(wave.intensity)
         rho_dot_FT = np.fft.fft2(intens)
         rho_dot_FT *= -(gamma-1.0)*self.abs_coeff/cs2
-        q = wave.q
+        q = ensure_not_on_gpu(wave.q)
         
         for idx_x in range(npix):
             for idx_y in range(npix):

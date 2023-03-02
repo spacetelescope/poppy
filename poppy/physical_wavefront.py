@@ -10,8 +10,8 @@ from poppy.fresnel import FresnelWavefront, QuadraticLens
 
 from . import accel_math
 accel_math.update_math_settings()
-from .accel_math import _ncp
-from .accel_math import ensure_not_on_gpu
+global _ncp
+from .accel_math import _ncp, ensure_not_on_gpu
 
 import scipy
 if accel_math._USE_CUPY:
@@ -98,7 +98,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
     @property
     def intensity(self):
         """Intensity distribution (W.m^-2)."""
-
+        
         return const.c * self.n0 * const.epsilon_0 * _ncp.abs(self.amplitude) ** 2 / 2.0
 
     @property
