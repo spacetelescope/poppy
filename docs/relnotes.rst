@@ -5,6 +5,19 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+
+1.1.0
+-----
+
+.. _rel1.1.0::
+
+*2023 date TBD*
+
+**Software Infrastructure Updates and Internals:**
+ * Increase all CI test versions by 1, removing Python 3.8 and adding Python 3.11. Update minimum supported versions of astropy and numpy as well. (PR TBD by :user:`mperrin`)
+ 
+
+
 1.0.3
 -----
 
