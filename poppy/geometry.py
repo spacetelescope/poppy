@@ -63,8 +63,8 @@ def _oneside(x, y0, y1, r):
     if np.isscalar(y0): y0 = np.asarray(y0)
     if np.isscalar(y1): y1 = np.asarray(y1)
     sx = x.shape
-    ans = np.zeros(sx, dtype=np.float)
-    yh = np.zeros(sx, dtype=np.float)
+    ans = np.zeros(sx, dtype=np.float_)
+    yh = np.zeros(sx, dtype=np.float_)
     to = (abs(x) >= r)
     ti = (abs(x) < r)
     if np.any(to):
