@@ -21,17 +21,17 @@ jobs:
 
           - name: Check for Sphinx doc build errors
             os: ubuntu-latest
-            python: 3.10
+            python: '3.10'
             toxenv: docbuild
 
           - name: Check accelerated math version
             os: ubuntu-latest
-            python: 3.10
+            python: '3.10'
             toxenv: py310-numexpr-mkl-cov
 
           - name: Try Astropy development version
             os: ubuntu-latest
-            python: 3.10
+            python: '3.10'
             toxenv: py310-astropydev-test
 
           - name: Try latest versions of all dependencies
@@ -41,7 +41,7 @@ jobs:
 
           - name: Try minimum supported versions
             os: ubuntu-latest
-            python: 3.9
+            python: '3.9'
             toxenv: py39-legacy-test
 
     steps:
