@@ -578,7 +578,8 @@ class PowerSpectrumWFE(WavefrontError):
         
         psd_scaled = (_ncp.sqrt(psd/(wave.pixelscale.value**2)) * rndm_noise)
 #         opd = ((np.fft.ifft2(np.fft.ifftshift(psd_scaled)).real*surf_unit).to(u.m)).value 
-        opd = ((_ncp.fft.ifft2(_ncp.fft.ifftshift(psd_scaled)).real))*1e-9 # this is assuming the opd is calculated in nm
+#         opd = ((_ncp.fft.ifft2(_ncp.fft.ifftshift(psd_scaled)).real))*1e-9 # this is assuming the opd is calculated in nm
+        opd = ((_ncp.fft.ifft2(_ncp.fft.ifftshift(psd_scaled)).real))*(1*surf_unit).to_value(u.m) # fixed the hardcoded 1e-9
         
         # Set rms value based on the active region of beam
         if self.rms is not None:
