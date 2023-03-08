@@ -16,33 +16,33 @@ jobs:
 
           - name: Coverage test in Python 3
             os: ubuntu-latest
-            python: '3.10'
-            toxenv: py310-syn-cov
+            python: '3.11'
+            toxenv: py311-syn-cov
 
           - name: Check for Sphinx doc build errors
             os: ubuntu-latest
-            python: 3.9
+            python: '3.10'
             toxenv: docbuild
 
           - name: Check accelerated math version
             os: ubuntu-latest
-            python: 3.9
-            toxenv: py39-numexpr-mkl-cov
+            python: '3.10'
+            toxenv: py310-numexpr-mkl-cov
 
           - name: Try Astropy development version
             os: ubuntu-latest
-            python: 3.9
-            toxenv: py39-astropydev-test
+            python: '3.10'
+            toxenv: py310-astropydev-test
 
           - name: Try latest versions of all dependencies
             os: ubuntu-latest
-            python: '3.10'
-            toxenv: py310-latest-test
+            python: '3.11'
+            toxenv: py311-latest-test
 
           - name: Try minimum supported versions
             os: ubuntu-latest
-            python: 3.8
-            toxenv: py38-legacy-test
+            python: '3.9'
+            toxenv: py39-legacy-test
 
     steps:
     - name: Checkout code
