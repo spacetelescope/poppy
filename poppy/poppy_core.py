@@ -803,7 +803,7 @@ class BaseWavefront(ABC):
             y_in = make_axis(crop_shape[1], pixscale_in)
             x_out = make_axis(detector.shape[0], pixscale_out)
             y_out = make_axis(detector.shape[1], pixscale_out)
-            print(x_in.min(), x_in.max(), x_out.min(), x_out.max())
+#             print(x_in.min(), x_in.max(), x_out.min(), x_out.max())
 
             def interpolator(arr):
                 """
@@ -831,7 +831,7 @@ class BaseWavefront(ABC):
             det_xmax = pixscale_out * detector.shape[0]/2
             newx,newy = _ncp.mgrid[-det_xmax:det_xmax-pixscale_out:detector.shape[0]*1j,
                                    -det_xmax:det_xmax-pixscale_out:detector.shape[1]*1j]
-            print(x.min(), x.max(), newx.min(), newx.max())
+#             print(x.min(), x.max(), newx.min(), newx.max())
 
             x0 = x[0,0]
             y0 = y[0,0]
