@@ -12,7 +12,7 @@ from .test_core import check_wavefront
 from .. import accel_math
 import numpy
 import numpy as np
-from poppy.accel_math import _ncp as _np
+from poppy.accel_math import xp as _np
 
 wavelength=1e-6
 

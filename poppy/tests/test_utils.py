@@ -1,6 +1,6 @@
 import warnings
 import numpy as np
-from poppy.accel_math import _ncp as _np
+from poppy.accel_math import xp as _np
 import astropy.io.fits as fits
 import pytest
 

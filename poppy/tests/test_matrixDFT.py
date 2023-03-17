@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import astropy.io.fits as fits
 import os
 
-from poppy.accel_math import _ncp as np   # May or may not be on GPU
+from poppy.accel_math import xp as np   # May or may not be on GPU
 
 from .. import poppy_core
 from .. import optics

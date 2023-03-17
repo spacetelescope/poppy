@@ -1,4 +1,4 @@
-from poppy.accel_math import _ncp as np
+from poppy.accel_math import xp as np
 import astropy.units as u
 import poppy
 

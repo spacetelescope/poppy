@@ -10,7 +10,7 @@ from poppy.poppy_core import _log, PlaneType
 import poppy
 import os
 
-from poppy.accel_math import _ncp as _np    # may or may not be on GPU
+from poppy.accel_math import xp as _np    # may or may not be on GPU
 import numpy as np     # Regular numpy, definitely in CPU memory
 
 import astropy.io.fits as fits

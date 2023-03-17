@@ -59,8 +59,8 @@ from . import conf
 from . import accel_math
 
 accel_math.update_math_settings()
-global _ncp
-from .accel_math import _ncp
+global xp
+from .accel_math import xp
 
 if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
@@ -134,8 +134,8 @@ def matrix_dft(plane, nlamD, npix,
     """
     
     accel_math.update_math_settings()
-    global _ncp
-    from .accel_math import _ncp
+    global xp
+    from .accel_math import xp
     
     if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
         return matrix_dft_numexpr(plane, nlamD, npix,
@@ -148,7 +148,7 @@ def matrix_dft(plane, nlamD, npix,
         if np.isscalar(npix):
             npixY, npixX = float(npix), float(npix)
         else:
-            npixY, npixX = tuple(_ncp.asarray(npix, dtype=float))
+            npixY, npixX = tuple(xp.asarray(npix, dtype=float))
     except ValueError:
         raise ValueError(
             "'npix' must be supplied as a scalar (for square arrays) or as "
@@ -163,7 +163,7 @@ def matrix_dft(plane, nlamD, npix,
         if np.isscalar(nlamD):
             nlamDY, nlamDX = float(nlamD), float(nlamD)
         else:
-            nlamDY, nlamDX = tuple(_ncp.asarray(nlamD, dtype=float))
+            nlamDY, nlamDX = tuple(xp.asarray(nlamD, dtype=float))
     except ValueError:
         raise ValueError(
             "'nlamD' must be supplied as a scalar (for square arrays) or as"
@@ -189,51 +189,51 @@ def matrix_dft(plane, nlamD, npix,
 
 
     if centering == FFTSTYLE:
-        Xs = (_ncp.arange(npupX, dtype=float) - (npupX / 2)) * dX
-        Ys = (_ncp.arange(npupY, dtype=float) - (npupY / 2)) * dY
+        Xs = (xp.arange(npupX, dtype=float) - (npupX / 2)) * dX
+        Ys = (xp.arange(npupY, dtype=float) - (npupY / 2)) * dY
 
-        Us = (_ncp.arange(npixX, dtype=float) - npixX / 2) * dU
-        Vs = (_ncp.arange(npixY, dtype=float) - npixY / 2) * dV
+        Us = (xp.arange(npixX, dtype=float) - npixX / 2) * dU
+        Vs = (xp.arange(npixY, dtype=float) - npixY / 2) * dV
     elif centering == ADJUSTABLE:
         if offset is None:
             offsetY, offsetX = 0.0, 0.0
         else:
             try:
-                offsetY, offsetX = tuple(_ncp.asarray(offset, dtype=float))
+                offsetY, offsetX = tuple(xp.asarray(offset, dtype=float))
             except ValueError:
                 raise ValueError(
                     "'offset' must be supplied as a 2-tuple with "
                     "(y_offset, x_offset) as floating point values"
                 )
-        Xs = (_ncp.arange(npupX, dtype=float) - float(npupX) / 2.0 - offsetX + 0.5) * dX
-        Ys = (_ncp.arange(npupY, dtype=float) - float(npupY) / 2.0 - offsetY + 0.5) * dY
+        Xs = (xp.arange(npupX, dtype=float) - float(npupX) / 2.0 - offsetX + 0.5) * dX
+        Ys = (xp.arange(npupY, dtype=float) - float(npupY) / 2.0 - offsetY + 0.5) * dY
 
-        Us = (_ncp.arange(npixX, dtype=float) - float(npixX) / 2.0 - offsetX + 0.5) * dU
-        Vs = (_ncp.arange(npixY, dtype=float) - float(npixY) / 2.0 - offsetY + 0.5) * dV
+        Us = (xp.arange(npixX, dtype=float) - float(npixX) / 2.0 - offsetX + 0.5) * dU
+        Vs = (xp.arange(npixY, dtype=float) - float(npixY) / 2.0 - offsetY + 0.5) * dV
     elif centering == SYMMETRIC:
-        Xs = (_ncp.arange(npupX, dtype=float) - float(npupX) / 2.0 + 0.5) * dX
-        Ys = (_ncp.arange(npupY, dtype=float) - float(npupY) / 2.0 + 0.5) * dY
+        Xs = (xp.arange(npupX, dtype=float) - float(npupX) / 2.0 + 0.5) * dX
+        Ys = (xp.arange(npupY, dtype=float) - float(npupY) / 2.0 + 0.5) * dY
 
-        Us = (_ncp.arange(npixX, dtype=float) - float(npixX) / 2.0 + 0.5) * dU
-        Vs = (_ncp.arange(npixY, dtype=float) - float(npixY) / 2.0 + 0.5) * dV
+        Us = (xp.arange(npixX, dtype=float) - float(npixX) / 2.0 + 0.5) * dU
+        Vs = (xp.arange(npixY, dtype=float) - float(npixY) / 2.0 + 0.5) * dV
     else:
         raise ValueError("Invalid centering style")
 
-    XU = _ncp.outer(Xs, Us)
-    YV = _ncp.outer(Ys, Vs)
+    XU = xp.outer(Xs, Us)
+    YV = xp.outer(Ys, Vs)
 
     # SIGN CONVENTION: plus signs in exponent for basic forward propagation, with
     # phase increasing with time. This convention differs from prior poppy version < 1.0
     if inverse:
-        expYV = _ncp.exp(-2.0 * np.pi * 1j * YV).T
-        expXU = _ncp.exp(-2.0 * np.pi * 1j * XU)
-        t1 = _ncp.dot(expYV, plane)
-        t2 = _ncp.dot(t1, expXU)
+        expYV = xp.exp(-2.0 * np.pi * 1j * YV).T
+        expXU = xp.exp(-2.0 * np.pi * 1j * XU)
+        t1 = xp.dot(expYV, plane)
+        t2 = xp.dot(t1, expXU)
     else:
-        expXU = _ncp.exp(-2.0 * np.pi * -1j * XU)
-        expYV = _ncp.exp(-2.0 * np.pi * -1j * YV).T
-        t1 = _ncp.dot(expYV, plane)
-        t2 = _ncp.dot(t1, expXU)
+        expXU = xp.exp(-2.0 * np.pi * -1j * XU)
+        expYV = xp.exp(-2.0 * np.pi * -1j * YV).T
+        t1 = xp.dot(expYV, plane)
+        t2 = xp.dot(t1, expXU)
 
     norm_coeff = np.sqrt((nlamDY * nlamDX) / (npupY * npupX * npixY * npixX))
     return norm_coeff * t2
@@ -451,8 +451,8 @@ class MatrixFourierTransform:
     def __init__(self, centering="ADJUSTABLE", verbose=False):
         
         accel_math.update_math_settings()
-        global _ncp
-        from .accel_math import _ncp
+        global xp
+        from .accel_math import xp
         
         self.verbose = verbose
         centering = centering.upper()

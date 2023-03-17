@@ -80,7 +80,7 @@ _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE and not _USE_CUPY)
 _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
 _USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE)
 
-_ncp = np
+xp = np
 _scipy = scipy
 
 def update_math_settings():
@@ -95,12 +95,12 @@ def update_math_settings():
     _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
     _USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE)
     
-    global _ncp, _scipy
+    global xp, _scipy
     if _USE_CUPY:
-        _ncp = cp
+        xp = cp
         _scipy = cupyx.scipy
     else:
-        _ncp = np
+        xp = np
         _scipy = scipy
 
 def _float():

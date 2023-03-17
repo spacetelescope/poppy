@@ -1,6 +1,6 @@
 
 import numpy as np
-from poppy.accel_math import _ncp as _np
+from poppy.accel_math import xp as _np
 from poppy.accel_math import ensure_not_on_gpu
 import astropy.units as u
 from astropy.io import fits

@@ -26,8 +26,8 @@ from . import utils
 from . import accel_math
 
 accel_math.update_math_settings()
-global _ncp
-from .accel_math import _ncp, ensure_not_on_gpu
+global xp
+from .accel_math import xp, ensure_not_on_gpu
 
 
 __all__ = ['WavefrontError', 'ParameterizedWFE', 'ZernikeWFE', 'SineWaveWFE',
@@ -61,8 +61,8 @@ class WavefrontError(AnalyticOpticalElement):
         super(WavefrontError, self).__init__(**kwargs)
         
         accel_math.update_math_settings()
-        global _ncp
-        from .accel_math import _ncp
+        global xp
+        from .accel_math import xp
         
         # in general we will want to see phase rather than intensity at this plane
         self.wavefront_display_hint = 'phase'
@@ -107,8 +107,8 @@ def _wave_y_x_to_rho_theta(y, x, pupil_radius):
         rho = accel_math.ne.evaluate("sqrt(x**2+y**2)/pupil_radius")
         theta = accel_math.ne.evaluate("arctan2(y / pupil_radius, x / pupil_radius)")
     else:
-        rho = _ncp.sqrt(x ** 2 + y ** 2) / pupil_radius
-        theta = _ncp.arctan2(y / pupil_radius, x / pupil_radius)
+        rho = xp.sqrt(x ** 2 + y ** 2) / pupil_radius
+        theta = xp.arctan2(y / pupil_radius, x / pupil_radius)
     return rho, theta
 
 
@@ -168,7 +168,7 @@ class ParameterizedWFE(WavefrontError):
         y, x = self.get_coordinates(wave)
         rho, theta = _wave_y_x_to_rho_theta(y, x, self.radius.to(u.meter).value)
 
-        combined_distortion = _ncp.zeros(rho.shape)
+        combined_distortion = xp.zeros(rho.shape)
 
         nterms = len(self.coefficients)
         computed_terms = self.basis_factory(nterms=nterms, rho=rho, theta=theta, outside=0.0)
@@ -237,7 +237,7 @@ class ZernikeWFE(WavefrontError):
             y, x = self.get_coordinates(wave)
             rho, theta = _wave_y_x_to_rho_theta(y, x, self.radius.to(u.meter).value)
 
-        combined_zernikes = _ncp.zeros(wave.shape, dtype=_ncp.float64)
+        combined_zernikes = xp.zeros(wave.shape, dtype=xp.float64)
         for j, k in enumerate(self.coefficients, start=1):
             k_in_m = k.to(u.meter).value
 
@@ -279,7 +279,7 @@ class ZernikeWFE(WavefrontError):
         if self.aperture_stop:
             return self.circular_aperture.get_transmission(wave)
         else:
-            return _ncp.ones(wave.shape)
+            return xp.ones(wave.shape)
 
 
 class SineWaveWFE(WavefrontError):
@@ -366,17 +366,17 @@ class StatisticalPSDWFE(WavefrontError):
         rho, theta = _wave_y_x_to_rho_theta(y, x, self.radius.to(u.meter).value)
         rho[rho == 0] = 0.00001 # get rid of infinity: see Issue #452
         
-        psd = _ncp.power(rho, -self.index) # generate power-law PSD
+        psd = xp.power(rho, -self.index) # generate power-law PSD
 
-        psd_random_state = _ncp.random.RandomState()
+        psd_random_state = xp.random.RandomState()
         psd_random_state.seed(self.seed)   # if provided, set a seed for random number generator
         rndm_phase = psd_random_state.normal(size=(len(y), len(x)))   # generate random phase screen
-        rndm_psd = _ncp.fft.fftshift(_ncp.fft.fft2(_ncp.fft.fftshift(rndm_phase)))   # FT of random phase screen to get random PSD
-        scaled = _ncp.sqrt(psd) * rndm_psd    # scale random PSD by power-law PSD
-        phase_screen = _ncp.fft.ifftshift(_ncp.fft.ifft2(_ncp.fft.ifftshift(scaled))).real # FT of scaled random PSD makes phase screen
-        phase_screen -= _ncp.mean(phase_screen)  # force zero-mean
+        rndm_psd = xp.fft.fftshift(xp.fft.fft2(xp.fft.fftshift(rndm_phase)))   # FT of random phase screen to get random PSD
+        scaled = xp.sqrt(psd) * rndm_psd    # scale random PSD by power-law PSD
+        phase_screen = xp.fft.ifftshift(xp.fft.ifft2(xp.fft.ifftshift(scaled))).real # FT of scaled random PSD makes phase screen
+        phase_screen -= xp.mean(phase_screen)  # force zero-mean
         
-        self.opd = phase_screen / _ncp.std(phase_screen) * self.wfe.to(u.m).value  # normalize to wanted input rms wfe
+        self.opd = phase_screen / xp.std(phase_screen) * self.wfe.to(u.m).value  # normalize to wanted input rms wfe
 
         return self.opd
 
@@ -490,7 +490,7 @@ class PowerSpectrumWFE(WavefrontError):
         self.incident_angle = incident_angle
             
         if psd_weight is None:
-            self.psd_weight = _ncp.ones((len(psd_parameters))) # default to equal weights
+            self.psd_weight = xp.ones((len(psd_parameters))) # default to equal weights
         else:
             self.psd_weight = psd_weight
         
@@ -526,13 +526,13 @@ class PowerSpectrumWFE(WavefrontError):
         
         # build spatial frequency map
         cen = int(self.screen_size/2)
-        maskY, maskX = _ncp.mgrid[-cen:cen, -cen:cen]
+        maskY, maskX = xp.mgrid[-cen:cen, -cen:cen]
         ky = maskY*dk.to_value(1./u.m)
         kx = maskX*dk.to_value(1./u.m)
-        k_map = _ncp.sqrt(kx**2 + ky**2) # unitless for the math, but actually 1/m
+        k_map = xp.sqrt(kx**2 + ky**2) # unitless for the math, but actually 1/m
         
         # calculate the PSD
-        psd = _ncp.zeros_like(k_map) # initialize the total PSD matrix
+        psd = xp.zeros_like(k_map) # initialize the total PSD matrix
         for n in range(0, len(self.psd_weight)):
             # loop-internal localized PSD variables
             alpha = self.psd_parameters[n][0]
@@ -547,7 +547,7 @@ class PowerSpectrumWFE(WavefrontError):
             surf_unit = (psd_units*(dk.unit**2))**(0.5)
             
             # initialize loop-internal PSD matrix
-            psd_local = _ncp.zeros_like(psd)
+            psd_local = xp.zeros_like(psd)
             
             # Calculate the PSD equation denominator based on outer_scale presence
             if outer_scale.value == 0: # skip out or else PSD explodes
@@ -556,14 +556,14 @@ class PowerSpectrumWFE(WavefrontError):
                 # calculate PSD as normal
                 psd_denom = (k_map**2)**(alpha/2)
                 # calculate the immediate PSD value
-                psd_interm = (beta.value*_ncp.exp(-((k_map*inner_scale)**2))/psd_denom)
+                psd_interm = (beta.value*xp.exp(-((k_map*inner_scale)**2))/psd_denom)
                 # overwrite PSD at k=0 to be 0 instead of the original infinity
                 psd_interm[cen][cen] = 0
                 # return k_map to original state
                 k_map[cen][cen] = 0
             else:
                 psd_denom = ((outer_scale.value**(-2)) + (k_map**2))**(alpha/2) # unitless currently
-                psd_interm = (beta.value*_ncp.exp(-((k_map*inner_scale)**2))/psd_denom)
+                psd_interm = (beta.value*xp.exp(-((k_map*inner_scale)**2))/psd_denom)
             
             # apply surface roughness
             psd_interm = psd_interm + surf_roughness.value
@@ -572,14 +572,14 @@ class PowerSpectrumWFE(WavefrontError):
             psd = psd + (self.psd_weight[n] * psd_interm) # this should all be m2 [surf_unit]2, but stay unitless for all calculations
         
         # set the random noise
-        psd_random = _ncp.random.RandomState()
+        psd_random = xp.random.RandomState()
         psd_random.seed(self.seed)
-        rndm_noise = _ncp.fft.fftshift(_ncp.fft.fft2(psd_random.normal(size=(self.screen_size, self.screen_size))))
+        rndm_noise = xp.fft.fftshift(xp.fft.fft2(psd_random.normal(size=(self.screen_size, self.screen_size))))
         
-        psd_scaled = (_ncp.sqrt(psd/(wave.pixelscale.value**2)) * rndm_noise)
+        psd_scaled = (xp.sqrt(psd/(wave.pixelscale.value**2)) * rndm_noise)
 #         opd = ((np.fft.ifft2(np.fft.ifftshift(psd_scaled)).real*surf_unit).to(u.m)).value 
-#         opd = ((_ncp.fft.ifft2(_ncp.fft.ifftshift(psd_scaled)).real))*1e-9 # this is assuming the opd is calculated in nm
-        opd = ((_ncp.fft.ifft2(_ncp.fft.ifftshift(psd_scaled)).real))*(1*surf_unit).to_value(u.m) # fixed the hardcoded 1e-9
+#         opd = ((xp.fft.ifft2(xp.fft.ifftshift(psd_scaled)).real))*1e-9 # this is assuming the opd is calculated in nm
+        opd = ((xp.fft.ifft2(xp.fft.ifftshift(psd_scaled)).real))*(1*surf_unit).to_value(u.m) # fixed the hardcoded 1e-9
         
         # Set rms value based on the active region of beam
         if self.rms is not None:
@@ -587,7 +587,7 @@ class PowerSpectrumWFE(WavefrontError):
             ap = circ.get_transmission(wave)
             opd_crop = utils.pad_or_crop_to_shape(array=opd, target_shape=wave.shape)
             active_ap = opd_crop[ap==True]
-            rms_measure = _ncp.sqrt(_ncp.mean(_ncp.square(active_ap))) # measured rms from aperture
+            rms_measure = xp.sqrt(xp.mean(xp.square(active_ap))) # measured rms from aperture
             opd *= self.rms.to(u.m).value/rms_measure # appropriately scales entire OPD
             
         # apply the angle adjustment for rms
@@ -705,10 +705,10 @@ class KolmogorovWFE(WavefrontError):
         
         # calculate OPD
         # Note: Factor dq consequence of delta function having a unit
-        opd_FFT = dq.value*a*_ncp.sqrt(2.0*np.pi*self.dz.to_value(u.m)*phi)
-        opd = npix**2*_ncp.fft.ifft2(opd_FFT)
+        opd_FFT = dq.value*a*xp.sqrt(2.0*np.pi*self.dz.to_value(u.m)*phi)
+        opd = npix**2*xp.fft.ifft2(opd_FFT)
         
-        self.opd = _ncp.real(opd)
+        self.opd = xp.real(opd)
         
         return self.opd
     
@@ -759,15 +759,15 @@ class KolmogorovWFE(WavefrontError):
         sign = float(sign)
         
         # create Gaussian, zero-mean, unit variance random numbers
-        random_numbers = _ncp.random.RandomState()
+        random_numbers = xp.random.RandomState()
         random_numbers.seed(self.seed)
         a = random_numbers.normal(size=(npix, npix))
         
         # apply required symmetry
         a[0, int(npix/2)+1:npix] = sign*a[0, 1:int(npix/2)][::-1]
         a[int(npix/2)+1:npix, 0] = sign*a[1:int(npix/2), 0][::-1]
-        a[int(npix/2)+1:npix, int(npix/2)+1:npix] = sign*_ncp.rot90(a[1:int(npix/2), 1:int(npix/2)], 2)
-        a[int(npix/2)+1:npix, 1:int(npix/2)] = sign*_ncp.rot90(a[1:int(npix/2), int(npix/2)+1:npix], 2)
+        a[int(npix/2)+1:npix, int(npix/2)+1:npix] = sign*xp.rot90(a[1:int(npix/2), 1:int(npix/2)], 2)
+        a[int(npix/2)+1:npix, 1:int(npix/2)] = sign*xp.rot90(a[1:int(npix/2), int(npix/2)+1:npix], 2)
         
         # remove any overall phase resulting from the zero-frequency component
         a[0, 0] = 0.0
@@ -825,9 +825,9 @@ class KolmogorovWFE(WavefrontError):
         npix = coordinates[0].shape[0]
         pixelscale = wave.pixelscale.to(u.m/u.pixel) * u.pixel
         
-        q = _ncp.fft.fftfreq(npix, d=pixelscale.value)*2.0*np.pi # so q has units of 1/m?
+        q = xp.fft.fftfreq(npix, d=pixelscale.value)*2.0*np.pi # so q has units of 1/m?
 
-        qx, qy = _ncp.meshgrid(q, q)
+        qx, qy = xp.meshgrid(q, q)
         
         q2 = (qx**2 + qy**2)
         if kind=='von Karman':
@@ -837,7 +837,7 @@ class KolmogorovWFE(WavefrontError):
                 raise ValueError('If von Karman kind of turbulent phase \
                                  screen is chosen, the outer scale L_0 \
                                  must be provided.')
-        q2[0, 0] = _ncp.inf # this is to avoid a possible error message in the next line
+        q2[0, 0] = xp.inf # this is to avoid a possible error message in the next line
         
         phi = 0.0330054*Cn2.value*q2**(-11.0/6.0)
         
@@ -846,9 +846,9 @@ class KolmogorovWFE(WavefrontError):
                 k2 = (qx**2 + qy**2)
                 if kind=='Tatarski' or kind=='von Karman':
                     m = (5.92/self.inner_scale.to_value(u.m))**2
-                    phi *= _ncp.exp(-k2/m)
+                    phi *= xp.exp(-k2/m)
                 elif kind=='Hill':
-                    m = _ncp.sqrt(k2)*self.inner_scale.to_value(u.m) # m is supposed to be dimensionless?
+                    m = xp.sqrt(k2)*self.inner_scale.to_value(u.m) # m is supposed to be dimensionless?
                     phi *= (1.0 + 0.70937*m + 2.8235*m**2
                             - 0.28086*m**3 + 0.08277*m**4) * np.exp(-1.109*m) 
             else:
@@ -1003,7 +1003,7 @@ class ThermalBloomingWFE(WavefrontError):
         opd = (wave.n0-1.0)*rho*self.dz/(wave.n0*self.rho0)
         self.opd = opd
         
-        return _ncp.array(opd)
+        return xp.array(opd)
     
     def rho(self, wave):
         """ Top-level routine to calculate density changes (kg.m^-3).
@@ -1068,7 +1068,7 @@ class ThermalBloomingWFE(WavefrontError):
         
         rho *= -(gamma-1.0)*self.abs_coeff*dx/cs2/np.abs(v0)
         
-        return _ncp.array(rho)
+        return xp.array(rho)
     
     def rho_dot_FT(self, wave):
         """ Fourier transform of the derivative of the non-isobaric density variation (unit?).

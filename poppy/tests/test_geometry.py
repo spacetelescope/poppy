@@ -2,7 +2,7 @@
 #  Test functions for subpixel geometry code
 #
 
-from poppy.accel_math import _ncp as _np
+from poppy.accel_math import xp as _np
 import numpy as np
 from .. import geometry
 

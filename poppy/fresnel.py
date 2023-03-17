@@ -10,8 +10,8 @@ from . import utils
 from . import accel_math
 
 accel_math.update_math_settings()
-global _ncp
-from .accel_math import _ncp
+global xp
+from .accel_math import xp
     
 if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
@@ -304,8 +304,8 @@ class FresnelWavefront(BaseWavefront):
         """
         
         accel_math.update_math_settings()
-        global _ncp
-        from .accel_math import _ncp
+        global xp
+        from .accel_math import xp
             
         super(FresnelWavefront, self).__init__(
             diam=beam_radius.to(u.m).value * 2.0,
@@ -356,7 +356,7 @@ class FresnelWavefront(BaseWavefront):
         if self.oversample < 2:
             _log.warning("Oversampling > 2x suggested for reliable results in Fresnel propagation.")
 
-        self._y, self._x = _ncp.indices(self.shape, dtype=float)
+        self._y, self._x = xp.indices(self.shape, dtype=float)
         self._y -= (self.wavefront.shape[0]) / 2.0
         self._x -= (self.wavefront.shape[1]) / 2.0
         
@@ -613,8 +613,8 @@ class FresnelWavefront(BaseWavefront):
             "Propagation Parameters: k={0:0.2e},".format(k) + "S={0:0.2e},".format(s) + "z={0:0.2e},".format(z_direct))
 
         # TODO the following exponential code could be accelerated with numexpr
-        quadphase_1st = _ncp.exp(1.0j * k * (x ** 2 + y ** 2) / (2 * z_direct))  # eq. 6.68
-        quadphase_2nd = _ncp.exp(1.0j * k * z_direct) / (1.0j * self.wavelength.to(u.m).value * z_direct) * _ncp.exp(
+        quadphase_1st = xp.exp(1.0j * k * (x ** 2 + y ** 2) / (2 * z_direct))  # eq. 6.68
+        quadphase_2nd = xp.exp(1.0j * k * z_direct) / (1.0j * self.wavelength.to(u.m).value * z_direct) * xp.exp(
             1.0j * k * (x ** 2 + y ** 2) / (2 * z_direct))  # eq. 6.70
 
         stage1 = self.wavefront * quadphase_1st  # eq.6.67
@@ -732,7 +732,7 @@ class FresnelWavefront(BaseWavefront):
         if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
             exp_t = ne.evaluate("exp(-1.0j * pi * wavelen_m * (z_direct) * rhosqr)")
         else:
-            exp_t = _ncp.exp(-1.0j * np.pi * wavelen_m * z_direct * rhosqr)
+            exp_t = xp.exp(-1.0j * np.pi * wavelen_m * z_direct * rhosqr)
 
         self._fft()
 
@@ -1074,7 +1074,7 @@ class FresnelWavefront(BaseWavefront):
             fpm_phasor = ne.evaluate("trans * exp(1.j * opd * scale)")
         else:
             _log.debug("Calculating FPM phasor with Numpy/CuPy.")
-            fpm_phasor = optic.get_transmission(self) * _ncp.exp(1.j * optic.get_opd(self) * scale)
+            fpm_phasor = optic.get_transmission(self) * xp.exp(1.j * optic.get_opd(self) * scale)
         
         nfpm = fpm_phasor.shape[0]
         n = self.wavefront.shape[0]

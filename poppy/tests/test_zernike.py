@@ -2,7 +2,7 @@ import numpy as np
 from poppy import poppy_core
 from poppy import optics
 from poppy import zernike
-from poppy.accel_math import _ncp as np
+from poppy.accel_math import xp as np
 import poppy.accel_math
 
 def test_zernikes_rms(nterms=10, size=500):

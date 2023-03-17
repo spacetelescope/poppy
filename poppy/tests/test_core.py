@@ -2,7 +2,7 @@
 import os
 
 import numpy as np
-from poppy.accel_math import _ncp as _np  # May or may not be CuPy on GPU
+from poppy.accel_math import xp as _np  # May or may not be CuPy on GPU
 from astropy.io import fits
 import astropy.units as u
 import pytest

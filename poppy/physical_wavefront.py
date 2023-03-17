@@ -10,12 +10,12 @@ from poppy.fresnel import FresnelWavefront, QuadraticLens
 
 from . import accel_math
 accel_math.update_math_settings()
-global _ncp
-from .accel_math import _ncp, ensure_not_on_gpu
+global xp
+from .accel_math import xp, ensure_not_on_gpu
 
 import scipy
 if accel_math._USE_CUPY:
-    lstsq = _ncp.linalg.lstsq
+    lstsq = xp.linalg.lstsq
 else:
     lstsq = scipy.linalg.lstsq
     
@@ -81,13 +81,13 @@ class PhysicalFresnelWavefront(FresnelWavefront):
         """Spatial grid (m) as 2 dimensional array."""
         y, x = self.coordinates()
 
-        return _ncp.array([x.flatten(), y.flatten()]).T
+        return xp.array([x.flatten(), y.flatten()]).T
 
     @property
     def q(self):
         """Momentum grid (m^-1)."""
 
-        return _ncp.fft.fftfreq(self.npix, d=self.dx) * 2.0 * np.pi
+        return xp.fft.fftfreq(self.npix, d=self.dx) * 2.0 * np.pi
 
     @property
     def dq(self):
@@ -99,7 +99,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
     def intensity(self):
         """Intensity distribution (W.m^-2)."""
         
-        return const.c * self.n0 * const.epsilon_0 * _ncp.abs(self.amplitude) ** 2 / 2.0
+        return const.c * self.n0 * const.epsilon_0 * xp.abs(self.amplitude) ** 2 / 2.0
 
     @property
     def power(self):
@@ -117,7 +117,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
             The desired power of the wavefront.
         """
 
-        P0 = _ncp.array(self.power)
+        P0 = xp.array(self.power)
         self.wavefront *= np.sqrt(P / P0)
 
     def normalize(self):
@@ -138,9 +138,9 @@ class PhysicalFresnelWavefront(FresnelWavefront):
             Attenuation coefficient (m^-1).
         """
 
-        pow = _ncp.array(self.power)
+        pow = xp.array(self.power)
         super(PhysicalFresnelWavefront, self).propagate_fresnel(z, **kwargs)
-        self.scale_power(pow * _ncp.exp(-attenuation_coeff * z.to(u.m).value))
+        self.scale_power(pow * xp.exp(-attenuation_coeff * z.to(u.m).value))
 
     def center(self, mask=1.0):
         """
@@ -281,7 +281,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
         dz *= L / num_z
         z = np.zeros(num_z, dtype=float)
         caustic = np.zeros(num_z, dtype=float)
-        A = _ncp.zeros((num_z, 3), dtype=float)
+        A = xp.zeros((num_z, 3), dtype=float)
         k = 2.0 * np.pi / wf_ini.lam
         M2 = 0.0
         M2_old = 1.0
@@ -300,7 +300,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
                 else:
                     raise AttributeError('Direction not correctly defined in M2.')
                 caustic[idx_z] = w
-                z[idx_z] = _ncp.sum(dz[0:idx_z + 1])
+                z[idx_z] = xp.sum(dz[0:idx_z + 1])
 
             A[:, :] = 0.0
             A[:, 0] = 1.0
@@ -311,15 +311,15 @@ class PhysicalFresnelWavefront(FresnelWavefront):
             b = 4.0 * caustic ** 2
 
             if accel_math._USE_CUPY:
-                x, _, _, _ = lstsq(A, _ncp.array(b)) # kwarg not an option for cupy.linalg.lstsq
+                x, _, _, _ = lstsq(A, xp.array(b)) # kwarg not an option for cupy.linalg.lstsq
             else:
                 x, _, _, _ = lstsq(A, b, lapack_driver='gelsd')
 
-            z_fine = _ncp.linspace(z.min(), z.max(), 100000)
-            w_fit = _ncp.sqrt(x[0] + x[1] * z_fine + x[2] * z_fine ** 2) / 2
+            z_fine = xp.linspace(z.min(), z.max(), 100000)
+            w_fit = xp.sqrt(x[0] + x[1] * z_fine + x[2] * z_fine ** 2) / 2
 
-            rayleigh_length = _ncp.sqrt(4.0 * x[0] * x[2] - x[1] ** 2) / 2.0 / x[2]
-            M2 = k * _ncp.sqrt(4.0 * x[0] * x[2] - x[1] ** 2) / 16.0
+            rayleigh_length = xp.sqrt(4.0 * x[0] * x[2] - x[1] ** 2) / 2.0 / x[2]
+            M2 = k * xp.sqrt(4.0 * x[0] * x[2] - x[1] ** 2) / 16.0
 
             if abs((M2_old - M2) / M2_old) < 1.0e-3 and idx > 3:
                 break

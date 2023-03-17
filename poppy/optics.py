@@ -17,8 +17,8 @@ from . import accel_math
 from .accel_math import _exp, _r, _float, _complex
 
 accel_math.update_math_settings()
-global _ncp
-from .accel_math import _ncp
+global xp
+from .accel_math import xp
 
 if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
@@ -68,8 +68,8 @@ class AnalyticOpticalElement(OpticalElement):
             **kwargs):
         
         accel_math.update_math_settings()
-        global _ncp, _scipy
-        from .accel_math import _ncp, _scipy
+        global xp, _scipy
+        from .accel_math import xp, _scipy
             
         OpticalElement.__init__(self, **kwargs)
 
@@ -103,12 +103,12 @@ class AnalyticOpticalElement(OpticalElement):
     # but we provide a default of perfect transmission and zero OPD.
     # Each must return something which is a numpy ndarray.
     def get_opd(self, wave):
-        return _ncp.zeros(wave.shape, dtype=_float())
+        return xp.zeros(wave.shape, dtype=_float())
 
     def get_transmission(self, wave):
         """ Note that this is the **amplitude** transmission, not the
         total intensity transmission. """
-        return _ncp.ones(wave.shape, dtype=_float())
+        return xp.ones(wave.shape, dtype=_float())
 
     # noinspection PyUnusedLocal
     def get_phasor(self, wave):
@@ -148,10 +148,10 @@ class AnalyticOpticalElement(OpticalElement):
             if conf.double_precision:
                 return result
             else:
-                return _ncp.asarray(result, _complex())
+                return xp.asarray(result, _complex())
 
         else:
-            return self.get_transmission(wave) * _ncp.exp(1.j * self.get_opd(wave) * scale)
+            return self.get_transmission(wave) * xp.exp(1.j * self.get_opd(wave) * scale)
 
     @utils.quantity_input(wavelength=u.meter)
     def sample(self, wavelength=1e-6 * u.meter, npix=512, grid_size=None, what='amplitude',
@@ -208,7 +208,7 @@ class AnalyticOpticalElement(OpticalElement):
             output_array = self.get_transmission(w) ** 2
         elif what == 'phase':
             if phase_unit == 'radians':
-                output_array = _ncp.angle(phasor) * 2 * np.pi / wavelength
+                output_array = xp.angle(phasor) * 2 * np.pi / wavelength
             elif phase_unit == 'waves':
                 output_array = self.get_opd(w) / wavelength
             elif phase_unit == 'meters':
@@ -371,7 +371,7 @@ class ScalarTransmission(AnalyticOpticalElement):
         self.wavefront_display_hint = 'intensity'
 
     def get_transmission(self, wave):
-        res = _ncp.empty(wave.shape, dtype=_float())
+        res = xp.empty(wave.shape, dtype=_float())
         res.fill(self.transmission)
         return res
 
@@ -389,7 +389,7 @@ class ScalarOpticalPathDifference(AnalyticOpticalElement):
         self.opd = opd
 
     def get_opd(self, wave):
-        res = _ncp.empty(wave.shape, dtype=_float())
+        res = xp.empty(wave.shape, dtype=_float())
         res.fill(self.opd.to(u.meter).value)
         return res
 
@@ -703,7 +703,7 @@ class CircularPhaseMask(AnalyticImagePlaneElement):
         y, x = self.get_coordinates(wave)
         r = _r(x, y)
 
-        self.opd= _ncp.zeros(wave.shape, dtype=_float())
+        self.opd= xp.zeros(wave.shape, dtype=_float())
         radius = self.radius.to(u.arcsec).value
 
         self.opd[r <= radius] = self.retardance * self.central_wavelength.to(u.meter).value
@@ -831,12 +831,12 @@ class HexagonFieldStop(AnalyticImagePlaneElement):
 
         y, x = self.get_coordinates(wave)
         side = self.side.to(u.arcsec).value
-        absy = _ncp.abs(y)
+        absy = xp.abs(y)
 
-        self.transmission = _ncp.zeros(wave.shape, dtype=_float())
+        self.transmission = xp.zeros(wave.shape, dtype=_float())
 
         w_rect = (
-            (_ncp.abs(x) <= 0.5 * side) &
+            (xp.abs(x) <= 0.5 * side) &
             (absy <= np.sqrt(3) / 2 * side)
         )
         w_left_tri = (
@@ -897,7 +897,7 @@ class AnnularFieldStop(AnalyticImagePlaneElement):
         if self.radius_outer > 0:
             self.transmission = geometry.filled_circle_aa(wave.shape, 0,0, radius_outer/pxscl, xarray=xpix, yarray=ypix)
         else:
-            self.transmission = _ncp.ones(wave.shape, dtype=_float())
+            self.transmission = xp.ones(wave.shape, dtype=_float())
 
         if self.radius_inner > 0:
             self.transmission -= geometry.filled_circle_aa(wave.shape, 0,0, radius_inner/pxscl, xarray=xpix, yarray=ypix)
@@ -954,10 +954,10 @@ class BarOcculter(AnalyticImagePlaneElement):
 
         y, x = self.get_coordinates(wave)
 
-        w_inside = ( (_ncp.abs(x) <= self.width.to(u.arcsec).value / 2) &
-                     (_ncp.abs(y) <= self.height.to(u.arcsec).value / 2) )
+        w_inside = ( (xp.abs(x) <= self.width.to(u.arcsec).value / 2) &
+                     (xp.abs(y) <= self.height.to(u.arcsec).value / 2) )
 
-        self.transmission = _ncp.ones(wave.shape, dtype=_float())
+        self.transmission = xp.ones(wave.shape, dtype=_float())
         self.transmission[w_inside] = 0
 
         return self.transmission
@@ -1059,17 +1059,17 @@ class ParityTestAperture(AnalyticOpticalElement):
         r = _r(x, y)
 
         w_outside = (r > radius)
-        self.transmission = _ncp.ones(wave.shape, dtype=_float())
+        self.transmission = xp.ones(wave.shape, dtype=_float())
         self.transmission[w_outside] = 0
 
         w_box1 = (
             (r > (radius * 0.5)) &
-            (_ncp.abs(x) < radius * 0.1) &
+            (xp.abs(x) < radius * 0.1) &
             (y < 0)
         )
         w_box2 = (
             (r > (radius * 0.75)) &
-            (_ncp.abs(y) < radius * 0.2) &
+            (xp.abs(y) < radius * 0.2) &
             (x < 0)
         )
         self.transmission[w_box1] = 0
@@ -1105,10 +1105,10 @@ class LetterFAperture(AnalyticOpticalElement):
         yr = y / radius
         xr = x / radius
 
-        self.transmission = _ncp.zeros(wave.shape, dtype=float)
-        self.transmission[(xr <  0) & (xr > -0.5) & (_ncp.abs(yr) < 1)] = 1
-        self.transmission[(xr >= 0) & (xr < 0.75) & (_ncp.abs(yr - 0.75) < 0.25)] = 1
-        self.transmission[(xr >= 0) & (xr < 0.5) & (_ncp.abs(yr) < 0.25)] = 1
+        self.transmission = xp.zeros(wave.shape, dtype=float)
+        self.transmission[(xr <  0) & (xr > -0.5) & (xp.abs(yr) < 1)] = 1
+        self.transmission[(xr >= 0) & (xr < 0.75) & (xp.abs(yr - 0.75) < 0.25)] = 1
+        self.transmission[(xr >= 0) & (xr < 0.5) & (xp.abs(yr) < 0.25)] = 1
         return self.transmission
 
 class LetterFOpticalPathDifference(AnalyticOpticalElement):
@@ -1253,12 +1253,12 @@ class HexagonAperture(AnalyticOpticalElement):
 
         y, x = self.get_coordinates(wave)
         side = self.side.to(u.meter).value
-        absy = _ncp.abs(y)
+        absy = xp.abs(y)
 
-        self.transmission = _ncp.zeros(wave.shape, dtype=_float())
+        self.transmission = xp.zeros(wave.shape, dtype=_float())
 
         w_rect = (
-            (_ncp.abs(x) <= 0.5 * side) &
+            (xp.abs(x) <= 0.5 * side) &
             (absy <= np.sqrt(3) / 2 * side)
         )
         w_left_tri = (
@@ -1389,7 +1389,7 @@ class MultiSegmentAperture(AnalyticOpticalElement, ABC):
             raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         assert (wave.planetype != PlaneType.image)
 
-        self.transmission = _ncp.zeros(wave.shape, dtype=_float())
+        self.transmission = xp.zeros(wave.shape, dtype=_float())
 
         for i in self.segmentlist:
             self._one_aperture(wave, i)
@@ -1458,7 +1458,7 @@ class MultiHexagonAperture(MultiSegmentAperture):
 
         y -= ceny
         x -= cenx
-        absy = _ncp.abs(y)
+        absy = xp.abs(y)
 
         w_rect = (
             (np.abs(x) <= 0.5 * side) &
@@ -1515,17 +1515,17 @@ class NgonAperture(AnalyticOpticalElement):
         y, x = self.get_coordinates(wave)
 
         phase = self.rotation * np.pi / 180
-        vertices = _ncp.zeros((self.nsides, 2), dtype=_float())
+        vertices = xp.zeros((self.nsides, 2), dtype=_float())
         for i in range(self.nsides):
 #             vertices[i] = [np.cos(i * 2 * np.pi / self.nsides + phase),
 #                            np.sin(i * 2 * np.pi / self.nsides + phase)]
-            vertices[i,0] = _ncp.cos(i * 2 * _ncp.pi / self.nsides + phase)
-            vertices[i,1] = _ncp.sin(i * 2 * _ncp.pi / self.nsides + phase)
+            vertices[i,0] = xp.cos(i * 2 * xp.pi / self.nsides + phase)
+            vertices[i,1] = xp.sin(i * 2 * xp.pi / self.nsides + phase)
         vertices *= self.radius.to(u.meter).value
 
-        self.transmission = _ncp.zeros(wave.shape, dtype=_float())
+        self.transmission = xp.zeros(wave.shape, dtype=_float())
         for row in range(wave.shape[0]):
-            pts = _ncp.asarray(list(zip(x[row], y[row])))
+            pts = xp.asarray(list(zip(x[row], y[row])))
             if accel_math._USE_CUPY:
                 ok = matplotlib.path.Path(vertices.get()).contains_points(pts.get()) # extremely slow
             else: 
@@ -1593,7 +1593,7 @@ class MultiCircularAperture(MultiSegmentAperture):
             del x
             del y
 
-            w_inside = _ncp.where(r < segRadius)
+            w_inside = xp.where(r < segRadius)
             del r
             self.transmission[w_inside] = value
 
@@ -1721,10 +1721,10 @@ class SecondaryObscuration(AnalyticOpticalElement):
             raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         assert (wave.planetype != PlaneType.image)
 
-        self.transmission = _ncp.ones(wave.shape, dtype=_float())
+        self.transmission = xp.ones(wave.shape, dtype=_float())
 
         y, x = self.get_coordinates(wave)
-        r = _ncp.sqrt(x ** 2 + y ** 2)  # * wave.pixelscale
+        r = xp.sqrt(x ** 2 + y ** 2)  # * wave.pixelscale
 
         self.transmission[r < self.secondary_radius.to(u.meter).value] = 0
 
@@ -1732,10 +1732,10 @@ class SecondaryObscuration(AnalyticOpticalElement):
             angle = 2 * np.pi / self.n_supports * i + np.deg2rad(self.support_angle_offset)
 
             # calculate rotated x' and y' coordinates after rotation by that angle.
-            xp = np.cos(angle) * x + np.sin(angle) * y
-            yp = -np.sin(angle) * x + np.cos(angle) * y
+            x_p = np.cos(angle) * x + np.sin(angle) * y
+            y_p = -np.sin(angle) * x + np.cos(angle) * y
 
-            self.transmission[(xp > 0) & (_ncp.abs(yp) < self.support_width.to(u.meter).value / 2)] = 0
+            self.transmission[(x_p > 0) & (xp.abs(y_p) < self.support_width.to(u.meter).value / 2)] = 0
 
             # TODO check here for if there are no pixels marked because the spider is too thin.
             # In that case use a grey scale approximation
@@ -1781,11 +1781,11 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
         self.support_width = support_width
 
         if np.isscalar(support_offset_x):
-            support_offset_x = _ncp.zeros(len(support_angle)) + support_offset_x
+            support_offset_x = xp.zeros(len(support_angle)) + support_offset_x
         self.support_offset_x = support_offset_x
 
         if np.isscalar(support_offset_y):
-            support_offset_y = _ncp.zeros(len(support_angle)) + support_offset_y
+            support_offset_y = xp.zeros(len(support_angle)) + support_offset_y
         self.support_offset_y = support_offset_y
 
     def get_transmission(self, wave):
@@ -1795,10 +1795,10 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
             raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         assert (wave.planetype != PlaneType.image)
 
-        self.transmission = _ncp.ones(wave.shape, dtype=_float())
+        self.transmission = xp.ones(wave.shape, dtype=_float())
 
         y, x = self.get_coordinates(wave)
-        r = _ncp.sqrt(x ** 2 + y ** 2)
+        r = xp.sqrt(x ** 2 + y ** 2)
 
         self.transmission[r < self.secondary_radius.to(u.meter).value] = 0
 
@@ -1810,10 +1810,10 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
 
             # calculate rotated x' and y' coordinates after rotation by that angle.
             # and application of offset
-            xp = np.cos(angle) * (x - offset_x) + np.sin(angle) * (y - offset_y)
-            yp = -np.sin(angle) * (x - offset_x) + np.cos(angle) * (y - offset_y)
+            x_p = np.cos(angle) * (x - offset_x) + np.sin(angle) * (y - offset_y)
+            y_p = -np.sin(angle) * (x - offset_x) + np.cos(angle) * (y - offset_y)
 
-            self.transmission[(xp > 0) & (_ncp.abs(yp) < width.to(u.meter).value / 2)] = 0
+            self.transmission[(x_p > 0) & (xp.abs(y_p) < width.to(u.meter).value / 2)] = 0
 
             # TODO check here for if there are no pixels marked because the spider is too thin.
             # In that case use a grey scale approximation
@@ -1861,7 +1861,7 @@ class ThinLens(CircularAperture):
 
     def get_opd(self, wave):
         y, x = self.get_coordinates(wave)
-        r = _ncp.sqrt(x ** 2 + y ** 2)
+        r = xp.sqrt(x ** 2 + y ** 2)
         r_norm = r / self.radius.to(u.meter).value
 
 
@@ -1934,7 +1934,7 @@ class GaussianAperture(AnalyticOpticalElement):
             raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         y, x = self.get_coordinates(wave)
 
-        r = _ncp.sqrt(x ** 2 + y ** 2)
+        r = xp.sqrt(x ** 2 + y ** 2)
 
         transmission = np.exp((- (r / self.w.to(u.meter).value) ** 2))
 
@@ -2090,11 +2090,11 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
 
     def get_transmission(self, wave):
         if self.mergemode == "and":
-            trans = _ncp.ones(wave.shape, dtype=_float())
+            trans = xp.ones(wave.shape, dtype=_float())
             for optic in self.opticslist:
                 trans *= optic.get_transmission(wave)
         elif self.mergemode == "or":
-            trans = _ncp.zeros(wave.shape, dtype=_float())
+            trans = xp.zeros(wave.shape, dtype=_float())
             for optic in self.opticslist:
                 trans = trans + optic.get_transmission(wave) - trans * optic.get_transmission(wave)
         else:
@@ -2103,7 +2103,7 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
         return self.transmission
 
     def get_opd(self, wave):
-        opd = _ncp.zeros(wave.shape, dtype=_float())
+        opd = xp.zeros(wave.shape, dtype=_float())
 
         if self.mergemode == 'and':
             for optic in self.opticslist:

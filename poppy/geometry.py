@@ -9,8 +9,8 @@ import numpy as np
 from . import accel_math
 
 accel_math.update_math_settings()
-global _ncp
-from .accel_math import _ncp
+global xp
+from .accel_math import xp
 
 if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
@@ -43,7 +43,7 @@ def _arc(x, y0, y1, r):
         if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
             return ne.evaluate("0.5 * r**2 * (arctan(y1/x) - arctan(y0/x))")
         else:
-            return 0.5 * r**2 * (_ncp.arctan(y1/x) - _ncp.arctan(y0/x))
+            return 0.5 * r**2 * (xp.arctan(y1/x) - xp.arctan(y0/x))
 
 def _chord(x, y0, y1):
     """
@@ -62,74 +62,74 @@ def _oneside(x, y0, y1, r):
     this path takes you clockwise the area will be negative.
     """
 
-    if _ncp.all(_ncp.equal(x, 0)): return x
+    if xp.all(xp.equal(x, 0)): return x
 
-    if _ncp.isscalar(x): x = _ncp.asarray(x)
-    if _ncp.isscalar(y0): y0 = _ncp.asarray(y0)
-    if _ncp.isscalar(y1): y1 = _ncp.asarray(y1)
+    if xp.isscalar(x): x = xp.asarray(x)
+    if xp.isscalar(y0): y0 = xp.asarray(y0)
+    if xp.isscalar(y1): y1 = xp.asarray(y1)
     sx = x.shape
-    ans = _ncp.zeros(sx, dtype=_ncp.float64)
-    yh = _ncp.zeros(sx, dtype=_ncp.float64)
+    ans = xp.zeros(sx, dtype=xp.float64)
+    yh = xp.zeros(sx, dtype=xp.float64)
     to = (abs(x) >= r)
     ti = (abs(x) < r)
-    if _ncp.any(to):
+    if xp.any(to):
         ans[to] = _arc(x[to], y0[to], y1[to], r)
-    if not _ncp.any(ti):
+    if not xp.any(ti):
         return ans
 
-    yh[ti] = _ncp.sqrt(r**2 - x[ti]**2)
+    yh[ti] = xp.sqrt(r**2 - x[ti]**2)
 
     i = ((y0 <= -yh) & ti)
-    if _ncp.any(i):
+    if xp.any(i):
 
         j = ((y1 <= -yh) & i)
-        if _ncp.any(j):
+        if xp.any(j):
             ans[j] = _arc(x[j], y0[j], y1[j], r)
 
         j = ((y1 > -yh) & (y1 <= yh) & i)
-        if _ncp.any(j):
+        if xp.any(j):
             ans[j] = _arc(x[j], y0[j], -yh[j], r) + \
                      _chord(x[j], -yh[j], y1[j])
 
         j = ((y1 > yh) & i)
-        if _ncp.any(j):
+        if xp.any(j):
             ans[j] = _arc(x[j], y0[j], -yh[j], r) + \
                      _chord(x[j], -yh[j], yh[j]) + \
                      _arc(x[j], yh[j], y1[j], r)
 
     i = ((y0 > -yh) & (y0 < yh) & ti)
-    if _ncp.any(i):
+    if xp.any(i):
 
         j = ((y1 <= -yh) & i)
-        if _ncp.any(j):
+        if xp.any(j):
             ans[j] = _chord(x[j], y0[j], -yh[j]) + \
                      _arc(x[j], -yh[j], y1[j], r)
 
         j = ((y1 > -yh) & (y1 <= yh) & i)
-        if _ncp.any(j):
+        if xp.any(j):
             ans[j] = _chord(x[j], y0[j], y1[j])
 
         j = ((y1 > yh) & i)
-        if _ncp.any(j):
+        if xp.any(j):
             ans[j] = _chord(x[j], y0[j], yh[j]) + \
                      _arc(x[j], yh[j], y1[j], r)
 
     i = ((y0 >= yh) & ti)
-    if _ncp.any(i):
+    if xp.any(i):
 
         j = ((y1 <= -yh) & i)
-        if _ncp.any(j):
+        if xp.any(j):
             ans[j] = _arc(x[j], y0[j], yh[j], r) + \
                      _chord(x[j], yh[j], -yh[j]) + \
                      _arc(x[j], -yh[j], y1[j], r)
 
         j = ((y1 > -yh) & (y1 <= yh) & i)
-        if _ncp.any(j):
+        if xp.any(j):
             ans[j] = _arc(x[j], y0[j], yh[j], r) + \
                      _chord(x[j], yh[j], y1[j])
 
         j = ((y1 > yh) & i)
-        if _ncp.any(j):
+        if xp.any(j):
             ans[j] = _arc(x[j], y0[j], y1[j], r)
     return ans
 
@@ -196,24 +196,24 @@ def filled_circle_aa(shape, xcenter, ycenter, radius, xarray=None, yarray=None,
     """
     
     accel_math.update_math_settings()                   # ensure optimal propagation based on user settings
-    global _ncp
-    from .accel_math import _ncp
+    global xp
+    from .accel_math import xp
 
-    array = _ncp.zeros(shape)
+    array = xp.zeros(shape)
 
     if xarray is None or yarray is None:
-        yarray, xarray = _ncp.indices(shape)
+        yarray, xarray = xp.indices(shape)
         
-    r = _ncp.sqrt( (xarray-xcenter)**2 + (yarray-ycenter)**2)
+    r = xp.sqrt( (xarray-xcenter)**2 + (yarray-ycenter)**2)
     array[r < radius ]  = fillvalue
 
-    pixscale = _ncp.abs(xarray[0,1] - xarray[0,0])
+    pixscale = xp.abs(xarray[0,1] - xarray[0,0])
     area_per_pix = pixscale**2
 
-    if _ncp.abs(pixscale -1.0) > 0.01:
+    if xp.abs(pixscale -1.0) > 0.01:
         import warnings
         warnings.warn('filled_circle_aa may not yield exact results for grey pixels when pixel scale <1')
-    border = _ncp.where( _ncp.abs(r-radius) < pixscale)
+    border = xp.where( xp.abs(r-radius) < pixscale)
 
     weights = pixwt(xcenter, ycenter, radius, xarray[border], yarray[border])
 
@@ -222,6 +222,6 @@ def filled_circle_aa(shape, xcenter, ycenter, radius, xarray=None, yarray=None,
 
     if clip:
         assert len(cliprange) == 2
-        return _ncp.asarray(array).clip(*cliprange)
+        return xp.asarray(array).clip(*cliprange)
     else:
         return array
