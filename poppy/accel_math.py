@@ -104,6 +104,11 @@ def update_math_settings():
         xp = np
         _scipy = scipy
 
+# Call update_math_settings once on initial import
+# This ensures an initial setup is done prior to any code execution
+update_math_settings()
+
+
 def _float():
     """ Returns numpy data type for desired precision based on configuration """
     # How many bits per float to use?
