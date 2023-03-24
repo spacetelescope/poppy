@@ -16,9 +16,7 @@ from . import geometry
 from . import accel_math
 from .accel_math import _exp, _r, _float, _complex
 
-accel_math.update_math_settings()
-global xp
-from .accel_math import xp
+from .accel_math import xp, _scipy
 
 if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
@@ -66,11 +64,6 @@ class AnalyticOpticalElement(OpticalElement):
     def __init__(self, shift_x=None, shift_y=None, rotation=None,
             inclination_x=None, inclination_y=None,
             **kwargs):
-        
-        accel_math.update_math_settings()
-        global xp, _scipy
-        from .accel_math import xp, _scipy
-            
         OpticalElement.__init__(self, **kwargs)
 
         if shift_x is not None: self.shift_x = shift_x

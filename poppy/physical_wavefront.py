@@ -9,8 +9,6 @@ from scipy.linalg import lstsq
 from poppy.fresnel import FresnelWavefront, QuadraticLens
 
 from . import accel_math
-accel_math.update_math_settings()
-global xp
 from .accel_math import xp, ensure_not_on_gpu
 
 import scipy
@@ -18,7 +16,7 @@ if accel_math._USE_CUPY:
     lstsq = xp.linalg.lstsq
 else:
     lstsq = scipy.linalg.lstsq
-    
+
 class PhysicalFresnelWavefront(FresnelWavefront):
     """
     This class extends the capabilities of poppy's FresnelWavefront class.

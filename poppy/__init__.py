@@ -103,6 +103,8 @@ class Conf(_config.ConfigNamespace):
 
 conf = Conf()
 
+from . import accel_math  # This should be the first import here, to ensure math accelerators and settings are loaded prior to
+                          # the rest of poppy code being loaded.
 from . import poppy_core
 from . import utils
 from . import optics

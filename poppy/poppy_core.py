@@ -20,14 +20,12 @@ from . import conf
 from . import accel_math
 from .accel_math import _float, _complex
 
-accel_math.update_math_settings()
-global xp, _scipy # dont actually need to declare these as globals here since they are automatically global
 from .accel_math import xp, _scipy
 
-if accel_math._NUMEXPR_AVAILABLE: 
+if accel_math._NUMEXPR_AVAILABLE:
     # whether or not numexpr is going to be used, have it ready in case user switches from gpu to cpu
     import numexpr as ne
-    
+
 import logging
 
 _log = logging.getLogger('poppy')
@@ -112,11 +110,6 @@ class BaseWavefront(ABC):
     @utils.quantity_input(wavelength=u.meter, diam=u.meter)
     def __init__(self, wavelength=1e-6 * u.meter, npix=1024, dtype=None, diam=1.0 * u.meter,
                  oversample=2):
-        
-        accel_math.update_math_settings() # maybe we could just make the user call this every time a conf is changed
-        global xp, _scipy
-        from .accel_math import xp, _scipy
-            
         self.oversample = oversample
 
         self.wavelength = wavelength  # Wavelength in meters (or other unit if specified)
@@ -1013,11 +1006,6 @@ class Wavefront(BaseWavefront):
     @utils.quantity_input(wavelength=u.meter, diam=u.meter, pixelscale=u.arcsec / u.pixel)
     def __init__(self, wavelength=1e-6 * u.meter, npix=1024, dtype=None, diam=8.0 * u.meter,
                  oversample=2, pixelscale=None):
-        
-        accel_math.update_math_settings()                   # ensure optimal propagation based on user settings
-        global xp, _scipy
-        from .accel_math import xp, _scipy
-        
         super(Wavefront, self).__init__(wavelength=wavelength,
                                         npix=npix,
                                         dtype=dtype,
@@ -1454,11 +1442,6 @@ class BaseOpticalSystem(ABC):
     """
     def __init__(self, name="unnamed system", verbose=True, oversample=2,
                  npix=None, pupil_diameter=None):
-        
-        accel_math.update_math_settings()
-        global xp
-        from .accel_math import xp
-        
         self.name = name
         self.verbose = verbose
         self.planes = []  # List of OpticalElements
@@ -2447,11 +2430,6 @@ class OpticalElement(object):
 
     def __init__(self, name="unnamed optic", verbose=True, planetype=PlaneType.unspecified,
                  oversample=1, interp_order=3):
-        
-        accel_math.update_math_settings()
-        global xp
-        from .accel_math import xp
-        
         self.name = name
         """ string. Descriptive Name of this optic"""
         self.verbose = verbose

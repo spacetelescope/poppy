@@ -25,8 +25,6 @@ from . import zernike
 from . import utils
 from . import accel_math
 
-accel_math.update_math_settings()
-global xp
 from .accel_math import xp, ensure_not_on_gpu
 
 
@@ -59,11 +57,6 @@ class WavefrontError(AnalyticOpticalElement):
         if 'planetype' not in kwargs:
             kwargs['planetype'] = PlaneType.pupil
         super(WavefrontError, self).__init__(**kwargs)
-        
-        accel_math.update_math_settings()
-        global xp
-        from .accel_math import xp
-        
         # in general we will want to see phase rather than intensity at this plane
         self.wavefront_display_hint = 'phase'
 

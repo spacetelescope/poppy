@@ -58,19 +58,10 @@ import numpy as np
 from . import conf
 from . import accel_math
 
-accel_math.update_math_settings()
-global xp
 from .accel_math import xp
 
 if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
-    
-# if accel_math._USE_CUPY:
-#     import cupy as np
-#     rnd = numpy.round
-# else:
-#     import numpy as np
-#     rnd = np.round
 
 import logging
 _log = logging.getLogger('poppy')
@@ -132,11 +123,6 @@ def matrix_dft(plane, nlamD, npix,
         will be displaced from the central pixel (or cross). Given as
         (offsetY, offsetX).
     """
-    
-    accel_math.update_math_settings()
-    global xp
-    from .accel_math import xp
-    
     if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
         return matrix_dft_numexpr(plane, nlamD, npix,
                                   offset=offset, inverse=inverse, centering=centering)

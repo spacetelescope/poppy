@@ -9,10 +9,8 @@ from poppy.poppy_core import PlaneType, Wavefront, BaseWavefront, BaseOpticalSys
 from . import utils
 from . import accel_math
 
-accel_math.update_math_settings()
-global xp
 from .accel_math import xp
-    
+
 if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
     pi = np.pi  # needed for evaluation inside numexpr strings.
@@ -302,11 +300,6 @@ class FresnelWavefront(BaseWavefront):
         - Andersen, T., and A. Enmark (2011), Integrated Modeling of Telescopes, Springer Science & Business Media.
 
         """
-        
-        accel_math.update_math_settings()
-        global xp
-        from .accel_math import xp
-            
         super(FresnelWavefront, self).__init__(
             diam=beam_radius.to(u.m).value * 2.0,
             oversample=oversample,

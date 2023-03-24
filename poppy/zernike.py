@@ -35,9 +35,6 @@ import astropy.units as u
 from poppy.poppy_core import Wavefront
 
 from . import accel_math
-
-accel_math.update_math_settings()
-global xp
 from .accel_math import xp
 
 from functools import lru_cache
@@ -118,11 +115,6 @@ def noll_indices(j):
         Starts at 1.
 
     """
-    
-    accel_math.update_math_settings()
-    global xp
-    from .accel_math import xp
-    
     if j < 1:
         raise ValueError("Zernike index j must be a positive integer.")
 
@@ -235,11 +227,6 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
     zern : 2D numpy array
         Z(m,n) evaluated at each (rho, theta)
     """
-    
-    accel_math.update_math_settings()
-    global xp
-    from .accel_math import xp
-    
     if not n >= m:
         raise ValueError("Zernike index m must be >= index n")
     if (n - m) % 2 != 0:
@@ -315,11 +302,6 @@ def cached_zernike1(j, shape, pixelscale, pupil_radius, outside=np.nan, noll_nor
     Note: all arguments should be plain ints, tuples, floats etc rather than
     Astropy Quantities.
     """
-    
-    accel_math.update_math_settings()
-    global xp
-    from .accel_math import xp
-    
     y, x = Wavefront.pupil_coordinates(shape, pixelscale)
     r = xp.sqrt(x ** 2 + y ** 2)
 
@@ -778,15 +760,10 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
         be 0.0 sometimes.
     """
     # code submitted by Arthur Vigan - see https://github.com/mperrin/poppy/issues/166
-    
-    accel_math.update_math_settings()
-    global xp
-    from .accel_math import xp
-    
     shape = aperture.shape
     assert len(shape) == 2 and shape[0] == shape[1], \
         "only square aperture arrays are supported"
-    
+
     # any pixels with zero or NaN in the aperture are outside the area
     apmask = (xp.isfinite(aperture) & (aperture > 0))
     apmask_float = xp.asarray(apmask, float)

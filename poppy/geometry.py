@@ -7,9 +7,6 @@
 import numpy as np
 
 from . import accel_math
-
-accel_math.update_math_settings()
-global xp
 from .accel_math import xp
 
 if accel_math._NUMEXPR_AVAILABLE:
@@ -194,16 +191,12 @@ def filled_circle_aa(shape, xcenter, ycenter, radius, xarray=None, yarray=None,
     cliprange : array_like
         if clip is True, give values to use in the clip function.
     """
-    
-    accel_math.update_math_settings()                   # ensure optimal propagation based on user settings
-    global xp
-    from .accel_math import xp
 
     array = xp.zeros(shape)
 
     if xarray is None or yarray is None:
         yarray, xarray = xp.indices(shape)
-        
+
     r = xp.sqrt( (xarray-xcenter)**2 + (yarray-ycenter)**2)
     array[r < radius ]  = fillvalue
 

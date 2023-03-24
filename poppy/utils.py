@@ -27,8 +27,6 @@ from importlib import reload
 
 from . import accel_math
 
-accel_math.update_math_settings()
-global xp, _scipy
 from .accel_math import xp, _scipy
 
 try:
@@ -1102,8 +1100,6 @@ def pad_to_oversample(array, oversample):
     ---------
     padToSize
     """
-    global xp
-    from .accel_math import xp
     npix = array.shape[0]
     n = int(np.round(npix * oversample))
     padded = xp.zeros(shape=(n, n), dtype=array.dtype)
@@ -1136,9 +1132,6 @@ def pad_to_size(array, padded_shape):
     ---------
     pad_to_oversample, pad_or_crop_to_shape
     """
-    global xp
-    from .accel_math import xp
-    
     if len(padded_shape) < 2:
         outsize0 = padded_shape
         outsize1 = padded_shape
@@ -1181,9 +1174,6 @@ def pad_or_crop_to_shape(array, target_shape):
     pad_to_oversample, pad_to_size
 
     """
-    global xp
-    from .accel_math import xp
-    
     if array.shape == target_shape:
         return array
 
@@ -1191,7 +1181,7 @@ def pad_or_crop_to_shape(array, target_shape):
     lx_w, ly_w = target_shape
     border_x = xp.abs(lx - lx_w) // 2
     border_y = xp.abs(ly - ly_w) // 2
-    
+
     if (lx < lx_w) or (ly < ly_w):
         _log.debug("Array shape " + str(array.shape) + " is smaller than desired shape " + str(
             [lx_w, ly_w]) + "; will attempt to zero-pad the array")
@@ -1243,9 +1233,6 @@ def rebin_array(a=None, rc=(2, 2), verbose=False):
     anand@stsci.edu
 
     """
-    global xp
-    from .accel_math import xp
-    
     r, c = rc
 
     R = a.shape[0]

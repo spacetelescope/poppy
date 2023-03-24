@@ -11,8 +11,6 @@ from abc import ABC, abstractmethod
 
 from . import utils, accel_math, poppy_core, optics
 
-accel_math.update_math_settings()
-global xp, _scipy
 from .accel_math import xp, _scipy
 
 import logging
@@ -89,10 +87,6 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
                  include_factor_of_two = False,
                  **kwargs
                  ):
-        
-        accel_math.update_math_settings()
-        global xp, _scipy
-        from .accel_math import xp, _scipy
 
         optics.AnalyticOpticalElement.__init__(self, planetype=poppy_core.PlaneType.pupil, **kwargs)
         self._dm_shape = dm_shape  # number of actuators
