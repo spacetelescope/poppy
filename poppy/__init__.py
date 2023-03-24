@@ -25,7 +25,6 @@ except ImportError:
 
 __minimum_python_version__ = "3.9"
 
-
 class UnsupportedPythonError(Exception):
     pass
 
@@ -68,6 +67,8 @@ class Conf(_config.ConfigNamespace):
             'is available)?')
     use_opencl = _config.ConfigItem(True, 'Use OpenCL for FFTs on GPU (assuming it' +
             'is available)?')
+    use_cupy = _config.ConfigItem(True, 'Use CuPy for FFTs on GPU (assuming it' +
+            'is available)?')
     use_numexpr = _config.ConfigItem(True, 'Use NumExpr to accelerate array math (assuming it' +
             'is available)?')
 
@@ -102,6 +103,8 @@ class Conf(_config.ConfigNamespace):
 
 conf = Conf()
 
+from . import accel_math  # This should be the first import here, to ensure math accelerators and settings are loaded prior to
+                          # the rest of poppy code being loaded.
 from . import poppy_core
 from . import utils
 from . import optics

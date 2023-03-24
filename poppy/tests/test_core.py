@@ -2,6 +2,7 @@
 import os
 
 import numpy as np
+from poppy.accel_math import xp   # May be numpy, or CuPy on GPU
 from astropy.io import fits
 import astropy.units as u
 import pytest
@@ -16,8 +17,6 @@ import poppy
 from .. import poppy_core
 from .. import optics
 
-import matplotlib.pyplot as plt
-
 ####### Test Common Infrastructure #######
 
 def check_wavefront(filename_or_hdulist, slice=0, ext=0, test='nearzero', comment=""):
@@ -29,16 +28,15 @@ def check_wavefront(filename_or_hdulist, slice=0, ext=0, test='nearzero', commen
     elif isinstance(filename_or_hdulist, fits.HDUList):
         hdulist = filename_or_hdulist
         filename = 'input HDUlist'
-    imstack = hdulist[ext].data
+    imstack = xp.asarray(hdulist[ext].data)  # extra asarray helps with GPU compatibility here
     im = imstack[slice,:,:]
 
-
     if test=='nearzero':
-        return np.all(np.abs(im) < np.finfo(im.dtype).eps*10)
+        return xp.all(xp.abs(im) < xp.finfo(im.dtype).eps * 10)
     elif test == 'is_real':
         #assumes output type = 'all'
-        cplx_im = imstack[1,:,:] * np.exp(1j*imstack[2,:,:])
-        return np.all( cplx_im.imag < np.finfo(im.dtype).eps*10)
+        cplx_im = imstack[1,:,:] * xp.exp(1j * imstack[2, :, :])
+        return xp.all(cplx_im.imag < xp.finfo(im.dtype).eps * 10)
 
 wavelength=2e-6
 
@@ -129,9 +127,9 @@ def test_CircularAperture_Airy(display=False):
     osys.add_detector(pixelscale=0.010,fov_pixels=512, oversample=1)
     numeric = osys.calc_psf(wavelength=1.0e-6, display=False)
 
-    # Comparison
-    difference = numeric[0].data-analytic
-    assert np.all(np.abs(difference) < 3e-5)
+    # Comparison. Extra xp.array cast needed for the GPU case
+    difference = xp.array(numeric[0].data) - analytic
+    assert xp.all(xp.abs(difference) < 3e-5)
 
     if display:
         from .. import utils
@@ -139,20 +137,20 @@ def test_CircularAperture_Airy(display=False):
         from matplotlib.colors import LogNorm
         norm = LogNorm(vmin=1e-6, vmax=1e-2)
 
-        pl.figure(figsize=(15,5))
-        pl.subplot(141)
-        ax1=pl.imshow(analytic, norm=norm)
-        pl.title("Analytic")
-        pl.subplot(142)
+        plt.figure(figsize=(15,5))
+        plt.subplot(141)
+        ax1=poppy.utils.imshow(analytic, norm=norm)
+        plt.title("Analytic")
+        plt.subplot(142)
         #ax2=pl.imshow(numeric[0].data, norm=norm)
         utils.display_psf(numeric, vmin=1e-6, vmax=1e-2, colorbar=False)
-        pl.title("Numeric")
-        pl.subplot(143)
-        ax2=pl.imshow(numeric[0].data-analytic, norm=norm)
-        pl.title("Difference N-A")
-        pl.subplot(144)
-        ax2=pl.imshow(np.abs(numeric[0].data-analytic) < 3e-5)
-        pl.title("Difference <1e-5")
+        plt.title("Numeric")
+        plt.subplot(143)
+        ax2=poppy.utils.imshow(difference, norm=norm)
+        plt.title("Difference N-A")
+        plt.subplot(144)
+        ax2=poppy.utils.imshow(xp.abs(difference) < 3e-5)
+        plt.title("Difference <1e-5")
 
 
 def test_multiwavelength_opticalsystem():
@@ -208,7 +206,7 @@ def test_normalization():
     # for the simple optical system above, the 'first' and 'exit_pupil' options should be equivalent:
     psf_exit_pupil = osys.calc_psf(wavelength=1.0e-6, normalize='exit_pupil')
     assert (psf_exit_pupil[0].data.sum() - 1) < 1e-9
-    assert np.abs( psf_exit_pupil[0].data - psf_first[0].data).max()  < 1e-10
+    assert abs(psf_exit_pupil[0].data - psf_first[0].data).max() < 1e-10
 
 
     # and if we make an pupil stop with half the radius we should get 1/4 the light if normalized to 'first'
@@ -282,7 +280,7 @@ def test_inverse_MFT():
 
     # the intermediate PSF (after one MFT) should be essentially identical to the
     # final PSF (after an MFT, inverse MFT, and another MFT):
-    assert(   np.abs(psf1[0].data - psf[0].data).max()  < 1e-7 )
+    assert(abs(psf1[0].data - psf[0].data).max() < 1e-7)
 
 
 @pytest.mark.skipif(
@@ -301,27 +299,27 @@ def test_optic_resizing():
     inputwf = poppy_core.Wavefront(diam=1.0, npix=500)
 
     # Test rescaling from finer scales: diameter 1 meter, pixel scale 1 mm
-    test_optic_small=fits.HDUList([fits.PrimaryHDU(np.zeros([1000,1000]))])
+    test_optic_small=fits.HDUList([fits.PrimaryHDU(np.zeros([1000, 1000]))])
     test_optic_small[0].header["PUPLSCAL"]=.001
     test_optic_small_element=poppy_core.FITSOpticalElement(transmission=test_optic_small)
     assert(test_optic_small_element.get_phasor(inputwf).shape ==inputwf.shape )
 
     # Test rescaling from coarser scales: diameter 1 meter, pixel scale 10 mm
-    test_optic_large=fits.HDUList([fits.PrimaryHDU(np.zeros([100,100]))])
+    test_optic_large=fits.HDUList([fits.PrimaryHDU(np.zeros([100, 100]))])
     test_optic_large[0].header["PUPLSCAL"]=.01
     test_optic_large_element=poppy_core.FITSOpticalElement(transmission=test_optic_large)
     assert(test_optic_large_element.get_phasor(inputwf).shape ==inputwf.shape )
 
     # Test rescaling where we have to pad with extra zeros:
     # diameter 0.8 mm, pixel scale 1 mm
-    test_optic_pad=fits.HDUList([fits.PrimaryHDU(np.zeros([800,800]))])
+    test_optic_pad=fits.HDUList([fits.PrimaryHDU(np.zeros([800, 800]))])
     test_optic_pad[0].header["PUPLSCAL"]=.001
     test_optic_pad_element=poppy_core.FITSOpticalElement(transmission=test_optic_pad)
     assert(test_optic_pad_element.get_phasor(inputwf).shape ==inputwf.shape )
 
     # Test rescaling where we have to trim to a smaller size:
     # diameter 1.2 mm, pixel scale 1 mm
-    test_optic_crop=fits.HDUList([fits.PrimaryHDU(np.zeros([1200,1200]))])
+    test_optic_crop=fits.HDUList([fits.PrimaryHDU(np.zeros([1200, 1200]))])
     test_optic_crop[0].header["PUPLSCAL"]=.001
     test_optic_crop_element=poppy_core.FITSOpticalElement(transmission=test_optic_crop)
     assert(test_optic_crop_element.get_phasor(inputwf).shape ==inputwf.shape )
@@ -349,8 +347,8 @@ def test_unit_conversions():
         numeric_psf = osys.calc_psf(wavelength=wavelen, display=False)
 
         # Comparison
-        difference = numeric_psf[0].data-analytic
-        assert np.all(np.abs(difference) < 3e-5)
+        difference = xp.asarray(numeric_psf[0].data) - analytic
+        assert xp.all(xp.abs(difference) < 3e-5)
 
 def test_return_complex():
     osys =poppy_core.OpticalSystem()
@@ -359,10 +357,10 @@ def test_return_complex():
     psf = osys.calc_psf(2e-6,return_final=True)
     assert len(psf[1])==1 #make sure only one element was returned
     #test that the wavefront returned is the final wavefront:
-    assert np.allclose(psf[1][0].intensity,psf[0][0].data)
+    assert xp.allclose(psf[1][0].intensity, psf[0][0].data)
 
 
-def test_displays():
+def test_displays(close=True):
     # Right now doesn't check the outputs are as expected in any way
     # TODO consider doing that? But it's hard given variations in matplotlib version etc
 
@@ -400,7 +398,8 @@ def test_displays():
     # Test wavefront display, implicitly including other units
     waves[-1].display()
 
-    plt.close('all')
+    if close:
+        plt.close('all')
 
 
 def test_rotation_in_OpticalSystem(display=False, npix=1024):
@@ -431,57 +430,58 @@ def test_rotation_in_OpticalSystem(display=False, npix=1024):
             poppy.display_psf(psf2, ax=axes[1])
             axes[1].set_title("Wavefront rotated {} deg".format(angle))
 
-        assert np.allclose(psf1[0].data, psf2[0].data, atol=atol), ("PSFs did not agree "
+        assert xp.allclose(psf1[0].data, psf2[0].data, atol=atol), ("PSFs did not agree "
                                                                     f"within the requested tolerance, for angle={angle}."
-                                                                    f"Max |difference| = {np.max(np.abs(psf1[0].data - psf2[0].data))}")
+                                                                    f"Max |difference| = {xp.max(xp.abs(psf1[0].data - psf2[0].data))}")
 
 ### Tests for OpticalElements defined in poppy_core###
 
 def test_ArrayOpticalElement():
     import poppy
-    y,x = np.indices((10,10)) # arbitrary something to stick in an optical element
+    y,x = xp.indices((10, 10)) # arbitrary something to stick in an optical element
 
     ar = poppy.ArrayOpticalElement(opd=x, transmission=y, pixelscale=1*u.meter/u.pixel)
 
-    assert np.allclose(ar.opd, x), "Couldn't set OPD"
-    assert np.allclose(ar.amplitude, y), "Couldn't set amplitude transmission"
+    assert xp.allclose(ar.opd, x), "Couldn't set OPD"
+    assert xp.allclose(ar.amplitude, y), "Couldn't set amplitude transmission"
     assert ar.pixelscale == 1*u.meter/u.pixel
 
 def test_FITSOpticalElement(tmpdir):
     circ_fits = poppy.CircularAperture().to_fits(grid_size=3, npix=10)
-    fn = str(tmpdir / "circle.fits")
+    fn = str(os.path.join(tmpdir , "circle.fits"))
     circ_fits.writeto(fn, overwrite=True)
 
     # Test passing aperture via file on disk
     foe = poppy.FITSOpticalElement(transmission=fn)
     assert foe.amplitude_file == fn
-    assert np.allclose(foe.amplitude, circ_fits[0].data)
+    assert xp.allclose(foe.amplitude, circ_fits[0].data)
 
     # Test passing OPD via FITS object, along with unit conversion
     circ_fits[0].header['BUNIT'] = 'micron' # need unit for OPD
     foe = poppy.FITSOpticalElement(opd=circ_fits)
     assert foe.opd_file == 'supplied as fits.HDUList object'
-    assert np.allclose(foe.opd, circ_fits[0].data*1e-6)
+    assert xp.allclose(foe.opd, circ_fits[0].data * 1e-6)
 
     # make a cube
     rect_mask = poppy.RectangleAperture().sample(grid_size=3, npix=10)
+    rect_mask = poppy.accel_math.ensure_not_on_gpu(rect_mask)
     circ_mask = circ_fits[0].data
     circ_fits[0].data = np.stack([circ_mask, rect_mask])
     circ_fits[0].header['BUNIT'] = 'nm' # need unit for OPD
-    fn2 = str(tmpdir / "cube.fits")
+    fn2 = str(os.path.join(tmpdir, "cube.fits"))
     circ_fits.writeto(fn2, overwrite=True)
 
     # Test passing OPD as cube, with slice default, units of nanometers
     foe = poppy.FITSOpticalElement(opd=fn2)
     assert foe.opd_file == fn2
     assert foe.opd_slice == 0
-    assert np.allclose(foe.opd, circ_mask*1e-9)
+    assert xp.allclose(foe.opd, circ_mask * 1e-9)
 
     # Same cube but now we ask for the next slice
     foe = poppy.FITSOpticalElement(opd=(fn2, 1))
     assert foe.opd_file == fn2
     assert foe.opd_slice == 1
-    assert np.allclose(foe.opd, rect_mask*1e-9)
+    assert xp.allclose(foe.opd, rect_mask * 1e-9)
 
 def test_OPD_in_waves_for_FITSOpticalElement():
     pupil_radius = 1 * u.m
@@ -508,7 +508,7 @@ def test_OPD_in_waves_for_FITSOpticalElement():
     # wavelength-independent 1 wave defocus
     lens_as_fits = single_wave_1um_lens.to_fits(what='opd', npix=3 * npix // 2)
     lens_as_fits[0].header['BUNIT'] = 'radian'
-    lens_as_fits[0].data *= 2 * np.pi / reference_wavelength.to(u.m).value
+    lens_as_fits[0].data *= 2 * xp.pi / reference_wavelength.to(u.m).value
     lens_as_fits_trans = single_wave_1um_lens.to_fits(what='amplitude', npix=3 * npix // 2)
     thin_lens_wl_indep = poppy.FITSOpticalElement(opd=lens_as_fits, transmission=lens_as_fits_trans, opdunits='radian')
     # We expect identical peak flux for all wavelengths, so check at 0.5x and 2x
@@ -518,7 +518,7 @@ def test_OPD_in_waves_for_FITSOpticalElement():
         osys.add_pupil(thin_lens_wl_indep)
         osys.add_detector(prefactor * 0.01 * u.arcsec / u.pixel, fov_pixels=3)
         psf = osys.calc_psf(wavelength=prefactor * u.um)
-        assert np.isclose(center_pixel_value, psf[0].data[1,1])
+        assert xp.isclose(center_pixel_value, psf[0].data[1,1])
 
 def test_fits_rot90_vs_ndimagerotate_consistency(plot=False):
     """Test that rotating a FITS HDUList via either of the two
@@ -531,7 +531,7 @@ def test_fits_rot90_vs_ndimagerotate_consistency(plot=False):
                                    rotation=90)
     opt2 = poppy.FITSOpticalElement(transmission=letterf_hdu,
                                    rotation=89.99999)
-    assert np.allclose(opt1.amplitude, opt2.amplitude, atol=1e-5)
+    assert xp.allclose(opt1.amplitude, opt2.amplitude, atol=1e-5)
 
     if plot:
         fig, axes = plt.subplots(figsize=(10, 5), ncols=2)
@@ -558,7 +558,7 @@ def test_analytic_vs_FITS_rotation_consistency(plot=False):
 
     array1 = opt1.sample(npix=128)
     array2 = opt2.amplitude
-    assert np.allclose(array1, array2)
+    assert xp.allclose(array1, array2)
 
 ### OpticalSystem tests and related
 
@@ -584,7 +584,7 @@ def test_source_offsets_in_OpticalSystem(npix=128, fov_size=1, verbose=False):
         raise ValueError("npix < 110 results in too few pixels for fwcentroid to work properly.")
 
     pixscale = fov_size / npix
-    center_coords = np.asarray((npix - 1, npix - 1)) / 2
+    center_coords = xp.asarray((npix - 1, npix - 1)) / 2
 
     ref_psf1 = None  # below we will save and compare PSFs with transforms to one without.
 
@@ -605,7 +605,7 @@ def test_source_offsets_in_OpticalSystem(npix=128, fov_size=1, verbose=False):
         # a PSF with no offset should be centered
         psf0 = osys.calc_psf()
         cen = poppy.measure_centroid(psf0)
-        assert np.allclose(cen, center_coords), "PSF with no source offset should be centered"
+        assert xp.allclose(cen, center_coords), "PSF with no source offset should be centered"
         if verbose:
             print(f"PSF with no offset OK for system with {transform} transform.\n")
 
@@ -616,25 +616,25 @@ def test_source_offsets_in_OpticalSystem(npix=128, fov_size=1, verbose=False):
         osys.source_offset_theta = 0
         psf1 = osys.calc_psf()
         cen = poppy.measure_centroid(psf1)
-        assert np.allclose((cen[0] - center_coords[0]) * pixscale, osys.source_offset_r,
+        assert xp.allclose((cen[0] - center_coords[0]) * pixscale, osys.source_offset_r,
                            rtol=0.1), "Measured centroid in Y did not match expected offset"
-        assert np.allclose(cen[1], center_coords[1], rtol=0.1), "Measured centroid in X should not shift for this test case"
+        assert xp.allclose(cen[1], center_coords[1], rtol=0.1), "Measured centroid in X should not shift for this test case"
         if verbose:
             print(f"PSF with +Y offset OK for system with {transform} transform.\n")
 
         if ref_psf1 is None:
             ref_psf1 = psf1
         else:
-            assert np.allclose(ref_psf1[0].data, psf1[0].data,
+            assert xp.allclose(ref_psf1[0].data, psf1[0].data,
                                atol=1e-4), "PSF is inconsistent with the system without any transforms"
 
         # Shift to PA=90 should move in -X
         osys.source_offset_theta = 90
         psf2 = osys.calc_psf()
         cen = poppy.measure_centroid(psf2)
-        assert np.allclose((cen[1] - center_coords[1]) * pixscale, -osys.source_offset_r,
+        assert xp.allclose((cen[1] - center_coords[1]) * pixscale, -osys.source_offset_r,
                            rtol=0.1), "Measured centroid in X did not match expected offset"
-        assert np.allclose(cen[0], center_coords[0], rtol=0.1), "Measured centroid in Y should not shift for this test case"
+        assert xp.allclose(cen[0], center_coords[0], rtol=0.1), "Measured centroid in Y should not shift for this test case"
 
         if verbose:
             print(f"PSF with -X offset OK for system with {transform} transform.\n")
@@ -736,7 +736,7 @@ def test_CompoundOpticalSystem():
     psf_simple = osys.calc_psf()
     psf_compound = cosys.calc_psf()
 
-    np.testing.assert_allclose(psf_simple[0].data, psf_compound[0].data,
+    xp.testing.assert_allclose(psf_simple[0].data, psf_compound[0].data,
                                err_msg="PSFs do not match between equivalent simple and compound optical systems")
 
 
@@ -775,5 +775,5 @@ def test_inwave_fraunhofer(plot=False):
     wf = wfs1[-1].wavefront
     wf_no_in = wfs2[-1].wavefront
     
-    assert np.allclose(wf, wf_no_in), 'Results differ unexpectedly when using inwave argument in OpticalSystem().'
+    assert xp.allclose(wf, wf_no_in), 'Results differ unexpectedly when using inwave argument in OpticalSystem().'
 

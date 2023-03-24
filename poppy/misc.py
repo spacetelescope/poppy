@@ -4,13 +4,12 @@
 #
 ############################################################################
 
-import numpy as np
-import scipy
 import matplotlib.pyplot as plt
 
+from poppy.accel_math import xp, _scipy
 
-_RADtoARCSEC = 180.*60*60/np.pi  # ~ 206265
-_ARCSECtoRAD = np.pi/(180.*60*60)
+_RADtoARCSEC = 180. * 60 * 60 / xp.pi  # ~ 206265
+_ARCSECtoRAD = xp.pi / (180. * 60 * 60)
 
 
 def airy_1d(diameter=1.0, wavelength=1e-6, length=512, pixelscale=0.010,
@@ -40,15 +39,15 @@ def airy_1d(diameter=1.0, wavelength=1e-6, length=512, pixelscale=0.010,
         Array with the Airy function values, normalized to 1 at peak
     """
 
-    r = np.arange(length)*pixelscale
+    r = xp.arange(length) * pixelscale
 
-    v = np.pi * (r*_ARCSECtoRAD) * diameter/wavelength
+    v = xp.pi * (r * _ARCSECtoRAD) * diameter / wavelength
     e = obscuration
 
     # pedantically avoid divide by 0 by setting 0s to minimum nonzero number
-    v[v == 0] = np.finfo(v.dtype).eps
+    v[v == 0] = xp.finfo(v.dtype).eps
 
-    airy = 1./(1-e**2)**2 * ((2*scipy.special.jn(1, v) - e*2*scipy.special.jn(1, e*v))/v)**2
+    airy = 1./(1-e**2)**2 * ((2*_scipy.special.j1(v) - e*2*_scipy.special.j1(e*v))/v)**2
     # see e.g. Schroeder, Astronomical Optics, 2nd ed. page 248
 
     if plot:
@@ -79,24 +78,24 @@ def airy_2d(diameter=1.0, wavelength=1e-6, shape=(512, 512), pixelscale=0.010,
     """
 
     if center is None:
-        center = (np.asarray(shape)-1.)/2
-    y, x = np.indices(shape, dtype=float)
+        center = (xp.asarray(shape) - 1.) / 2
+    y, x = xp.indices(shape, dtype=float)
     y -= center[0]
     x -= center[1]
     y *= pixelscale
     x *= pixelscale
-    r = np.sqrt(x**2 + y**2)
+    r = xp.sqrt(x ** 2 + y ** 2)
 
     radius = float(diameter)/2.0
 
-    k = 2*np.pi / wavelength  # wavenumber
+    k = 2 * xp.pi / wavelength  # wavenumber
     v = k * radius * r * _ARCSECtoRAD
     e = obscuration
 
     # pedantically avoid divide by 0 by setting 0s to minimum nonzero number
-    v[v == 0] = np.finfo(v.dtype).eps
+    v[v == 0] = xp.finfo(v.dtype).eps
 
-    airy = 1./(1-e**2)**2 * ((2*scipy.special.jn(1, v) - e*2*scipy.special.jn(1, e*v))/v)**2
+    airy = 1./(1-e**2)**2 * ((2*_scipy.special.j1(v) - e*2*_scipy.special.j1(e*v))/v)**2
     # see e.g. Schroeder, Astronomical Optics, 2nd ed. page 248
     return airy
 
@@ -130,18 +129,18 @@ def sinc2_2d(width=1.0, height=None, wavelength=1e-6, shape=(512, 512), pixelsca
     halfheight = float(height)/2
 
     if center is None:
-        center = (np.asarray(shape)-1.)/2
-    y, x = np.indices(shape, float)
+        center = (xp.asarray(shape) - 1.) / 2
+    y, x = xp.indices(shape, float)
     y -= center[0]
     x -= center[1]
     y *= pixelscale
     x *= pixelscale
 
-    k = 2*np.pi / wavelength  # wavenumber
+    k = 2 * xp.pi / wavelength  # wavenumber
     alpha = k * x * halfwidth * _ARCSECtoRAD
     beta = k * y * halfheight * _ARCSECtoRAD
 
-    psf = (np.sinc(alpha))**2 * (np.sinc(beta))**2
+    psf = (xp.sinc(alpha)) ** 2 * (xp.sinc(beta)) ** 2
 
     return psf
 ################################################################################
