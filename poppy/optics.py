@@ -33,6 +33,7 @@ __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'ScalarOpticalPathDif
 
 # ------ Generic Analytic elements -----
 
+
 class AnalyticOpticalElement(OpticalElement):
     """ Defines an abstract analytic optical element, i.e. one definable by
         some formula rather than by an input OPD or pupil file.
@@ -62,8 +63,8 @@ class AnalyticOpticalElement(OpticalElement):
     """
 
     def __init__(self, shift_x=None, shift_y=None, rotation=None,
-            inclination_x=None, inclination_y=None,
-            **kwargs):
+                 inclination_x=None, inclination_y=None,
+                 **kwargs):
         OpticalElement.__init__(self, **kwargs)
 
         if shift_x is not None: self.shift_x = shift_x
@@ -316,7 +317,7 @@ class AnalyticOpticalElement(OpticalElement):
         y, x = wave.coordinates()
         if hasattr(self, "shift_x"):
             if isinstance(self.shift_x, u.Quantity):
-                desired_unit = u.arcsecond if self.planetype==PlaneType.image else u.meter
+                desired_unit = u.arcsecond if self.planetype == PlaneType.image else u.meter
                 shift_value = self.shift_x.to_value(desired_unit)
                 x -= float(shift_value)
             else:
@@ -604,10 +605,11 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
 
         if not np.isfinite(self.transmission.sum()):
             _log.warning("There are NaNs in the BLC mask - correcting to zero. (DEBUG LATER?)")
-            self.transmission[ np.isnan(self.transmission) ] = 0
+            self.transmission[np.isnan(self.transmission)] = 0
         return self.transmission
 
-BandLimitedCoron=BandLimitedCoronagraph # Back compatibility for old name.
+
+BandLimitedCoron = BandLimitedCoronagraph  # Back compatibility for old name.
 
 
 class IdealFQPM(AnalyticImagePlaneElement):
@@ -669,7 +671,7 @@ class CircularPhaseMask(AnalyticImagePlaneElement):
 
     @utils.quantity_input(radius=u.arcsec, wavelength=u.meter)
     def __init__(self, name=None, radius=1*u.arcsec, wavelength=1e-6 * u.meter, retardance=0.5,
-            **kwargs):
+                 **kwargs):
         if name is None:
             name = "Phase mask r={:.3g}".format(radius)
         AnalyticImagePlaneElement.__init__(self, name=name, **kwargs)
@@ -696,7 +698,7 @@ class CircularPhaseMask(AnalyticImagePlaneElement):
         radius = self.radius.to(u.arcsec).value
 
         self.opd[r <= radius] = self.retardance * self.central_wavelength.to(u.meter).value
-        npix = (r<=radius).sum()
+        npix = (r <= radius).sum()
         if npix < 50:  # pragma: no cover
             import warnings
             errmsg = "Phase mask is very coarsely sampled: only {} pixels. "\
@@ -864,7 +866,7 @@ class AnnularFieldStop(AnalyticImagePlaneElement):
         self.name = name
         self.radius_inner = radius_inner
         self.radius_outer = radius_outer
-        self._default_display_size = 2* max(radius_outer, radius_inner)
+        self._default_display_size = 2 * max(radius_outer, radius_inner)
 
     def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the field stop.
@@ -880,16 +882,16 @@ class AnnularFieldStop(AnalyticImagePlaneElement):
         radius_outer = self.radius_outer.to(u.arcsec).value
 
         pxscl = wave.pixelscale.to(u.arcsec/u.pixel).value
-        ypix=y/pxscl  # The filled_circle_aa code and in particular pxwt doesn't seem reliable with pixel scale <1
-        xpix=x/pxscl
+        ypix = y/pxscl  # The filled_circle_aa code and in particular pxwt doesn't seem reliable with pixel scale <1
+        xpix = x/pxscl
 
         if self.radius_outer > 0:
-            self.transmission = geometry.filled_circle_aa(wave.shape, 0,0, radius_outer/pxscl, xarray=xpix, yarray=ypix)
+            self.transmission = geometry.filled_circle_aa(wave.shape, 0, 0, radius_outer/pxscl, xarray=xpix, yarray=ypix)
         else:
             self.transmission = xp.ones(wave.shape, dtype=_float())
 
         if self.radius_inner > 0:
-            self.transmission -= geometry.filled_circle_aa(wave.shape, 0,0, radius_inner/pxscl, xarray=xpix, yarray=ypix)
+            self.transmission -= geometry.filled_circle_aa(wave.shape, 0, 0, radius_inner/pxscl, xarray=xpix, yarray=ypix)
 
         return self.transmission
 
@@ -931,7 +933,7 @@ class BarOcculter(AnalyticImagePlaneElement):
         AnalyticImagePlaneElement.__init__(self, **kwargs)
         self.name = name
         self.width = width
-        self.height= height
+        self.height = height
         self._default_display_size = max(height, width) * 1.2
 
     def get_transmission(self, wave):
@@ -943,8 +945,8 @@ class BarOcculter(AnalyticImagePlaneElement):
 
         y, x = self.get_coordinates(wave)
 
-        w_inside = ( (xp.abs(x) <= self.width.to(u.arcsec).value / 2) &
-                     (xp.abs(y) <= self.height.to(u.arcsec).value / 2) )
+        w_inside = ((xp.abs(x) <= self.width.to(u.arcsec).value / 2) &
+                     (xp.abs(y) <= self.height.to(u.arcsec).value / 2)
 
         self.transmission = xp.ones(wave.shape, dtype=_float())
         self.transmission[w_inside] = 0
@@ -1095,10 +1097,11 @@ class LetterFAperture(AnalyticOpticalElement):
         xr = x / radius
 
         self.transmission = xp.zeros(wave.shape, dtype=float)
-        self.transmission[(xr <  0) & (xr > -0.5) & (xp.abs(yr) < 1)] = 1
+        self.transmission[(xr < 0) & (xr > -0.5) & (xp.abs(yr) < 1)] = 1
         self.transmission[(xr >= 0) & (xr < 0.75) & (xp.abs(yr - 0.75) < 0.25)] = 1
         self.transmission[(xr >= 0) & (xr < 0.5) & (xp.abs(yr) < 0.25)] = 1
         return self.transmission
+
 
 class LetterFOpticalPathDifference(AnalyticOpticalElement):
     """ Define a capital letter F in OPD. This is sometimes useful for
@@ -1127,10 +1130,11 @@ class LetterFOpticalPathDifference(AnalyticOpticalElement):
         xr = x / radius
 
         self.opd = np.zeros(wave.shape, dtype=float)
-        self.opd[(xr <  0) & (xr > -0.5) & (np.abs(yr) < 1)] = self._opd_amount
+        self.opd[(xr < 0) & (xr > -0.5) & (np.abs(yr) < 1)] = self._opd_amount
         self.opd[(xr >= 0) & (xr < 0.75) & (np.abs(yr - 0.75) < 0.25)] = self._opd_amount
         self.opd[(xr >= 0) & (xr < 0.5) & (np.abs(yr) < 0.25)] = self._opd_amount
         return self.opd
+
 
 class CircularAperture(AnalyticOpticalElement):
     """ Defines an ideal circular pupil aperture
@@ -1154,7 +1158,7 @@ class CircularAperture(AnalyticOpticalElement):
 
     @utils.quantity_input(radius=u.meter)
     def __init__(self, name=None, radius=1.0 * u.meter, pad_factor=1.0, planetype=PlaneType.unspecified,
-            gray_pixel=True, **kwargs):
+                 gray_pixel=True, **kwargs):
 
         if name is None:
             name = "Circle, radius={}".format(radius)
@@ -1182,7 +1186,7 @@ class CircularAperture(AnalyticOpticalElement):
             self.transmission = geometry.filled_circle_aa(wave.shape, 0, 0, radius/pixscale, x/pixscale, y/pixscale)
         else:
             r = _r(x, y)
-            self.transmission = (r<=radius).astype(_float())
+            self.transmission = (r <= radius).astype(_float())
         return self.transmission
 
 
@@ -1264,6 +1268,7 @@ class HexagonAperture(AnalyticOpticalElement):
         self.transmission[w_right_tri] = 1
 
         return self.transmission
+
 
 class MultiSegmentAperture(AnalyticOpticalElement, ABC):
     """Abstract base class for an aperture made of sub-apertures
@@ -1435,7 +1440,6 @@ class MultiHexagonAperture(MultiSegmentAperture):
         super().__init__(name=name, segment_size=self.flattoflat,
                          gap=gap, rings=rings, segmentlist=segmentlist, center=center, **kwargs)
 
-
     def _one_aperture(self, wave, index, value=1):
         """ Draw one hexagon into the self.transmission array """
 
@@ -1520,6 +1524,7 @@ class NgonAperture(AnalyticOpticalElement):
 
         return self.transmission
 
+
 class MultiCircularAperture(MultiSegmentAperture):
     """ Defines a circularly segmented aperture in close compact configuration
     
@@ -1548,14 +1553,14 @@ class MultiCircularAperture(MultiSegmentAperture):
     """
     
     @utils.quantity_input(segment_radius=u.meter, gap=u.meter)
-    def __init__(self, name = "multiCirc",rings = 1, segment_radius = 1.0, gap = 0.01,
-                 segmentlist = None, center = True, gray_pixel = True, **kwargs):
+    def __init__(self, name="multiCirc", rings=1, segment_radius=1.0, gap=0.01,
+                 segmentlist=None, center=True, gray_pixel=True, **kwargs):
         self.segment_radius = segment_radius
         segment_diameter = 2*segment_radius
 
         super().__init__(name=name, segment_size=segment_diameter,
                          gap=gap, rings=rings, segmentlist=segmentlist, center=center, **kwargs)
-        self.pupil_diam = (segment_diameter) * (2 * self.rings + 1)+ gap * (2*rings)
+        self.pupil_diam = (segment_diameter) * (2 * self.rings + 1) + gap * (2*rings)
         
         self._use_gray_pixel = bool(gray_pixel)
         
@@ -1850,7 +1855,6 @@ class ThinLens(CircularAperture):
         r = xp.sqrt(x ** 2 + y ** 2)
         r_norm = r / self.radius.to(u.meter).value
 
-
         # don't forget the factor of 0.5 to make the scaling factor apply as peak-to-valley
         # rather than center-to-peak
         defocus_zernike = ((2 * r_norm ** 2 - 1) *
@@ -1861,7 +1865,7 @@ class ThinLens(CircularAperture):
         # we use the aperture intensity here to mask the OPD we return, in
         # order to avoid bogus values outside the aperture
         aperture_intensity = CircularAperture.get_transmission(self, wave)
-        opd[aperture_intensity==0] = 0
+        opd[aperture_intensity == 0] = 0
 
         return opd
 
@@ -1945,7 +1949,7 @@ class TiltOpticalPathDifference(AnalyticOpticalElement):
 
     """
     def __init__(self, name='Tilt', tilt_angle=0.1 * u.arcsec, rotation=0, **kwargs):
-        self.tilt_angle=tilt_angle
+        self.tilt_angle = tilt_angle
         super().__init__(name=name, rotation=rotation, **kwargs)
 
     def get_opd(self, wave):
@@ -1961,9 +1965,7 @@ class TiltOpticalPathDifference(AnalyticOpticalElement):
         return opd
 
 
-
 # ------ generic analytic optics ------
-
 class KnifeEdge(AnalyticOpticalElement):
     """ A half-infinite opaque plane, with a perfectly sharp edge
     through the origin.
@@ -2107,6 +2109,7 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
 
 # ------ convert analytic optics to array optics ------
 
+
 def fixed_sampling_optic(optic, wavefront, oversample=2):
     """Convert a variable-sampling AnalyticOpticalElement to a fixed-sampling ArrayOpticalElement
 
@@ -2146,7 +2149,7 @@ def fixed_sampling_optic(optic, wavefront, oversample=2):
     _log.debug("Converting {} to fixed sampling with grid_size={}, npix={}, oversample={}".format(
         optic.name, grid_size, npix, oversample))
 
-    if oversample>1:
+    if oversample > 1:
         _log.debug("retrieving oversampled opd and transmission arrays")
         sampled_opd = optic.sample(what='opd', npix=npix*oversample, grid_size=grid_size)
         sampled_trans = optic.sample(what='amplitude', npix=npix*oversample, grid_size=grid_size)
