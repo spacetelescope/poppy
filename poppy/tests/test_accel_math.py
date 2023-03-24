@@ -65,7 +65,8 @@ def test_r():
 
     accel_math._USE_NUMEXPR = default_use_numexpr
 
-@pytest.mark.skipif((accel_math._NUMEXPR_AVAILABLE is False) or (accel_math._USE_CUPY), reason="numexpr not available")
+@pytest.mark.skipif(accel_math._NUMEXPR_AVAILABLE is False, reason="numexpr not available")
+@pytest.mark.skipif(accel_math._USE_CUPY, reason="Test not relavent if using CuPy")
 def test_exp_numexpr():
     """ Test that calculating the exponential gives equivalent results via
     plain numpy and numexpr"""

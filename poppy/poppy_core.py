@@ -23,7 +23,6 @@ from .accel_math import _float, _complex
 from .accel_math import xp, _scipy
 
 if accel_math._NUMEXPR_AVAILABLE:
-    # whether or not numexpr is going to be used, have it ready in case user switches from gpu to cpu
     import numexpr as ne
 
 import logging
@@ -249,6 +248,9 @@ class BaseWavefront(ABC):
             else:
                 return attribute_array.copy()
 
+        # Note: FITS HDULists cannot contain arrays which are in GPU memory;
+        # thus if _USE_CUPY is true, we must get() the arrays back from GPU into CPU memory.
+        # This pattern occurs several times in the below.
         if what.lower() == 'all':
             intens = get_unpadded(self.intensity)
             outarr = xp.zeros((3, intens.shape[0], intens.shape[1]))
@@ -699,7 +701,7 @@ class BaseWavefront(ABC):
     @property
     def intensity(self):
         """Electric field intensity of the wavefront (i.e. field amplitude squared)"""
-        if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
+        if accel_math._USE_NUMEXPR:
             w = self.wavefront
             return ne.evaluate("real(abs(w))**2")
         else:
@@ -757,7 +759,7 @@ class BaseWavefront(ABC):
         Returns
         -------
         The wavefront object is modified to have the appropriate pixel scale and spatial extent.
-        
+
         """
         import scipy.interpolate
 
@@ -775,28 +777,25 @@ class BaseWavefront(ABC):
 
         # Provide 2-pixel margin around image to reduce interpolation errors at edge, but also make
         # sure that image is centered properly after it gets cropped down to detector size
-        
         margin = 2
         crop_shape = [margin + shape for shape in self.wavefront.shape]
 
         # Crop wavefront down to detector size + margin- don't waste computation interpolating
         # parts of plane that get cropped out later anyways
         cropped_wf = utils.pad_or_crop_to_shape(self.wavefront, crop_shape)
-        
         pixscale_in = self.pixelscale.to(u.m/u.pix).value
         pixscale_out = detector.pixelscale.to(u.m / u.pix).value
         if not accel_math._USE_CUPY:
             def make_axis(npix, step):
                 """ Helper function to make coordinate axis for interpolation """
                 return step * xp.arange(-npix // 2, npix // 2, dtype=xp.float64)
-            
+
             # Input and output axes for interpolation.  The interpolated wavefront will be evaluated
             # directly onto the detector axis, so don't need to crop afterwards.
             x_in = make_axis(crop_shape[0], pixscale_in)
             y_in = make_axis(crop_shape[1], pixscale_in)
             x_out = make_axis(detector.shape[0], pixscale_out)
             y_out = make_axis(detector.shape[1], pixscale_out)
-#             print(x_in.min(), x_in.max(), x_out.min(), x_out.max())
 
             def interpolator(arr):
                 """
@@ -837,10 +836,10 @@ class BaseWavefront(ABC):
             coords = xp.array([ivals, jvals])
             
             new_wf = _scipy.ndimage.map_coordinates(cropped_wf, coords, order=detector.interp_order)
-        
+
         # enforce conservation of energy:
         new_wf *= 1. / pixscale_ratio
-            
+
         self.ispadded = False   # if a pupil detector, avoid auto-cropping padded pixels on output
         self.wavefront = new_wf
         self.pixelscale = detector.pixelscale
@@ -1285,7 +1284,7 @@ class Wavefront(BaseWavefront):
         else:
             pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
 
-        if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
+        if accel_math._USE_NUMEXPR:
             ny, nx = shape
             return (ne.evaluate("pixel_scale_y * (y - (ny-1)/2)"),
                     ne.evaluate("pixel_scale_x * (x - (nx-1)/2)") )
@@ -2522,7 +2521,7 @@ class OpticalElement(object):
                            " zoom factor of {:.3g}".format(zoom))
                 _log.debug("resampled optic shape: {}   wavefront shape: {}".format(resampled_amplitude.shape,
                                                                                     wave.shape))
-                
+
                 lx, ly = resampled_amplitude.shape
                 # crop down to match size of wavefront:
                 lx_w, ly_w = wave.amplitude.shape
@@ -2553,7 +2552,7 @@ class OpticalElement(object):
 
         else:
             # compute the phasor directly, without any need to rescale.
-            if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
+            if accel_math._USE_NUMEXPR:
                 trans = self.get_transmission(wave)
                 opd = self.get_opd(wave)
                 self.phasor = ne.evaluate("trans * exp(1.j * opd * scale)")
@@ -2934,16 +2933,15 @@ class FITSOpticalElement(OpticalElement):
                     self.amplitude_file = transmission
                     self.amplitude, self.amplitude_header = fits.getdata(self.amplitude_file, header=True)
                     self.amplitude = self.amplitude.astype('=f8')  # ensure native byte order, see #213
-                    
-                    self.amplitude = xp.array(self.amplitude) # sets to CuPy array if np is cupy
-                    
+                    self.amplitude = xp.asarray(self.amplitude)  # sets to CuPy array if np is cupy
+
                     if self.name == 'unnamed optic':
                         self.name = 'Optic from ' + self.amplitude_file
                     _log.info(self.name + ": Loaded amplitude transmission from " + self.amplitude_file)
                 elif isinstance(transmission, fits.HDUList):
                     self.amplitude_file = 'supplied as fits.HDUList object'
                     self.amplitude = transmission[0].data.astype('=f8')  # ensure native byte order, see #213
-                    self.amplitude = xp.array(self.amplitude)   # sets to CuPy array if np is cupy
+                    self.amplitude = xp.asarray(self.amplitude)   # sets to CuPy array if np is cupy
                     self.amplitude_header = transmission[0].header.copy()
                     if self.name == 'unnamed optic':
                         self.name = 'Optic from fits.HDUList object'
@@ -2984,9 +2982,7 @@ class FITSOpticalElement(OpticalElement):
                 self.opd_file = opd
                 self.opd, self.opd_header = fits.getdata(self.opd_file, header=True)
                 self.opd = self.opd.astype('=f8')
-                
-                self.opd = xp.array(self.opd) # sets to CuPy array if np is cupy
-                
+                self.opd = xp.asarray(self.opd)  # sets to CuPy array if np is cupy
                 if self.name == 'unnamed optic': self.name = 'OPD from ' + self.opd_file
                 _log.info(self.name + ": Loaded OPD from " + self.opd_file)
 

@@ -96,7 +96,6 @@ class PhysicalFresnelWavefront(FresnelWavefront):
     @property
     def intensity(self):
         """Intensity distribution (W.m^-2)."""
-        
         return const.c * self.n0 * const.epsilon_0 * xp.abs(self.amplitude) ** 2 / 2.0
 
     @property
@@ -197,12 +196,10 @@ class PhysicalFresnelWavefront(FresnelWavefront):
         num = self.npix
         mask = np.ones((num, num), dtype=float)
         x = self.x
-        
         for idx in range(30):
             w_buf = w
 
             center_x, center_y = self.center(mask)
-            
             mask[:, :] = 0.0
             for idx_x in range(num):
                 for idx_y in range(num):

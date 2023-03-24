@@ -123,7 +123,7 @@ def matrix_dft(plane, nlamD, npix,
         will be displaced from the central pixel (or cross). Given as
         (offsetY, offsetX).
     """
-    if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
+    if accel_math._USE_NUMEXPR:
         return matrix_dft_numexpr(plane, nlamD, npix,
                                   offset=offset, inverse=inverse, centering=centering)
     float = accel_math._float()
@@ -435,11 +435,6 @@ class MatrixFourierTransform:
     """
 
     def __init__(self, centering="ADJUSTABLE", verbose=False):
-        
-        accel_math.update_math_settings()
-        global xp
-        from .accel_math import xp
-        
         self.verbose = verbose
         centering = centering.upper()
         if centering == FFTRECT:  # for backwards compatibility

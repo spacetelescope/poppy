@@ -121,11 +121,9 @@ class AnalyticOpticalElement(OpticalElement):
         else:
             wavelength = wave
         scale = 2. * np.pi / wavelength.to(u.meter).value
-        
-        if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
+        if accel_math._USE_NUMEXPR::
             trans = self.get_transmission(wave)
             opd = self.get_opd(wave)
-            
             # we first multiply the two scalars, for a slight performance gain
             scalars = 1.j * scale
             # warning, numexpr exp is crash-prone if fed complex64, so we
@@ -316,7 +314,6 @@ class AnalyticOpticalElement(OpticalElement):
         """
 
         y, x = wave.coordinates()
-        
         if hasattr(self, "shift_x"):
             if isinstance(self.shift_x, u.Quantity):
                 desired_unit = u.arcsecond if self.planetype==PlaneType.image else u.meter
@@ -473,8 +470,8 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
             raise ValueError("Invalid value for kind of BLC: " + self.kind)
         self.sigma = float(sigma)  # size parameter. See section 2.1 of Krist et al. SPIE 2007, 2009
         if wavelength is not None:
-            self.wavelength = float(wavelength.value)  # wavelength, for selecting the
-            # linear wedge option only, FIXED by adding .value
+            self.wavelength = float(wavelength.to_value(u.m))  # wavelength, for selecting the
+            # linear wedge option only
         self._default_display_size = 20. * u.arcsec  # default size for onscreen display, sized for NIRCam
 
     def get_transmission(self, wave):
@@ -502,7 +499,6 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
             sigmar = self.sigma * r
             sigmar.clip(np.finfo(sigmar.dtype).tiny, out=sigmar)  # avoid divide by zero -> NaNs
 
-#             self.transmission = (1 - (2 * scipy.special.jn(1, sigmar) / sigmar) ** 2)
             self.transmission = (1 - (2 * _scipy.special.j1(sigmar) / sigmar) ** 2)
             self.transmission[r == 0] = 0  # special case center point (value based on L'Hopital's rule)
         elif self.kind == 'nircamcircular':
@@ -1181,7 +1177,6 @@ class CircularAperture(AnalyticOpticalElement):
 
         y, x = self.get_coordinates(wave)
         radius = self.radius.to(u.meter).value
-        
         if self._use_gray_pixel:
             pixscale = wave.pixelscale.to(u.meter/u.pixel).value
             self.transmission = geometry.filled_circle_aa(wave.shape, 0, 0, radius/pixscale, x/pixscale, y/pixscale)
@@ -1510,8 +1505,6 @@ class NgonAperture(AnalyticOpticalElement):
         phase = self.rotation * np.pi / 180
         vertices = xp.zeros((self.nsides, 2), dtype=_float())
         for i in range(self.nsides):
-#             vertices[i] = [np.cos(i * 2 * np.pi / self.nsides + phase),
-#                            np.sin(i * 2 * np.pi / self.nsides + phase)]
             vertices[i,0] = xp.cos(i * 2 * xp.pi / self.nsides + phase)
             vertices[i,1] = xp.sin(i * 2 * xp.pi / self.nsides + phase)
         vertices *= self.radius.to(u.meter).value
@@ -1521,7 +1514,7 @@ class NgonAperture(AnalyticOpticalElement):
             pts = xp.asarray(list(zip(x[row], y[row])))
             if accel_math._USE_CUPY:
                 ok = matplotlib.path.Path(vertices.get()).contains_points(pts.get()) # extremely slow
-            else: 
+            else:
                 ok = matplotlib.path.Path(vertices).contains_points(pts)
             self.transmission[row][ok] = 1.0
 

@@ -8,7 +8,6 @@ import poppy
 from poppy.poppy_core import PlaneType, Wavefront, BaseWavefront, BaseOpticalSystem, FITSOpticalElement
 from . import utils
 from . import accel_math
-
 from .accel_math import xp
 
 if accel_math._NUMEXPR_AVAILABLE:
@@ -352,7 +351,6 @@ class FresnelWavefront(BaseWavefront):
         self._y, self._x = xp.indices(self.shape, dtype=float)
         self._y -= (self.wavefront.shape[0]) / 2.0
         self._x -= (self.wavefront.shape[1]) / 2.0
-        
         """saves x and y indices for future use"""
 
         # FIXME MP: this self.n attribute appears unnecessary?
@@ -508,13 +506,13 @@ class FresnelWavefront(BaseWavefront):
         # This function is intentionally distinct from the regular Wavefront.coordinates(), and behaves
         # slightly differently. This is required for use in the angular spectrum propagation in the PTP and
         # Direct propagations.
-        
+
         pixelscale_mpix = pixelscale.to(u.meter / u.pixel).value
         if not np.isscalar(pixelscale_mpix):
             pixel_scale_x, pixel_scale_y = pixelscale_mpix
         else:
             pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
-        
+
         if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
             return ne.evaluate("pixel_scale_y * y"), ne.evaluate("pixel_scale_x * x")
         else:
@@ -541,7 +539,7 @@ class FresnelWavefront(BaseWavefront):
         Y, X :  array_like
             Wavefront coordinates in either meters or arcseconds for pupil and image, respectively
         """
-        
+
         y, x = type(self).pupil_coordinates(self._x, self._y, self._pixelscale_m)
 
         # If the wavefront been explicitly set to use angular units,
@@ -722,7 +720,7 @@ class FresnelWavefront(BaseWavefront):
         # Transfer Function of diffraction propagation eq. 22, eq. 87
         wavelen_m = self.wavelength.to(u.m).value
 
-        if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
+        if accel_math._USE_NUMEXPR:
             exp_t = ne.evaluate("exp(-1.0j * pi * wavelen_m * (z_direct) * rhosqr)")
         else:
             exp_t = xp.exp(-1.0j * np.pi * wavelen_m * z_direct * rhosqr)
@@ -1060,7 +1058,7 @@ class FresnelWavefront(BaseWavefront):
 
         # get the fpm phasor either using numexpr or numpy
         scale = 2. * np.pi / self.wavelength.to(u.meter).value
-        if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
+        if accel_math._USE_NUMEXPR:
             _log.debug("Calculating FPM phasor from numexpr.")
             trans = optic.get_transmission(self)
             opd = optic.get_opd(self)
