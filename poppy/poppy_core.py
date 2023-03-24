@@ -208,7 +208,6 @@ class BaseWavefront(ABC):
             raise ValueError('Wavefronts can only be added if they have the same size and shape: {} vs {} '.format(
                 self.wavefront.shape, wave.wavefront.shape))
 
-
         try:
             if not np.isclose(self.pixelscale.value, wave.pixelscale.to(self.pixelscale.unit).value):
                 raise ValueError('Wavefronts can only be added if they have the same pixelscale: {} vs {}'.format(
@@ -216,7 +215,6 @@ class BaseWavefront(ABC):
         except u.UnitConversionError:
             raise ValueError('Wavefronts can only be added if they have equivalent units: {} vs {}'.format(
                 self.pixelscale.unit, wave.pixelscale.unit))
-
 
         self.wavefront += wave.wavefront
         self.history.append("Summed with another wavefront!")
@@ -1059,7 +1057,7 @@ class Wavefront(BaseWavefront):
             # phase increasing with time. This convention differs from prior poppy version < 1.0.
             # A "forward propagation" in the optical sense therefore corresponds to what numpy labels
             # as an "inverse" FFT.
-            propagation_forward=True
+            propagation_forward = True
             fft_forward = False
 
             # (pre-)update state:
@@ -1073,7 +1071,7 @@ class Wavefront(BaseWavefront):
             # phase increasing with time. This convention differs from prior poppy version < 1.0.
             # A "backwards propagation" in the optical sense therefore corresponds to what numpy labels
             # as an "forward" FFT.
-            propagation_forward=False
+            propagation_forward = False
             fft_forward = True
 
             # (pre-)update state:
@@ -1248,7 +1246,7 @@ class Wavefront(BaseWavefront):
         if accel_math._USE_NUMEXPR:
             ny, nx = shape
             return (ne.evaluate("pixel_scale_y * (y - (ny-1)/2)"),
-                    ne.evaluate("pixel_scale_x * (x - (nx-1)/2)") )
+                    ne.evaluate("pixel_scale_x * (x - (nx-1)/2)"))
         else:
             y -= (shape[0] - 1) / 2.0
             x -= (shape[1] - 1) / 2.0
@@ -2590,7 +2588,7 @@ class OpticalElement(object):
             if len(units) > 20:
                 units = "\n".join(textwrap.wrap(units, 20))
 
-        ## Create a wavefront object to use when evaluating/sampling the optic.
+        # Create a wavefront object to use when evaluating/sampling the optic.
         if self.pixelscale is not None and self.shape is not None:
             # This optic has an inherent sampling.  The display wavefront's sampling is
             # irrelevant; we get the native pixel scale opd and amplitude regardless and
@@ -2628,7 +2626,7 @@ class OpticalElement(object):
             disp_pixelscale = temp_wavefront.pixelscale
             disp_shape = temp_wavefront.shape
 
-        ## Determine the extent of the image in physical units, for axes labels.
+        # Determine the extent of the image in physical units, for axes labels.
         _log.debug("Display pixel scale = {} ".format(disp_pixelscale))
         if disp_pixelscale.decompose().unit == u.m / u.pix:
             halfsize = disp_pixelscale.to(u.m / u.pix).value * disp_shape[0] / 2
@@ -2636,7 +2634,7 @@ class OpticalElement(object):
             halfsize = disp_pixelscale.to(u.arcsec / u.pix).value * disp_shape[0] / 2
         else:
             raise RuntimeError("Pixelscale units not recognized in display; "
-                              "must be equivalent to arcsec/pix or m/pix")
+                               "must be equivalent to arcsec/pix or m/pix")
         extent = [-halfsize, halfsize, -halfsize, halfsize]
 
         # Evaluate the wavefront at the desired sampling and pixel scale.
@@ -2660,7 +2658,7 @@ class OpticalElement(object):
                 cb_label = 'Transmission amplitude'
 
             utils.imshow_with_mouseover(plot_array, ax=ax, extent=extent, cmap=cmap, norm=norm,
-                                    origin='lower')
+                                        origin='lower')
 
             ax.set_title(title)
             ax.set_ylabel(units)
@@ -3019,8 +3017,8 @@ class FITSOpticalElement(OpticalElement):
             # If a rotation is specified and we're NOT a null (scalar) optic, then do the rotation:
             if rotation is not None and len(self.amplitude.shape) == 2:
 
-                k,remainder = np.divmod(rotation, 90)
-                if remainder==0:
+                k, remainder = np.divmod(rotation, 90)
+                if remainder == 0:
                     # rotation is a multiple of 90
                     self.amplitude = np.rot90(self.amplitude, k=-k)   # negative = CCW
                     self.opd = np.rot90(self.opd, k=-k)
