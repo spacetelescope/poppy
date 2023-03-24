@@ -1,4 +1,5 @@
 import pytest
+from pkg_resources import parse_version as version
 
 import poppy
 from .. import poppy_core
@@ -191,11 +192,13 @@ def test_Circular_Aperture_PTP_long(display=False, npix=512, display_proper=Fals
 
 try:
     from skimage.registration import phase_cross_correlation
+    import skimage
     HAS_SKIMAGE = True
 except ImportError:
     HAS_SKIMAGE = False
 
 @pytest.mark.skipif(not HAS_SKIMAGE, reason='This test requires having scikit-image installed.')
+@pytest.mark.skipif(HAS_SKIMAGE and (version(skimage.__version__) >= version('0.19')), reason='This test is known to fail for skimage > 0.19; see #552.')
 def test_Circular_Aperture_PTP_short(display=False, npix=512, oversample=4, include_wfe=True, display_proper=False):
     """ Tests plane-to-plane propagation at short distances, by comparison
     of the results from propagate_ptp and propagate_direct calculations
