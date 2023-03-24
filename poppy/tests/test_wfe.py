@@ -1,10 +1,8 @@
 
 import numpy as np
-from poppy.accel_math import xp as _np
-from poppy.accel_math import ensure_not_on_gpu
 import astropy.units as u
-from astropy.io import fits
 
+from poppy.accel_math import xp, ensure_not_on_gpu
 from .. import poppy_core
 from .. import optics
 from .. import zernike
@@ -105,8 +103,8 @@ def test_ParameterizedAberration():
     pd_wave *= pupil
     pd_wave *= parameterized_distortion
 
-    _np.testing.assert_allclose(pd_wave.phase, zern_wave.phase,
-                                err_msg="ParameterizedAberration disagrees with ZernikeAberration")
+    xp.testing.assert_allclose(pd_wave.phase, zern_wave.phase,
+                               err_msg="ParameterizedAberration disagrees with ZernikeAberration")
 
 
 def test_StatisticalPSDWFE(index=3, seed=1234, plot=False):
@@ -184,7 +182,7 @@ def test_StatisticalPSDWFE(index=3, seed=1234, plot=False):
 
         return rr, radialprofile2
 
-    inv_psd = _np.fft.ifftshift(_np.fft.ifft2(_np.fft.ifftshift(psd_opd)))
+    inv_psd = xp.fft.ifftshift(xp.fft.ifft2(xp.fft.ifftshift(psd_opd)))
     rad, prof = radial_profile(np.abs(inv_psd) ** 2, center=(int(NPIX/2), int(NPIX/2)))
 
     # Test that the output power law matches the requested input power law.

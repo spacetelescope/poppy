@@ -10,7 +10,7 @@ from poppy.poppy_core import _log, PlaneType
 import poppy
 import os
 
-from poppy.accel_math import xp as _np    # may or may not be on GPU
+from poppy.accel_math import xp   # may be numpy, or cupy on GPU
 import numpy as np     # Regular numpy, definitely in CPU memory
 
 import astropy.io.fits as fits
@@ -27,9 +27,9 @@ def test_GaussianBeamParams():
     gl=fresnel.QuadraticLens(50*u.mm)
     gw.propagate_fresnel(28*u.mm)
     gw.apply_lens_power(gl,ignore_wavefront=True)
-    assert(_np.round(gw.w_0.value, 9) == _np.round(0.0001061989749146441, 9))
-    assert(_np.round(gw.z_w0.value, 9) == _np.round(0.15957902236417937, 9))
-    assert(_np.round(gw.z_r.value, 9) == _np.round(0.042688650889351865, 9))
+    assert(xp.round(gw.w_0.value, 9) == xp.round(0.0001061989749146441, 9))
+    assert(xp.round(gw.z_w0.value, 9) == xp.round(0.15957902236417937, 9))
+    assert(xp.round(gw.z_r.value, 9) == xp.round(0.042688650889351865, 9))
     # FIXME MP: where do the above values come from?
 
 
@@ -74,8 +74,8 @@ def test_Gaussian_Beam_curvature_near_waist(npoints=5, plot=False):
         plt.xlabel("$z/z_r$")
         plt.legend(loc='lower right', frameon=False)
 
-    assert _np.allclose(rz / z_rayleigh, calc_rz)
-    assert _np.allclose(wz / wf.w_0, calc_wz)
+    assert xp.allclose(rz / z_rayleigh, calc_rz)
+    assert xp.allclose(wz / wf.w_0, calc_wz)
 
 
 def test_Circular_Aperture_PTP_long(display=False, npix=512, display_proper=False):
@@ -155,7 +155,7 @@ def test_Circular_Aperture_PTP_long(display=False, npix=512, display_proper=Fals
         plt.plot(x[0,:], inten[inten.shape[1]//2,:], label='POPPY')
         plt.title("z={:0.2e} , compare to Anderson and Enmark fig.6.15".format(z))
         plt.gca().set_xlim(-1, 1)
-        plt.text(0.1, 2, "Max value: {0:.4f}\nExpected:   {1:.4f}".format(_np.max(inten), max(proper_y)))
+        plt.text(0.1, 2, "Max value: {0:.4f}\nExpected:   {1:.4f}".format(xp.max(inten), max(proper_y)))
 
 
         if display_proper:
@@ -168,10 +168,10 @@ def test_Circular_Aperture_PTP_long(display=False, npix=512, display_proper=Fals
         plt.legend(loc='upper right', frameon=False)
 
 
-    _log.debug("test_Circular_Aperture_PTP peak flux comparison: " + str(_np.abs(max(proper_y) - _np.max(inten))))
+    _log.debug("test_Circular_Aperture_PTP peak flux comparison: " + str(xp.abs(max(proper_y) - xp.max(inten))))
     _log.debug("  allowed tolerance for {0} is {1}".format(npix, tolerance))
     #assert(np.round(3.3633280006866424,9) == np.round(np.max(gw.intensity),9))
-    assert (_np.abs(max(proper_y) - _np.max(inten)) < tolerance)
+    assert (xp.abs(max(proper_y) - xp.max(inten)) < tolerance)
 
     # also let's test that the output is centered on the array as expected.
     # the peak pixel should be at the coordinates (0,0)
@@ -185,10 +185,10 @@ def test_Circular_Aperture_PTP_long(display=False, npix=512, display_proper=Fals
     cen = inten.shape[0]//2
     cutsize=10
     center_cut_x = inten[cen-cutsize:cen+cutsize+1, cen]
-    assert(_np.all((center_cut_x - center_cut_x[::-1]) / center_cut_x < 0.001))
+    assert(xp.all((center_cut_x - center_cut_x[::-1]) / center_cut_x < 0.001))
 
     center_cut_y = inten[cen, cen-cutsize:cen+cutsize+1]
-    assert(_np.all((center_cut_y - center_cut_y[::-1]) / center_cut_y < 0.001))
+    assert(xp.all((center_cut_y - center_cut_y[::-1]) / center_cut_y < 0.001))
 
 
 try:
@@ -245,7 +245,7 @@ def test_Circular_Aperture_PTP_short(display=False, npix=512, oversample=4, incl
         cent=fwcentroid.fwcentroid(zoomed_direct,halfwidth=8)
         cent2=fwcentroid.fwcentroid(cropped_fresnel,halfwidth=8)
 
-        center_offset = _np.asarray(cent) - _np.asarray(cent2)
+        center_offset = xp.asarray(cent) - xp.asarray(cent2)
         print(f"After rescaling, found center offset = {center_offset}")
     else:
         # For defocused images, after rescaling we can register via FFT correlation
@@ -303,7 +303,7 @@ def test_fresnel_conservation_of_intensity(display=True, npix=256):
 
     for d in distances:
         wf.propagate_fresnel(d)
-        assert _np.allclose(ti0, wf.total_intensity), "Propagation appears to violate conservation of energy"
+        assert xp.allclose(ti0, wf.total_intensity), "Propagation appears to violate conservation of energy"
         if display:
             plt.figure()
             wf.display(title=f'After {d}', scale='linear', showpadding=False)
@@ -334,8 +334,8 @@ def test_spherical_lens(display=False):
     lens = fresnel.QuadraticLens(fl, name='M1')
     wavefront.apply_lens_power(lens)
     #IDL/PROPER results should be within 10^(-11).
-    assert 1e-11 > abs(_np.mean(wavefront.phase) - proper_wavefront_mean)
-    assert 1e-11 > abs(_np.max(wavefront.phase) - proper_phase_max)
+    assert 1e-11 > abs(xp.mean(wavefront.phase) - proper_wavefront_mean)
+    assert 1e-11 > abs(xp.max(wavefront.phase) - proper_phase_max)
 
 def test_fresnel_optical_system_Hubble(display=False, sampling=2):
     """ Test the FresnelOpticalSystem infrastructure
@@ -386,7 +386,7 @@ def test_fresnel_optical_system_Hubble(display=False, sampling=2):
     if len(waves)>1:
 
         ### check the beam size is as expected at primary and secondary mirror
-        assert(_np.allclose(waves[1].spot_radius().value, 1.2))
+        assert(xp.allclose(waves[1].spot_radius().value, 1.2))
         # can't find a definitive reference for the beam diam at the SM, but
         # the secondary mirror's radius is 14.05 cm
         # We find that the beam is indeed slightly smaller than that.
@@ -401,12 +401,12 @@ def test_fresnel_optical_system_Hubble(display=False, sampling=2):
         # discrepancy. We here opt to stick with the values used in the PROPER
         # example, to facilitate cross-checking the two codes.
 
-        assert(not _np.isfinite(waves[0].focal_length.to_value(u.m)))  # plane wave after circular aperture
+        assert(not xp.isfinite(waves[0].focal_length.to_value(u.m)))  # plane wave after circular aperture
         assert(waves[1].focal_length==fl_pri)           # focal len after primary
         # NB. using astropy.Quantities with np.allclose() doesn't work that well
         # so pull out the values here:
-        assert(_np.allclose(waves[2].focal_length.to(u.m).value,
-                            expected_system_focal_length.to(u.m).value)) # focal len after secondary
+        assert(xp.allclose(waves[2].focal_length.to(u.m).value,
+                           expected_system_focal_length.to(u.m).value)) # focal len after secondary
 
         ### check the FWHM of the PSF is as expected
         cen = utils.measure_centroid(psf)
@@ -414,7 +414,7 @@ def test_fresnel_optical_system_Hubble(display=False, sampling=2):
         expected_fwhm = 1.028*0.5e-6/2.4*206265
         # we only require this to have < 5% accuracy with respect to the theoretical value
         # given discrete pixelization etc.
-        assert(_np.abs((measured_fwhm - expected_fwhm) / expected_fwhm) < 0.05)
+        assert(xp.abs((measured_fwhm - expected_fwhm) / expected_fwhm) < 0.05)
 
         ### check the various plane types are as expected, including toggling into angular coordinates
         assert_message = ("Expected FresnelWavefront at plane #{} to have {} == {}, but got {}")
@@ -444,8 +444,8 @@ def test_fresnel_optical_system_Hubble(display=False, sampling=2):
 
     centerpix = int(hst.npix / hst.beam_ratio / 2)
     cutout = psf[0].data[centerpix-64:centerpix+64, centerpix-64:centerpix+64] / psf[0].data[centerpix,centerpix]
-    cutout = _np.asarray(cutout)   # extra cast helps with optional GPU support
-    assert(_np.abs(cutout - airy).max() < 1e-4)
+    cutout = xp.asarray(cutout)   # extra cast helps with optional GPU support
+    assert(xp.abs(cutout - airy).max() < 1e-4)
 
     if display:
         plt.figure()
@@ -528,10 +528,10 @@ def test_fresnel_FITS_Optical_element(tmpdir, display=False, verbose=False):
 
         cx, cy = utils.measure_centroid(psf_with_astigmatism)
         expected_cx = expected_cy = psf_with_astigmatism[0].data.shape[0] // 2
-        assert _np.abs(cx - expected_cx) < 0.02, "PSF centroid is not as expected in X"
-        assert _np.abs(cy - expected_cy) < 0.02, "PSF centroid is not as expected in Y"
+        assert xp.abs(cx - expected_cx) < 0.02, "PSF centroid is not as expected in X"
+        assert xp.abs(cy - expected_cy) < 0.02, "PSF centroid is not as expected in Y"
         assert psf_with_astigmatism[0].data.sum() > 0.99, "PSF total flux is not as expected."
-        assert _np.abs(psf_with_astigmatism[0].data.max() - 0.033212) < 2e-5, "PSF peak pixel is not as expected"
+        assert xp.abs(psf_with_astigmatism[0].data.max() - 0.033212) < 2e-5, "PSF peak pixel is not as expected"
 
         if verbose:
             print("Tests of FITSOpticalElement in FresnelOpticalSystem pass.")
@@ -550,7 +550,7 @@ def test_fresnel_propagate_direct_forward_and_back():
     wf.propagate_direct(z)
     wf.propagate_direct(-z)
 
-    _np.testing.assert_array_almost_equal(wf.wavefront, start)
+    xp.testing.assert_array_almost_equal(wf.wavefront, start)
 
 
 def test_fresnel_propagate_direct_back_and_forward():
@@ -565,7 +565,7 @@ def test_fresnel_propagate_direct_back_and_forward():
     start = wf.wavefront.copy()
     wf.propagate_direct(-z)
     wf.propagate_direct(z)
-    _np.testing.assert_array_almost_equal(wf.wavefront, start)
+    xp.testing.assert_array_almost_equal(wf.wavefront, start)
 
 
 def test_fresnel_propagate_direct_2forward_and_back():
@@ -585,7 +585,7 @@ def test_fresnel_propagate_direct_2forward_and_back():
     start = wf.wavefront.copy()
     wf.propagate_direct(z)
     wf.propagate_direct(-z)
-    _np.testing.assert_array_almost_equal(wf.wavefront, start)
+    xp.testing.assert_array_almost_equal(wf.wavefront, start)
 
 def test_fresnel_return_complex():
     """Test that we can return a complex wavefront from a Fresnel propagation, and
@@ -606,7 +606,7 @@ def test_fresnel_return_complex():
     psf=tel.calc_psf(return_final=True)
 
     assert len(psf[1])==1
-    assert _np.allclose(psf[1][0].intensity, psf[0][0].data)
+    assert xp.allclose(psf[1][0].intensity, psf[0][0].data)
 
 
 def test_detector_in_fresnel_system(npix=256):
@@ -630,7 +630,7 @@ def test_detector_in_fresnel_system(npix=256):
     psf, waves = osys.calc_psf(wavelength=1e-6, return_intermediates=True)
 
     # Check the output pixel scale is as desired
-    _np.testing.assert_array_almost_equal(psf[0].header['PIXELSCL'], out_pixscale / 1e6)
+    xp.testing.assert_array_almost_equal(psf[0].header['PIXELSCL'], out_pixscale / 1e6)
 
     # Check the wavefront gets cropped to the right size of pixels, from something different
     assert waves[0].shape == (1024, 1024)
@@ -641,13 +641,13 @@ def test_detector_in_fresnel_system(npix=256):
     assert psf[0].header['NAXIS1'] == output_npix
 
     # Check the PSF is centered and not offset
-    psfdata = _np.asarray(psf[0].data)  # extra asarray helps with optional GPU support
+    psfdata = xp.asarray(psf[0].data)  # extra asarray helps with optional GPU support
     ny, nx = psfdata.shape
     assert psfdata[ny//2, nx//2] == psfdata.max(), "Peak (spot of Arago) is not in the center"
 
-    _np.testing.assert_allclose(psfdata[output_npix // 2],
-                        _np.roll(psfdata[output_npix // 2][::-1], 1),
-                                       atol=3e-8)
+    xp.testing.assert_allclose(psfdata[output_npix // 2],
+                               xp.roll(psfdata[output_npix // 2][::-1], 1),
+                               atol=3e-8)
     y, x = np.indices(psfdata.shape)
     x -= nx//2
     y -= ny//2
@@ -726,7 +726,7 @@ def test_CompoundOpticalSystem_fresnel(npix=128, display=False):
 
     psf2 = cosys.calc_psf(display_intermediates=display)
 
-    assert _np.allclose(psf[0].data, psf2[0].data), "Results from simple and compound Fresnel systems differ unexpectedly."
+    assert xp.allclose(psf[0].data, psf2[0].data), "Results from simple and compound Fresnel systems differ unexpectedly."
 
     return psf, psf2
 
@@ -796,8 +796,8 @@ def test_CompoundOpticalSystem_hybrid(npix=128):
     poppy.poppy_core._log.info("******=========calculation divider============******")
     psf_compound = cosys.calc_psf(return_intermediates=False)
 
-    _np.testing.assert_allclose(psf_simple[0].data, psf_compound[0].data,
-                                err_msg="PSFs do not match between equivalent simple and compound/hybrid optical systems")
+    xp.testing.assert_allclose(psf_simple[0].data, psf_compound[0].data,
+                               err_msg="PSFs do not match between equivalent simple and compound/hybrid optical systems")
 
 
 def test_inwave_fresnel(plot=False):
@@ -839,8 +839,8 @@ def test_inwave_fresnel(plot=False):
     wf = wfs1[-1].wavefront
     wf_no_in = wfs2[-1].wavefront
 
-    assert _np.allclose(wf,
-                        wf_no_in), 'Results differ unexpectedly when using inwave argument for FresnelOpticalSystem().'
+    assert xp.allclose(wf,
+                       wf_no_in), 'Results differ unexpectedly when using inwave argument for FresnelOpticalSystem().'
 
 
 
@@ -885,10 +885,10 @@ def test_FixedSamplingImagePlaneElement(display=False):
     psf_result_pxscl = psf_result[0].header['PIXELSCL']
     psf_result.close()
     
-    _np.testing.assert_allclose(psf[0].data, psf_result_data, rtol=1e-6,
-                                err_msg="PSF of this test does not match the saved result.", verbose=True)
-    _np.testing.assert_allclose(waves[-1].pixelscale.value, psf_result_pxscl,
-                                err_msg="PSF pixelscale of this test does not match the saved result.", verbose=True)
+    xp.testing.assert_allclose(psf[0].data, psf_result_data, rtol=1e-6,
+                               err_msg="PSF of this test does not match the saved result.", verbose=True)
+    xp.testing.assert_allclose(waves[-1].pixelscale.value, psf_result_pxscl,
+                               err_msg="PSF pixelscale of this test does not match the saved result.", verbose=True)
     
 
 def test_fresnel_noninteger_oversampling(display_intermediates=False):
@@ -948,7 +948,7 @@ def test_fresnel_noninteger_oversampling(display_intermediates=False):
     if display_intermediates: plt.figure(figsize=(12, 8))
     psf3 = hst3.calc_psf(wavelength=lambda_m, display_intermediates=display_intermediates)
 
-    assert _np.allclose(psf1[0].data, psf2[0].data), 'PSFs with oversampling 2 and 2.0 are surprisingly different.'
-    _np.testing.assert_array_almost_equal(psf3[0].header['PIXELSCL'], 0.017188733797782272, decimal=7,
-                                    err_msg='pixelscale for the PSF with oversample of 2.5 is surprisingly different from expected result.')
+    assert xp.allclose(psf1[0].data, psf2[0].data), 'PSFs with oversampling 2 and 2.0 are surprisingly different.'
+    xp.testing.assert_array_almost_equal(psf3[0].header['PIXELSCL'], 0.017188733797782272, decimal=7,
+                                         err_msg='pixelscale for the PSF with oversample of 2.5 is surprisingly different from expected result.')
 

@@ -1,18 +1,14 @@
 # Tests for individual Optic classes
 
 import matplotlib.pyplot as pl
-import astropy.io.fits as fits
 import astropy.units as u
 
 from .. import poppy_core
 from .. import optics
-from .. import zernike
-from .test_core import check_wavefront
 
 from .. import accel_math
-import numpy
 import numpy as np
-from poppy.accel_math import xp as _np
+from poppy.accel_math import xp
 
 wavelength=1e-6
 
@@ -35,14 +31,14 @@ def test_InverseTransmission():
 
         optic = optics.ScalarTransmission(transmission=transmission)
         inverted = optics.InverseTransmission(optic)
-        assert(_np.all(abs(optic.get_phasor(wave) - (1 - inverted.get_phasor(wave))) < 1e-10))
+        assert(xp.all(abs(optic.get_phasor(wave) - (1 - inverted.get_phasor(wave))) < 1e-10))
 
     # vary 2d shape
     for radius in np.arange(1, 11, dtype=float) / 10:
 
         optic = optics.CircularAperture(radius=radius)
         inverted = optics.InverseTransmission(optic)
-        assert(_np.all(abs(optic.get_phasor(wave) - (1 - inverted.get_phasor(wave))) < 1e-10))
+        assert(xp.all(abs(optic.get_phasor(wave) - (1 - inverted.get_phasor(wave))) < 1e-10))
 
         assert optic.shape==inverted.shape
 
@@ -56,7 +52,7 @@ def test_scalar_transmission():
     for transmission in [1.0, 1.0e-3, 0.0]:
 
         optic = optics.ScalarTransmission(transmission=transmission)
-        assert(_np.all(optic.get_phasor(wave) == transmission))
+        assert(xp.all(optic.get_phasor(wave) == transmission))
 
 
 def test_scalar_opd():
@@ -66,11 +62,11 @@ def test_scalar_opd():
     for opd in [1.0*u.micron, 1.0e-7*u.m, 0.0*u.m]:
 
         optic = optics.ScalarOpticalPathDifference(opd=opd)
-        assert _np.all(optic.get_opd(wave) == opd.to_value(u.m)), "OPD value not as expected"
+        assert xp.all(optic.get_opd(wave) == opd.to_value(u.m)), "OPD value not as expected"
 
     # Also test with bare floats, which should be interpreted as meters
     optic = optics.ScalarOpticalPathDifference(opd=2e-6)
-    assert _np.all(optic.get_opd(wave) == 2e-6), "OPD value not as expected"
+    assert xp.all(optic.get_opd(wave) == 2e-6), "OPD value not as expected"
 
 
 def test_roundtrip_through_FITS():
@@ -83,7 +79,7 @@ def test_roundtrip_through_FITS():
     fitsfile = optic.to_fits(npix=512)
     optic2 = poppy_core.FITSOpticalElement(transmission=fitsfile)
 
-    assert _np.all(optic2.amplitude == array), "Arrays before/after casting to FITS file didn't match"
+    assert xp.all(optic2.amplitude == array), "Arrays before/after casting to FITS file didn't match"
 
 
 def test_shifting_optics( npix=30,  grid_size = 3, display=False):
@@ -106,39 +102,39 @@ def test_shifting_optics( npix=30,  grid_size = 3, display=False):
 
     if display:
         poppy.utils.imshow(circ_samp-circ_shift_samp)
-    assert _np.allclose(circ_samp, circ_shift_samp) == False, "Shift didn't change array"
+    assert xp.allclose(circ_samp, circ_shift_samp) == False, "Shift didn't change array"
 
     # create shifted version, using explicit units rather than implicitly in meters.
     # Verify that gives the same result as without explicit units
     circ_shift_via_units = poppy.CircularAperture( shift_x=shift_size*1000*u.millimeter)
     circ_shift_via_units_samp = circ_shift_via_units.sample(npix=npix, grid_size=grid_size)
-    assert _np.allclose(circ_shift_samp, circ_shift_via_units_samp), "Shift with value as Quantity didn't give same result as shift with value as bare float in meters"
+    assert xp.allclose(circ_shift_samp, circ_shift_via_units_samp), "Shift with value as Quantity didn't give same result as shift with value as bare float in meters"
 
     # Make a FITS element.
     circ_fits = circ.to_fits(npix=npix, grid_size=grid_size)
 
     # Show we can shift that and get the same result as shifting the analytic element
     fits_shifted = poppy.FITSOpticalElement(transmission=circ_fits, shift_x=shift_size)
-    _np.testing.assert_allclose(fits_shifted.amplitude, circ_shift_samp, atol=1e-9,
-                                err_msg="Shifting Analytic and FITS versions are not consistent (v1, via shift_x)")
+    xp.testing.assert_allclose(fits_shifted.amplitude, circ_shift_samp, atol=1e-9,
+                               err_msg="Shifting Analytic and FITS versions are not consistent (v1, via shift_x)")
 
     # FITSOpticalElement also lets you specify shifts via fraction of the array. Let's
     # show that is  consistent.  This is older syntax that is discouraged, and may be
     # deprecated and removed eventually. But while available it should be correct.
     array_frac = shift_size/grid_size
     fits_shifted_v2 = poppy.FITSOpticalElement(transmission=circ_fits, shift=(array_frac, 0))
-    _np.testing.assert_allclose(fits_shifted.amplitude, fits_shifted_v2.amplitude, atol=1e-9,
-                                err_msg="Shifting FITS via shift/shift_x are not consistent")
-    _np.testing.assert_allclose(fits_shifted.amplitude, circ_shift_samp, atol=1e-9,
-                                err_msg="Shifting Analytic and FITS versions are not consistent (v2, via shift)")
+    xp.testing.assert_allclose(fits_shifted.amplitude, fits_shifted_v2.amplitude, atol=1e-9,
+                               err_msg="Shifting FITS via shift/shift_x are not consistent")
+    xp.testing.assert_allclose(fits_shifted.amplitude, circ_shift_samp, atol=1e-9,
+                               err_msg="Shifting Analytic and FITS versions are not consistent (v2, via shift)")
 
 
     # Check in a 1D cut that the amount of shift is as expected -
     # this is implicitly also checked above via the match of Analytic and FITS
     # which use totally different methods to perform the shift.
     shift_in_pixels = int(shift_size/pixsize)
-    assert _np.allclose(_np.roll(circ_samp[npix // 2], shift_in_pixels),
-                        circ_shift_samp[npix//2])
+    assert xp.allclose(xp.roll(circ_samp[npix // 2], shift_in_pixels),
+                       circ_shift_samp[npix//2])
 
 
 def test_shift_rotation_consistency(npix=30, grid_size = 1.5, angle=35, display=False):
@@ -163,7 +159,7 @@ def test_shift_rotation_consistency(npix=30, grid_size = 1.5, angle=35, display=
     # Compare that they are consistent enough, meaning
     # no more than 1% pixel difference. That tolerance allows for the
     # imprecision of rotating low-res binary masks.
-    diff = _np.round(rect2.amplitude) - rect_samp
+    diff = xp.round(rect2.amplitude) - rect_samp
     assert abs(diff).sum() <= 0.01 * rect_samp.sum(), "Shift and rotations differ unexpectedly"
 
     if display:
@@ -204,9 +200,9 @@ def test_CircularPhaseMask():
     wave*= optic
     assert wave.phase[50,0]==0
     assert wave.phase[50,29]==0
-    np.testing.assert_almost_equal(wave.phase[50,30], _np.pi / 2)
-    np.testing.assert_almost_equal(wave.phase[50,50], _np.pi / 2)
-    np.testing.assert_almost_equal(wave.phase[50,69], _np.pi / 2)
+    np.testing.assert_almost_equal(wave.phase[50,30], xp.pi / 2)
+    np.testing.assert_almost_equal(wave.phase[50,50], xp.pi / 2)
+    np.testing.assert_almost_equal(wave.phase[50,69], xp.pi / 2)
     assert wave.phase[50,70]==0
     assert wave.phase[50,80]==0
 
@@ -233,7 +229,7 @@ def test_AnnularFieldStop():
     np.testing.assert_almost_equal(wave.intensity[75,50], 0)
     np.testing.assert_almost_equal(wave.intensity[95,50], 0)
     # and check the area is approximately right
-    expected_area = _np.pi * (optic.radius_outer ** 2 - optic.radius_inner ** 2) * 100
+    expected_area = xp.pi * (optic.radius_outer ** 2 - optic.radius_inner ** 2) * 100
     expected_area = expected_area.to(u.arcsec**2).value
 
     # updated criteria for dealing with gray pixels
@@ -275,12 +271,12 @@ def test_rotations():
     # rotating a square by +45 and -45 should give the same result
     ar1 = optics.SquareAperture(rotation=45, size=np.sqrt(2)).sample(npix=255, grid_size=2)
     ar2 = optics.SquareAperture(rotation=-45, size=np.sqrt(2)).sample(npix=255, grid_size=2)
-    assert _np.allclose(ar1, ar2)
+    assert xp.allclose(ar1, ar2)
 
     # rotating a rectangle with flipped side lengths by 90 degrees should give the same result
     fs1 = optics.RectangularFieldStop(width=1, height=10).sample(npix=256, grid_size=10)
     fs2 = optics.RectangularFieldStop(width=10, height=1, rotation=90).sample(npix=256, grid_size=10)
-    assert _np.allclose(fs1, fs2)
+    assert xp.allclose(fs1, fs2)
 
     # check some pixel values for a 45-deg rotated rectangle
     fs3 = optics.RectangularFieldStop(width=10, height=1, rotation=45).sample(npix=200, grid_size=10)
@@ -312,8 +308,8 @@ def test_ParityTestAperture():
 
     array = optics.ParityTestAperture().get_phasor(wave)
 
-    assert _np.any(array[::-1, :] != array)
-    assert _np.any(array[:, ::-1] != array)
+    assert xp.any(array[::-1, :] != array)
+    assert xp.any(array[:, ::-1] != array)
 
 
 def test_RectangleAperture():
@@ -342,7 +338,7 @@ def test_RectangleAperture():
     wave2*= optic2
 
     assert wave1.shape[0] == 100
-    assert _np.all(abs(wave1.intensity - wave2.intensity) < 1e-6)
+    assert xp.all(abs(wave1.intensity - wave2.intensity) < 1e-6)
 
 
 
@@ -535,13 +531,13 @@ def test_CompoundAnalyticOptic(display=False):
     testwave = poppy_core.Wavefront(wavelength=wavelen,npix=1024)
     diff_trans = osys_c_pupil.get_transmission(testwave) - osys_s_pupil.get_transmission(testwave)
     
-    assert _np.all(abs(diff_trans) < 1e-3)
+    assert xp.all(abs(diff_trans) < 1e-3)
     
     #check pupil amplitudes
     # FAILS commit 1e4709b
     diff_amp = ints_compound[0].amplitude - ints_separate[0].amplitude
     
-    assert _np.all(abs(diff_amp) < 1e-3)
+    assert xp.all(abs(diff_amp) < 1e-3)
     
     #check psf
     # FAILS commit 1e4709b
@@ -594,7 +590,7 @@ def test_GaussianAperture(display=False):
 
     w *= ga
 
-    assert(ga.w.to_value(u.m) == ga.fwhm.to_value(u.m) / (2 * _np.sqrt(_np.log(2))))
+    assert(ga.w.to_value(u.m) == ga.fwhm.to_value(u.m) / (2 * xp.sqrt(xp.log(2))))
 
     assert(w.intensity.max() ==1)
 
@@ -606,18 +602,18 @@ def test_GaussianAperture(display=False):
             #super(poppy.Wavefront, self).__init__(*args, **kwargs) # super does not work for some reason?
             poppy_core.Wavefront.__init__(self, *args, **kwargs)
 
-            self.wavefront = _np.ones(5, dtype=_np.complex128)
+            self.wavefront = xp.ones(5, dtype=xp.complex128)
             self.planetype=poppy_core.PlaneType.pupil
             self.pixelscale = 0.5
         def coordinates(self):
             w = ga.w.to(u.meter).value
-            return (_np.asarray([0, 0.5, 0.0, w, 0.0]), _np.asarray([0, 0, 0.5, 0, -w]))
+            return (xp.asarray([0, 0.5, 0.0, w, 0.0]), xp.asarray([0, 0, 0.5, 0, -w]))
 
     trickwave = mock_wavefront()
     trickwave *= ga
     assert(trickwave.amplitude[0]==1)
-    assert(_np.allclose(trickwave.amplitude[1:3], 0.5))
-    assert(_np.allclose(trickwave.amplitude[3:5], _np.exp(-1)))
+    assert(xp.allclose(trickwave.amplitude[1:3], 0.5))
+    assert(xp.allclose(trickwave.amplitude[3:5], xp.exp(-1)))
 
 
 def test_ThinLens(display=False):
@@ -639,16 +635,16 @@ def test_ThinLens(display=False):
     # Now test the values at some precisely chosen pixels
     y, x = wave.coordinates()
     at_radius = ((x==1) & (y==0))
-    assert _np.allclose(wave.phase[at_radius], _np.pi / 2), "Didn't get 1/2 wave OPD at edge of optic"
+    assert xp.allclose(wave.phase[at_radius], xp.pi / 2), "Didn't get 1/2 wave OPD at edge of optic"
     assert len(at_radius[0]) > 0, "Array indices messed up - need to have a pixel at exactly (1,0)"
 
     at_radius = ((x==0) & (y==1))
-    assert _np.allclose(wave.phase[at_radius], _np.pi / 2), "Didn't get 1/2 wave OPD at edge of optic"
+    assert xp.allclose(wave.phase[at_radius], xp.pi / 2), "Didn't get 1/2 wave OPD at edge of optic"
     assert len(at_radius[0]) > 0, "Array indices messed up - need to have a pixel at exactly (0,1)"
 
 
     at_center = ((x==0) & (y==0))
-    assert _np.allclose(wave.phase[at_center], -_np.pi / 2), "Didn't get -1/2 wave OPD at center of optic"
+    assert xp.allclose(wave.phase[at_center], -xp.pi / 2), "Didn't get -1/2 wave OPD at center of optic"
     assert len(at_radius[0]) > 0, "Array indices messed up - need to have a pixel at exactly (0,0)"
 
     # TODO test intermediate pixel values between center and edge?
@@ -680,7 +676,7 @@ def test_ThinLens(display=False):
         poppy.display_psf(psf)
         poppy.display_psf(psf2)
 
-    assert _np.allclose(psf[0].data, psf2[0].data), (
+    assert xp.allclose(psf[0].data, psf2[0].data), (
         "ThinLens shouldn't be affected by null optical elements! Introducing extra image planes "
         "made the output PSFs differ beyond numerical tolerances."
     )
@@ -691,4 +687,4 @@ def test_fixed_sampling_optic():
 
     array_optic= optics.fixed_sampling_optic(optic, wave, oversample=1)
 
-    assert _np.allclose(array_optic.amplitude, optic.get_transmission(wave)), 'mismatch between original and fixed sampling version'
+    assert xp.allclose(array_optic.amplitude, optic.get_transmission(wave)), 'mismatch between original and fixed sampling version'
