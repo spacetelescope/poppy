@@ -946,7 +946,7 @@ class BarOcculter(AnalyticImagePlaneElement):
         y, x = self.get_coordinates(wave)
 
         w_inside = ((xp.abs(x) <= self.width.to(u.arcsec).value / 2) &
-                     (xp.abs(y) <= self.height.to(u.arcsec).value / 2)
+                     (xp.abs(y) <= self.height.to(u.arcsec).value / 2))
 
         self.transmission = xp.ones(wave.shape, dtype=_float())
         self.transmission[w_inside] = 0
