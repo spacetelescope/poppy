@@ -14,10 +14,7 @@ from .poppy_core import OpticalElement, Wavefront, BaseWavefront, PlaneType, _RA
 from . import geometry
 
 from . import accel_math
-from .accel_math import _exp, _r, _float, _complex
-
-from .accel_math import xp, _scipy
-
+from .accel_math import xp, _scipy, _exp, _r, _float, _complex
 if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
 
@@ -330,8 +327,8 @@ class AnalyticOpticalElement(OpticalElement):
             else:
                 y -= float(self.shift_y)
         if hasattr(self, "rotation"):
-            if isinstance(self.rotation, u.Quantity) and self.rotation.unit==u.degree:
-                angle = np.deg2rad(self.rotation).value
+            if isinstance(self.rotation, u.Quantity):
+                angle = np.deg2rad(self.rotation.to_value(u.degree))
             else:
                 angle = np.deg2rad(self.rotation)
             xp = np.cos(angle) * x + np.sin(angle) * y
@@ -694,7 +691,7 @@ class CircularPhaseMask(AnalyticImagePlaneElement):
         y, x = self.get_coordinates(wave)
         r = _r(x, y)
 
-        self.opd= xp.zeros(wave.shape, dtype=_float())
+        self.opd = xp.zeros(wave.shape, dtype=_float())
         radius = self.radius.to(u.arcsec).value
 
         self.opd[r <= radius] = self.retardance * self.central_wavelength.to(u.meter).value

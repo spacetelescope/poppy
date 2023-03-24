@@ -8,7 +8,6 @@ import numpy as np
 
 from . import accel_math
 from .accel_math import xp
-
 if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
 

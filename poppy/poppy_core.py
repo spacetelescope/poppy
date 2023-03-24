@@ -16,12 +16,8 @@ import astropy.units as u
 from .matrixDFT import MatrixFourierTransform
 from . import utils
 from . import conf
-
 from . import accel_math
-from .accel_math import _float, _complex
-
-from .accel_math import xp, _scipy
-
+from .accel_math import xp, _scipy, _float, _complex
 if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
 
@@ -109,6 +105,7 @@ class BaseWavefront(ABC):
     @utils.quantity_input(wavelength=u.meter, diam=u.meter)
     def __init__(self, wavelength=1e-6 * u.meter, npix=1024, dtype=None, diam=1.0 * u.meter,
                  oversample=2):
+
         self.oversample = oversample
 
         self.wavelength = wavelength  # Wavelength in meters (or other unit if specified)
@@ -821,18 +818,17 @@ class BaseWavefront(ABC):
             det_xmax = pixscale_out * detector.shape[0]/2
             newx,newy = xp.mgrid[-det_xmax:det_xmax-pixscale_out:detector.shape[0]*1j,
                                    -det_xmax:det_xmax-pixscale_out:detector.shape[1]*1j]
-#             print(x.min(), x.max(), newx.min(), newx.max())
 
             x0 = x[0,0]
             y0 = y[0,0]
             dx = x[1,0] - x0
             dy = y[0,1] - y0
-            
+
             ivals = (newx - x0)/dx
             jvals = (newy - y0)/dy
 
             coords = xp.array([ivals, jvals])
-            
+
             new_wf = _scipy.ndimage.map_coordinates(cropped_wf, coords, order=detector.interp_order)
 
         # enforce conservation of energy:
@@ -2427,6 +2423,7 @@ class OpticalElement(object):
 
     def __init__(self, name="unnamed optic", verbose=True, planetype=PlaneType.unspecified,
                  oversample=1, interp_order=3):
+
         self.name = name
         """ string. Descriptive Name of this optic"""
         self.verbose = verbose
@@ -2931,7 +2928,7 @@ class FITSOpticalElement(OpticalElement):
                     self.amplitude_file = transmission
                     self.amplitude, self.amplitude_header = fits.getdata(self.amplitude_file, header=True)
                     self.amplitude = self.amplitude.astype('=f8')  # ensure native byte order, see #213
-                    self.amplitude = xp.asarray(self.amplitude)  # sets to CuPy array if np is cupy
+                    self.amplitude = xp.asarray(self.amplitude)  # sets to CuPy array if xp is cupy
 
                     if self.name == 'unnamed optic':
                         self.name = 'Optic from ' + self.amplitude_file
@@ -2939,7 +2936,7 @@ class FITSOpticalElement(OpticalElement):
                 elif isinstance(transmission, fits.HDUList):
                     self.amplitude_file = 'supplied as fits.HDUList object'
                     self.amplitude = transmission[0].data.astype('=f8')  # ensure native byte order, see #213
-                    self.amplitude = xp.asarray(self.amplitude)   # sets to CuPy array if np is cupy
+                    self.amplitude = xp.asarray(self.amplitude)   # sets to CuPy array if xp is cupy
                     self.amplitude_header = transmission[0].header.copy()
                     if self.name == 'unnamed optic':
                         self.name = 'Optic from fits.HDUList object'
@@ -2980,7 +2977,7 @@ class FITSOpticalElement(OpticalElement):
                 self.opd_file = opd
                 self.opd, self.opd_header = fits.getdata(self.opd_file, header=True)
                 self.opd = self.opd.astype('=f8')
-                self.opd = xp.asarray(self.opd)  # sets to CuPy array if np is cupy
+                self.opd = xp.asarray(self.opd)  # sets to CuPy array if xp is cupy
                 if self.name == 'unnamed optic': self.name = 'OPD from ' + self.opd_file
                 _log.info(self.name + ": Loaded OPD from " + self.opd_file)
 

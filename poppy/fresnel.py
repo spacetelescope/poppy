@@ -513,7 +513,7 @@ class FresnelWavefront(BaseWavefront):
         else:
             pixel_scale_x, pixel_scale_y = pixelscale_mpix, pixelscale_mpix
 
-        if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
+        if accel_math._USE_NUMEXPR:
             return ne.evaluate("pixel_scale_y * y"), ne.evaluate("pixel_scale_x * x")
         else:
             return pixel_scale_y * y, pixel_scale_x * x
