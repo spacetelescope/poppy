@@ -60,13 +60,15 @@ try:
 except ImportError:
     _OPENCL_AVAILABLE = False
 
-try: ###############################################################
+try:
+    # try to import cupy packages to see if they are is available
+    # and check if GPU hardware is available
     import cupy as cp
     import cupyx.scipy.ndimage
     import cupyx.scipy.signal
     import cupyx.scipy.special
     cp.cuda.Device() # checks if a GPU exists
-    _CUPY_PLANS = {} 
+    _CUPY_PLANS = {}
     _CUPY_AVAILABLE = True
 except:
     cp = None
@@ -75,7 +77,6 @@ except:
 _USE_CUPY = (conf.use_cupy and _CUPY_AVAILABLE)
 _USE_CUDA = (conf.use_cuda and _CUDA_AVAILABLE)
 _USE_OPENCL = (conf.use_opencl and _OPENCL_AVAILABLE)
-# _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
 _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE and not _USE_CUPY)
 _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
 _USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE)
@@ -87,15 +88,15 @@ def update_math_settings():
     """ Update the module-level math flags, based on user settings
     """
     global _USE_CUPY, _USE_CUDA, _USE_OPENCL, _USE_NUMEXPR, _USE_FFTW, _USE_MKL
+    global xp, _scipy
+
     _USE_CUPY = (conf.use_cupy and _CUPY_AVAILABLE)
     _USE_CUDA = (conf.use_cuda and _CUDA_AVAILABLE)
     _USE_OPENCL = (conf.use_opencl and _OPENCL_AVAILABLE)
-#     _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
     _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE and not _USE_CUPY)
     _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
     _USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE)
-    
-    global xp, _scipy
+
     if _USE_CUPY:
         xp = cp
         _scipy = cupyx.scipy
@@ -118,7 +119,7 @@ def _complex():
 def _r(x, y):
     """ Function to speed up computing the radius given x and y, using Numexpr if available
     Otherwise defaults to numpy. """
-    if _USE_NUMEXPR: # and not _USE_CUPY:
+    if _USE_NUMEXPR:
         return ne.evaluate("sqrt(x**2+y**2)")
     else:
         return np.sqrt(x ** 2 + y ** 2)
@@ -130,7 +131,7 @@ def _exp(x):
     Otherwise defaults to np.exp()
 
     """
-    if _USE_NUMEXPR: # and not _USE_CUPY:
+    if _USE_NUMEXPR:
         return ne.evaluate("exp(x)", optimization='moderate', )
     elif _USE_CUPY:
         return cp.exp(x)
@@ -289,7 +290,7 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         wavefront[:] = wf_on_gpu.get()
         del wf_on_gpu
         
-    if _USE_CUPY: #########################################################################
+    if _USE_CUPY:
         do_fft = cp.fft.fft2 if forward else cp.fft.ifft2
         if normalization is None:
             normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]

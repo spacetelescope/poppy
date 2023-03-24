@@ -75,7 +75,7 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
             # OPD should be flat
             _log.debug("infinite radius of curvature -> quad phase becomes 0")
             return 0
-        if accel_math._USE_NUMEXPR: # and not accel_math._USE_CUPY:
+        if accel_math._USE_NUMEXPR:
             opd = ne.evaluate("(x ** 2 + y ** 2) / (2.0 * z)")
         else:
             opd = (x ** 2 + y ** 2)  / (2.0 *z)

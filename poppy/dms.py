@@ -416,7 +416,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
                     continue
 
                 # 2d Gaussian
-                if accel_math._USE_NUMEXPR and not accel_math._USE_CUPY:
+                if accel_math._USE_NUMEXPR:
                     roversigma2 = ne.evaluate("((x - xc)**2 + (y-yc)**2)/sigma**2")
                 else:
                     roversigma2 = ((x - xc) ** 2 + (y - yc) ** 2) / sigma ** 2
@@ -438,7 +438,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
         # check for flips
         surface, act_mask = self._get_surface_arrays_with_orientation()
-        
+
         if self.include_actuator_mask:
             target_val = (surface * act_mask).ravel()
         else:
@@ -464,10 +464,12 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
                 xweight = fracpart[1] if ix==1 else (1-fracpart[1])
                 yweight = fracpart[0] if iy==1 else (1-fracpart[0])
                 try:
-#                     self._surface_trace_flat[self._act_ind_flat[0] + ix + iy*wave.shape[0]]=(xweight*yweight).flat*target_val
-                    self._surface_trace_flat[self._act_ind_flat[0] + ix + iy*wave.shape[0]]=(xweight*yweight).flatten()*target_val
-                    # for some reason you can't use .flat and multiply the array in CuPy, you have to use .flatten()
-                    # don't know if this has other implications but seems to work as intended on normal numpy arrays
+                    if accel_math._USE_CUPY:
+                        # for some reason you can't use .flat and multiply the array in CuPy, you have to use .flatten()
+                        self._surface_trace_flat[self._act_ind_flat[0] + ix + iy*wave.shape[0]]=(xweight*yweight).flatten()*target_val
+                    else:
+                        # in numpy, using .flat is slightly faster since it uses an iterator rather than making a copy
+                        self._surface_trace_flat[self._act_ind_flat[0] + ix + iy*wave.shape[0]]=(xweight*yweight).flat*target_val
                 except:
                     pass # Ignore any actuators outside the FoV
         
@@ -546,8 +548,6 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         self._surface_trace_flat[self._act_ind_flat] = target_val
 
         actuator_rescaled = self._get_rescaled_actuator_surface(wave.pixelscale)
-#         dm_surface = scipy.signal.fftconvolve(self._surface_trace_flat.reshape(wave.shape),
-#                                               actuator_rescaled, mode='same')
         dm_surface = _scipy.signal.fftconvolve(self._surface_trace_flat.reshape(wave.shape),
                                                actuator_rescaled, mode='same')
 
