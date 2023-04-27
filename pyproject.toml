@@ -48,6 +48,11 @@ norecursedirs = [
     "build",
     "docs/_build",
 ]
+testpaths = "poppy docs"
+astropy_header = "true"
+doctest_plus = "enabled"
+text_file_format = "rst"
+addopts = "-p no:warnings"
 
 [tool.setuptools]
 zip-safe = false
@@ -62,3 +67,56 @@ find = {namespaces = false}
 
 [tool.setuptools_scm]
 write_to = "poppy/version.py"
+
+[tool.coverage.run]
+source = ["poppy",]
+omit = [
+    "poppy/conftest*",
+    "poppy/cython_version*",
+    "poppy/setup_package*",
+    "poppy/*/setup_package*",
+    "poppy/*/*/setup_package*",
+    "poppy/tests/*",
+    "poppy/*/tests/*",
+    "poppy/*/*/tests/*",
+    "poppy/version*",
+    "*/poppy/conftest*",
+    "*/poppy/cython_version*",
+    "*/poppy/setup_package*",
+    "*/poppy/*/setup_package*",
+    "*/poppy/*/*/setup_package*",
+    "*/poppy/tests/*",
+    "*/poppy/*/tests/*",
+    "*/poppy/*/*/tests/*",
+    "*/poppy/version*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "except ImportError",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "def main\(.*\):",
+    "pragma: py{ignore_python_version}",
+]
+omit = [
+    "poppy/conftest*",
+    "poppy/cython_version*",
+    "poppy/setup_package*",
+    "poppy/*/setup_package*",
+    "poppy/*/*/setup_package*",
+    "poppy/tests/*",
+    "poppy/*/tests/*",
+    "poppy/*/*/tests/*",
+    "poppy/version*",
+    "*/poppy/conftest*",
+    "*/poppy/cython_version*",
+    "*/poppy/setup_package*",
+    "*/poppy/*/setup_package*",
+    "*/poppy/*/*/setup_package*",
+    "*/poppy/tests/*",
+    "*/poppy/*/tests/*",
+    "*/poppy/*/*/tests/*",
+    "*/poppy/version*",
+]
