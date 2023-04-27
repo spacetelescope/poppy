@@ -8,7 +8,7 @@ build-backend = 'setuptools.build_meta'
 name = "poppy"
 description = "Physical optics propagation (wavefront diffraction) for optical simulations, particularly of telescopes."
 authors = [{name = "Marshall Perrin", email = "mperrin@stsci.edu"}]
-license = {text = "BSD-3-Clause"}
+license = {file = "LISCENCE.md}
 requires-python = ">=3.9"
 dependencies = [
     "numpy>=1.20.0",
@@ -41,6 +41,13 @@ Documentation = "https://poppy-optics.readthedocs.io/"
 [project.readme]
 text = '"POPPY (**P**\ hysical **O**\ ptics **P**\ ropagation in **Py**\ thon) is a Python package that simulates physical optical propagation including diffraction. It implements a flexible framework for modeling Fraunhofer and Fresnel diffraction and point spread function formation, particularly in the context of astronomical telescopes."'
 content-type = "text/markdown"
+
+[tool.pytest.ini_options]
+minversion = "2.2"
+norecursedirs = [
+    "build",
+    "docs/_build",
+]
 
 [tool.setuptools]
 zip-safe = false
