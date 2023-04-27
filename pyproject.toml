@@ -97,7 +97,7 @@ exclude_lines = [
     "except ImportError",
     "raise AssertionError",
     "raise NotImplementedError",
-    "def main\(.*\):",
+    "def main(.*):",
     "pragma: py{ignore_python_version}",
 ]
 omit = [
