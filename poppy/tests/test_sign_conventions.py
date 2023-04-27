@@ -1,4 +1,4 @@
-import numpy as np
+from poppy.accel_math import xp as np
 import astropy.units as u
 import poppy
 
@@ -206,7 +206,7 @@ def test_pupil_orientations_before_and_after_focus_fresnel(plot=False, npix_pupi
 
 
     wave0 = poppy.FresnelWavefront(beam_radius=1.5*u.m, oversample=2)
-    wave0 *= poppy.LetterFAperture(radius = 1/np.sqrt(2)*u.m)
+    wave0 *= poppy.LetterFAperture(radius = 1/float(np.sqrt(2))*u.m)   # extra float() helps with optional GPU support
 
     focal_length = 1.0*u.m
     lens = poppy.QuadraticLens(f_lens=focal_length, name="Converging lens")

@@ -23,6 +23,12 @@ import astropy.io.fits as fits
 
 import poppy
 
+from importlib import reload
+
+from . import accel_math
+
+from .accel_math import xp, _scipy
+
 try:
     import pyfftw
 except ImportError:
@@ -49,8 +55,12 @@ __all__ = ['display_psf', 'display_psf_difference', 'display_ee', 'measure_ee', 
 #    Display functions
 #
 
+def imshow(image, *args, **kwargs):
+    """If needed, fetch array fromm GPU before imshow"""
+    return plt.imshow( accel_math.ensure_not_on_gpu(image),
+                       *args, **kwargs)
 
-def imshow_with_mouseover(image, ax=None, *args, **kwargs):
+def imshow_with_mouseover(image0, ax=None, *args, **kwargs):
     """Wrapper for matplotlib imshow that displays the value under the
     cursor position
 
@@ -60,6 +70,9 @@ def imshow_with_mouseover(image, ax=None, *args, **kwargs):
     """
     if ax is None:
         ax = plt.gca()
+
+    image = accel_math.ensure_not_on_gpu(image0)
+
     ax.imshow(image, *args, **kwargs)
     aximage = ax.images[0].properties()['array']
     # need to account for half pixel offset of array coordinates for mouseover relative to pixel center,
@@ -417,7 +430,7 @@ def display_psf_difference(hdulist_or_filename1=None, hdulist_or_filename2=None,
             return ax
 
 
-def display_ee(hdulist_or_filename=None, ext=0, overplot=False, ax=None, mark_levels=True, **kwargs):
+def display_ee(hdulist_or_filename=None, ext=0, overplot=False, ax=None, mark_levels=True, levels=None, **kwargs):
     """ Display Encircled Energy curve for a PSF
 
     The azimuthally averaged encircled energy is plotted as a function of radius.
@@ -435,7 +448,9 @@ def display_ee(hdulist_or_filename=None, ext=0, overplot=False, ax=None, mark_le
     mark_levels : bool
         If set, mark and label on the plots the radii for 50%, 80%, 95% encircled energy.
         Default is True
-
+    levels : list 
+        if not None and mark_levels is true then this list specifies alternative levels
+        
     """
     if isinstance(hdulist_or_filename, str):
         hdu_list = fits.open(hdulist_or_filename)
@@ -457,7 +472,11 @@ def display_ee(hdulist_or_filename=None, ext=0, overplot=False, ax=None, mark_le
         ax.set_ylabel("Encircled Energy")
 
     if mark_levels:
-        for level in [0.5, 0.8, 0.95]:
+        if levels is None:
+            markers=[0.5, 0.8, 0.95]
+        else:
+            markers=levels
+        for level in markers:
             ee_lev = radius[np.where(ee > level)[0][0]]
             yoffset = 0 if level < 0.9 else -0.05
             plt.text(ee_lev + 0.1, level + yoffset, 'EE=%2d%% at r=%.3f"' % (level * 100, ee_lev))
@@ -1089,7 +1108,7 @@ def pad_to_oversample(array, oversample):
     """
     npix = array.shape[0]
     n = int(np.round(npix * oversample))
-    padded = np.zeros(shape=(n, n), dtype=array.dtype)
+    padded = xp.zeros(shape=(n, n), dtype=array.dtype)
     n0 = float(npix) * (oversample - 1) / 2
     n1 = n0 + npix
     n0 = int(round(n0))  # because astropy test_plugins enforces integer indices
@@ -1119,7 +1138,6 @@ def pad_to_size(array, padded_shape):
     ---------
     pad_to_oversample, pad_or_crop_to_shape
     """
-
     if len(padded_shape) < 2:
         outsize0 = padded_shape
         outsize1 = padded_shape
@@ -1127,7 +1145,7 @@ def pad_to_size(array, padded_shape):
         outsize0 = padded_shape[0]
         outsize1 = padded_shape[1]
     # npix = array.shape[0]
-    padded = np.zeros(shape=padded_shape, dtype=array.dtype)
+    padded = xp.zeros(shape=padded_shape, dtype=array.dtype)
     n0 = (outsize0 - array.shape[0]) // 2  # pixel offset for the inner array
     m0 = (outsize1 - array.shape[1]) // 2  # pixel offset in second dimension
     n1 = n0 + array.shape[0]
@@ -1162,20 +1180,19 @@ def pad_or_crop_to_shape(array, target_shape):
     pad_to_oversample, pad_to_size
 
     """
-
     if array.shape == target_shape:
         return array
 
     lx, ly = array.shape
     lx_w, ly_w = target_shape
-    border_x = np.abs(lx - lx_w) // 2
-    border_y = np.abs(ly - ly_w) // 2
+    border_x = xp.abs(lx - lx_w) // 2
+    border_y = xp.abs(ly - ly_w) // 2
 
     if (lx < lx_w) or (ly < ly_w):
         _log.debug("Array shape " + str(array.shape) + " is smaller than desired shape " + str(
             [lx_w, ly_w]) + "; will attempt to zero-pad the array")
 
-        resampled_array = np.zeros(shape=(lx_w, ly_w), dtype=array.dtype)
+        resampled_array = xp.zeros(shape=(lx_w, ly_w), dtype=array.dtype)
         resampled_array[border_x:border_x + lx, border_y:border_y + ly] = array
         _log.debug("  Padded with a {:d} x {:d} border to "
                    " match the desired shape".format(border_x, border_y))
@@ -1222,7 +1239,6 @@ def rebin_array(a=None, rc=(2, 2), verbose=False):
     anand@stsci.edu
 
     """
-
     r, c = rc
 
     R = a.shape[0]
@@ -1240,10 +1256,10 @@ def rebin_array(a=None, rc=(2, 2), verbose=False):
             print("row loop")
         for ci in range(0, nc):
             Clo = ci * c
-            b[ri, ci] = np.add.reduce(a[Rlo:Rlo + r, Clo:Clo + c].copy().flat)
+            b[ri, ci] = a[Rlo:Rlo + r, Clo:Clo + c].sum()
             if verbose:
                 print("    [%d:%d, %d:%d]" % (Rlo, Rlo + r, Clo, Clo + c))
-                print("%4.0f" % np.add.reduce(a[Rlo:Rlo + r, Clo:Clo + c].copy().flat))
+                print("%4.0f" % b[ri, ci])
     return b
 
 

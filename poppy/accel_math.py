@@ -3,6 +3,7 @@
 # Various functions related to accelerated computations using FFTW, CUDA, numexpr, and related.
 #
 import numpy as np
+import scipy
 import multiprocessing
 import matplotlib.pyplot as plt
 from . import conf
@@ -10,7 +11,6 @@ from . import conf
 import time
 import logging
 _log = logging.getLogger('poppy')
-
 
 try:
     # try to import FFTW to see if it is available
@@ -60,22 +60,53 @@ try:
 except ImportError:
     _OPENCL_AVAILABLE = False
 
+try:
+    # try to import cupy packages to see if they are is available
+    # and check if GPU hardware is available
+    import cupy as cp
+    import cupyx.scipy.ndimage
+    import cupyx.scipy.signal
+    import cupyx.scipy.special
+    cp.cuda.Device() # checks if a GPU exists
+    _CUPY_PLANS = {}
+    _CUPY_AVAILABLE = True
+except:
+    cp = None
+    _CUPY_AVAILABLE = False    
+
+_USE_CUPY = (conf.use_cupy and _CUPY_AVAILABLE)
 _USE_CUDA = (conf.use_cuda and _CUDA_AVAILABLE)
 _USE_OPENCL = (conf.use_opencl and _OPENCL_AVAILABLE)
-_USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
+_USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE and not _USE_CUPY)
 _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
 _USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE)
 
+xp = np
+_scipy = scipy
 
 def update_math_settings():
     """ Update the module-level math flags, based on user settings
     """
-    global _USE_CUDA, _USE_OPENCL, _USE_NUMEXPR, _USE_FFTW, _USE_MKL
+    global _USE_CUPY, _USE_CUDA, _USE_OPENCL, _USE_NUMEXPR, _USE_FFTW, _USE_MKL
+    global xp, _scipy
+
+    _USE_CUPY = (conf.use_cupy and _CUPY_AVAILABLE)
     _USE_CUDA = (conf.use_cuda and _CUDA_AVAILABLE)
     _USE_OPENCL = (conf.use_opencl and _OPENCL_AVAILABLE)
-    _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE)
+    _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE and not _USE_CUPY)
     _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
     _USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE)
+
+    if _USE_CUPY:
+        xp = cp
+        _scipy = cupyx.scipy
+    else:
+        xp = np
+        _scipy = scipy
+
+# Call update_math_settings once on initial import
+# This ensures an initial setup is done prior to any code execution
+update_math_settings()
 
 
 def _float():
@@ -107,6 +138,8 @@ def _exp(x):
     """
     if _USE_NUMEXPR:
         return ne.evaluate("exp(x)", optimization='moderate', )
+    elif _USE_CUPY:
+        return cp.exp(x)
     else:
         return np.exp(x)
 
@@ -128,6 +161,8 @@ def _fftshift(x):
         numBlocks = (int(N/blockdim[0]),int(N/blockdim[1]))
         cufftShift_2D_kernel[numBlocks, blockdim](x.ravel(),N)
         return x
+    elif _USE_CUPY:
+        return cp.fft.fftshift(x)
     else:
         return np.fft.fftshift(x)
 
@@ -153,6 +188,8 @@ def _ifftshift(x):
         numBlocks = (int(N/blockdim[0]),int(N/blockdim[1]))
         cufftShift_2D_kernel[numBlocks, blockdim](x.ravel(),N)
         return x
+    elif _USE_CUPY:
+        return cp.fft.ifftshift(x)
     else:
         return np.fft.ifftshift(x)
 
@@ -192,7 +229,7 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
 
     """
     ## To use a fast FFT, it must both be enabled and the library itself has to be present
-    global _USE_OPENCL, _USE_CUDA # need to declare global in case we need to change it, below
+    global _USE_OPENCL, _USE_CUDA, _USE_CUPY # need to declare global in case we need to change it, below
     t0 = time.time()
 
     # OpenCL cfFFT only can FFT certain array sizes.
@@ -202,10 +239,12 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         _USE_OPENCL = False
 
     # This annoyingly complicated if/elif is just for the debug print statement
-    if _USE_CUDA:
-        method = 'pyculib (CUDA GPU)'
+    if _USE_CUPY:
+        method = 'cupy (GPU)'
     elif _USE_OPENCL:
         method = 'pyopencl (OpenCL GPU)'
+    elif _USE_CUDA:
+        method = 'pyculib (CUDA GPU)'
     elif _USE_MKL:
         method = 'mkl_fft'
     elif _USE_FFTW:
@@ -255,7 +294,13 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         event.wait()
         wavefront[:] = wf_on_gpu.get()
         del wf_on_gpu
-
+        
+    if _USE_CUPY:
+        do_fft = cp.fft.fft2 if forward else cp.fft.ifft2
+        if normalization is None:
+            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
+        wavefront = do_fft(wavefront)
+    
     elif _USE_MKL:
         # Intel MKL is a drop-in replacement for numpy fft but much faster
         do_fft = mkl_fft.fft2 if forward else mkl_fft.ifft2
@@ -412,14 +457,14 @@ tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
     print("Timing performance of FFT for {npix} x {npix}, {complextype}, with {iterations} iterations".format(
         npix=npix, iterations=iterations, complextype=complextype))
 
-    defaults = (poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda,
+    defaults = (poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cupy,
             poppy.conf.use_opencl, poppy.conf.double_precision)
     poppy.conf.double_precision = double_precision
 
     # Time baseline performance in numpy
     print("Timing performance in plain numpy:")
 
-    poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda, poppy.conf.use_opencl = (False, False, False, False, False)
+    poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cupy, poppy.conf.use_opencl = (False, False, False, False, False)
     update_math_settings()
     time_numpy = timer.timeit(number=iterations) / iterations
     print("  {:.3f} s".format(time_numpy))
@@ -474,14 +519,14 @@ tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
         time_opencl = np.NaN
 
 
-    poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda,\
+    poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cupy,\
             poppy.conf.use_opencl, poppy.conf.double_precision = defaults
 
     return {'numpy': time_numpy,
             'fftw': time_fftw,
             'numexpr': time_numexpr,
             'mkl': time_mkl,
-            'cuda': time_cuda,
+            'cupy': time_cuda,
             'opencl': time_opencl}
 
 
@@ -695,3 +740,19 @@ def benchmark_2d_mfts(max_pow=13, savefig=False):
 
     if savefig:
         plt.savefig(f"bench_mfts.png")
+
+
+def is_on_gpu(array):
+    """Simple utility function to check if an array is on the GPU
+    (only possible if using CuPY currently)
+    """
+    if _USE_CUPY:
+        if isinstance(array, cp.ndarray):
+            return True
+    return False
+
+def ensure_not_on_gpu(array):
+    """Utility function to ensure an array is in CPU memory,
+    copying it from the GPU memory if necessary
+    """
+    return array.get() if is_on_gpu(array) else array
