@@ -7,7 +7,7 @@ build-backend = 'setuptools.build_meta'
 name = "poppy"
 description = "Physical optics propagation (wavefront diffraction) for optical simulations, particularly of telescopes."
 authors = [{name = "Marshall Perrin", email = "mperrin@stsci.edu"}]
-license = {file = "LISCENCE.md"}
+license = {text = "BSD-3-Clause"}
 requires-python = ">=3.9"
 dependencies = [
     "numpy>=1.20.0",
