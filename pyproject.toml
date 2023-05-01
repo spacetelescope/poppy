@@ -67,6 +67,7 @@ find = {namespaces = false}
 
 [tool.setuptools_scm]
 write_to = "poppy/version.py"
+write_to_template = "__version__ = '{version}'\n"
 
 [tool.coverage.run]
 source = ["poppy",]
