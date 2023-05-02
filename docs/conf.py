@@ -18,7 +18,11 @@ from datetime import datetime
 from pathlib import Path
 
 import stsci_rtd_theme
-import tomli
+
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
 
 try:
     from sphinx_astropy.conf.v1 import *  # noqa
@@ -30,7 +34,7 @@ except ImportError:
 
 # -- Project information -----------------------------------------------------
 with open(Path(__file__).parent.parent / "pyproject.toml", "rb") as metadata_file:
-    configuration = tomli.load(metadata_file)
+    configuration = tomllib.load(metadata_file)
     metadata = configuration["project"]
     project = metadata["name"]
     author = metadata["authors"][0]["name"]
@@ -225,4 +229,4 @@ epub_exclude_files = ["search.html"]
 # Github repo
 issues_github_path = "spacetelescope/poppy"
 
-github_issues_url = 'https://github.com/{0}/issues/'.format(issues_github_path)
+github_issues_url = "https://github.com/{0}/issues/".format(issues_github_path)
