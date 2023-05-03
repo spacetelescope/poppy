@@ -16,6 +16,7 @@ dependencies = [
     "astropy>=4.3.0",
 ]
 dynamic = ["version"]
+readme = "README.md"
 
 [project.optional-dependencies]
 all = ["synphot"]
@@ -37,10 +38,6 @@ docs = [
 Homepage = "https://github.com/spacetelescope/poppy"
 Documentation = "https://poppy-optics.readthedocs.io/"
 "Bug Tracker" = "https://github.com/spacetelescope/poppy/issues"
-
-[project.readme]
-text = '"POPPY (**P**\ hysical **O**\ ptics **P**\ ropagation in **Py**\ thon) is a Python package that simulates physical optical propagation including diffraction. It implements a flexible framework for modeling Fraunhofer and Fresnel diffraction and point spread function formation, particularly in the context of astronomical telescopes."'
-content-type = "text/markdown"
 
 [tool.pytest.ini_options]
 minversion = "2.2"
