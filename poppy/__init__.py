@@ -56,73 +56,41 @@ class Conf(_config.ConfigNamespace):
     # because this is a memory-intensive calculation and you will
     # just end up thrashing IO and swapping out a ton, so everything
     # becomes super slow.
-    n_processes = _config.ConfigItem(
-        4,
-        "Maximum number of additional "
-        + "worker processes to spawn, if multiprocessing is enabled. "
-        + "Set to 0 for autoselect. Note, PSF calculations are likely RAM "
-        + "limited more than CPU limited for higher N on modern machines.",
-    )
+    n_processes = _config.ConfigItem(4, 'Maximum number of additional ' +
+                                     'worker processes to spawn, if multiprocessing is enabled. ' +
+                                     'Set to 0 for autoselect. Note, PSF calculations are likely RAM ' +
+                                     'limited more than CPU limited for higher N on modern machines.')
 
-    use_fftw = _config.ConfigItem(
-        True,
-        "Use FFTW for FFTs (assuming it"
-        + "is available)?  Set to False to force numpy.fft always, True to"
-        + "try importing and using FFTW via PyFFTW.",
-    )
-    autosave_fftw_wisdom = _config.ConfigItem(
-        True,
-        "Should POPPY "
-        + "automatically save and reload FFTW "
-        + '"wisdom" for improved speed?',
-    )
-    use_mkl = _config.ConfigItem(
-        True,
-        "Use Intel MKL for FFTs (assuming it is available). "
-        "This has highest priority for CPU-based FFT over other FFT options, if multiple are set True.",
-    )
+    use_fftw = _config.ConfigItem(True, 'Use FFTW for FFTs (assuming it' +
+                                  'is available)?  Set to False to force numpy.fft always, True to' +
+                                  'try importing and using FFTW via PyFFTW.')
+    autosave_fftw_wisdom = _config.ConfigItem(True, 'Should POPPY ' +
+                                              'automatically save and reload FFTW ' +
+                                              '"wisdom" for improved speed?')
+    use_mkl = _config.ConfigItem(True, "Use Intel MKL for FFTs (assuming it is available). "
+                                       "This has highest priority for CPU-based FFT over other FFT options, if multiple are set True.")
+    use_opencl = _config.ConfigItem(True, 'Use OpenCL for FFTs on GPU (assuming it' +
+            'is available)?')
+    use_cupy = _config.ConfigItem(True, 'Use CuPy for FFTs on GPU (assuming it' +
+            'is available)?')
+    use_numexpr = _config.ConfigItem(True, 'Use NumExpr to accelerate array math (assuming it' +
+            'is available)?')
 
-    use_cuda = _config.ConfigItem(
-        True, "Use cuda for FFTs on GPU (assuming it" + "is available)?"
-    )
-    use_opencl = _config.ConfigItem(
-        True, "Use OpenCL for FFTs on GPU (assuming it" + "is available)?"
-    )
-    use_cupy = _config.ConfigItem(
-        True, "Use CuPy for FFTs on GPU (assuming it" + "is available)?"
-    )
-    use_numexpr = _config.ConfigItem(
-        True, "Use NumExpr to accelerate array math (assuming it" + "is available)?"
-    )
+    double_precision = _config.ConfigItem(True, 'Floating point values use float64 and complex128 if True,' +
+            'otherwise float32 and complex64.')
 
-    double_precision = _config.ConfigItem(
-        True,
-        "Floating point values use float64 and complex128 if True,"
-        + "otherwise float32 and complex64.",
-    )
+    default_image_display_fov = _config.ConfigItem(5.0, 'Default image' +
+                                                   'display field of view, in arcseconds. Adjust this to display ' +
+                                                   'only a subregion of a larger output array.')
 
-    default_image_display_fov = _config.ConfigItem(
-        5.0,
-        "Default image"
-        + "display field of view, in arcseconds. Adjust this to display "
-        + "only a subregion of a larger output array.",
-    )
+    default_logging_level = _config.ConfigItem('INFO', 'Logging ' +
+                                               'verbosity: one of {DEBUG, INFO, WARN, ERROR, or CRITICAL}')
 
-    default_logging_level = _config.ConfigItem(
-        "INFO", "Logging " + "verbosity: one of {DEBUG, INFO, WARN, ERROR, or CRITICAL}"
-    )
-
-    enable_speed_tests = _config.ConfigItem(
-        False,
-        "Enable additional "
-        + "verbose printout of computation times. Useful for benchmarking.",
-    )
-    enable_flux_tests = _config.ConfigItem(
-        False,
-        "Enable additional "
-        + "verbose printout of fluxes and flux conservation during "
-        + "calculations. Useful for testing.",
-    )
+    enable_speed_tests = _config.ConfigItem(False, 'Enable additional ' +
+                                            'verbose printout of computation times. Useful for benchmarking.')
+    enable_flux_tests = _config.ConfigItem(False, 'Enable additional ' +
+                                           'verbose printout of fluxes and flux conservation during ' +
+                                           'calculations. Useful for testing.')
     cmap_sequential = _config.ConfigItem(
         "gist_heat",
         "Select a default colormap to represent sequential data (e.g. intensity)",

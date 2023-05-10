@@ -172,7 +172,6 @@ def test_parity_FFT_forward_inverse(display=False):
 # Test different FFT algorithms for consistency:
 #    - numpy
 #    - fftw
-#    - CUDA / pyculib
 #    - OpenCL / clfft / gpyfft
 #
 # The test method is the same for all: calculate PSFs for an
@@ -234,46 +233,6 @@ def test_pyfftw_vs_numpyfft(verbose=False):
 
     conf.use_fftw, conf.use_cuda, conf.use_opencl, conf.use_cupy = defaults
 
-
-@pytest.mark.skipif(accel_math._CUDA_AVAILABLE is False, reason="CUDA not available")
-def test_cuda_vs_numpyfft(verbose=False):
-    """ Create an optical system with 2 parity test apertures,
-    propagate light through it, and compare that we get the same results from both numpy and CUDA"""
-
-    defaults = conf.use_fftw, conf.use_cuda, conf.use_opencl
-
-    conf.use_fftw = False
-    conf.use_opencl = False
-
-    sys = setup_test_osys()
-
-    conf.use_cuda = False
-    psf_numpy, intermediates_numpy = sys.calc_psf(wavelength=1e-6, return_intermediates=True)
-
-    conf.use_cuda = True
-    psf_cuda, intermediates_cuda = sys.calc_psf(wavelength=1e-6, return_intermediates=True)
-
-    # check the final PSFs are consistent
-    assert np.abs(psf_cuda[0].data-psf_numpy[0].data).max() < 1e-6
-
-    # Check flux conservation for the intermediate arrays behaves properly
-    intermediates = intermediates_cuda
-    epsilon = np.finfo(intermediates[0].wavefront.dtype).eps
-    total_int_input = intermediates_numpy[0].total_intensity
-    for i in [1,2]:
-        assert np.abs(intermediates[i].total_intensity - total_int_input) < 5*epsilon
-
-    # Check flux in output array is about 0.5% less than input array (due to finite FOV)
-    expected = 0.004949550538272617927759
-    assert np.abs(intermediates[3].total_intensity - total_int_input) - expected < 5*epsilon
-
-    if verbose:
-        print ("PSF difference: ", np.abs(psf_cuda[0].data-psf_numpy[0].data).max())
-        for i in [1,2]:
-            print(" Int. WF {} intensity diff: {}".format(i, np.abs(intermediates[i].total_intensity-total_int_input)) )
-        print(" Final PSF intensity diff:", np.abs(intermediates[3].total_intensity-total_int_input) - expected)
-
-    conf.use_fftw, conf.use_cuda, conf.use_opencl = defaults
 
 @pytest.mark.skipif(accel_math._OPENCL_AVAILABLE is False, reason="OPENCL not available")
 def test_opencl_vs_numpyfft(verbose=False):
