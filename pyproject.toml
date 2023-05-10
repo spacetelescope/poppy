@@ -1,5 +1,120 @@
 [build-system]
-requires = ["setuptools >= 38.0.0",
-            "setuptools_scm >= 2.0.0",
-            "wheel"]
+requires = ["setuptools >= 61.2",
+            "setuptools_scm[toml]>=7.1"]
 build-backend = 'setuptools.build_meta'
+
+[project]
+name = "poppy"
+description = "Physical optics propagation (wavefront diffraction) for optical simulations, particularly of telescopes."
+authors = [{name = "Marshall Perrin", email = "mperrin@stsci.edu"}]
+license = {text = "BSD-3-Clause"}
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.20.0",
+    "scipy>=1.5.0",
+    "matplotlib>=3.2.0",
+    "astropy>=4.3.0",
+]
+dynamic = ["version"]
+readme = "README.md"
+
+[project.optional-dependencies]
+all = ["synphot"]
+test = [
+    "pytest",
+    "pytest-astropy",
+]
+docs = [
+    "nbsphinx",
+    "stsci_rtd_theme",
+    "sphinx-astropy",
+    "sphinx_rtd_theme",
+    "sphinx-automodapi",
+    "sphinx-issues",
+    "tomli; python_version <\"3.11\"",
+]
+
+[project.urls]
+Homepage = "https://github.com/spacetelescope/poppy"
+Documentation = "https://poppy-optics.readthedocs.io/"
+"Bug Tracker" = "https://github.com/spacetelescope/poppy/issues"
+
+[tool.pytest.ini_options]
+minversion = "2.2"
+norecursedirs = [
+    "build",
+    "docs/_build",
+]
+testpaths = "poppy docs"
+astropy_header = "true"
+doctest_plus = "enabled"
+text_file_format = "rst"
+addopts = "-p no:warnings"
+
+[tool.setuptools]
+zip-safe = false
+include-package-data = false
+
+[tool.setuptools.packages]
+find = {namespaces = false}
+
+[tool.setuptools.package-data]
+"*" = ["*.fits", "*.csv"]
+"poppy.tests" = ["data/*"]
+
+[tool.setuptools_scm]
+write_to = "poppy/version.py"
+write_to_template = "__version__ = '{version}'\n"
+
+[tool.coverage.run]
+source = ["poppy",]
+omit = [
+    "poppy/conftest*",
+    "poppy/cython_version*",
+    "poppy/setup_package*",
+    "poppy/*/setup_package*",
+    "poppy/*/*/setup_package*",
+    "poppy/tests/*",
+    "poppy/*/tests/*",
+    "poppy/*/*/tests/*",
+    "poppy/version*",
+    "*/poppy/conftest*",
+    "*/poppy/cython_version*",
+    "*/poppy/setup_package*",
+    "*/poppy/*/setup_package*",
+    "*/poppy/*/*/setup_package*",
+    "*/poppy/tests/*",
+    "*/poppy/*/tests/*",
+    "*/poppy/*/*/tests/*",
+    "*/poppy/version*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "except ImportError",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "def main(.*):",
+    "pragma: py{ignore_python_version}",
+]
+omit = [
+    "poppy/conftest*",
+    "poppy/cython_version*",
+    "poppy/setup_package*",
+    "poppy/*/setup_package*",
+    "poppy/*/*/setup_package*",
+    "poppy/tests/*",
+    "poppy/*/tests/*",
+    "poppy/*/*/tests/*",
+    "poppy/version*",
+    "*/poppy/conftest*",
+    "*/poppy/cython_version*",
+    "*/poppy/setup_package*",
+    "*/poppy/*/setup_package*",
+    "*/poppy/*/*/setup_package*",
+    "*/poppy/tests/*",
+    "*/poppy/*/tests/*",
+    "*/poppy/*/*/tests/*",
+    "*/poppy/version*",
+]
