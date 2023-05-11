@@ -5,10 +5,13 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
- 1.1.0
- -----
+.. _rel1.1.0:
 
- .. _rel1.1.0::
+1.1.0
+-----
+
+This release introduces support for much faster (20-80x) optical calculations using GPU acceleration via the CuPy library for NVidia GPUs. Credit to Kian Milani (:user:`kian1337`) for this significant and complex improvement.
+
 
  *2023 May 12*
 
