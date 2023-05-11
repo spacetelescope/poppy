@@ -5,13 +5,10 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
-.. _rel1.1.0:
-
 1.1.0
 -----
 
-This release introduces support for much faster (20-80x) optical calculations using GPU acceleration via the CuPy library for NVidia GPUs. Credit to Kian Milani (:user:`kian1337`) for this significant and complex improvement.
-
+.. _rel1.1.0:
 
  *2023 May 12*
 
@@ -22,7 +19,7 @@ This release introduces support for much faster (20-80x) optical calculations us
  * Fix position angle rotation passthrough for TiltOpticalPathDifference by :user:`evanmayer` in :pr:`524`
  * Fix units error in MultiHexagonAperture, see #485 by :user:`mperrin` in :pr:`527`
  * replacing np.float with np.float_ per Issue 544 by :user:`adambolton` in :pr:`545`
- * Update minimum versions across the board by :user:`BradleySappington` in :pr:`551`
+ * Update minimum versions across the board including remove python 3.8 and adding pythong 3.11 by :user:`BradleySappington` in :pr:`551`
  * add option to mark levels in display_ee by :user:`douglase` in :pr:`540`
  * minor: misc PEP8 code style consistency reformatting  by :user:`mperrin` in :pr:`554`
  * Addition of CuPy as an Accelerated Computing Option by :user:`kian1377` in :pr:`499`
