@@ -39,6 +39,7 @@ The Fresnel propagation API necessarily differs in several ways from the origina
 First, when we define a Fresnel wavefront, the first argument specifies the desired diameter of the wavefront, and must be given as an `astropy.Quantity <http://docs.astropy.org/en/stable/units/>`_ of dimension length::
 
         import astropy.units as u
+        npix = 256
         wf_fresnel = poppy.FresnelWavefront(0.5*u.m,wavelength=2200e-9,npix=npix,oversample=4)
         # versus:
         wf_fraunhofer = poppy.Wavefront(diam=0.5, wavelength=2200e-9,npix=npix,oversample=4)
