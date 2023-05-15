@@ -16,7 +16,7 @@ dependencies = [
     "astropy>=4.3.0",
 ]
 dynamic = ["version"]
-readme = "README.md"
+readme = "README.rst"
 
 [project.optional-dependencies]
 all = ["synphot"]
