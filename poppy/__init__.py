@@ -19,19 +19,23 @@ import sys
 from astropy import config as _config
 
 try:
-    from .version import version as __version__
+    from .version import __version__
 except ImportError:
-    __version__ = ''
+    __version__ = ""
 
-__minimum_python_version__ = "3.8"
+__minimum_python_version__ = "3.9"
 
 
 class UnsupportedPythonError(Exception):
     pass
 
 
-if sys.version_info < tuple((int(val) for val in __minimum_python_version__.split('.'))):
-    raise UnsupportedPythonError("poppy does not support Python < {}".format(__minimum_python_version__))
+if sys.version_info < tuple(
+    (int(val) for val in __minimum_python_version__.split("."))
+):
+    raise UnsupportedPythonError(
+        "poppy does not support Python < {}".format(__minimum_python_version__)
+    )
 
 
 class Conf(_config.ConfigNamespace):
@@ -39,12 +43,14 @@ class Conf(_config.ConfigNamespace):
     Configuration parameters for `poppy`.
     """
 
-    use_multiprocessing = _config.ConfigItem(False,
-                                             'Should PSF calculations run in parallel using multiple processors'
-                                             'using the Python multiprocessing framework (if True; faster but '
-                                             'does not allow display of each wavelength) or run serially in a '
-                                             'single process (if False; slower but shows the calculation in '
-                                             'progress. Also a bit more robust.)')
+    use_multiprocessing = _config.ConfigItem(
+        False,
+        "Should PSF calculations run in parallel using multiple processors"
+        "using the Python multiprocessing framework (if True; faster but "
+        "does not allow display of each wavelength) or run serially in a "
+        "single process (if False; slower but shows the calculation in "
+        "progress. Also a bit more robust.)",
+    )
 
     # Caution: Do not make this next too large on high-CPU-count machines
     # because this is a memory-intensive calculation and you will
@@ -63,10 +69,9 @@ class Conf(_config.ConfigNamespace):
                                               '"wisdom" for improved speed?')
     use_mkl = _config.ConfigItem(True, "Use Intel MKL for FFTs (assuming it is available). "
                                        "This has highest priority for CPU-based FFT over other FFT options, if multiple are set True.")
-
-    use_cuda = _config.ConfigItem(True, 'Use cuda for FFTs on GPU (assuming it' +
-            'is available)?')
     use_opencl = _config.ConfigItem(True, 'Use OpenCL for FFTs on GPU (assuming it' +
+            'is available)?')
+    use_cupy = _config.ConfigItem(True, 'Use CuPy for FFTs on GPU (assuming it' +
             'is available)?')
     use_numexpr = _config.ConfigItem(True, 'Use NumExpr to accelerate array math (assuming it' +
             'is available)?')
@@ -87,21 +92,25 @@ class Conf(_config.ConfigNamespace):
                                            'verbose printout of fluxes and flux conservation during ' +
                                            'calculations. Useful for testing.')
     cmap_sequential = _config.ConfigItem(
-        'gist_heat',
-        'Select a default colormap to represent sequential data (e.g. intensity)'
+        "gist_heat",
+        "Select a default colormap to represent sequential data (e.g. intensity)",
     )
     cmap_diverging = _config.ConfigItem(
-        'RdBu_r',
-        'Select a default colormap to represent diverging data (e.g. OPD)'
+        "RdBu_r", "Select a default colormap to represent diverging data (e.g. OPD)"
     )
     cmap_pupil_intensity = _config.ConfigItem(
-        'gray',
-        'Select a default colormap to represent intensity at pupils or aperture masks'
+        "gray",
+        "Select a default colormap to represent intensity at pupils or aperture masks",
     )
 
 
 conf = Conf()
 
+from . import (
+    accel_math,
+)  # This should be the first import here, to ensure math accelerators and settings are loaded prior to
+
+# the rest of poppy code being loaded.
 from . import poppy_core
 from . import utils
 from . import optics
@@ -125,8 +134,16 @@ from .active_optics import *
 from .instrument import Instrument
 
 # if we might have autosaved, then auto reload as well
-#if accel_math._FFTW_AVAILABLE:
+# if accel_math._FFTW_AVAILABLE:
 #    utils.fftw_load_wisdom()
 
-__all__ = ['conf', 'Instrument', '__version__'] + utils.__all__ + poppy_core.__all__ + optics.__all__ + \
-          fresnel.__all__ + wfe.__all__ + dms.__all__ + active_optics.__all__
+__all__ = (
+    ["conf", "Instrument", "__version__"]
+    + utils.__all__
+    + poppy_core.__all__
+    + optics.__all__
+    + fresnel.__all__
+    + wfe.__all__
+    + dms.__all__
+    + active_optics.__all__
+)

@@ -119,14 +119,14 @@ The spatial or angular scale of these arrays must also be indicated by a FITS
 header keyword. By default, poppy checks for the keyword `PIXSCALE` for image
 plane pixel scale in arcseconds/pixel or `PUPLSCAL` for pupil plane scale in
 meters/pixel. However if your FITS file uses some alternate keyword, you can specify that
-keyword name with the `pupilscale=` argument in the call to the `~poppy.FITSOpticalElement` constructor, i.e.::
+keyword name with the `pixelscale=` argument in the call to the `~poppy.FITSOpticalElement` constructor, i.e.::
 
-     myoptic = poppy.FITSOpticalElement(transmission='transfile.fits', opd='opdfile.fits', pupilscale="PIXELSCL")
+     myoptic = poppy.FITSOpticalElement(transmission='transfile.fits', opd='opdfile.fits', pixelscale="PIXELSCL")
 
 
 Lastly if there is no such keyword available, you can specify the numerical scale directly via the same keyword by providing a float instead of a string::
 
-     myoptic = poppy.FITSOpticalElement(transmission='transfile.fits', opd='opdfile.fits', pupilscale=0.020)
+     myoptic = poppy.FITSOpticalElement(transmission='transfile.fits', opd='opdfile.fits', pixelscale=0.020)
 
 
 Creating a custom instrument

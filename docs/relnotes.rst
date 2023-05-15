@@ -5,6 +5,38 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+1.1.0
+-----
+
+.. _rel1.1.0:
+
+ *2023 May 12*
+
+**Software Infrastructure Updates and Internals:**
+ * Increase all CI test versions by 1, removing Python 3.8 and adding Python 3.11. Update minimum supported versions of astropy and numpy as well.
+ * Updated ReadTheDocs build's Python version by :user:`ojustino` in :pr:`512`
+ * Tried Python 3.8 with ReadTheDocs instead by :user:`ojustino` in :pr:`514`
+ * Fix position angle rotation passthrough for TiltOpticalPathDifference by :user:`evanmayer` in :pr:`524`
+ * Fix units error in MultiHexagonAperture, see #485 by :user:`mperrin` in :pr:`527`
+ * replacing np.float with np.float_ per Issue 544 by :user:`adambolton` in :pr:`545`
+ * Update minimum versions across the board including remove python 3.8 and adding pythong 3.11 by :user:`BradleySappington` in :pr:`551`
+ * add option to mark levels in display_ee by :user:`douglase` in :pr:`540`
+ * minor: misc PEP8 code style consistency reformatting  by :user:`mperrin` in :pr:`554`
+ * Addition of CuPy as an Accelerated Computing Option by :user:`kian1377` in :pr:`499`
+ * remove usages of deprecated `codecov` package by :user:`zacharyburnett` in :pr:`559`
+ * Move metadata from non-standard setup.cfg into PEP 621-compliant pyproject.toml. (546 takeover) by :user:`BradleySappington` in :pr:`561`
+ * for now, skip a failing Fresnel test for the most recent scikit-image versions by :user:`mperrin` in :pr:`555`
+ * Remove older CUDA GPU code, now that it's replaced by CuPY GPU code by :user:`mperrin` in :pr:`556`
+
+**New Contributors:**
+ * :user:`evanmayer` made their first contribution in :pr:524
+ * :user:`adambolton` made their first contribution in :pr:545
+ * :user:`BradleySappington` made their first contribution in :pr:551
+ * :user:`zacharyburnett` made their first contribution in :pr:559
+
+**Full Changelog**: https://github.com/spacetelescope/poppy/compare/v1.0.3...v1.1.0
+
+
 1.0.3
 -----
 
