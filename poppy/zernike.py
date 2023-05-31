@@ -765,7 +765,7 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
         "only square aperture arrays are supported"
 
     # any pixels with zero or NaN in the aperture are outside the area
-    apmask = (xp.isfinite(aperture) & (aperture > 0))
+    apmask = (xp.isfinite(xp.asarray(aperture)) & (xp.asarray(aperture) > 0))
     apmask_float = xp.asarray(apmask, float)
     A = apmask.sum()
 
