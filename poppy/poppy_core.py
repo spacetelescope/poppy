@@ -895,6 +895,7 @@ class BaseWavefront(ABC):
 
     def rotate(self, angle=0.0):
         """Rotate a wavefront by some amount, using spline interpolation
+        (or exact rotation, for multiples of 90 degrees)
 
         Parameters
         ----------
@@ -903,16 +904,8 @@ class BaseWavefront(ABC):
 
         """
 
-        if self.ispadded:
-            # pupil plane is padded - trim out the zeros since it's not needed in the rotation
-            # If needed in later steps, the padding will be re-added automatically
-            self.wavefront = utils.remove_padding(self.wavefront, self.oversample)
-            self.ispadded = False
-
-        # self.wavefront = scipy.ndimage.interpolation.rotate(self.wavefront, angle, reshape=False)
-        # Huh, the ndimage rotate function does not work for complex numbers. That's weird.
+        # The ndimage rotate function does not work for complex numbers.
         # so let's treat the real and imaginary parts individually
-        # FIXME TODO or would it be better to do this on the amplitude and phase?
 
         k, remainder = np.divmod(angle, 90)
         if remainder == 0:
@@ -1408,6 +1401,28 @@ class Wavefront(BaseWavefront):
         else:
             import cupy as cp
             return isinstance(self.wavefront, cp.ndarray)
+
+    def rotate(self, angle=0.0):
+        """Rotate a wavefront by some amount, using spline interpolation
+         (or exact rotation, for multiples of 90 degrees)
+
+        Note, if the wavefront is zero-padded this step will unpad it, as an efficiency to
+        avoid rotating large arrays of zeros unnecessarily.
+
+        Parameters
+        ----------
+        angle : float
+            Angle to rotate, in degrees counterclockwise.
+
+        """
+
+        if self.ispadded:
+            # pupil plane is padded - trim out the zeros since it's not needed in the rotation
+            # If needed in later steps, the padding will be re-added automatically
+            self.wavefront = utils.remove_padding(self.wavefront, self.oversample)
+            self.ispadded = False
+
+        super().rotate(angle)
 
 # ------ core Optical System classes -------
 
