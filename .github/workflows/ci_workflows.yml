@@ -65,11 +65,11 @@ jobs:
       if: ${{ contains(matrix.toxenv,'-latest') }}
       run: |
         cp $RUNNER_WORKSPACE/poppy/requirements.txt /tmp/
-        tox -e ${{ matrix.toxenv }}
+        tox -vv -e ${{ matrix.toxenv }}
 
     - name: Run tests
       if: ${{ contains(matrix.toxenv,'-latest') != true }}
-      run: tox -e ${{ matrix.toxenv }}
+      run: tox -vv -e ${{ matrix.toxenv }}
 
     - name: Upload coverage to codecov
       if: ${{ contains(matrix.toxenv,'-cov') }}
