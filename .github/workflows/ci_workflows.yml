@@ -69,7 +69,7 @@ jobs:
 
     - name: Run tests
       if: ${{ contains(matrix.toxenv,'-latest') != true }}
-      run: tox -vv -e ${{ matrix.toxenv }}
+      run: tox -e ${{ matrix.toxenv }}
 
     - name: Upload coverage to codecov
       if: ${{ contains(matrix.toxenv,'-cov') }}
