@@ -65,7 +65,7 @@ jobs:
       if: ${{ contains(matrix.toxenv,'-latest') }}
       run: |
         cp $RUNNER_WORKSPACE/poppy/requirements.txt /tmp/
-        tox -vv -e ${{ matrix.toxenv }}
+        tox -e ${{ matrix.toxenv }}
 
     - name: Run tests
       if: ${{ contains(matrix.toxenv,'-latest') != true }}
