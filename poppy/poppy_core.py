@@ -797,7 +797,7 @@ class BaseWavefront(ABC):
                 Bind arguments to scipy's RectBivariateSpline function.
                 For data on a regular 2D grid, RectBivariateSpline is more efficient than interp2d.
                 """
-                return scipy.interpolate.RectBivariateSpline(x_in, y_in, arr, 
+                return scipy.interpolate.RectBivariateSpline(x_in, y_in, arr,
                                                              kx=detector.interp_order, ky=detector.interp_order)
 
             # Interpolate real and imaginary parts separately
@@ -805,7 +805,7 @@ class BaseWavefront(ABC):
             imag_resampled = interpolator(cropped_wf.imag)(x_out, y_out)
             new_wf = xp.array(real_resampled + 1j * imag_resampled)
         else:
-            # cupyx does not have RectBivariateSpline or interp2d so wavefront resampling 
+            # cupyx does not have RectBivariateSpline or interp2d so wavefront resampling
             # is implemented with map_coordinates
             #wf_xmin = pixscale * cropped_wf.shape[0]/2
             # Note, carefully handle the offset-by-one to be consistent with
@@ -916,7 +916,7 @@ class BaseWavefront(ABC):
             # arbitrary free rotation with interpolation
             rot_real = _scipy.ndimage.rotate(self.wavefront.real, -angle, reshape=False)  # negative = CCW
             rot_imag = _scipy.ndimage.rotate(self.wavefront.imag, -angle, reshape=False)
-        self.wavefront = rot_real + 1.j * rot_imag
+        self.wavefront = rot_real + 1j * rot_imag
 
         self.history.append('Rotated by {:.2f} degrees, CCW'.format(angle))
 
@@ -2471,11 +2471,11 @@ class OpticalElement(object):
 
     def get_opd(self, wave):
         """ Return the optical path difference, given a wavelength.
-            
-            In this base class instance, the wavefront parameter 'wave' is not used, 
+
+            In this base class instance, the wavefront parameter 'wave' is not used,
              and the .opd attribute of the optic is returned directly.
              Subclasses may change this behavior, for instance to evaluate
-             optical aberrations on the sampling defined for that wavefront, 
+             optical aberrations on the sampling defined for that wavefront,
              or to compute the wavelength-dependent aberrations of a refractive optic.
 
         Parameters
@@ -2519,7 +2519,7 @@ class OpticalElement(object):
             if hasattr(self, '_resampled_scale') and abs(
                     self._resampled_scale - wave.pixelscale) / self._resampled_scale >= float_tolerance:
                 # we already did this same resampling, so just re-use it!
-                self.phasor = self._resampled_amplitude * xp.exp(1.j * self._resampled_opd * scale)
+                self.phasor = self._resampled_amplitude * xp.exp(1j * self._resampled_opd * scale)
             else:
                 # raise NotImplementedError("Need to implement resampling.")
                 zoom = (self.pixelscale / wave.pixelscale).decompose().value
@@ -2558,16 +2558,16 @@ class OpticalElement(object):
                     _log.debug("trimmed a border of {:d} x {:d} pixels from "
                                "optic to match the wavefront".format(border_x, border_y))
 
-                self.phasor = self._resampled_amplitude * xp.exp(1.j * self._resampled_opd * scale)
+                self.phasor = self._resampled_amplitude * xp.exp(1j * self._resampled_opd * scale)
 
         else:
             # compute the phasor directly, without any need to rescale.
             if accel_math._USE_NUMEXPR:
                 trans = self.get_transmission(wave)
                 opd = self.get_opd(wave)
-                self.phasor = ne.evaluate("trans * exp(1.j * opd * scale)")
+                self.phasor = ne.evaluate("trans * exp(1j * opd * scale)")
             else:
-                self.phasor = self.get_transmission(wave) * xp.exp(1.j * self.get_opd(wave) * scale)
+                self.phasor = self.get_transmission(wave) * xp.exp(1j * self.get_opd(wave) * scale)
 
         # check whether we need to pad or crop the array before returning or not.
         # note: do not pad the phasor if it's just a scalar!

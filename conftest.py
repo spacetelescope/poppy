@@ -19,7 +19,3 @@ PYTEST_HEADER_MODULES['synphot'] = 'synphot'
 
 TESTED_VERSIONS['poppy'] = __version__
 
-## Uncomment the following line to treat all DeprecationWarnings as
-## exceptions
-# from astropy.tests.helper import enable_deprecations_as_exceptions
-# enable_deprecations_as_exceptions()
