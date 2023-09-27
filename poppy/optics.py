@@ -566,7 +566,7 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
             else:
                 raise NotImplemented("No defined NIRCam wedge BLC mask for that wavelength?  ")
 
-            sigmas = scipy.poly1d(polyfitcoeffs)(scalefact)
+            sigmas = numpy.poly1d(polyfitcoeffs)(scalefact)
 
             sigmar = sigmas * np.abs(y)
             sigmar.clip(np.finfo(sigmar.dtype).tiny, out=sigmar)  # avoid divide by zero -> NaNs
