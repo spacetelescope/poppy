@@ -539,8 +539,8 @@ def display_profiles(hdulist_or_filename=None, ext=0, overplot=False, title=None
             plt.text(ee_lev + 0.1, level + yoffset, 'EE=%2d%% at r=%.3f"' % (level * 100, ee_lev))
 
 
-def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stddev=False, binsize=None, maxradius=None,
-                   normalize='None', pa_range=None, slice=0):
+def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stddev=False, mad=False,
+                   binsize=None, maxradius=None, normalize='None', pa_range=None, slice=0):
     """ Compute a radial profile of the image.
 
     This computes a discrete radial profile evaluated on the provided binsize. For a version
@@ -563,6 +563,8 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
         size of step for profile. Default is pixel size.
     stddev : bool
         Compute standard deviation in each radial bin, not average?
+    mad : bool
+        Compute median absolute deviation (MAD) in each radial bin
     normalize : string
         set to 'peak' to normalize peak intensity =1, or to 'total' to normalize total flux=1.
         Default is no normalization (i.e. retain whatever normalization was used in computing the PSF itself)
@@ -678,6 +680,17 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
                 # wg = np.where( (r >= rr[i-1]) &  (r <rr[i] )))
             stddevs[i] = np.nanstd(image[wg])
         return rr, stddevs
+
+    if mad:
+        mads = np.zeros_like(radialprofile2)
+        r_pix = r * binsize
+        for i, radius in enumerate(rr):
+            if i == 0:
+                wg = np.where(r < radius + binsize / 2)
+            else:
+                wg = np.where((r_pix >= (radius - binsize / 2)) & (r_pix < (radius + binsize / 2)))
+            mads[i] = np.nanmedian(np.absolute(image[wg]-np.nanmedian(image[wg])))
+        return rr, mads
 
     if not ee:
         return rr, radialprofile2
