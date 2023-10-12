@@ -721,9 +721,9 @@ class FresnelWavefront(BaseWavefront):
         wavelen_m = self.wavelength.to(u.m).value
 
         if accel_math._USE_NUMEXPR:
-            exp_t = ne.evaluate("exp(-1.0j * pi * wavelen_m * (z_direct) * rhosqr)")
+            exp_t = ne.evaluate("exp(-1j * pi * wavelen_m * (z_direct) * rhosqr)")
         else:
-            exp_t = xp.exp(-1.0j * np.pi * wavelen_m * z_direct * rhosqr)
+            exp_t = xp.exp(-1j * np.pi * wavelen_m * z_direct * rhosqr)
 
         self._fft()
 
