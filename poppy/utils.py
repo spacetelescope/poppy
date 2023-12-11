@@ -539,8 +539,8 @@ def display_profiles(hdulist_or_filename=None, ext=0, overplot=False, title=None
             plt.text(ee_lev + 0.1, level + yoffset, 'EE=%2d%% at r=%.3f"' % (level * 100, ee_lev))
 
 
-def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stddev=False, binsize=None, maxradius=None,
-                   normalize='None', pa_range=None, slice=0):
+def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stddev=False, mad=False,
+                   binsize=None, maxradius=None, normalize='None', pa_range=None, slice=0):
     """ Compute a radial profile of the image.
 
     This computes a discrete radial profile evaluated on the provided binsize. For a version
@@ -563,6 +563,9 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
         size of step for profile. Default is pixel size.
     stddev : bool
         Compute standard deviation in each radial bin, not average?
+    mad : bool
+        Compute median absolute deviation (MAD) in each radial bin.
+        Cannot be used at same time as stddev; pick one or the other.
     normalize : string
         set to 'peak' to normalize peak intensity =1, or to 'total' to normalize total flux=1.
         Default is no normalization (i.e. retain whatever normalization was used in computing the PSF itself)
@@ -583,7 +586,9 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
         Tuple containing (radius, profile) or (radius, profile, EE) depending on what is requested.
         The radius gives the center radius of each bin, while the EE is given inside the whole bin
         so you should use (radius+binsize/2) for the radius of the EE curve if you want to be
-        as precise as possible.
+        as precise as possible. The profile will be either the average within each bin, or the
+        standard or median absolute deviation within each bin if one of those options is selected.
+
     """
     if isinstance(hdulist_or_filename, str):
         hdu_list = fits.open(hdulist_or_filename)
@@ -668,6 +673,7 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
         radialprofile2 = radialprofile2[crop]
 
     if stddev:
+        # Compute standard deviation in each radial bin
         stddevs = np.zeros_like(radialprofile2)
         r_pix = r * binsize
         for i, radius in enumerate(rr):
@@ -679,9 +685,23 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
             stddevs[i] = np.nanstd(image[wg])
         return rr, stddevs
 
-    if not ee:
+    elif mad:
+        # Compute median absolute deviation in each radial bin
+        mads = np.zeros_like(radialprofile2)
+        r_pix = r * binsize
+        for i, radius in enumerate(rr):
+            if i == 0:
+                wg = np.where(r < radius + binsize / 2)
+            else:
+                wg = np.where((r_pix >= (radius - binsize / 2)) & (r_pix < (radius + binsize / 2)))
+            mads[i] = np.nanmedian(np.absolute(image[wg]-np.nanmedian(image[wg])))
+        return rr, mads
+
+    elif not ee:
+        # (Default behavior) Compute average in each radial bin
         return rr, radialprofile2
     else:
+        # also return the cumulative sum within each radial bin, i.e. the encircled energy
         ee = csim[rind]
         return rr, radialprofile2, ee
 
