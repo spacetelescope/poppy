@@ -132,6 +132,15 @@ def test_radial_profile(plot=False):
     assert np.allclose(prof2, prof3)
     # TODO compare those to be near a sinc profile as expected?
 
+    # Test computing the deviation profiles
+    rad4, prof_stds = poppy.radial_profile(psf, stddev=True)
+    rad4, prof_mads = poppy.radial_profile(psf, mad=True)
+    # TODO add some more rigorous test of correctness; for now just test
+    # dimensionality of the outputs
+    assert prof_stds.shape == prof.shape, "Radial profile and stddev array output sizes should match"
+    assert prof_mads.shape == prof.shape, "Radial profile and median absolute deviation array output sizes should match"
+
+
 def test_radial_profile_of_offset_source():
     """Test that we can compute the radial profile for a source slightly outside the FOV,
     compare that to a calculation for a centered source, and check we get consistent results

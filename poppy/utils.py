@@ -564,7 +564,8 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
     stddev : bool
         Compute standard deviation in each radial bin, not average?
     mad : bool
-        Compute median absolute deviation (MAD) in each radial bin
+        Compute median absolute deviation (MAD) in each radial bin.
+        Cannot be used at same time as stddev; pick one or the other.
     normalize : string
         set to 'peak' to normalize peak intensity =1, or to 'total' to normalize total flux=1.
         Default is no normalization (i.e. retain whatever normalization was used in computing the PSF itself)
@@ -585,7 +586,9 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
         Tuple containing (radius, profile) or (radius, profile, EE) depending on what is requested.
         The radius gives the center radius of each bin, while the EE is given inside the whole bin
         so you should use (radius+binsize/2) for the radius of the EE curve if you want to be
-        as precise as possible.
+        as precise as possible. The profile will be either the average within each bin, or the
+        standard or median absolute deviation within each bin if one of those options is selected.
+
     """
     if isinstance(hdulist_or_filename, str):
         hdu_list = fits.open(hdulist_or_filename)
@@ -670,6 +673,7 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
         radialprofile2 = radialprofile2[crop]
 
     if stddev:
+        # Compute standard deviation in each radial bin
         stddevs = np.zeros_like(radialprofile2)
         r_pix = r * binsize
         for i, radius in enumerate(rr):
@@ -681,7 +685,8 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
             stddevs[i] = np.nanstd(image[wg])
         return rr, stddevs
 
-    if mad:
+    elif mad:
+        # Compute median absolute deviation in each radial bin
         mads = np.zeros_like(radialprofile2)
         r_pix = r * binsize
         for i, radius in enumerate(rr):
@@ -692,9 +697,11 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
             mads[i] = np.nanmedian(np.absolute(image[wg]-np.nanmedian(image[wg])))
         return rr, mads
 
-    if not ee:
+    elif not ee:
+        # (Default behavior) Compute average in each radial bin
         return rr, radialprofile2
     else:
+        # also return the cumulative sum within each radial bin, i.e. the encircled energy
         ee = csim[rind]
         return rr, radialprofile2, ee
 
