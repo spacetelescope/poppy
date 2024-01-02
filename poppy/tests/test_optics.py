@@ -5,6 +5,7 @@ import astropy.units as u
 
 from .. import poppy_core
 from .. import optics
+from .. import utils
 
 from .. import accel_math
 import numpy as np
@@ -389,6 +390,24 @@ def test_NgonAperture(display=False):
         pl.subplot(133)
         optic.display()
 
+
+def test_WedgeSegmentedCircularAperture(plot=False):
+    """ test WedgeSegmentedCircularAperture """
+
+    ap_circ = optics.CircularAperture()
+    ap_wedge = optics.WedgeSegmentedCircularAperture(rings=3, nsections=[0, 6, 8])
+    wave1 = poppy_core.Wavefront(npix=256, diam=2, wavelength=1e-6)  # 10x10 meter square
+    wave2 = poppy_core.Wavefront(npix=256, diam=2, wavelength=1e-6)  # 10x10 meter square
+
+    wave1 *= ap_circ
+    wave2 *= ap_wedge
+
+    assert wave1.total_intensity * 0.95 < wave2.total_intensity < wave1.total_intensity, 'wedge segmented circle should have slightly less clear area than monolith circle'
+
+    if plot:
+        fig, axes = plt.subplots(figsize=(16, 9), ncols=2)
+        wave1.display(ax=axes[0])
+        wave2.display(ax=axes[1])
 
 
 def test_ObscuredCircularAperture_Airy(display=False):

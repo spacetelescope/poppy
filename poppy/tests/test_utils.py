@@ -140,6 +140,10 @@ def test_radial_profile(plot=False):
     assert prof_stds.shape == prof.shape, "Radial profile and stddev array output sizes should match"
     assert prof_mads.shape == prof.shape, "Radial profile and median absolute deviation array output sizes should match"
 
+    # Test computing some arbitrary function
+    rad4, prof_max = poppy.radial_profile(psf, custom_function=np.max)
+    # compare, but ignore the 0th bin and last bin that have no pixels within that bin etc
+    assert np.all(prof_max[1:-1] >= prof[1:-1]), "Radial profile using max function should be >= profile using mean"
 
 def test_radial_profile_of_offset_source():
     """Test that we can compute the radial profile for a source slightly outside the FOV,

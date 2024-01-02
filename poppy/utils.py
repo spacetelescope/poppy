@@ -540,7 +540,8 @@ def display_profiles(hdulist_or_filename=None, ext=0, overplot=False, title=None
 
 
 def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stddev=False, mad=False,
-                   binsize=None, maxradius=None, normalize='None', pa_range=None, slice=0):
+                   binsize=None, maxradius=None, normalize='None', pa_range=None, slice=0,
+                   custom_function=None):
     """ Compute a radial profile of the image.
 
     This computes a discrete radial profile evaluated on the provided binsize. For a version
@@ -579,6 +580,10 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
     slice: integer, optional
         Slice into a datacube, for use on cubes computed by calc_datacube. Default 0 if a
         cube is provided with no slice specified.
+    custom_function : function
+        To evaluate an arbitrary function in each radial bin, provide some callable function that
+        takes a list of pixels and returns one float. For instance custome_function=np.min to compute
+        the minimum in each radial bin.
 
     Returns
     --------
@@ -696,6 +701,21 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
                 wg = np.where((r_pix >= (radius - binsize / 2)) & (r_pix < (radius + binsize / 2)))
             mads[i] = np.nanmedian(np.absolute(image[wg]-np.nanmedian(image[wg])))
         return rr, mads
+    elif custom_function is not None:
+        # Compute some custom function in each radial bin
+        results = np.zeros_like(radialprofile2)
+        r_pix = r * binsize
+        for i, radius in enumerate(rr):
+            if i == 0:
+                wg = np.where(r < radius + binsize / 2)
+            else:
+                wg = np.where((r_pix >= (radius - binsize / 2)) & (r_pix < (radius + binsize / 2)))
+            if len(wg[0])==0: # Zero elements in this bin
+                results[i] = np.nan
+            else:
+                results[i] = custom_function(image[wg])
+        return rr, results
+
 
     elif not ee:
         # (Default behavior) Compute average in each radial bin

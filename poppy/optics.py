@@ -24,7 +24,7 @@ __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'ScalarOpticalPathDif
            'BandLimitedCoron', 'BandLimitedCoronagraph', 'IdealFQPM', 'CircularPhaseMask', 'RectangularFieldStop', 'SquareFieldStop',
            'AnnularFieldStop', 'HexagonFieldStop',
            'CircularOcculter', 'BarOcculter', 'FQPM_FFT_aligner', 'CircularAperture',
-           'HexagonAperture', 'MultiHexagonAperture', 'NgonAperture', 'MultiCircularAperture', 'RectangleAperture',
+           'HexagonAperture', 'MultiHexagonAperture', 'NgonAperture', 'MultiCircularAperture', 'WedgeSegmentedCircularAperture', 'RectangleAperture',
            'SquareAperture', 'SecondaryObscuration', 'LetterFAperture', 'AsymmetricSecondaryObscuration',
            'ThinLens',  'GaussianAperture', 'KnifeEdge', 'TiltOpticalPathDifference', 'CompoundAnalyticOptic', 'fixed_sampling_optic']
 
@@ -1584,6 +1584,88 @@ class MultiCircularAperture(MultiSegmentAperture):
             w_inside = xp.where(r < segRadius)
             del r
             self.transmission[w_inside] = value
+
+        return self.transmission
+
+
+class WedgeSegmentedCircularAperture(CircularAperture):
+    @utils.quantity_input(radius=u.meter, gap=u.meter)
+    def __init__(self, name=None, radius=1.0 * u.meter,
+                 rings=2, nsections=4, gap_radii=None, gap=0.01 * u.meter, **kwargs):
+        """ Define a circular aperture made of pie-wedge or keystone shaped segments.
+
+        Parameters
+        ----------
+        name : string
+            Descriptive name
+        radius : float
+            Radius of the pupil, in meters.
+        rings : int
+            Number of rings of segments
+        nsections : int or list of ints
+            Number of segments per ring. If one int, same number of segments in each ring.
+            Or provide a list of ints to set different numbers per ring.
+        gap_radii : quantity length
+            Radii from the center for the gaps between rings
+        gap : quantity length
+            Width of gaps between segments, in both radial and azimuthal directions
+        kwargs : other kwargs are passed to CircularAperture
+
+        Potential TODO: also have this inherit from MultiSegmentedAperture and subclass
+        some of those functions as appropriate. Consider refactoring from gap_radii to instead
+        provide the widths of each segment. Add option for including the center segment or having
+        a missing one in the middle for on-axis apertures. Use grayscale approximation for rasterizing
+        the circular gaps between the rings.
+        """
+
+        if name is None:
+            name = "Circle of Wedge Sections, radius={}".format(radius)
+        super().__init__(name=name, radius=radius, **kwargs)
+
+        self._default_display_size = 2 * self.radius
+
+        self.rings = rings
+        self.nsections = [nsections, ] * rings if np.isscalar(nsections) else nsections
+        self.gap = gap
+        self.gap_radii = gap_radii if gap_radii is not None else ((np.arange(
+            self.rings) + 1) / self.rings) * self.radius
+
+        # determine angles per each section gap
+        self.gap_angles = []
+        for iring in range(self.rings):
+            nsec = self.nsections[iring]
+            self.gap_angles.append(np.arange(nsec) / nsec * 2 * np.pi)
+
+    def get_transmission(self, wave):
+        """ Compute the transmission inside/outside of the occulter.
+        """
+        self.transmission = super().get_transmission(wave)
+
+        y, x = self.get_coordinates(wave)
+        r = np.sqrt(x ** 2 + y ** 2)
+
+        halfgapwidth = self.gap.to_value(u.m) / 2
+        for iring in range(self.rings):
+
+            # Draw the radial gaps around the azimuth in the Nth ring
+            r_ring_inner = 0 if iring == 0 else self.gap_radii[iring - 1].to_value(u.m)
+            r_ring_outer = self.radius.to_value(u.m) if iring == self.rings - 1 else self.gap_radii[iring].to_value( u.m)
+            # print(f"{iring}: gap from inner: {r_ring_inner} to outer: {r_ring_outer}")
+
+            # Draw the azimuthal gap after the ring
+            if iring > 0:
+                # print(f"drawing ring gap {iring} at {r_ring_inner}")
+                self.transmission[np.abs(r - r_ring_inner) < halfgapwidth] = 0
+
+            for igap in range(self.nsections[iring]):
+                angle = self.gap_angles[iring][igap]
+                # print(f"  linear gap {igap} at {angle} radians")
+                # calculate rotated x' and y' coordinates after rotation by that angle.
+                x_p = np.cos(angle) * x + np.sin(angle) * y
+                y_p = -np.sin(angle) * x + np.cos(angle) * y
+
+                self.transmission[(0 < x_p) & (r_ring_inner < r) & (r < r_ring_outer) &
+                                  (np.abs(y_p) < halfgapwidth)] = 0
 
         return self.transmission
 
