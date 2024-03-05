@@ -395,7 +395,7 @@ def test_WedgeSegmentedCircularAperture(plot=False):
     """ test WedgeSegmentedCircularAperture """
 
     ap_circ = optics.CircularAperture()
-    ap_wedge = optics.WedgeSegmentedCircularAperture(rings=3, nsections=[0, 6, 8])
+    ap_wedge = optics.WedgeSegmentedCircularAperture(rings=3, nsections=[1, 6, 8])
     wave1 = poppy_core.Wavefront(npix=256, diam=2, wavelength=1e-6)  # 10x10 meter square
     wave2 = poppy_core.Wavefront(npix=256, diam=2, wavelength=1e-6)  # 10x10 meter square
 

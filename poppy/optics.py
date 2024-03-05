@@ -1682,15 +1682,17 @@ class WedgeSegmentedCircularAperture(MultiSegmentAperture, CircularAperture):
                 # print(f"drawing ring gap {iring} at {r_ring_inner}")
                 self.transmission[np.abs(r - r_ring_inner) < halfgapwidth] = 0
 
-            for igap in range(self.nsections[iring]):
-                angle = self.gap_angles[iring][igap]
-                # print(f"  linear gap {igap} at {angle} radians")
-                # calculate rotated x' and y' coordinates after rotation by that angle.
-                x_p = np.cos(angle) * x + np.sin(angle) * y
-                y_p = -np.sin(angle) * x + np.cos(angle) * y
+            if self.nsections[iring] > 1:
+                # If we have more than 1 segment in this ring, draw the gaps
+                for igap in range(self.nsections[iring]):
+                    angle = self.gap_angles[iring][igap]
+                    # print(f"  linear gap {igap} at {angle} radians")
+                    # calculate rotated x' and y' coordinates after rotation by that angle.
+                    x_p = np.cos(angle) * x + np.sin(angle) * y
+                    y_p = -np.sin(angle) * x + np.cos(angle) * y
 
-                self.transmission[(0 < x_p) & (r_ring_inner < r) & (r < r_ring_outer) &
-                                  (np.abs(y_p) < halfgapwidth)] = 0
+                    self.transmission[(0 < x_p) & (r_ring_inner < r) & (r < r_ring_outer) &
+                                      (np.abs(y_p) < halfgapwidth)] = 0
 
         if not self._include_center: # mask out the center ring / center zeroth segment
             self.transmission[r < self.gap_radii[0].to_value(u.m)] = 0

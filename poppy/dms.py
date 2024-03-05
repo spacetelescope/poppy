@@ -870,7 +870,7 @@ class WedgeSegmentedDeformableMirror(SegmentedDeformableMirror, optics.WedgeSegm
                 units, and the WFE is therefore a factor of two larger. The returned WFE will be twice the
                 amplitude of the requested values (convolved with the actuator response function etc.)
     """
-   
+
     def __init__(self, name='WedgeSegDM', radius=1.0 * u.m, rings=1, nsections=4, gap_radii=None, gap=0.01 * u.m,
                  include_factor_of_two=False, **kwargs):
         #FIXME ? using grey pixel does not work. something in the geometry module generate a true divide error
