@@ -842,7 +842,6 @@ class CircularSegmentedDeformableMirror(SegmentedDeformableMirror, optics.MultiC
                 units, and the WFE is therefore a factor of two larger. The returned WFE will be twice the
                 amplitude of the requested values (convolved with the actuator response function etc.)
     """
-
     def __init__(self, rings=1, segment_radius=1.0 * u.m, gap=0.01 * u.m,
                  name='CircSegDM', center=True, include_factor_of_two=False, **kwargs):
         #FIXME ? using grey pixel does not work. something in the geometry module generate a true divide error

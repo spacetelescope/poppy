@@ -1651,7 +1651,7 @@ class WedgeSegmentedCircularAperture(MultiSegmentAperture, CircularAperture):
             self.rings) + 1) / self.rings) * self.radius
 
         # determine angles per each section gap
-        # Note, this starts with angle 0 = +Y in the array, and
+        # Note, this starts with angle 0 = +X in the array, and
         # increases counterclockwise around the aperture.
         self.gap_angles = []
         for iring in range(self.rings):
@@ -1737,28 +1737,12 @@ class WedgeSegmentedCircularAperture(MultiSegmentAperture, CircularAperture):
                           (theta < theta_max)] = value
         return
 
-        # Draw the azimuthal gap after the ring
-        if iring > 0:
-            # print(f"drawing ring gap {iring} at {r_ring_inner}")
-            self.transmission[np.abs(r - r_ring_inner) < halfgapwidth] = 0
-
-        for igap in range(self.nsections[iring]):
-            angle = self.gap_angles[iring][igap]
-            # print(f"  linear gap {igap} at {angle} radians")
-            # calculate rotated x' and y' coordinates after rotation by that angle.
-            x_p = np.cos(angle) * x + np.sin(angle) * y
-            y_p = -np.sin(angle) * x + np.cos(angle) * y
-
-            self.transmission[(0 < x_p) & (r_ring_inner < r) & (r < r_ring_outer) &
-                              (np.abs(y_p) < halfgapwidth)] = 0
-
 
     def _aper_center(self, aper_index):
         """ Center coordinates of a given wedge aperture
         counting counter clockwise around each ring
 
         Returns y, x coords
-
         """
         # which ring is this?
         iring = self._aper_in_ring(aper_index)
@@ -1780,7 +1764,6 @@ class WedgeSegmentedCircularAperture(MultiSegmentAperture, CircularAperture):
         ypos = r_center * np.sin(theta_center)
 
         return ypos, xpos
-
 
 
 class RectangleAperture(AnalyticOpticalElement):
