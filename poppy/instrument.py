@@ -335,15 +335,7 @@ class Instrument(object):
             cube[ext].data[0] = psf[ext].data
             cube[ext].header[label_wl(0)] = wavelengths[0]
 
-        if progressbar:
-            # set up an optional progressbar wrapper
-            from tqdm import tqdm
-            import functools
-            iterate_wrapper = functools.partial(tqdm, ncols=80)
-        else:
-            # null wrapper that does nothing, for no progress bar
-            iterate_wrapper = lambda x: x
-
+        iterate_wrapper = utils.get_progressbar_wrapper(progressbar, nwaves=nwavelengths)
         # iterate rest of wavelengths
         for i in iterate_wrapper(range(1, nwavelengths)):
             wl = wavelengths[i]

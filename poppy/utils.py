@@ -1855,3 +1855,29 @@ def fftw_load_wisdom(filename=None):
             "optimization measurements (automatically). ")
 
     _loaded_fftw_wisdom = True
+
+# ##################################################################
+#   Progress bar (optional convenience)
+#
+
+def get_progressbar_wrapper(progressbar=True, nwaves=None):
+    """ Utility function to return an iterator that MAY display a progress bar,
+    or may not, depending
+    """
+    if progressbar:
+        # this relies on an optional dependency, tqdm
+        # if it's not present, just don't try to display a progressbar
+        try:
+            from tqdm import tqdm
+        except ImportError:
+            progressbar = False
+
+    if progressbar:
+        import functools
+        # set up an optional progressbar wrapper
+        iterate_wrapper = functools.partial(tqdm, ncols=80, total=nwaves)
+    else:
+        # null wrapper that does nothing, for no progress bar
+        iterate_wrapper = lambda x: x
+
+    return iterate_wrapper

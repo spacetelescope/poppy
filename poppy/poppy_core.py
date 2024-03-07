@@ -1579,6 +1579,7 @@ class BaseOpticalSystem(ABC):
                  source=None,
                  normalize='first',
                  display_intermediates=False,
+                 progressbar=False,
                  inwave=None):
         """Calculate a PSF, either multi-wavelength or monochromatic.
 
@@ -1612,6 +1613,11 @@ class BaseOpticalSystem(ABC):
         display_intermediates: bool, optional
             Display intermediate optical planes? Default is False. This option is incompatible with
             parallel calculations using `multiprocessing`. (If calculating in parallel, it will have no effect.)
+        progressbar : bool
+            Optionally display a progress bar indicator for status
+            while iterating over wavelengths. Note, this requires the
+            optional dependency package 'tqdm', which is not included as
+            a requirement.
 
         Returns
         -------
@@ -1725,7 +1731,8 @@ class BaseOpticalSystem(ABC):
         else:  # ######### single-threaded computations (may still use multi cores if FFTW enabled ######
             if display:
                 plt.clf()
-            for wlen, wave_weight in zip(wavelength, normwts):
+            iterate_wrapper = utils.get_progressbar_wrapper(progressbar, nwaves=len(wavelength))
+            for wlen, wave_weight in iterate_wrapper(zip(wavelength, normwts)):
                 mono_psf, mono_intermediate_wfs = self.propagate_mono(
                     wlen,
                     retain_intermediates=retain_intermediates,
