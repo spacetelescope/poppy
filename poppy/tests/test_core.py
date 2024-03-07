@@ -178,6 +178,9 @@ def test_multiwavelength_opticalsystem():
     assert np.allclose(psf[0].data, output), \
         "Multi-wavelength PSF does not match weighted sum of individual wavelength PSFs"
 
+    # test that it's also possible to display a progress bar for multi wave calculations
+    psf = osys.calc_psf(wavelength=wavelengths, weight=weights, progressbar=True)
+
     return psf
 
 
