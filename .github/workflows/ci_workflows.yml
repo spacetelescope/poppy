@@ -41,8 +41,8 @@ jobs:
 
           - name: Try minimum supported versions
             os: ubuntu-latest
-            python: '3.9'
-            toxenv: py39-legacy-test
+            python: '3.10'
+            toxenv: py310-legacy-test
 
     steps:
     - name: Checkout code
