@@ -1,25 +1,35 @@
 [build-system]
-requires = ["setuptools >= 61.2",
-            "setuptools_scm[toml]>=7.1"]
-build-backend = 'setuptools.build_meta'
+requires = [
+    "setuptools >= 61.2",
+    "setuptools_scm[toml]>=7.1",
+]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "poppy"
 description = "Physical optics propagation (wavefront diffraction) for optical simulations, particularly of telescopes."
-authors = [{name = "Marshall Perrin", email = "mperrin@stsci.edu"}]
-license = {text = "BSD-3-Clause"}
-requires-python = ">=3.9"
+authors = [
+    { name = "Marshall Perrin", email = "mperrin@stsci.edu" },
+]
+requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.20.0",
     "scipy>=1.5.0",
     "matplotlib>=3.2.0",
     "astropy>=5.1.0",
 ]
-dynamic = ["version"]
+dynamic = [
+    "version",
+]
 readme = "README.rst"
 
+[project.license]
+text = "BSD-3-Clause"
+
 [project.optional-dependencies]
-all = ["synphot"]
+all = [
+    "synphot",
+]
 test = [
     "pytest",
     "pytest-astropy",
@@ -55,19 +65,26 @@ addopts = "-p no:warnings"
 zip-safe = false
 include-package-data = false
 
-[tool.setuptools.packages]
-find = {namespaces = false}
+[tool.setuptools.packages.find]
+namespaces = false
 
 [tool.setuptools.package-data]
-"*" = ["*.fits", "*.csv"]
-"poppy.tests" = ["data/*"]
+"*" = [
+    "*.fits",
+    "*.csv",
+]
+"poppy.tests" = [
+    "data/*",
+]
 
 [tool.setuptools_scm]
 write_to = "poppy/version.py"
 write_to_template = "__version__ = '{version}'\n"
 
 [tool.coverage.run]
-source = ["poppy",]
+source = [
+    "poppy",
+]
 omit = [
     "poppy/conftest*",
     "poppy/cython_version*",
