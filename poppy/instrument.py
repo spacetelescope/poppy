@@ -298,7 +298,7 @@ class Instrument(object):
         else:
             return result
 
-    def calc_datacube(self, wavelengths, *args, **kwargs):
+    def calc_datacube(self, wavelengths, progressbar=False, *args, **kwargs):
         """Calculate a spectral datacube of PSFs
 
         Parameters
@@ -306,6 +306,12 @@ class Instrument(object):
         wavelengths : iterable of floats
             List or ndarray or tuple of floating point wavelengths in meters, such as
             you would supply in a call to calc_psf via the "monochromatic" option
+        progressbar : bool
+            Optionally display a progress bar indicator for status
+            while iterating over wavelengths. Note, this requires the
+            optional dependency package 'tqdm', which is not included as
+            a requirement.
+
         """
 
         # Allow up to 10,000 wavelength slices. The number matters because FITS
@@ -329,8 +335,9 @@ class Instrument(object):
             cube[ext].data[0] = psf[ext].data
             cube[ext].header[label_wl(0)] = wavelengths[0]
 
+        iterate_wrapper = utils.get_progressbar_wrapper(progressbar, nwaves=nwavelengths)
         # iterate rest of wavelengths
-        for i in range(1, nwavelengths):
+        for i in iterate_wrapper(range(1, nwavelengths)):
             wl = wavelengths[i]
             psf = self.calc_psf(*args, monochromatic=wl, **kwargs)
             for ext in range(len(psf)):

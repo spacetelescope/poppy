@@ -166,7 +166,7 @@ def test_instrument_calc_datacube():
 
     inst = instrument.Instrument()
     psf = inst.calc_datacube(WAVELENGTHS_ARRAY, fov_pixels=FOV_PIXELS,
-                       detector_oversample=2, fft_oversample=2)
+                       detector_oversample=2, fft_oversample=2, progressbar=True)
     assert psf[0].header['NWAVES'] == len(WAVELENGTHS_ARRAY), \
         "Number of wavelengths in PSF header does not match number requested"
     assert len(psf[0].data.shape) == 3, "Incorrect dimensions for output cube"
