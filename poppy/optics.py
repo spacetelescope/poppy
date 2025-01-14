@@ -24,7 +24,8 @@ __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'ScalarOpticalPathDif
            'BandLimitedCoron', 'BandLimitedCoronagraph', 'IdealFQPM', 'CircularPhaseMask', 'RectangularFieldStop', 'SquareFieldStop',
            'AnnularFieldStop', 'HexagonFieldStop',
            'CircularOcculter', 'BarOcculter', 'FQPM_FFT_aligner', 'CircularAperture',
-           'HexagonAperture', 'MultiHexagonAperture', 'NgonAperture', 'MultiCircularAperture', 'RectangleAperture',
+           'HexagonAperture', 'MultiHexagonAperture', 'NgonAperture', 'MultiCircularAperture',
+           'KeystoneSegmentedCircularAperture', 'RectangleAperture',
            'SquareAperture', 'SecondaryObscuration', 'LetterFAperture', 'AsymmetricSecondaryObscuration',
            'ThinLens',  'GaussianAperture', 'KnifeEdge', 'TiltOpticalPathDifference', 'CompoundAnalyticOptic', 'fixed_sampling_optic']
 
@@ -230,7 +231,7 @@ class AnalyticOpticalElement(OpticalElement):
         saved directly to disk.
 
         Parameters
-        ------------
+        ----------
         what : string
             What quantity to save. See the sample function of this class
         wavelength : float
@@ -566,7 +567,7 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
             else:
                 raise NotImplemented("No defined NIRCam wedge BLC mask for that wavelength?  ")
 
-            sigmas = scipy.poly1d(polyfitcoeffs)(scalefact)
+            sigmas = numpy.poly1d(polyfitcoeffs)(scalefact)
 
             sigmar = sigmas * np.abs(y)
             sigmar.clip(np.finfo(sigmar.dtype).tiny, out=sigmar)  # avoid divide by zero -> NaNs
@@ -848,7 +849,7 @@ class AnnularFieldStop(AnalyticImagePlaneElement):
     """ Defines a circular field stop with an (optional) opaque circular center region
 
     Parameters
-    ------------
+    ----------
     name : string
         Descriptive name
     radius_inner : float
@@ -1473,7 +1474,7 @@ class NgonAperture(AnalyticOpticalElement):
     """ Defines an ideal N-gon pupil aperture.
 
     Parameters
-    -----------
+    ----------
     name : string
         Descriptive name
     nsides : integer
@@ -1482,7 +1483,7 @@ class NgonAperture(AnalyticOpticalElement):
         radius to the vertices, meters. Default is 1.
     rotation : float
         Rotation angle to first vertex, in degrees counterclockwise from the +X axis. Default is 0.
-        
+
     TODO: get_transmission() extremely slow when using CuPy, find better solution
     """
 
@@ -1524,7 +1525,7 @@ class NgonAperture(AnalyticOpticalElement):
 
 class MultiCircularAperture(MultiSegmentAperture):
     """ Defines a circularly segmented aperture in close compact configuration
-    
+
     Parameters
     ----------
     name : string
@@ -1546,9 +1547,9 @@ class MultiCircularAperture(MultiSegmentAperture):
     gray_pixel : bool, optional
         Apply gray pixel approximation to return fractional transmission for
         edge pixels that are only partially within this aperture? default : True
-    
+
     """
-    
+
     @utils.quantity_input(segment_radius=u.meter, gap=u.meter)
     def __init__(self, name="multiCirc", rings=1, segment_radius=1.0, gap=0.01,
                  segmentlist=None, center=True, gray_pixel=True, **kwargs):
@@ -1558,9 +1559,9 @@ class MultiCircularAperture(MultiSegmentAperture):
         super().__init__(name=name, segment_size=segment_diameter,
                          gap=gap, rings=rings, segmentlist=segmentlist, center=center, **kwargs)
         self.pupil_diam = (segment_diameter) * (2 * self.rings + 1) + gap * (2*rings)
-        
+
         self._use_gray_pixel = bool(gray_pixel)
-        
+
     def _one_aperture(self, wave, index, value=1):
         """ Draw one circular aperture into the self.transmission array """
 
@@ -1571,11 +1572,11 @@ class MultiCircularAperture(MultiSegmentAperture):
 
         y -= ceny
         x -= cenx
-        
+
         if self._use_gray_pixel:
             pixscale = wave.pixelscale.to(u.meter/u.pixel).value
             tmpTransmission = geometry.filled_circle_aa(wave.shape, 0, 0, segRadius/pixscale, x/pixscale, y/pixscale)
-            self.transmission += tmpTransmission 
+            self.transmission += tmpTransmission
         else:
             r = _r(x, y)
             del x
@@ -1586,6 +1587,184 @@ class MultiCircularAperture(MultiSegmentAperture):
             self.transmission[w_inside] = value
 
         return self.transmission
+
+
+class KeystoneSegmentedCircularAperture(MultiSegmentAperture, CircularAperture):
+    @utils.quantity_input(radius=u.meter, gap=u.meter)
+    def __init__(self, name=None, radius=1.0 * u.meter,
+                 rings=2, nsections=4, gap_radii=None, gap=0.01 * u.meter,
+                 gray_pixel=False,
+                 rotation=0, **kwargs):
+        """ Define a circular aperture made of pie-wedge or keystone shaped segments.
+
+        Parameters
+        ----------
+        name : string
+            Descriptive name
+        radius : float
+            Radius of the pupil, in meters.
+        rings : int
+            Number of rings of segments
+        nsections : int or list of ints
+            Number of segments per ring. If one int, same number of segments in each ring.
+            Or provide a list of ints to set different numbers per ring.
+            To exclude the center for an on-axis aperture, provide a 0 as the first
+            element of nsections to indicate 0 segments in the first ring.
+        gap_radii : quantity length
+            Radii from the center for the gaps between rings
+        gap : quantity length
+            Width of gaps between segments, in both radial and azimuthal directions
+        gray_pixel : bool, optional
+            Apply gray pixel approximation to return fractional transmission for
+            edge pixels that are only partially within this aperture?
+            (Note, currently this gives a warning; disabled by default)
+
+        kwargs : other kwargs are passed to CircularAperture
+
+        Potential TODO: also have this inherit from MultiSegmentedAperture and subclass
+        some of those functions as appropriate. Consider refactoring from gap_radii to instead
+        provide the widths of each segment. Add option for including the center segment or having
+        a missing one in the middle for on-axis apertures. Use grayscale approximation for rasterizing
+        the circular gaps between the rings.
+        """
+
+        if name is None:
+            name = "Circle of Wedge Sections, radius={}".format(radius)
+        CircularAperture.__init__(self, name=name, radius=radius, rotation=rotation,
+                                  gray_pixel=gray_pixel, **kwargs)
+
+        # This class inherits from MultiSegmentAperture, but intentionally
+        # does **not** call MultiSegmentAperture.__init__, because some of the
+        # assumptions made there for a regular geometry do not apply. We instead
+        # perform the necessary initialization steps here directly.
+        self.nsections = [nsections, ] * rings if np.isscalar(nsections) else nsections
+        self.segmentlist = np.arange(np.sum(self.nsections))
+        self._include_center = self.nsections[0] != 0
+        if not self._include_center:
+            self.segmentlist = self.segmentlist[1:]  # remove center segment 0
+
+        self._default_display_size = 2 * self.radius
+        self.pupil_diam = 2*self.radius
+
+        self.rings = rings
+        self.gap = gap
+        self.gap_radii = gap_radii if gap_radii is not None else ((np.arange(
+            self.rings) + 1) / self.rings) * self.radius
+
+        # determine angles per each section gap
+        # Note, this starts with angle 0 = +X in the array, and
+        # increases counterclockwise around the aperture.
+        self.gap_angles = []
+        for iring in range(self.rings):
+            nsec = self.nsections[iring]
+            self.gap_angles.append(np.arange(nsec) / nsec * 2 * np.pi)
+
+    def get_transmission(self, wave):
+        """ Compute the transmission inside/outside of the aperture.
+
+        Note, this implementation draws the whole circular aperture then draws in
+        the individual gaps, rather than drawing the aperture one segment at a time.
+        """
+        self.transmission = CircularAperture.get_transmission(self, wave)
+
+        y, x = self.get_coordinates(wave)
+        r = np.sqrt(x ** 2 + y ** 2)
+
+        halfgapwidth = self.gap.to_value(u.m) / 2
+        for iring in range(self.rings):
+
+            # Draw the radial gaps around the azimuth in the Nth ring
+            r_ring_inner = 0 if iring == 0 else self.gap_radii[iring - 1].to_value(u.m)
+            r_ring_outer = self.radius.to_value(u.m) if iring == self.rings - 1 else self.gap_radii[iring].to_value( u.m)
+            # print(f"{iring}: gap from inner: {r_ring_inner} to outer: {r_ring_outer}")
+
+            # Draw the azimuthal gap after the ring
+            if iring > 0:
+                # print(f"drawing ring gap {iring} at {r_ring_inner}")
+                self.transmission[np.abs(r - r_ring_inner) < halfgapwidth] = 0
+
+            if self.nsections[iring] > 1:
+                # If we have more than 1 segment in this ring, draw the gaps
+                for igap in range(self.nsections[iring]):
+                    angle = self.gap_angles[iring][igap]
+                    # print(f"  linear gap {igap} at {angle} radians")
+                    # calculate rotated x' and y' coordinates after rotation by that angle.
+                    x_p = np.cos(angle) * x + np.sin(angle) * y
+                    y_p = -np.sin(angle) * x + np.cos(angle) * y
+
+                    self.transmission[(0 < x_p) & (r_ring_inner < r) & (r < r_ring_outer) &
+                                      (np.abs(y_p) < halfgapwidth)] = 0
+
+        if not self._include_center: # mask out the center ring / center zeroth segment
+            self.transmission[r < self.gap_radii[0].to_value(u.m)] = 0
+
+        return self.transmission
+
+    def _n_aper_in_ring(self, n):
+        """ How many hexagons or circles in ring N? """
+        return self.nsections[n] if (n < len(self.nsections)) else 0
+
+    def _one_aperture(self, wave, index, value=1):
+        """ Draw one wedge aperture into the existing self.transmission array
+        """
+
+        #self.transmission = CircularAperture.get_transmission(self, wave)
+
+        y, x = self.get_coordinates(wave)
+        r = np.sqrt(x ** 2 + y ** 2)
+        theta = np.arctan2(y, x)
+        theta[theta<0] += 2*np.pi  # we want angles between 0 and 2 pi, below
+
+        halfgapwidth = self.gap.to_value(u.m) / 2
+
+        # which ring is this?
+        iring = self._aper_in_ring(index)
+        # which segment within this ring?
+        iseg_in_ring = index - self._n_aper_inside_ring(iring)
+
+        # Determine the inner and outer radii of the Nth ring
+        # (Not counting the gap width yet here)
+        r_ring_inner = 0 if iring == 0 else self.gap_radii[iring - 1].to_value(u.m)
+        r_ring_outer = self.radius.to_value(u.m) if iring == self.rings - 1 else self.gap_radii[iring].to_value( u.m)
+        # print(f"{iring}: gap from inner: {r_ring_inner} to outer: {r_ring_outer}")
+
+        gap_angles_this_ring = self.gap_angles[iring]
+        theta_min = gap_angles_this_ring[iseg_in_ring]
+        theta_max = gap_angles_this_ring[iseg_in_ring+1] if (iseg_in_ring < self._n_aper_in_ring(iring)-1) else (gap_angles_this_ring[0] + 2*np.pi)
+
+        self.transmission[(r_ring_inner < r) &
+                          (r < r_ring_outer) &
+                          (theta_min < theta) &
+                          (theta < theta_max)] = value
+        return
+
+
+    def _aper_center(self, aper_index):
+        """ Center coordinates of a given wedge aperture
+        counting counter clockwise around each ring
+
+        Returns y, x coords
+        """
+        # which ring is this?
+        iring = self._aper_in_ring(aper_index)
+        # which segment within this ring?
+        iseg_in_ring = aper_index - self._n_aper_inside_ring(iring)
+
+        # Determine the inner and outer radii of the Nth ring
+        # (Not counting the gap width yet here)
+        r_ring_inner = 0 if iring == 0 else self.gap_radii[iring - 1].to_value(u.m)
+        r_ring_outer = self.radius.to_value(u.m) if iring == self.rings - 1 else self.gap_radii[iring].to_value( u.m)
+        r_center = (r_ring_inner + r_ring_outer) / 2
+
+        gap_angles_this_ring = self.gap_angles[iring]
+        theta_min = gap_angles_this_ring[iseg_in_ring]
+        theta_max = gap_angles_this_ring[iseg_in_ring+1] if (iseg_in_ring < self._n_aper_in_ring(iring)-1) else (gap_angles_this_ring[0] + 2*np.pi)
+        theta_center = (theta_min + theta_max) / 2
+
+        xpos = r_center * np.cos(theta_center)
+        ypos = r_center * np.sin(theta_center)
+
+        return ypos, xpos
 
 
 class RectangleAperture(AnalyticOpticalElement):
@@ -1825,7 +2004,7 @@ class ThinLens(CircularAperture):
     NOTE - this sign convention was different in prior versions of poppy < 1.0.
 
     Parameters
-    -------------
+    ----------
     nwaves : float
         The number of waves of defocus, peak to valley. May be positive or negative.
         This is applied as a normalization over an area defined by the circumscribing circle
@@ -2008,6 +2187,7 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
                     trans = trans1*trans2)
             'or'  : resulting transmission is sum of constituents, with overlap
                     subtracted.  (E.g. trans = trans1 + trans2 - trans1*trans2)
+
         In both methods, the resulting OPD is the sum of the constituents' OPDs.
 
     """

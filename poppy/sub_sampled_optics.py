@@ -244,7 +244,8 @@ class Subapertures(poppy.OpticalElement):
         asFITS: bool
             if True, treats subwavefronts as fits objects
 
-        returns:
+        Returns
+        -------
         centroid_list: np array
             list of calculated centroids in shape (2, nx, ny)
         note: if using wf_reconstruction method you need to either use 'center' here
@@ -302,7 +303,9 @@ class ShackHartmannWavefrontSensor(Subapertures):
     """
     Shack-Hartmann Wavefront Sensor Class
     wrapper for Subapertures class
-    Parameters:
+
+    Parameters
+    ----------
     lenslet pitch: astropy unit quantity [length]
         diameter of each lenslet (required)
     lenslet focal length: astropy unit quantity [length]
@@ -373,7 +376,8 @@ class ShackHartmannWavefrontSensor(Subapertures):
         min_WFE: float w astropy unit
             desired minimum wavefront error
 
-        returns:
+        Returns
+        -------
         centroid: float
             calculated conversion from min wavefront error to centroid accuracy
         """
@@ -389,7 +393,8 @@ class ShackHartmannWavefrontSensor(Subapertures):
     @property
     def max_WFE(self):
         """
-        returns:
+        Returns
+        -------
         float, maximum wavefront error detectable for ideal lenslet before the spot crosses
         into the neighboring lenslet
 
@@ -444,7 +449,8 @@ class ShackHartmannWavefrontSensor(Subapertures):
         subap_diameter: float with astropy unit quantity (length unit)
             diameter of subaperture (lenslets), represents distance between each centroid measurement for derivative matrix
 
-        returns:
+        Returns
+        -------
         w: np array with astropy unit (length)
             reconstructed wavefront array in same shape as input centroid measurement arrays,
             in same units as input centroid measurements

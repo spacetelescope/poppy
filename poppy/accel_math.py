@@ -181,7 +181,7 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
     anything.
 
     Parameters
-    -----------
+    ----------
     forward : bool
         set to True for forward FFT, False for inverse fft
         SIGN CONVENTION: Note, forward optical propagation requires an inverse FFT, and
@@ -387,7 +387,7 @@ tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
         time_fftw = timer.timeit(number=iterations) / iterations
         print("  {:.3f} s".format(time_fftw))
     else:
-        time_fftw = np.NaN
+        time_fftw = np.nan
 
     if poppy.accel_math._NUMEXPR_AVAILABLE:
         print("Timing performance with Numexpr + FFTW:")
@@ -396,7 +396,7 @@ tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
         time_numexpr = timer.timeit(number=iterations) / iterations
         print("  {:.3f} s".format(time_numexpr))
     else:
-        time_numexpr = np.NaN
+        time_numexpr = np.nan
 
     if poppy.accel_math._MKLFFT_AVAILABLE:
         print("Timing performance with Numexpr + MKL:")
@@ -407,7 +407,7 @@ tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
         time_mkl = timer.timeit(number=iterations) / iterations
         print("  {:.3f} s".format(time_mkl))
     else:
-        time_mkl = np.NaN
+        time_mkl = np.nan
 
     if poppy.accel_math._OPENCL_AVAILABLE:
         print("Timing performance with OpenCL:")
@@ -416,7 +416,7 @@ tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
         time_opencl = timer.timeit(number=iterations) / iterations
         print("  {:.3f} s".format(time_opencl))
     else:
-        time_opencl = np.NaN
+        time_opencl = np.nan
 
 
     poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cupy,\

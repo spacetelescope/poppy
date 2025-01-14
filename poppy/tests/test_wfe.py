@@ -132,14 +132,16 @@ def test_StatisticalPSDWFE(index=3, seed=1234, plot=False):
         """ Compute a radial profile of the image.
         Stripped down version of puppy.utils.radial_profile().
         Keeps only the functionality that is needed for this test.
+
         Parameters
         ----------
         image : array
             image to get a radial profile of
         center : tuple of floats
             Coordinates (x,y) of PSF center, in pixel units. Default is image center.
+
         Returns
-        --------
+        -------
         results : tuple
             Tuple containing (radius, profile).
         """

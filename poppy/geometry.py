@@ -170,7 +170,7 @@ def filled_circle_aa(shape, xcenter, ycenter, radius, xarray=None, yarray=None,
     """Draw a filled circle with subpixel antialiasing into an array.
 
     Parameters
-    -------------
+    ----------
     shape : 2d ndarray
         shape of array to return
     xcenter, ycenter : floats

@@ -55,7 +55,7 @@ def fwcentroid(image, checkbox=1, maxiterations=20, threshold=1e-4, halfwidth=5,
             Print descriptive messages.
 
         Returns
-        --------
+        -------
         (ycen, xcen) : float tuple
             Measured centroid position. Note that this is returned in Pythonic
             Y,X order for use as array indices, etc.

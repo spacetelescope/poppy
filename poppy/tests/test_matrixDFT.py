@@ -77,7 +77,7 @@ def test_MFT_flux_conservation(centering='FFTSTYLE', outdir=None, outname='test_
     better than 1% or 0.1%, selectable using the 'precision' argument.
 
     Parameters
-    -----------
+    ----------
 
     outdir : path
         Directory path to output diagnostic FITS files. If not specified, files will not be written.

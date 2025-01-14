@@ -20,7 +20,8 @@ _log = logging.getLogger('poppy')
 if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
 
-__all__ = ['ContinuousDeformableMirror', 'HexSegmentedDeformableMirror', 'CircularSegmentedDeformableMirror']
+__all__ = ['ContinuousDeformableMirror', 'HexSegmentedDeformableMirror', 'CircularSegmentedDeformableMirror',
+           'KeystoneSegmentedDeformableMirror']
 
 
 # noinspection PyUnresolvedReferences
@@ -227,7 +228,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         """ Set the entire surface shape of the DM.
 
         Parameters
-        -------------
+        ----------
         new_surface : 2d ndarray, or scalar
             Desired DM surface OPD, in meters by default, or use
             the astropy units system to specify a different unit
@@ -241,16 +242,19 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
     @utils.quantity_input(new_value=u.meter)
     def set_actuator(self, actx, acty, new_value):
         """ Set an individual actuator of the DM.
+
         Parameters
-        -------------
+        ----------
         actx, acty : integers
             Coordinates of the actuator you wish to control
         new_value : float
             Desired surface height for that actuator, in meters
             by default or use astropy Units to specify another unit if desired.
+
         Example
-        -----------
+        -------
         dm.set_actuator(12, 22, 123.4*u.nm)
+
         """
 
         if self.include_actuator_mask:
@@ -272,7 +276,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         """ Y and X coordinates for the actuators
 
         Parameters
-        ------------
+        ----------
         one_d : bool
             Return 1-dimensional arrays of coordinates per axis?
             Default is to return 2D arrays with same shape as full array.
@@ -350,7 +354,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
                     pixscale_m = wave.pixelscale.to(u.m/u.pixel).value
                     shift_y_pix = int(np.round(self.shift_y /pixscale_m))
                     interpolated_surface = xp.roll(interpolated_surface, shift_y_pix, axis=0)
-        
+
         # account for DM being reflective (optional, governed by include_factor_of_two parameter)
         coefficient = 2 if self.include_factor_of_two else 1
 
@@ -466,7 +470,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
                         self._surface_trace_flat[self._act_ind_flat[0] + ix + iy*wave.shape[0]]=(xweight*yweight).flat*target_val
                 except:
                     pass # Ignore any actuators outside the FoV
-        
+
         # Now we can convolve with the influence function to get the full continuous surface.
         influence_rescaled = self._get_rescaled_influence_func(wave.pixelscale)
         dm_surface = _scipy.signal.fftconvolve(self._surface_trace_flat.reshape(wave.shape), influence_rescaled, mode='same')
@@ -557,6 +561,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
     def display(self, annotate=False, grid=False, what='opd', crosshairs=False, *args, **kwargs):
         """Display an Analytic optic by first computing it onto a grid.
+
         Parameters
         ----------
         wavelength : float
@@ -584,6 +589,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
             Draw annotations on plot
         grid : bool
             Show the grid for the DM actuator spacing
+
         """
 
         kwargs['crosshairs'] = crosshairs
@@ -602,7 +608,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         """ Display the optical surface, viewed as discrete actuators
 
         Parameters
-        ------------
+        ----------
         annotate : bool
             Annotate coordinates and types of actuators on the display? Default false.
         grid : bool
@@ -685,6 +691,14 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 class SegmentedDeformableMirror(ABC):
     """ Abstract class for segmented DMs.
     See below for subclasses for hexagonal and circular apertures.
+
+    Classes to turn into a SegmentedDeformableMirror must implement the
+    poppy.MultiSegmentAperture ABC, including methods for
+       _n_aper_inside_ring
+       _one_aperture
+       _aper_center
+    and attributes:
+       segmentlist
     """
     def __init__(self, rings=1, include_factor_of_two=False):
         self._surface = xp.zeros((self._n_aper_inside_ring(rings + 1), 3))
@@ -714,8 +728,9 @@ class SegmentedDeformableMirror(ABC):
     @utils.quantity_input(piston=u.meter, tip=u.radian, tilt=u.radian)
     def set_actuator(self, segnum, piston, tip, tilt):
         """ Set an individual actuator of the DM.
+
         Parameters
-        -------------
+        -----------
         segnum : integer
             Index of the actuator you wish to control
         piston, tip, tilt : floats or astropy Quantities
@@ -833,10 +848,46 @@ class CircularSegmentedDeformableMirror(SegmentedDeformableMirror, optics.MultiC
                 units, and the WFE is therefore a factor of two larger. The returned WFE will be twice the
                 amplitude of the requested values (convolved with the actuator response function etc.)
     """
-    
     def __init__(self, rings=1, segment_radius=1.0 * u.m, gap=0.01 * u.m,
                  name='CircSegDM', center=True, include_factor_of_two=False, **kwargs):
         #FIXME ? using grey pixel does not work. something in the geometry module generate a true divide error
         optics.MultiCircularAperture.__init__(self, name=name, rings=rings, segment_radius=segment_radius,
                                               gap=gap, center=center, gray_pixel = False, **kwargs)
         SegmentedDeformableMirror.__init__(self, rings=rings, include_factor_of_two=include_factor_of_two)
+
+
+# note, must inherit first from SegmentedDeformableMirror to get correct method resolution order
+class KeystoneSegmentedDeformableMirror(SegmentedDeformableMirror, optics.KeystoneSegmentedCircularAperture):
+    """ Circularly segmented DM. Each actuator is controllable in piston, tip, and tilt (and any zernike term)
+
+            Parameters
+            ----------
+            rings, segment_radius, gap, center : various
+                All keywords for defining the segmented aperture geometry are inherited from
+                the MultiCircularAperture class. See that class for details.
+
+             include_factor_of_two : Bool
+                include the factor of two due to reflection in the OPD function (optional, default False).
+                If this is set False (default), actuator commands are interpreted as being in units of
+                desired wavefront error directly; the returned WFE will be directly proportional to the requested
+                values (convolved with the actuator response function etc).
+                If this is set to True, then the actuator commands are interpreted as being in physical surface
+                units, and the WFE is therefore a factor of two larger. The returned WFE will be twice the
+                amplitude of the requested values (convolved with the actuator response function etc.)
+    """
+
+    def __init__(self, name='WedgeSegDM', radius=1.0 * u.m, rings=1, nsections=4, gap_radii=None, gap=0.01 * u.m,
+                 include_factor_of_two=False, **kwargs):
+        #FIXME ? using grey pixel does not work. something in the geometry module generate a true divide error
+        optics.KeystoneSegmentedCircularAperture.__init__(self, name=name, radius=radius, rings=rings,
+                                                          nsections=nsections, gap_radii=gap_radii,
+                                                          gap=gap, **kwargs)
+        SegmentedDeformableMirror.__init__(self, rings=rings, include_factor_of_two=include_factor_of_two)
+
+
+    def _setup_arrays(self, npix, pixelscale, wave=None):
+        # Small tweak to the superclass function, to allow invoking slightly better handling for pixels near
+        # edges of segments. This approach results in the DM segment maps covering the segment gaps better, to
+        # accomodate 'gray' pixels in the transmission map
+        super()._setup_arrays(npix, pixelscale, wave=wave)
+        self._transmission = optics.KeystoneSegmentedCircularAperture.get_transmission(self, wave)

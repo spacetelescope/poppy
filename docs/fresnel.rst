@@ -28,8 +28,7 @@ The API has been kept as similar as possible to the original Fraunhofer mode of
 poppy. There are :class:`~poppy.FresnelWavefront` and :class:`~poppy.FresnelOpticalSystem` classes, which can
 be used for the most part similar to the :class:`~poppy.Wavefront` and :class:`~poppy.OpticalSystem` classes.
 
-Users are encouraged to consult the Jupyter notebook `Fresnel_Propagation_Demo
-<https://github.com/spacetelescope/poppy/blob/develop/notebooks/Fresnel_Propagation_Demo.ipynb>`_
+Users are encouraged to consult the Jupyter notebook `Fresnel_Propagation_Demo`_
 for examples of how to use the Fresnel code.
 
 Key Differences from Fraunhofer mode
@@ -95,8 +94,7 @@ Example Jupyter Notebooks
 .. admonition:: Fresnel tutorial notebook
 
    For more details and examples of code usage, consult the Jupyter
-   notebook `Fresnel_Propagation_Demo
-   <https://github.com/spacetelescope/poppy/blob/stable/notebooks/Fresnel_Propagation_Demo.ipynb>`_.
+   notebook `Fresnel_Propagation_Demo`_.
    In addition to details on code usage, this includes a worked example of
    a Fresnel model of the Hubble Space Telescope.
 
@@ -139,3 +137,4 @@ The following references were helpful in the development of this code.
       `Integrated Modeling of Telescopes <http://www.amazon.com/Integrated-Modeling-Telescopes-Astrophysics-Science/dp/1461401488>`_,
       Springer Science & Business Media.
 
+.. _Fresnel_Propagation_Demo: https://github.com/spacetelescope/poppy/blob/stable/notebooks/Fresnel_Propagation_Demo.ipynb

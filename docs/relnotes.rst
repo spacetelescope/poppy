@@ -5,7 +5,80 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+1.1.2
+-----
 
+.. _rel1.1.2:
+
+*2025 Jan 13*
+
+**Software Infrastructure Updates and Internals:**
+ * Test readthedocs by @BradleySappington in https://github.com/spacetelescope/poppy/pull/567
+ * Update zernike.py by @mfeldt in https://github.com/spacetelescope/poppy/pull/569
+ * Avoid un-padding Fresnel wavefronts when rotating (fixes #572) by @mperrin in https://github.com/spacetelescope/poppy/pull/573
+ * trivial: remove comment text that mentions a deprecated astropy feature by @mperrin in https://github.com/spacetelescope/poppy/pull/574
+ * Fix CI and ReadtheDocs Build Failures by @BradleySappington in https://github.com/spacetelescope/poppy/pull/581
+ * build(deps): bump astropy from 5.2.2 to 5.3.2 by @dependabot in https://github.com/spacetelescope/poppy/pull/582
+ * build(deps): bump matplotlib from 3.7.1 to 3.7.2 by @dependabot in https://github.com/spacetelescope/poppy/pull/579
+ * build(deps): bump numpy from 1.24.3 to 1.25.2 by @dependabot in https://github.com/spacetelescope/poppy/pull/578
+ * build(deps): bump scipy from 1.10.1 to 1.11.1 by @dependabot in https://github.com/spacetelescope/poppy/pull/576
+ * build(deps): bump scipy from 1.11.1 to 1.11.2 by @dependabot in https://github.com/spacetelescope/poppy/pull/583
+ * Fix Various issues with CI actions by @BradleySappington in https://github.com/spacetelescope/poppy/pull/592
+ * Numpy 2.0 fixes:poly1d and NaN by @braingram in https://github.com/spacetelescope/poppy/pull/585
+ * build(deps): bump matplotlib from 3.7.2 to 3.8.0 by @dependabot in https://github.com/spacetelescope/poppy/pull/586
+ * build(deps): bump numpy from 1.25.2 to 1.26.0 by @dependabot in https://github.com/spacetelescope/poppy/pull/587
+ * build(deps): bump scipy from 1.11.2 to 1.11.3 by @dependabot in https://github.com/spacetelescope/poppy/pull/588
+ * build(deps): bump astropy from 5.3.2 to 5.3.4 by @dependabot in https://github.com/spacetelescope/poppy/pull/593
+ * update actions/checkout to v4 by @BradleySappington in https://github.com/spacetelescope/poppy/pull/597
+ * build(deps): bump matplotlib from 3.8.0 to 3.8.1 by @dependabot in https://github.com/spacetelescope/poppy/pull/598
+ * TST: Use astropy dev from nightly wheel by @pllim in https://github.com/spacetelescope/poppy/pull/596
+ * build(deps): bump numpy from 1.26.0 to 1.26.1 by @dependabot in https://github.com/spacetelescope/poppy/pull/599
+ * unpin sphinx version by @BradleySappington in https://github.com/spacetelescope/poppy/pull/594
+ * build(deps): bump astropy from 5.3.4 to 6.0.0 by @dependabot in https://github.com/spacetelescope/poppy/pull/600
+ * remove use of deprecated _get_optical_system by @braingram in https://github.com/spacetelescope/poppy/pull/595
+ * Update utils.py - add Median Absolute Deviation option to radial_profile by @saikrishanthpm in https://github.com/spacetelescope/poppy/pull/591
+ * use PyPI upload workflow from OpenAstronomy by @zacharyburnett in https://github.com/spacetelescope/poppy/pull/590
+ * add pie wedge segmented aperture by @mperrin in https://github.com/spacetelescope/poppy/pull/604
+ * build(deps): bump numpy from 1.26.2 to 1.26.3 by @dependabot in https://github.com/spacetelescope/poppy/pull/606
+ * update actions version by @zacharyburnett in https://github.com/spacetelescope/poppy/pull/608
+ * build(deps): bump numpy from 1.26.3 to 1.26.4 by @dependabot in https://github.com/spacetelescope/poppy/pull/609
+ * build(deps): bump matplotlib from 3.8.2 to 3.8.3 by @dependabot in https://github.com/spacetelescope/poppy/pull/610
+ * Implement WedgeSegmentedDeformableMirror by @mperrin in https://github.com/spacetelescope/poppy/pull/611
+ * [SCSB-145] require Python 3.10 by @zacharyburnett in https://github.com/spacetelescope/poppy/pull/612
+ * use canonical filename for RTD config by @zacharyburnett in https://github.com/spacetelescope/poppy/pull/613
+ * build(deps): bump astropy from 6.0.0 to 6.0.1 by @dependabot in https://github.com/spacetelescope/poppy/pull/615
+ * Minor: quiet two syntax warnings about string escape sequences by @mperrin in https://github.com/spacetelescope/poppy/pull/616
+ * Add optional progress bar display during PSF and datacube calculations by @mperrin in https://github.com/spacetelescope/poppy/pull/605
+ * build(deps): bump scipy from 1.12.0 to 1.13.0 by @dependabot in https://github.com/spacetelescope/poppy/pull/619
+ * build(deps): bump matplotlib from 3.8.3 to 3.8.4 by @dependabot in https://github.com/spacetelescope/poppy/pull/618
+ * build(deps): bump matplotlib from 3.8.4 to 3.9.0 by @dependabot in https://github.com/spacetelescope/poppy/pull/622
+ * Update intel channel location by @BradleySappington in https://github.com/spacetelescope/poppy/pull/627
+ * Merge Develop to branch by @BradleySappington in https://github.com/spacetelescope/poppy/pull/628
+ * Dependabot merged by @BradleySappington in https://github.com/spacetelescope/poppy/pull/626
+ * build(deps): bump numpy from 1.26.4 to 2.0.0 by @dependabot in https://github.com/spacetelescope/poppy/pull/623
+ * build(deps): bump matplotlib from 3.9.0 to 3.9.1 by @dependabot in https://github.com/spacetelescope/poppy/pull/629
+ * min pin numexpr by @BradleySappington in https://github.com/spacetelescope/poppy/pull/632
+ * use z-range for dependencies in requirements.txt by @BradleySappington in https://github.com/spacetelescope/poppy/pull/637
+ * build(deps): bump scipy from 1.14.0 to 1.14.1 by @dependabot in https://github.com/spacetelescope/poppy/pull/633
+ * fix float comparison bug for non-square subarrays by @mperrin in https://github.com/spacetelescope/poppy/pull/640
+ * Fix an issue with providing astropy Units to calc_datacube by @mperrin in https://github.com/spacetelescope/poppy/pull/639
+ * build(deps): update numexpr requirement from <2.10.0,>=2.9.0 to >=2.9.0,<2.11.0 by @dependabot in https://github.com/spacetelescope/poppy/pull/641
+ * build(deps): update astropy requirement from <6.2.0,>=6.1.2 to >=6.1.2,<7.1.0 by @dependabot in https://github.com/spacetelescope/poppy/pull/644
+ * misc minor fixes by @mperrin in https://github.com/spacetelescope/poppy/pull/617
+ * Allow shifting a detector, in alternative to shifting a source by @mperrin in https://github.com/spacetelescope/poppy/pull/643
+ * Combined Dependabot Updates by @york-stsci in https://github.com/spacetelescope/poppy/pull/650
+ * rename 'wedge' segment shame to 'keystone' by @mperrin in https://github.com/spacetelescope/poppy/pull/647
+ * add outfile option to calc_datacube by @mperrin in https://github.com/spacetelescope/poppy/pull/646
+ * [DRAFT] Documentation Fixes for release by @york-stsci in https://github.com/spacetelescope/poppy/pull/651
+ * Sphinx fixes by @york-stsci in https://github.com/spacetelescope/poppy/pull/652
+
+**New Contributors**
+ * @mfeldt made their first contribution in https://github.com/spacetelescope/poppy/pull/569
+ * @braingram made their first contribution in https://github.com/spacetelescope/poppy/pull/585
+ * @saikrishanthpm made their first contribution in https://github.com/spacetelescope/poppy/pull/591
+ * @york-stsci made their first contribution in https://github.com/spacetelescope/poppy/pull/650
+
+**Full Changelog**: https://github.com/spacetelescope/poppy/compare/v1.1.1...v1.1.2
 1.1.1
 -----
 
@@ -29,7 +102,7 @@ This is a very minor re-release, to fix some documentation formatting and releas
  * Tried Python 3.8 with ReadTheDocs instead by :user:`ojustino` in :pr:`514`
  * Fix position angle rotation passthrough for TiltOpticalPathDifference by :user:`evanmayer` in :pr:`524`
  * Fix units error in MultiHexagonAperture, see #485 by :user:`mperrin` in :pr:`527`
- * replacing np.float with np.float_ per Issue 544 by :user:`adambolton` in :pr:`545`
+ * replacing `np.float` with `np.float_` per Issue 544 by :user:`adambolton` in :pr:`545`
  * Update minimum versions across the board including remove python 3.8 and adding pythong 3.11 by :user:`BradleySappington` in :pr:`551`
  * add option to mark levels in display_ee by :user:`douglase` in :pr:`540`
  * minor: misc PEP8 code style consistency reformatting  by :user:`mperrin` in :pr:`554`
@@ -106,7 +179,7 @@ This is a major release with significant enhancements and changes, in particular
 
     This release includes optical algorithm updates after a thorough audit and cross-check of sign conventions for phase and wavefront error, disambiguating portions of the
     sign conventions and code to ensure consistency with several other relevant optical modeling packages. Poppy now strictly follows the sign conventions as advocated in e.g.
-    Wyant and Creath's `Basic Wavefront Aberration Theory for Optical Metrology <https://ui.adsabs.harvard.edu/abs/1992aooe...11....2W/abstract>`_ (or see `here <https://wp.optics.arizona.edu/jcwyant/wp-content/uploads/sites/13/2016/08/03-BasicAberrations_and_Optical_Testing.pdf>`_). This makes poppy consistent with the convention more widely used in optical metrology and other optical software such as Code V; however this is not consistent with some other reference such as Goodman's classic text *Fourier Optics*.
+    Wyant and Creath's `Basic Wavefront Aberration Theory for Optical Metrology <https://ui.adsabs.harvard.edu/abs/1992aooe...11....2W/abstract>`_ (or see `the paper here <https://wp.optics.arizona.edu/jcwyant/wp-content/uploads/sites/13/2016/08/03-BasicAberrations_and_Optical_Testing.pdf>`_). This makes poppy consistent with the convention more widely used in optical metrology and other optical software such as Code V; however this is not consistent with some other reference such as Goodman's classic text *Fourier Optics*.
 
     To achieve that consistency, *this is a partially back-incompatible release*, with
     changes in the signs of complex exponentials in some Fourier propagation calculations. Depending on your use case this may result in some changes in output PSFs or
@@ -125,10 +198,10 @@ This is a major release with significant enhancements and changes, in particular
     The prior function names also continue to work as aliases for backwards compatibility.  (:pr:`471` by :user:`mperrin`)
 
 **New Functionality:**
- * New class :py:obj:`~poppy.TipTiltStage`, which allows putting additional tip-tilt on any arbitrary optic, and adjusting/controlling the tip and tilt. See `here <https://poppy-optics.readthedocs.io/en/latest/available_optics.html#Tip-Tilt-Stage>`_ for example. (:pr:`414` by :user:`mperrin`)
- * New class :py:obj:`~poppy.CircularSegmentedDeformableMirror`, which models an aperture comprising several individually-controllable circular mirrors. See `here <https://poppy-optics.readthedocs.io/en/latest/available_optics.html#Circularly-Segmented-Deformable-Mirrors>`_ for example. (:pr:`407` and :pr:`424` by :user:`Teusia`)
- * New class :py:obj:`~poppy.KolmogorovWFE`, which models the phase distortions in a turbulent atmosphere. See `this notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Propagation%20through%20turbulent%20atmosphere.ipynb>`_ for details. (:pr:`437` by :user:`DaPhil`)
- * New class :py:obj:`~poppy.ThermalBloomingWFE`, which models the change in WFE from heating of air (or other transmission medium) due to high powered laser beams. See `this notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Thermal%20Blooming%20Demo.ipynb>`_ for details. (:pr:`438` by :user:`DaPhil`)
+ * New class :py:obj:`~poppy.TipTiltStage`, which allows putting additional tip-tilt on any arbitrary optic, and adjusting/controlling the tip and tilt. See `the tip-tilt documentation <https://poppy-optics.readthedocs.io/en/latest/available_optics.html#Tip-Tilt-Stage>`_ for example. (:pr:`414` by :user:`mperrin`)
+ * New class :py:obj:`~poppy.CircularSegmentedDeformableMirror`, which models an aperture comprising several individually-controllable circular mirrors. See `the circularly segmented deformable mirrors documentation <https://poppy-optics.readthedocs.io/en/latest/available_optics.html#Circularly-Segmented-Deformable-Mirrors>`_ for example. (:pr:`407` and :pr:`424` by :user:`Teusia`)
+ * New class :py:obj:`~poppy.KolmogorovWFE`, which models the phase distortions in a turbulent atmosphere. See `the propagation through atmosphere notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Propagation%20through%20turbulent%20atmosphere.ipynb>`_ for details. (:pr:`437` by :user:`DaPhil`)
+ * New class :py:obj:`~poppy.ThermalBloomingWFE`, which models the change in WFE from heating of air (or other transmission medium) due to high powered laser beams. See `the thermal blooming notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Thermal%20Blooming%20Demo.ipynb>`_ for details. (:pr:`438` by :user:`DaPhil`)
 
 
 **Other enhancements and fixes:**
@@ -195,7 +268,7 @@ This release includes several updated optical element classes, bug fixes, and im
 This is a minor release primarily for updates in packaging infrastructure, plus a handful of small enhancements related to datacubes, segmented apertures, and new functionality for subsampled optics.
 
 **New Functionality:**
- * Adds new `Subapertures` class for modeling subsampled optics (i.e. optics that have multiple spatially disjoint output beams). Adds `ShackHartmannWavefrontSensor` class to model that type of sensor. See `this notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Shack%20Hartmann%20Wavefront%20Sensor%20Demo.ipynb>`_ for details and example codes. (:pr:`346` thanks to :user:`remorgan01` and :user:`douglase`)
+ * Adds new `Subapertures` class for modeling subsampled optics (i.e. optics that have multiple spatially disjoint output beams). Adds `ShackHartmannWavefrontSensor` class to model that type of sensor. See `the Shack Hartmann Wavefront Sensor notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Shack%20Hartmann%20Wavefront%20Sensor%20Demo.ipynb>`_ for details and example codes. (:pr:`346` thanks to :user:`remorgan01` and :user:`douglase`)
 
 **Other enhancements and fixes:**
  * `calc_datacube` function now allows `nwavelengths>100`, removing a prior limitation of this function. (:pr:`351` by :user:`ojustino`)
@@ -344,7 +417,7 @@ improved upon in a future release.
 .. admonition:: Python version support: Future releases will require Python 3.
 
     Please note, this is the *final* release to support Python 2.7. All
-    future releases will require Python 3.5+. See `here <https://python3statement.org>`_ for more information on migrating to Python 3.
+    future releases will require Python 3.5+. See `Python 3 statement <https://python3statement.org>`_ for more information on migrating to Python 3.
 
 .. admonition:: Deprecated function names will go away in next release.
 
@@ -378,7 +451,7 @@ improved upon in a future release.
 **New Functionality:**
 
  * New `PhysicalFresnelWavefront` class that uses physical units for the wavefront (e.g.
-   volts/meter) and intensity (watts). See `this notebook
+   volts/meter) and intensity (watts). See `the physical units demo notebook
    <https://github.com/spacetelescope/poppy/blob/stable/notebooks/Physical%20Units%20Demo.ipynb>`_ for
    examples and further discussion.  (`#248 <https://github.com/spacetelescope/poppy/pull/248>`, @daphil).
  * `calc_psf` gains a new parameter to request returning the complex wavefront (`#234

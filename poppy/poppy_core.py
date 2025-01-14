@@ -225,7 +225,7 @@ class BaseWavefront(ABC):
         """ Return a wavefront as a pyFITS HDUList object
 
         Parameters
-        -----------
+        ----------
         what : string
             what kind of data to write. Must be one of 'all', 'parts', 'intensity',
             'phase' or 'complex'.  The default is to write intensity.
@@ -310,7 +310,7 @@ class BaseWavefront(ABC):
         """Write a wavefront to a FITS file.
 
         Parameters
-        -----------
+        ----------
         filename : string
             filename to use
         what : string
@@ -797,7 +797,7 @@ class BaseWavefront(ABC):
                 Bind arguments to scipy's RectBivariateSpline function.
                 For data on a regular 2D grid, RectBivariateSpline is more efficient than interp2d.
                 """
-                return scipy.interpolate.RectBivariateSpline(x_in, y_in, arr, 
+                return scipy.interpolate.RectBivariateSpline(x_in, y_in, arr,
                                                              kx=detector.interp_order, ky=detector.interp_order)
 
             # Interpolate real and imaginary parts separately
@@ -805,7 +805,7 @@ class BaseWavefront(ABC):
             imag_resampled = interpolator(cropped_wf.imag)(x_out, y_out)
             new_wf = xp.array(real_resampled + 1j * imag_resampled)
         else:
-            # cupyx does not have RectBivariateSpline or interp2d so wavefront resampling 
+            # cupyx does not have RectBivariateSpline or interp2d so wavefront resampling
             # is implemented with map_coordinates
             #wf_xmin = pixscale * cropped_wf.shape[0]/2
             # Note, carefully handle the offset-by-one to be consistent with
@@ -895,6 +895,7 @@ class BaseWavefront(ABC):
 
     def rotate(self, angle=0.0):
         """Rotate a wavefront by some amount, using spline interpolation
+        (or exact rotation, for multiples of 90 degrees)
 
         Parameters
         ----------
@@ -903,16 +904,8 @@ class BaseWavefront(ABC):
 
         """
 
-        if self.ispadded:
-            # pupil plane is padded - trim out the zeros since it's not needed in the rotation
-            # If needed in later steps, the padding will be re-added automatically
-            self.wavefront = utils.remove_padding(self.wavefront, self.oversample)
-            self.ispadded = False
-
-        # self.wavefront = scipy.ndimage.interpolation.rotate(self.wavefront, angle, reshape=False)
-        # Huh, the ndimage rotate function does not work for complex numbers. That's weird.
+        # The ndimage rotate function does not work for complex numbers.
         # so let's treat the real and imaginary parts individually
-        # FIXME TODO or would it be better to do this on the amplitude and phase?
 
         k, remainder = np.divmod(angle, 90)
         if remainder == 0:
@@ -923,7 +916,7 @@ class BaseWavefront(ABC):
             # arbitrary free rotation with interpolation
             rot_real = _scipy.ndimage.rotate(self.wavefront.real, -angle, reshape=False)  # negative = CCW
             rot_imag = _scipy.ndimage.rotate(self.wavefront.imag, -angle, reshape=False)
-        self.wavefront = rot_real + 1.j * rot_imag
+        self.wavefront = rot_real + 1j * rot_imag
 
         self.history.append('Rotated by {:.2f} degrees, CCW'.format(angle))
 
@@ -934,7 +927,7 @@ class BaseWavefront(ABC):
         passes through a focus.
 
         Parameters
-        ------------
+        ----------
         axis : string
             either 'both', 'x', or 'y', for which axes to invert
 
@@ -1027,7 +1020,7 @@ class Wavefront(BaseWavefront):
         wavefront accordingly.
 
         Parameters
-        -----------
+        ----------
         optic : OpticalElement
             The optic to propagate to. Used for determining the appropriate optical plane.
         """
@@ -1073,7 +1066,7 @@ class Wavefront(BaseWavefront):
         """ Propagate from pupil to image or vice versa using a padded FFT
 
         Parameters
-        -----------
+        ----------
         optic : OpticalElement
             The optic to propagate to. Used for determining the appropriate optical plane.
 
@@ -1139,7 +1132,7 @@ class Wavefront(BaseWavefront):
         """ Compute from pupil to an image using the Soummer et al. 2007 MFT algorithm
 
         Parameters
-        -----------
+        ----------
         det : OpticalElement, must be of type DETECTOR
             The target optical plane to propagate to."""
 
@@ -1178,9 +1171,12 @@ class Wavefront(BaseWavefront):
         _log.debug(msg)
         self.history.append(msg)
 
+        if det.offset is not None:
+            _log.debug('      offset= '+str( det.offset))
         _log.debug('      MFT method = ' + mft.centering)
 
-        self.wavefront = mft.perform(self.wavefront, det_fov_lam_d, det_calc_size_pixels)
+        self.wavefront = mft.perform(self.wavefront, det_fov_lam_d, det_calc_size_pixels,
+                                     offset=None if det.offset is None else det.offset * det._offset_sign)  # sign flip intentional, see note in Detector class
         _log.debug("     Result wavefront: at={0} shape={1} ".format(
             self.location, str(self.shape)))
         self._last_transform_type = 'MFT'
@@ -1191,7 +1187,7 @@ class Wavefront(BaseWavefront):
 
         if not np.isscalar(self.pixelscale.value):
             # check for rectangular arrays
-            if self.pixelscale[0] == self.pixelscale[1]:
+            if np.isclose(self.pixelscale[0], self.pixelscale[1]):
                 self.pixelscale = self.pixelscale[0]
                 # we're in a rectangular array with same scale in both directions, so treat pixelscale as a scalar
             else:
@@ -1409,6 +1405,28 @@ class Wavefront(BaseWavefront):
             import cupy as cp
             return isinstance(self.wavefront, cp.ndarray)
 
+    def rotate(self, angle=0.0):
+        """Rotate a wavefront by some amount, using spline interpolation
+         (or exact rotation, for multiples of 90 degrees)
+
+        Note, if the wavefront is zero-padded this step will unpad it, as an efficiency to
+        avoid rotating large arrays of zeros unnecessarily.
+
+        Parameters
+        ----------
+        angle : float
+            Angle to rotate, in degrees counterclockwise.
+
+        """
+
+        if self.ispadded:
+            # pupil plane is padded - trim out the zeros since it's not needed in the rotation
+            # If needed in later steps, the padding will be re-added automatically
+            self.wavefront = utils.remove_padding(self.wavefront, self.oversample)
+            self.ispadded = False
+
+        super().rotate(angle)
+
 # ------ core Optical System classes -------
 
 
@@ -1469,7 +1487,7 @@ class BaseOpticalSystem(ABC):
         Add a clockwise or counterclockwise rotation around the optical axis
 
         Parameters
-        -----------
+        ----------
         angle : float
             Rotation angle, counterclockwise. By default in degrees.
         index : int
@@ -1490,7 +1508,7 @@ class BaseOpticalSystem(ABC):
         a flip in the sign of the X and Y axes due to passage through a focus.
 
         Parameters
-        -----------
+        ----------
         index : int
             Index into the optical system's planes for where to add the new optic. Defaults to
             appending the optic to the end of the plane list.
@@ -1564,6 +1582,7 @@ class BaseOpticalSystem(ABC):
                  source=None,
                  normalize='first',
                  display_intermediates=False,
+                 progressbar=False,
                  inwave=None):
         """Calculate a PSF, either multi-wavelength or monochromatic.
 
@@ -1597,6 +1616,11 @@ class BaseOpticalSystem(ABC):
         display_intermediates: bool, optional
             Display intermediate optical planes? Default is False. This option is incompatible with
             parallel calculations using `multiprocessing`. (If calculating in parallel, it will have no effect.)
+        progressbar : bool
+            Optionally display a progress bar indicator for status
+            while iterating over wavelengths. Note, this requires the
+            optional dependency package 'tqdm', which is not included as
+            a requirement.
 
         Returns
         -------
@@ -1710,7 +1734,8 @@ class BaseOpticalSystem(ABC):
         else:  # ######### single-threaded computations (may still use multi cores if FFTW enabled ######
             if display:
                 plt.clf()
-            for wlen, wave_weight in zip(wavelength, normwts):
+            iterate_wrapper = utils.get_progressbar_wrapper(progressbar, nwaves=len(wavelength))
+            for wlen, wave_weight in iterate_wrapper(zip(wavelength, normwts)):
                 mono_psf, mono_intermediate_wfs = self.propagate_mono(
                     wlen,
                     retain_intermediates=retain_intermediates,
@@ -2005,7 +2030,7 @@ class OpticalSystem(BaseOpticalSystem):
             The pupil optic added (either `optic` passed in, or a new OpticalElement created)
 
         Notes
-        ------
+        -----
 
         Now you can use the optic argument for either an OpticalElement or a
         string function name, and it will do the right thing depending on type.
@@ -2448,7 +2473,7 @@ class OpticalElement(object):
             either a scalar wavelength or a Wavefront object
 
         Returns
-        --------
+        -------
         ndarray giving electric field amplitude transmission between 0 - 1.0
 
         """
@@ -2456,11 +2481,11 @@ class OpticalElement(object):
 
     def get_opd(self, wave):
         """ Return the optical path difference, given a wavelength.
-            
-            In this base class instance, the wavefront parameter 'wave' is not used, 
+
+            In this base class instance, the wavefront parameter 'wave' is not used,
              and the .opd attribute of the optic is returned directly.
              Subclasses may change this behavior, for instance to evaluate
-             optical aberrations on the sampling defined for that wavefront, 
+             optical aberrations on the sampling defined for that wavefront,
              or to compute the wavelength-dependent aberrations of a refractive optic.
 
         Parameters
@@ -2469,7 +2494,7 @@ class OpticalElement(object):
             either a scalar wavelength or a Wavefront object
 
         Returns
-        --------
+        -------
         ndarray giving OPD in meters
 
         """
@@ -2504,7 +2529,7 @@ class OpticalElement(object):
             if hasattr(self, '_resampled_scale') and abs(
                     self._resampled_scale - wave.pixelscale) / self._resampled_scale >= float_tolerance:
                 # we already did this same resampling, so just re-use it!
-                self.phasor = self._resampled_amplitude * xp.exp(1.j * self._resampled_opd * scale)
+                self.phasor = self._resampled_amplitude * xp.exp(1j * self._resampled_opd * scale)
             else:
                 # raise NotImplementedError("Need to implement resampling.")
                 zoom = (self.pixelscale / wave.pixelscale).decompose().value
@@ -2543,16 +2568,16 @@ class OpticalElement(object):
                     _log.debug("trimmed a border of {:d} x {:d} pixels from "
                                "optic to match the wavefront".format(border_x, border_y))
 
-                self.phasor = self._resampled_amplitude * xp.exp(1.j * self._resampled_opd * scale)
+                self.phasor = self._resampled_amplitude * xp.exp(1j * self._resampled_opd * scale)
 
         else:
             # compute the phasor directly, without any need to rescale.
             if accel_math._USE_NUMEXPR:
                 trans = self.get_transmission(wave)
                 opd = self.get_opd(wave)
-                self.phasor = ne.evaluate("trans * exp(1.j * opd * scale)")
+                self.phasor = ne.evaluate("trans * exp(1j * opd * scale)")
             else:
-                self.phasor = self.get_transmission(wave) * xp.exp(1.j * self.get_opd(wave) * scale)
+                self.phasor = self.get_transmission(wave) * xp.exp(1j * self.get_opd(wave) * scale)
 
         # check whether we need to pad or crop the array before returning or not.
         # note: do not pad the phasor if it's just a scalar!
@@ -3206,7 +3231,7 @@ class FITSOpticalElement(OpticalElement):
             either a scalar wavelength or a Wavefront object
 
         Returns
-        --------
+        -------
         ndarray giving OPD in meters
 
         """
@@ -3302,7 +3327,7 @@ class CoordinateInversion(CoordinateTransform):
     The actual inversion happens in Wavefront.propagate_to
 
     Parameters
-    ------------
+    ----------
     axes : string
         either 'both', 'x', or 'y', for which axes to invert
     hide : bool
@@ -3357,6 +3382,11 @@ class Detector(OpticalElement):
     oversample : int
         Oversampling factor beyond the detector pixel scale. The returned array will
         have sampling that much finer than the specified pixelscale.
+    offset : 2-tuple of floats
+        Offset (Y,X) in *pixels* for shifting the detector relative to the notional center of the output beam.
+        This has similar effect to shifting the source, but with opposite sign.
+        In other words, shifting a light source +1 arcsec in Y should have the same effect as
+        shifting the detector -1 arcsec in Y.
     """
 
     # Note, pixelscale argument is intentionally not included in the quantity_input decorator; that is
@@ -3364,10 +3394,33 @@ class Detector(OpticalElement):
     @utils.quantity_input(fov_pixels=u.pixel, fov_arcsec=u.arcsec)
     def __init__(self, pixelscale=1 * (u.arcsec / u.pixel), fov_pixels=None, fov_arcsec=None, oversample=1,
                  name="Detector",
+                 offset=None,
                  **kwargs):
         OpticalElement.__init__(self, name=name, planetype=PlaneType.detector, **kwargs)
         self.pixelscale = self._handle_pixelscale_units_flexibly(pixelscale, fov_pixels)
         self.oversample = oversample
+
+        if offset is not None:
+            if len(offset) != 2:
+                raise ValueError("If a detector offset is specified, it must be a tuple or list with 2 elements, "
+                                 "giving the (X, Y) offsets.")
+            # The offset is specified in pixels, so this can have units of pixels,
+            # or else if an integer or float, that's considered as implicitly a number of pixels
+            if isinstance(offset, u.Quantity):
+                try:
+                    offset = offset.to_value(u.pixel)
+                except u.UnitConversionError:
+                    raise(ValueError(f"A detector offset must be specified in units of detector pixels, not '{offset.unit}'"))
+            offset = np.asarray(offset)  # ensure it's an ndarray, not just a list or tuple
+        # A note on sign convention for detector offset: (This is regrettably confusing.)
+        #    The implementation in matrixDFT has the sense of "how much should the source be offset",
+        #    i.e. an offset of +5 pix moves the source by +5 pix.
+        #    However, physically we would like the opposite sign convention:  Moving the detector by +5 pix
+        #    should move the source by -5 pix.  This is implemented by a sign flip multplication by -1
+        #    which is applied in the _propagate_mft methods. That could just be a hard-coded -1,
+        #    but we choose to implement as a named variable to help make this logic clear later to readers of this code:
+        self.offset = offset
+        self._offset_sign = -1
 
         if fov_pixels is None and fov_arcsec is None:
             raise ValueError("Either fov_pixels or fov_arcsec must be specified!")

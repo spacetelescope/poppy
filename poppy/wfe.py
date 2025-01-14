@@ -382,30 +382,32 @@ class PowerSpectrumWFE(WavefrontError):
     :math:`P(k) = \frac{\beta} {\left( \left(\frac{1}{L_{0}}\right)^{2} + |k|^{2} \right)^{{\alpha/2}}} e^{-(|k|l_{0})^{2}} + \beta_{sr}`
     
     where:
-    P: astropy quantity
+
+    P : astropy quantity
         Power Spectral Density at a spatial frequency.
         Units: :math: `m^{2}m^{2}`
         Assumes surface units of meters (first :math: `m^{2}`)
-    k: astropy quantity
+    k : astropy quantity
         Spatial frequency value, units 1/m
-    :math:`\alpha`: float 
+    :math:`\alpha` : float 
         The PSD index value 
-    :math:`\beta`: astropy quantity
+    :math:`\beta` : astropy quantity
         The normalization constant. In units of :math: `\frac{m^{2}}{m^{\alpha-2}}`
         Numerator assumes surface units of meters
         Denominator assumes spatial frequency units are 1/m
-    :math:`L_{0}`: astropy quantity
+    :math:`L_{0}` : astropy quantity
         The outer scale value, where the low spatial frequency flattens. Units: m
-    :math:`l_{0}`: float
+    :math:`l_{0}` : float
         Inner scale value, where the high spatial frequency flattens.
-    :math:`\beta_{sr}`: astropy quantity
+    :math:`\beta_{sr}` : astropy quantity
         Surface roughness normalization. Should match units of PSD.
     
-    References:
-    Males, Jared. MagAO-X Preliminary-Design Review, 
-        Section 5.1: Optics Specifications, Eqn 1
-        https://magao-x.org/docs/handbook/appendices/pdr/
-    Lumbres, et al. In Prep.
+    References
+    ----------
+    * Males, Jared. MagAO-X Preliminary-Design Review, 
+      Section 5.1: Optics Specifications, Eqn 1
+      https://magao-x.org/docs/handbook/appendices/pdr/
+    * Lumbres, et al. In Prep.
 
     Parameters
     ----------
@@ -417,48 +419,52 @@ class PowerSpectrumWFE(WavefrontError):
         i.e. [ [PSD_list_0], [PSD_list_1]]
         The PSD parameters in a list are ordered as follows:
         [alpha, beta, outer_scale, inner_scale, surf_roughness]
+
         where:            
-            alpha: float 
+
+            alpha : float 
                 The PSD index value.
-            beta: astropy quantity
+            beta : astropy quantity
                 The normalization constant. In units of :math: `\frac{m^{2}}{m^{\alpha-2}}`
                 Numerator assumes surface units of meters
                 Denominator assumes spatial frequency units are 1/m
-            outer_scale: astropy quantity
+            outer_scale : astropy quantity
                 The outer scale value, where the low spatial frequency flattens. 
                 Unit requirement: meters
-            inner_scale: float
+            inner_scale : float
                 Inner scale value, where the high spatial frequency flattens.
-            surf_roughness: astropy quantity
+            surf_roughness : astropy quantity
                 Surface roughness normalization. Should match units of PSD.
-    psd_weight: iterable list of floats
+
+    psd_weight : iterable list of floats
         Specifies the weight multiplier to set onto each model PSD
     seed : integer
         Seed for the random phase screen generator
-    apply_reflection: boolean
+    apply_reflection : boolean
         Applies 2x scale for the OPD as needed for reflection.
         Default to False. 
         Set to True if the PSD model only accounts for surface.
-    screen_size: integer
+    screen_size : integer
         Sets how large the PSD matrix will be calculated.
         The PSD matrix needs to be larger than the wavefront for Fourier transform padding purposes.
         If None passed in, then code will default size to 4x wavefront's side.
         Default to None.
-    rms: astropy quantity
+    rms : astropy quantity
         Optional. Use this to force the wfe RMS
         If a value is passed in, this is the surface rms value (not OPD) in meters.
         If None passed, then the wfe RMS produced is what shows up in PSD calculation.
         Default to None.
-    incident_angle: astropy quantity
+    incident_angle : astropy quantity
         Adjusts the WFE based on reflected beam distortion.
         Does not distort the beam (remains circular), but will get the rms equivalent value.
         Can be passed as either degrees or radians.
         Default is 0 degrees (paraxial).
-    radius: astropy quantity
+    radius : astropy quantity
         Optional. However, mandatory if rms parameter is passed.
         If a value is passed in, this is the beam radius value for calculating
         the generated WFE rms to compare with the normalized rms value.
         Default to None.
+
     """
 
     @utils.quantity_input(rms=u.nm, radius=u.meter, incident_angle=u.deg)
@@ -606,7 +612,7 @@ class KolmogorovWFE(WavefrontError):
     Kolmogorov theory of turbulence.
     
     Parameters
-    -----------------
+    ----------
     r0 : astropy.quantity
         Fried parameter (m).
     
@@ -634,7 +640,7 @@ class KolmogorovWFE(WavefrontError):
         should propagate through an identical atmosphere.
     
     References
-    -------------------
+    ----------
     For a general overview of the Kolmogorov theory, read
     L. C. Andrews and R. L. Phillips, Laser Beam Propagation Through Random
     Media, 2nd ed. (Society of Photo Optical, 2005).
@@ -665,12 +671,12 @@ class KolmogorovWFE(WavefrontError):
         """ Returns an optical path difference for a turbulent phase screen.
         
         Parameters
-        -----------------
+        ----------
         wave : wavefront object
             Wavefront to calculate the phase screen for.
     
         References
-        -------------------
+        ----------
         J. A. Fleck Jr, J. R. Morris, and M. D. Feit, Appl. Phys. 10, 129 (1976).
         
         E. M. Johansson and D. T. Gavel,
@@ -710,12 +716,12 @@ class KolmogorovWFE(WavefrontError):
         """ Returns the index-of-refraction structure constant (m^-2/3).
         
         Parameters
-        -----------------
+        ----------
         wavelength : float
             The wavelength (m).
         
         References
-        -------------------
+        ----------
         B. J. Herman and L. A. Strugala, in Proc. SPIE,
         edited by P. B. Ulrich and L. E. Wilson
         (International Society for Optics and Photonics, 1990), pp. 183–192.
@@ -733,7 +739,7 @@ class KolmogorovWFE(WavefrontError):
         with the symmetry required for a turbulent phase screen.
         
         Parameters
-        -----------------
+        ----------
         npix : int
             Number of pixels.
         
@@ -741,7 +747,7 @@ class KolmogorovWFE(WavefrontError):
             Sign of mirror symmetry. Must be either +1 or -1.
         
         References
-        -------------------
+        ----------
         Eq. (65) in J. A. Fleck Jr, J. R. Morris, and M. D. Feit,
         Appl. Phys. 10, 129 (1976).
         """
@@ -772,12 +778,12 @@ class KolmogorovWFE(WavefrontError):
         with the symmetry required for a turbulent phase screen.
         
         Parameters
-        -----------------
+        ----------
         npix : int
             Number of pixels.
         
         References
-        -------------------
+        ----------
         Eq. (63) in J. A. Fleck Jr, J. R. Morris, and M. D. Feit,
         Appl. Phys. 10, 129 (1976).
         """
@@ -795,7 +801,7 @@ class KolmogorovWFE(WavefrontError):
         """ Returns the spatial power spectrum.
         
         Parameters
-        -----------------
+        ----------
         wave : wavefront object
             Wavefront to calculate the power spectrum for.
         
@@ -804,7 +810,7 @@ class KolmogorovWFE(WavefrontError):
             'Tatarski', 'von Karman', 'Hill'.
         
         References
-        -------------------
+        ----------
         G. Gbur, J. Opt. Soc. Am. A 31, 2038 (2014).
         
         R. Frehlich, Appl. Opt. 39, 393 (2000).
@@ -856,7 +862,7 @@ class ThermalBloomingWFE(WavefrontError):
     """ A thermal blooming phase screen.
     
     Parameters
-    -----------------
+    ----------
     abs_coeff : astropy.quantity
         Aerosol absorption coefficient (m^-1).
     
@@ -895,7 +901,7 @@ class ThermalBloomingWFE(WavefrontError):
         Whether to use the isobaric approximation.
     
     Notes
-    -------------------
+    -----
     Initial values are those for dry air at room temperature, taken from:
     https://www.engineeringtoolbox.com/dry-air-properties-d_973.html
     """
@@ -933,12 +939,12 @@ class ThermalBloomingWFE(WavefrontError):
         """ Approximation for natural convection velocity (m.s^-1).
         
         Parameters
-        -----------------
+        ----------
         wave : poppy.PhysicalFresnelWavefront
             Wavefront to calculate the natural convection velocity for.
         
         References
-        -------------------
+        ----------
         Smith, D. C.
         High-power laser propagation: Thermal blooming.
         Proc. IEEE 65, 1679–1714 (1977).
@@ -953,12 +959,12 @@ class ThermalBloomingWFE(WavefrontError):
         """ Returns an optical path difference for a thermal blooming phase screen (m^-1).
         
         Parameters
-        -----------------
+        ----------
         wave : poppy.PhysicalFresnelWavefront
             Wavefront to calculate the phase screen for.
     
         References
-        -------------------
+        ----------
         Fleck, J. A., Jr, Morris, J. R. & Feit, M. D.
         Time-dependent propagation of high energy laser beams through the atmosphere.
         Appl. Phys. 10, 129–160 (1976).
@@ -1002,7 +1008,7 @@ class ThermalBloomingWFE(WavefrontError):
         """ Top-level routine to calculate density changes (kg.m^-3).
         
         Parameters
-        -----------------
+        ----------
         wave : poppy.PhysicalFresnelWavefront
             Wavefront to calculate the density changes for.
         """
@@ -1018,12 +1024,12 @@ class ThermalBloomingWFE(WavefrontError):
         """ Isobaric density variation (kg.m^-3).
         
         Parameters
-        -----------------
+        ----------
         wave : poppy.PhysicalFresnelWavefront
             Wavefront to calculate the density changes for.
         
         References
-        -------------------
+        ----------
         Fleck, J. A., Jr, Morris, J. R. & Feit, M. D.
         Time-dependent propagation of high energy laser beams through the atmosphere.
         Appl. Phys. 10, 129–160 (1976).
@@ -1067,12 +1073,12 @@ class ThermalBloomingWFE(WavefrontError):
         """ Fourier transform of the derivative of the non-isobaric density variation (unit?).
         
         Parameters
-        -----------------
+        ----------
         wave : poppy.PhysicalFresnelWavefront
             Wavefront to calculate the density changes for.
         
         References
-        -------------------
+        ----------
         Fleck, J. A., Jr, Morris, J. R. & Feit, M. D.
         Time-dependent propagation of high-energy laser beams through the atmosphere: II.
         Appl. Phys. 14, 99–115 (1977).
@@ -1106,12 +1112,12 @@ class ThermalBloomingWFE(WavefrontError):
         """ Non-isobaric density variations (kg.m^-3).
         
         Parameters
-        -----------------
+        ----------
         wave : poppy.PhysicalFresnelWavefront
             Wavefront to calculate the density changes for.
         
         References
-        -------------------
+        ----------
         Fleck, J. A., Jr, Morris, J. R. & Feit, M. D.
         Time-dependent propagation of high-energy laser beams through the atmosphere: II.
         Appl. Phys. 14, 99–115 (1977).

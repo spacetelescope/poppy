@@ -60,26 +60,24 @@ with open(Path(__file__).parent.parent / "pyproject.toml", "rb") as metadata_fil
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "sphinx.ext.mathjax",
     "sphinx.ext.autodoc",
     "sphinx.ext.intersphinx",
     "sphinx.ext.todo",
     "sphinx.ext.inheritance_diagram",
     "sphinx.ext.viewcode",
     "sphinx.ext.autosummary",
-    "sphinx.ext.mathjax",
     "sphinx_automodapi.automodapi",
     "sphinx_issues",
     "nbsphinx",
     "numpydoc",
+    "IPython.sphinxext.ipython_console_highlighting",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 
-# The suffix(es) of source filenames.
-# You can specify multiple suffix as a list of string:
-#
-# source_suffix = ['.rst', '.md']
+# The suffix of source filenames.
 source_suffix = ".rst"
 
 # The master toctree document.
@@ -90,7 +88,7 @@ master_doc = "index"
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -101,23 +99,55 @@ exclude_patterns = [
     ".DS_Store",
     "_templates",
     "**.ipynb_checkpoints",
+    "figures/**.ipynb",
 ]
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = "sphinx"
+pygments_style = "default"
 
+# -- Options for Extensions --------------------------------------------------
+
+# Do not have autoapi create inheritance diagrams
+automodapi_inheritance_diagram = False
 
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = "stsci_rtd_theme"
-html_theme_path = [stsci_rtd_theme.get_html_theme_path()]
+html_theme = "sphinx_rtd_theme"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-# html_theme_options = {}
+html_theme_options = {
+    "collapse_navigation": True,
+    "sticky_navigation": False,
+    # "nosidebar": "false",
+    # "sidebarbgcolor": "#4db8ff",
+    # "sidebartextcolor": "black",
+    # "sidebarlinkcolor": "black",
+    # "headbgcolor": "white",
+}
+
+html_logo = '_static/stsci_pri_combo_mark_white.png'
+
+# Add any paths that contain custom themes here, relative to this directory.
+#html_theme_path = []
+
+# The name for this set of Sphinx documents.  If None, it defaults to
+# "<project> v<release> documentation".
+# html_title = None
+
+# A shorter title for the navigation bar.  Default is the same as html_title.
+# html_short_title = None
+
+# The name of an image file (relative to this directory) to place at the top
+# of the sidebar.
+
+# The name of an image file (within the static path) to use as favicon of the
+# docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
+# pixels large.
+# html_favicon = None
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -164,16 +194,9 @@ latex_elements = {
 }
 
 # Grouping the document tree into LaTeX files. List of tuples
-# (source start file, target name, title,
-#  author, documentclass [howto, manual, or own class]).
+# (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-    (
-        master_doc,
-        "poppy.tex",
-        "poppy Documentation",
-        "Space Telescope Science Institute",
-        "manual",
-    ),
+    ("index", project + ".tex", project + " Documentation", author, "manual")
 ]
 
 
@@ -181,7 +204,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, "poppy", "poppy Documentation", [author], 1)]
+man_pages = [("index", project.lower(), project + " Documentation", [author], 1)]
 
 
 # -- Options for Texinfo output ----------------------------------------------

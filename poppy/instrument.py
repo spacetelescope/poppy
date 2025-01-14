@@ -257,7 +257,7 @@ class Instrument(object):
 
         # ---- now at last, actually do the PSF calc:
         #  instantiate an optical system using the current parameters
-        self.optsys = self._get_optical_system(fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
+        self.optsys = self.get_optical_system(fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
                                                fft_oversample=fft_oversample, detector_oversample=detector_oversample,
                                                options=local_options)
         self._check_for_aliasing(wavelens)
@@ -298,14 +298,25 @@ class Instrument(object):
         else:
             return result
 
-    def calc_datacube(self, wavelengths, *args, **kwargs):
+    def calc_datacube(self, wavelengths, progressbar=False, outfile=None, overwrite=True, *args, **kwargs):
         """Calculate a spectral datacube of PSFs
 
         Parameters
-        -----------
+        ----------
         wavelengths : iterable of floats
             List or ndarray or tuple of floating point wavelengths in meters, such as
             you would supply in a call to calc_psf via the "monochromatic" option
+        progressbar : bool
+            Optionally display a progress bar indicator for status
+            while iterating over wavelengths. Note, this requires the
+            optional dependency package 'tqdm', which is not included as
+            a requirement.
+        outfile : string
+            Filename to write. If None, then result is returned as an HDUList
+        overwrite : bool
+            overwrite output FITS file if it already exists?
+
+        Additional parameters are passed through to calc_datacube
         """
 
         # Allow up to 10,000 wavelength slices. The number matters because FITS
@@ -318,6 +329,13 @@ class Instrument(object):
         else:
             raise ValueError("Maximum number of wavelengths exceeded. "
                              "Cannot be more than 10,000.")
+        # Handle astropy Quantities, if needed
+        if isinstance(wavelengths, units.Quantity):
+            wavelengths = wavelengths.to_value(units.meter)
+
+        def wavelength_as_meters(wavelength):
+            """helper function to avoid trying to put a Quantity into a FITS header """
+            return wavelength.to_value(units.meter) if isinstance(wavelength, units.Quantity) else wavelength
 
         # Set up cube and initialize structure based on PSF at first wavelength
         poppy_core._log.info("Starting multiwavelength data cube calculation.")
@@ -327,20 +345,26 @@ class Instrument(object):
         for ext in range(len(psf)):
             cube[ext].data = np.zeros((nwavelengths, psf[ext].data.shape[0], psf[ext].data.shape[1]))
             cube[ext].data[0] = psf[ext].data
-            cube[ext].header[label_wl(0)] = wavelengths[0]
+            cube[ext].header[label_wl(0)] = wavelength_as_meters(wavelengths[0])
 
+        iterate_wrapper = utils.get_progressbar_wrapper(progressbar, nwaves=nwavelengths)
         # iterate rest of wavelengths
-        for i in range(1, nwavelengths):
+        for i in iterate_wrapper(range(1, nwavelengths)):
             wl = wavelengths[i]
             psf = self.calc_psf(*args, monochromatic=wl, **kwargs)
             for ext in range(len(psf)):
                 cube[ext].data[i] = psf[ext].data
-                cube[ext].header[label_wl(i)] = wl
+                cube[ext].header[label_wl(i)] = wavelength_as_meters(wl)
                 cube[ext].header.add_history("--- Cube Plane {} ---".format(i))
                 for h in psf[ext].header['HISTORY']:
                     cube[ext].header.add_history(h)
 
         cube[0].header['NWAVES'] = nwavelengths
+        if outfile is not None:
+            cube[0].header["FILENAME"] = (os.path.basename(outfile), "Name of this file")
+            cube.writeto(outfile, overwrite=overwrite)
+            poppy_core._log.info("Saved result to " + outfile)
+
         return cube
 
     def _calc_psf_format_output(self, result, options):
@@ -417,7 +441,8 @@ class Instrument(object):
     def _get_fits_header(self, result, options):
         """ Set instrument-specific FITS header keywords
 
-        Parameters:
+        Parameters
+        ----------
             result : fits.HDUList object
                 The HDUList containing the image to be output.
             options : dict
@@ -687,7 +712,7 @@ class Instrument(object):
         Parameter arguments are taken from the options dictionary.
 
         Parameters
-        -----------
+        ----------
         result : fits.HDUList
             HDU list containing a point spread function
         local_options : dict, optional
@@ -761,7 +786,7 @@ class Instrument(object):
         # (specifically auto-selected pupils based on filter selection)
         wavelengths, _ = self._get_weights(nlambda=1)
         self._validate_config(wavelengths=wavelengths)
-        optsys = self._get_optical_system()
+        optsys = self.get_optical_system()
         optsys.display(what='both')
         if old_no_sam is not None:
             self.options['no_sam'] = old_no_sam
@@ -790,7 +815,7 @@ class Instrument(object):
             String name of the filter that you are interested in
 
         Returns
-        --------
+        -------
         a synphot.spectrum.ObservationSpectralElement object for that filter.
 
         """
@@ -822,7 +847,7 @@ class Instrument(object):
         _getSynphotBandpass instead to create a synphot spectrum based on data read from disk, etc.
 
         Returns
-        --------
+        -------
         filterlist : list
             List of string filter names
         bandpasslist : dict

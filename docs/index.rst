@@ -69,6 +69,7 @@ Contents
   fft_optimization.rst
   gpu_acceleration.rst
   dev_notes.rst
+  fitsheaders.rst
 
 
 Getting Help

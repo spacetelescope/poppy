@@ -539,8 +539,9 @@ def display_profiles(hdulist_or_filename=None, ext=0, overplot=False, title=None
             plt.text(ee_lev + 0.1, level + yoffset, 'EE=%2d%% at r=%.3f"' % (level * 100, ee_lev))
 
 
-def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stddev=False, binsize=None, maxradius=None,
-                   normalize='None', pa_range=None, slice=0):
+def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stddev=False, mad=False,
+                   binsize=None, maxradius=None, normalize='None', pa_range=None, slice=0,
+                   custom_function=None):
     """ Compute a radial profile of the image.
 
     This computes a discrete radial profile evaluated on the provided binsize. For a version
@@ -563,6 +564,9 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
         size of step for profile. Default is pixel size.
     stddev : bool
         Compute standard deviation in each radial bin, not average?
+    mad : bool
+        Compute median absolute deviation (MAD) in each radial bin.
+        Cannot be used at same time as stddev; pick one or the other.
     normalize : string
         set to 'peak' to normalize peak intensity =1, or to 'total' to normalize total flux=1.
         Default is no normalization (i.e. retain whatever normalization was used in computing the PSF itself)
@@ -576,14 +580,20 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
     slice: integer, optional
         Slice into a datacube, for use on cubes computed by calc_datacube. Default 0 if a
         cube is provided with no slice specified.
+    custom_function : function
+        To evaluate an arbitrary function in each radial bin, provide some callable function that
+        takes a list of pixels and returns one float. For instance custome_function=np.min to compute
+        the minimum in each radial bin.
 
     Returns
-    --------
+    -------
     results : tuple
         Tuple containing (radius, profile) or (radius, profile, EE) depending on what is requested.
         The radius gives the center radius of each bin, while the EE is given inside the whole bin
         so you should use (radius+binsize/2) for the radius of the EE curve if you want to be
-        as precise as possible.
+        as precise as possible. The profile will be either the average within each bin, or the
+        standard or median absolute deviation within each bin if one of those options is selected.
+
     """
     if isinstance(hdulist_or_filename, str):
         hdu_list = fits.open(hdulist_or_filename)
@@ -668,6 +678,7 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
         radialprofile2 = radialprofile2[crop]
 
     if stddev:
+        # Compute standard deviation in each radial bin
         stddevs = np.zeros_like(radialprofile2)
         r_pix = r * binsize
         for i, radius in enumerate(rr):
@@ -679,9 +690,38 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
             stddevs[i] = np.nanstd(image[wg])
         return rr, stddevs
 
-    if not ee:
+    elif mad:
+        # Compute median absolute deviation in each radial bin
+        mads = np.zeros_like(radialprofile2)
+        r_pix = r * binsize
+        for i, radius in enumerate(rr):
+            if i == 0:
+                wg = np.where(r < radius + binsize / 2)
+            else:
+                wg = np.where((r_pix >= (radius - binsize / 2)) & (r_pix < (radius + binsize / 2)))
+            mads[i] = np.nanmedian(np.absolute(image[wg]-np.nanmedian(image[wg])))
+        return rr, mads
+    elif custom_function is not None:
+        # Compute some custom function in each radial bin
+        results = np.zeros_like(radialprofile2)
+        r_pix = r * binsize
+        for i, radius in enumerate(rr):
+            if i == 0:
+                wg = np.where(r < radius + binsize / 2)
+            else:
+                wg = np.where((r_pix >= (radius - binsize / 2)) & (r_pix < (radius + binsize / 2)))
+            if len(wg[0])==0: # Zero elements in this bin
+                results[i] = np.nan
+            else:
+                results[i] = custom_function(image[wg])
+        return rr, results
+
+
+    elif not ee:
+        # (Default behavior) Compute average in each radial bin
         return rr, radialprofile2
     else:
+        # also return the cumulative sum within each radial bin, i.e. the encircled energy
         ee = csim[rind]
         return rr, radialprofile2, ee
 
@@ -714,7 +754,7 @@ def measure_ee(hdulist_or_filename=None, ext=0, center=None, binsize=None, norma
         Default is no normalization (i.e. retain whatever normalization was used in computing the PSF itself)
 
     Returns
-    --------
+    -------
     encircled_energy: function
         A function which will return the encircled energy interpolated to any desired radius.
 
@@ -760,7 +800,7 @@ def measure_radius_at_ee(hdulist_or_filename=None, ext=0, center=None, binsize=N
         Default is no normalization (i.e. retain whatever normalization was used in computing the PSF itself)
 
     Returns
-    --------
+    -------
     radius: function
         A function which will return the radius of a desired encircled energy.
 
@@ -801,7 +841,7 @@ def measure_radial(hdulist_or_filename=None, ext=0, center=None, binsize=None):
         size of step for profile. Default is pixel size.
 
     Returns
-    --------
+    -------
     radial_profile: function
         A function which will return the mean PSF value at any desired radius.
 
@@ -1135,7 +1175,7 @@ def pad_to_size(array, padded_shape):
 
 
     See Also
-    ---------
+    --------
     pad_to_oversample, pad_or_crop_to_shape
     """
     if len(padded_shape) < 2:
@@ -1322,7 +1362,7 @@ class BackCompatibleQuantityInput(object):
         -----
 
         The checking of arguments inside variable arguments to a function is not
-        supported (i.e. \*arg or \**kwargs).
+        supported (i.e. *arg or **kwargs).
 
         Examples
         --------
@@ -1456,7 +1496,7 @@ def spectrum_from_spectral_type(sptype, return_list=False, catalog=None):
     convenient access function.
 
     Parameters
-    -----------
+    ----------
     sptype : str
         Spectral type, like "G0V"
     catalog : str
@@ -1671,7 +1711,7 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
     NOTE: Requires psutil package. Otherwise defaults to just 4?
 
     Parameters
-    -----------
+    ----------
     osys : OpticalSystem instance
         The optical system that we will be calculating for.
     nwavelengths : int
@@ -1733,7 +1773,7 @@ def fftw_save_wisdom(filename=None):
     (Another location could be chosen - this is simple and works easily cross-platform.)
 
     Parameters
-    ------------
+    ----------
     filename : string, optional
         Filename to use (instead of the default, poppy_fftw_wisdom.json)
     """
@@ -1767,7 +1807,7 @@ def fftw_load_wisdom(filename=None):
     (Another location could be chosen - this is simple and works easily cross-platform.)
 
     Parameters
-    ------------
+    ----------
     filename : string, optional
         Filename to use (instead of the default, poppy_fftw_wisdom.json)
     """
@@ -1815,3 +1855,29 @@ def fftw_load_wisdom(filename=None):
             "optimization measurements (automatically). ")
 
     _loaded_fftw_wisdom = True
+
+# ##################################################################
+#   Progress bar (optional convenience)
+#
+
+def get_progressbar_wrapper(progressbar=True, nwaves=None):
+    """ Utility function to return an iterator that MAY display a progress bar,
+    or may not, depending
+    """
+    if progressbar:
+        # this relies on an optional dependency, tqdm
+        # if it's not present, just don't try to display a progressbar
+        try:
+            from tqdm import tqdm
+        except ImportError:
+            progressbar = False
+
+    if progressbar:
+        import functools
+        # set up an optional progressbar wrapper
+        iterate_wrapper = functools.partial(tqdm, ncols=80, total=nwaves)
+    else:
+        # null wrapper that does nothing, for no progress bar
+        iterate_wrapper = lambda x: x
+
+    return iterate_wrapper

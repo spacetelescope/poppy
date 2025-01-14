@@ -178,6 +178,9 @@ def test_multiwavelength_opticalsystem():
     assert np.allclose(psf[0].data, output), \
         "Multi-wavelength PSF does not match weighted sum of individual wavelength PSFs"
 
+    # test that it's also possible to display a progress bar for multi wave calculations
+    psf = osys.calc_psf(wavelength=wavelengths, weight=weights, progressbar=True)
+
     return psf
 
 
@@ -573,7 +576,7 @@ def test_source_offsets_in_OpticalSystem(npix=128, fov_size=1, verbose=False):
     and ensure the output PSF appears in the expected location in each case.
 
 
-    Parameters:
+    Parameters
     ----------
     npix : int
         number of pixels
@@ -705,6 +708,63 @@ def test_Detector_pixelscale_units():
             test_det = poppy_core.Detector(pixelscale=20, fov_pixels=1 * u.kiloparsec / u.week)
         assert _exception_message_starts_with(excinfo, "Argument 'fov_pixels' to function"), \
             "Error message not as expected"
+
+
+def test_detector_offsets(plot=False, pixscale=0.01, fov_pixels=100):
+    """Test offsets of a detector.
+
+    It should be the case that:
+    (a) Offsettting the detector shifts the PSF
+    (b) And it does so with an opposite vector to shifting the source.
+    In other words, shifting a source by (+dX,+dY) should look the same as
+    shifting the detector by (-dX, -dY)
+
+    And you can specify the detector offsets in units of pixels or just as floats.
+
+    """
+    source_offset_r = .1
+    for with_units in [True, False]:
+        for offset_theta in [0, 45, 90, 180]:
+
+            # Compute offsets from radial to cartesian coords.
+            # recall astronomy convention is PA=0 is +Y, increasing CCW
+            source_offset_x = -source_offset_r * np.sin(np.deg2rad(offset_theta))  # arcsec
+            source_offset_y = source_offset_r * np.cos(np.deg2rad(offset_theta))
+            print(f"offset theta {offset_theta} is x = {source_offset_x}, y = {source_offset_y}")
+
+            # Create a PSF with a shifted source
+            offset_source_sys = poppy_core.OpticalSystem(npix=1024, oversample=1)
+            offset_source_sys.add_pupil(optics.ParityTestAperture())
+            offset_source_sys.add_detector(pixelscale=pixscale, fov_pixels=fov_pixels, oversample=1) #, offset=(pixscale/2, pixscale/2))
+            # This interface only has r, theta offsets available. Can't use _x, _y offsets here
+            offset_source_sys.source_offset_r = source_offset_r
+            offset_source_sys.source_offset_theta = offset_theta
+            offset_source_psf = offset_source_sys.calc_psf()
+
+            # Create a PSF with a shifted detector, the other way
+            offset_det_sys = poppy_core.OpticalSystem(npix=1024, oversample=1)
+            offset_det_sys.add_pupil(optics.ParityTestAperture())
+
+            det_offset = (-source_offset_y/pixscale, -source_offset_x/pixscale)   # Y, X in pixels
+            if with_units:
+                det_offset = np.asarray(det_offset) * u.pixel
+            offset_det_sys.add_detector(pixelscale=pixscale, fov_pixels=fov_pixels, oversample=1,
+                                        offset=det_offset)
+            offset_det_psf = offset_det_sys.calc_psf()
+
+            if plot:
+                fig, axes = plt.subplots(figsize=(16,9), ncols=3)
+                poppy.display_psf(offset_source_psf, ax=axes[0], crosshairs=True, colorbar=False,
+                                  title=f'Offset Source: {source_offset_x:.3f} arcsec, {source_offset_y:.3f}')
+                poppy.display_psf(offset_det_psf, ax=axes[1], crosshairs=True, colorbar=False,
+                                  title=f'Offset Det: {offset_det_sys.planes[-1].offset[1]:.2f},  {offset_det_sys.planes[-1].offset[0]:.2f} pix')
+                poppy.display_psf_difference(offset_source_psf, offset_det_psf, ax=axes[2],
+                                             title='difference', colorbar=False)
+
+            # Check the equality of the two results from the two above
+            assert np.allclose(offset_source_psf[0].data, offset_det_psf[0].data), "Offset source and offset detector the opposite way should be equivalent"
+
+
 
 
 # Tests for CompoundOpticalSystem

@@ -41,17 +41,17 @@ jobs:
 
           - name: Try minimum supported versions
             os: ubuntu-latest
-            python: '3.9'
-            toxenv: py39-legacy-test
+            python: '3.10'
+            toxenv: py310-legacy-test
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
     - name: Set up Python ${{ matrix.python }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python }}
 
@@ -73,6 +73,6 @@ jobs:
 
     - name: Upload coverage to codecov
       if: ${{ contains(matrix.toxenv,'-cov') }}
-      uses: codecov/codecov-action@v2
+      uses: codecov/codecov-action@v3
       with:
         file: ./coverage.xml

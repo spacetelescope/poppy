@@ -32,7 +32,7 @@ def airy_1d(diameter=1.0, wavelength=1e-6, length=512, pixelscale=0.010,
         Display a plot automatically
 
     Returns
-    --------
+    -------
     r : array
         radius array in arcsec
     airy : array
@@ -106,7 +106,7 @@ def sinc2_2d(width=1.0, height=None, wavelength=1e-6, shape=(512, 512), pixelsca
     Create a 2D sinc function PSF, representing the PSF of a square or rectangular aperture
 
     Parameters
-    -----------
+    ----------
     width : float
         Width in meters of the aperture.
     height : float, optional

@@ -17,7 +17,7 @@ if accel_math._NUMEXPR_AVAILABLE:
 _log = logging.getLogger('poppy')
 
 
-__all__ = ['QuadPhase', 'QuadraticLens', 'FresnelWavefront', 'FresnelOpticalSystem', 
+__all__ = ['QuadPhase', 'QuadraticLens', 'FresnelWavefront', 'FresnelOpticalSystem',
            'FixedSamplingImagePlaneElement']
 
 
@@ -27,7 +27,7 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
     suitable for representing a radially-dependent wavefront curvature.
 
     Parameters
-    -----------------
+    ----------
     z : float or astropy.Quantity of type length
         radius of curvature
     planetype : poppy.PlaneType constant
@@ -36,7 +36,7 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
         Descriptive string name
 
     References
-    -------------------
+    ----------
     Lawrence eq. 88
 
     """
@@ -95,7 +95,7 @@ class _QuadPhaseShifted(QuadPhase):
         """ Return complex phasor, for FFT shifted array
 
         Parameters
-        -----------
+        ----------
         wave : object
             FresnelWavefront instance
         """
@@ -109,7 +109,7 @@ class QuadraticLens(QuadPhase):
     Thin wrapper for QuadPhase
 
     Parameters
-    -----------------
+    ----------
     f_lens : float or astropy.Quantity of type length
         Focal length of this lens
     name : string
@@ -150,7 +150,7 @@ class ConicLens(poppy.optics.CircularAperture):
         Parabolic, elliptical, hyperbolic, or spherical powered optic.
 
         Parameters
-        ----------------
+        ----------
         f_lens : astropy.quantities.Quantity of dimension length
             Focal length of the optic
         K : float
@@ -169,41 +169,41 @@ class ConicLens(poppy.optics.CircularAperture):
 
 class FixedSamplingImagePlaneElement(FITSOpticalElement):
     '''
-    This class allows the definition of focal plane masks using .fits files that will be applied to a 
+    This class allows the definition of focal plane masks using .fits files that will be applied to a
     wavefront via an FFT/MFT sequence to achieve the correct sampling at the assumed focal plane.
-    
+
     This element will only function as an intermediate planetype due to pixelscale and display functionality
-    when propagating to this plane. 
-    Note: if an image planetype were to be used, the wavefront at this plane may have infinite pixelscales, 
+    when propagating to this plane.
+    Note: if an image planetype were to be used, the wavefront at this plane may have infinite pixelscales,
     making it impossible to display the wavefront with extents.
 
-    The method used to apply this element requires additional information from the user that is not required 
-    for FITSOpticalElements. These additional parameters are listed below. 
-    
+    The method used to apply this element requires additional information from the user that is not required
+    for FITSOpticalElements. These additional parameters are listed below.
+
     Parameters not in FITSOpticalElement
-    ----------
-    wavelength_c: astropy.quantity 
-        Central wavelength of the user's system, required in order to 
-        convert the pixelscale to units of lambda/D and scale the 
-        pixelscale of the element based on the wavelength being propagated. If this parameter is left as None, 
+    ------------------------------------
+    wavelength_c: astropy.quantity
+        Central wavelength of the user's system, required in order to
+        convert the pixelscale to units of lambda/D and scale the
+        pixelscale of the element based on the wavelength being propagated. If this parameter is left as None,
         the pixel scale can be read from the FITS header keyword PIXELSCL, if that keyword exists in the provided file.
     entrance_pupil_diam: astropy.quantity
-        Entrance pupil diameter of the system, required to convert the 
-        pixelscale to units of lambda/D. If this parameter is left as None, the pixel scale can be 
-        read from the FITS header keyword PIXELSCL, if that keyword exists in the provided file. 
+        Entrance pupil diameter of the system, required to convert the
+        pixelscale to units of lambda/D. If this parameter is left as None, the pixel scale can be
+        read from the FITS header keyword PIXELSCL, if that keyword exists in the provided file.
     pixelscale: float
-        pixelscale value in units of arcsec/pix. If this parameter is left as None, the pixel scale can be 
+        pixelscale value in units of arcsec/pix. If this parameter is left as None, the pixel scale can be
         read from the FITS header keyword PIXELSCL, if that keyword exists in the provided file.
     centering: str
-        What type of centering to use for the MFTs, see MFT documentation 
+        What type of centering to use for the MFTs, see MFT documentation
         for more information. Default is 'ADJUSTABLE'.
-        
+
     '''
     def __init__(self, name="unnamed FPM element", transmission=None, opd=None, opdunits=None,
                  planetype=PlaneType.intermediate,
                  wavelength_c=None, entrance_pupil_diam=None, pixelscale=None, centering='ADJUSTABLE',
                  **kwargs):
-        
+
         FITSOpticalElement.__init__(self, name=name, transmission=transmission, opd=opd, opdunits=opdunits,
                                     planetype=planetype, **kwargs)
 
@@ -269,7 +269,7 @@ class FresnelWavefront(BaseWavefront):
 
 
         Parameters
-        --------------------
+        ----------
         beam_radius : astropy.Quantity of type length
             Radius of the illuminated beam at the initial optical plane.
             I.e. this would be the pupil aperture radius in an entrance pupil.
@@ -282,7 +282,7 @@ class FresnelWavefront(BaseWavefront):
 
 
         References
-        -------------------
+        ----------
         - Lawrence, G. N. (1992), Optical Modeling, in Applied Optics and Optical Engineering., vol. XI,
             edited by R. R. Shannon and J. C. Wyant., Academic Press, New York.
 
@@ -443,7 +443,7 @@ class FresnelWavefront(BaseWavefront):
         The gaussian beam radius of curvature as a function of distance z
 
         Parameters
-        -------------
+        ----------
         z : float, optional
             Distance along the optical axis.
             If not specified, the wavefront's current z coordinate will
@@ -466,7 +466,7 @@ class FresnelWavefront(BaseWavefront):
         radius of a propagating gaussian wavefront, at a distance z
 
         Parameters
-        -------------
+        ----------
         z : float, optional
             Distance along the optical axis.
             If not specified, the wavefront's current z coordinate will
@@ -488,7 +488,7 @@ class FresnelWavefront(BaseWavefront):
         plane wavefront
 
         Parameters
-        ------------
+        ----------
         x, y : array_like
             pixel indices
         pixelscale : float or 2-tuple of floats
@@ -645,7 +645,7 @@ class FresnelWavefront(BaseWavefront):
         Transformations from any frame through a rotation plane simply rotate the wavefront accordingly.
 
         Parameters
-        -----------
+        ----------
         optic : OpticalElement
             The optic to propagate to. Used for determining the appropriate optical plane.
         distance : astropy.Quantity of dimension length
@@ -721,9 +721,9 @@ class FresnelWavefront(BaseWavefront):
         wavelen_m = self.wavelength.to(u.m).value
 
         if accel_math._USE_NUMEXPR:
-            exp_t = ne.evaluate("exp(-1.0j * pi * wavelen_m * (z_direct) * rhosqr)")
+            exp_t = ne.evaluate("exp(-1j * pi * wavelen_m * (z_direct) * rhosqr)")
         else:
-            exp_t = xp.exp(-1.0j * np.pi * wavelen_m * z_direct * rhosqr)
+            exp_t = xp.exp(-1j * np.pi * wavelen_m * z_direct * rhosqr)
 
         self._fft()
 
@@ -743,7 +743,7 @@ class FresnelWavefront(BaseWavefront):
         ending position will be outside of that.
 
         Parameters
-        -----------
+        ----------
         dz :  float
             the distance from the current location to propagate the beam.
 
@@ -823,7 +823,7 @@ class FresnelWavefront(BaseWavefront):
         Returns True if the input range z is within the Rayleigh range of the waist.
 
         Parameters
-        -----------
+        ----------
         z : float
             distance from the beam waist
 
@@ -909,7 +909,7 @@ class FresnelWavefront(BaseWavefront):
             return self
         elif isinstance(optic, FixedSamplingImagePlaneElement):
             # Special case: if we have an FPM, call the routine for that,
-            # which will apply an amplitude transmission to the wavefront. 
+            # which will apply an amplitude transmission to the wavefront.
             self.apply_image_plane_fftmft(optic)
             return self
         else:
@@ -1045,16 +1045,16 @@ class FresnelWavefront(BaseWavefront):
     def apply_image_plane_fftmft(self, optic):
         """
         Apply a focal plane mask using fft and mft methods to highly sample at the focal plane.
-        
+
         Parameters
         ----------
         optic : FixedSamplingImagePlaneElement
 
         """
         _log.debug("------ Applying FixedSamplingImagePlaneElement using FFT and MFT sequence ------")
-        
+
         # readjust pixelscale to wavelength being propagated
-        fpm_pxscl_lamD = ( optic.pixelscale_lamD * optic.wavelength_c.to(u.meter) / self.wavelength.to(u.meter) ).value 
+        fpm_pxscl_lamD = ( optic.pixelscale_lamD * optic.wavelength_c.to(u.meter) / self.wavelength.to(u.meter) ).value
 
         # get the fpm phasor either using numexpr or numpy
         scale = 2. * np.pi / self.wavelength.to(u.meter).value
@@ -1062,14 +1062,14 @@ class FresnelWavefront(BaseWavefront):
             _log.debug("Calculating FPM phasor from numexpr.")
             trans = optic.get_transmission(self)
             opd = optic.get_opd(self)
-            fpm_phasor = ne.evaluate("trans * exp(1.j * opd * scale)")
+            fpm_phasor = ne.evaluate("trans * exp(1j * opd * scale)")
         else:
             _log.debug("Calculating FPM phasor with Numpy/CuPy.")
-            fpm_phasor = optic.get_transmission(self) * xp.exp(1.j * optic.get_opd(self) * scale)
-        
+            fpm_phasor = optic.get_transmission(self) * xp.exp(1j * optic.get_opd(self) * scale)
+
         nfpm = fpm_phasor.shape[0]
         n = self.wavefront.shape[0]
-        
+
         nfpmlamD = nfpm*fpm_pxscl_lamD*self.oversample
 
         mft = poppy.matrixDFT.MatrixFourierTransform(centering=optic.centering)
@@ -1081,7 +1081,7 @@ class FresnelWavefront(BaseWavefront):
         self.wavefront = mft.inverse(self.wavefront, nfpmlamD, n) # MFT to virtual pupil
         self.wavefront = accel_math.fft_2d(self.wavefront, forward=True, fftshift=True) # FFT back to focal plane
         self.wavefront = accel_math._fftshift(self.wavefront)
-        
+
         _log.debug("------ FixedSamplingImagePlaneElement: " + str(optic.name) + " applied ------")
 
     def _resample_wavefront_pixelscale(self, detector):
@@ -1169,7 +1169,7 @@ class FresnelOpticalSystem(BaseOpticalSystem):
     arbitrary optical planes rather than just pupil and image planes.
 
     Parameters
-    -------------
+    ----------
     name : string
         descriptive name of optical system
     pupil_diameter : astropy.Quantity of dimension length
@@ -1200,7 +1200,7 @@ class FresnelOpticalSystem(BaseOpticalSystem):
         """ Add an optic to the optical system
 
         Parameters
-        ---------------
+        ----------
         optic : OpticalElement instance
             Some optic
         distance : astropy.Quantity of dimension length

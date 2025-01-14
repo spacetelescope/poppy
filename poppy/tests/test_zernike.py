@@ -65,8 +65,8 @@ def _test_cross_zernikes(testj=4, nterms=10, npix=500):
     """Verify the functions are orthogonal, by taking the
     integrals of a given Zernike times N other ones.
 
-    Parameters :
-    --------------
+    Parameters
+    ----------
     testj : int
         Index of the Zernike polynomial to test against the others
     nterms : int
@@ -109,8 +109,8 @@ def _test_cross_hexikes(testj=4, nterms=10, npix=500):
 
     This is a helper function for test_cross_hexike.
 
-    Parameters :
-    --------------
+    Parameters
+    ----------
     testj : int
         Index of the Zernike polynomial to test against the others
     nterms : int
@@ -168,8 +168,8 @@ def _test_cross_arbitrary_basis(testj=4, nterms=10, npix=500):
 
     This is a helper function for test_cross_arbitrary_basis.
 
-    Parameters :
-    --------------
+    Parameters
+    ----------
     testj : int
         Index of the Zernike-like polynomial to test against the others
     nterms : int
