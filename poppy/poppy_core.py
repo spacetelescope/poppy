@@ -177,8 +177,8 @@ class BaseWavefront(ABC):
         phasor = optic.get_phasor(self)
 
         if not np.isscalar(phasor) and phasor.size > 1:
-            assert self.wavefront.shape == phasor.shape, "Phasor shape {} does not match wavefront shape {}".format(
-                phasor.shape, self.wavefront.shape)
+            assert self.wavefront.shape[-2:] == phasor.shape, "Phasor shape {} does not match wavefront shape {}".format(
+                phasor.shape, self.wavefront.shape) # only compare spatial dimensions
 
         self.wavefront *= phasor
         msg = "  Multiplied WF by phasor for " + str(optic)
@@ -719,7 +719,7 @@ class BaseWavefront(ABC):
     @property
     def shape(self):
         """ Shape of the wavefront array"""
-        return self.wavefront.shape
+        return self.wavefront.shape[-2:] # only include spatial dimensions
 
     @property
     def dtype(self):
