@@ -117,6 +117,7 @@ from . import optics
 from . import misc
 from . import fresnel
 from . import physical_wavefront
+from . import vector_wavefront
 from . import wfe
 from . import dms
 from . import active_optics
@@ -127,6 +128,7 @@ from .optics import *
 from .wfe import *
 from .fresnel import *
 from .physical_wavefront import *
+from .vector_wavefront import *
 from .special_prop import *
 from .dms import *
 from .active_optics import *
