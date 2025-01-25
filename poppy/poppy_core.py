@@ -38,6 +38,7 @@ class PlaneType(enum.Enum):
     rotation = 4  # coordinate system rotation
     intermediate = 5  # arbitrary plane between pupil and image
     inversion = 6  # coordinate system inversion (flip axes, e.g. like going through focus)
+    polarizer = 7
 
 
 _PUPIL = PlaneType.pupil
@@ -45,6 +46,7 @@ _IMAGE = PlaneType.image
 _DETECTOR = PlaneType.detector  # specialized type of image plane
 _ROTATION = PlaneType.rotation  # not a real optic, just a coordinate transform
 _INTERMED = PlaneType.intermediate  # for Fresnel propagation
+_POLARIZER = PlaneType.polarizer # for vector diffraction
 
 _RADIANStoARCSEC = 180. * 60 * 60 / np.pi
 
@@ -175,6 +177,11 @@ class BaseWavefront(ABC):
             return self
 
         phasor = optic.get_phasor(self)
+
+        if optic.planetype == _POLARIZER:
+            # TO DO: this skips spatial shapes, which could matter for spatial jones matrix element...
+            self.wavefront =  np.einsum('lm...,m...->l...', phasor, self.wavefront) # should handle both vector and tensor fields
+            return self
 
         if not np.isscalar(phasor) and phasor.size > 1:
             assert self.wavefront.shape[-2:] == phasor.shape, "Phasor shape {} does not match wavefront shape {}".format(
