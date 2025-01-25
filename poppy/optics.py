@@ -27,7 +27,8 @@ __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'ScalarOpticalPathDif
            'HexagonAperture', 'MultiHexagonAperture', 'NgonAperture', 'MultiCircularAperture',
            'KeystoneSegmentedCircularAperture', 'RectangleAperture',
            'SquareAperture', 'SecondaryObscuration', 'LetterFAperture', 'AsymmetricSecondaryObscuration',
-           'ThinLens',  'GaussianAperture', 'KnifeEdge', 'TiltOpticalPathDifference', 'CompoundAnalyticOptic', 'fixed_sampling_optic']
+           'ThinLens',  'GaussianAperture', 'KnifeEdge', 'TiltOpticalPathDifference', 'CompoundAnalyticOptic', 'fixed_sampling_optic',
+           'PolarizationOpticalElement', 'LinearPolarizer', 'LinearPhaseRetarder', 'QuarterWavePlate', 'HalfWavePlate', 'JonesMatrixOpticalElement']
 
 # ------ Generic Analytic elements -----
 
@@ -2283,6 +2284,137 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
 
         self.opd = opd
         return self.opd
+    
+
+# ------ polarization optics --------
+
+class PolarizationOpticalElement(AnalyticOpticalElement):
+    """ Abstract class for defining polarization optics.
+    """
+
+    def __init__(self, **kwargs):
+        AnalyticOpticalElement.__init__(self, planetype=PlaneType.polarizer, **kwargs)
+
+    def get_phasor(self, wave):
+        return self.get_jones_matrix(wave)
+    
+    def get_jones_matrix(self, wave):
+        raise NotImplementedError
+
+class LinearPolarizer(PolarizationOpticalElement):
+    """ Defines a linear polarizer
+
+    Parameters
+    ----------
+    name : string
+        Descriptive name
+    angle: float
+        Polarization axis angle, in radians.
+    extinction : float
+        NOT IMPLEMENTED: Extinction ratio. Default is infinite (perfect linear polarizer).
+    """
+
+    def __init__(self, name=None, angle=0, extinction=xp.inf):
+        if name is None:
+            name = "Linear polarizer"
+        self.angle = angle
+        self.extinction = extinction
+        PolarizationOpticalElement.__init__(self, name=name)
+
+    def get_jones_matrix(self, wave):
+        """ Compute the 2x2 jones matrix for the linear polarizer
+        """
+        cth = xp.cos(self.angle)
+        sth = xp.sin(self.angle)
+        self.jones_matrix = xp.asarray([[cth**2,  sth*cth],
+                                        [sth*cth, sth**2]])
+        #self.jones_matrix = xp.asarray([[1, 0],
+        #                                [0, 1./self.extinction]])
+        return self.jones_matrix
+    
+class LinearPhaseRetarder(PolarizationOpticalElement):
+    """ Defines a general linear phase retarder
+
+    Parameters
+    ----------
+    name : string
+        Descriptive name
+    phase : float
+        Phase retardance, in radians
+    angle: float
+        Fast axis angle, in radians.
+    """
+
+    def __init__(self, phase, angle, name=None):
+        if name is None:
+            name = "Linear phase retarder"
+        self.angle = angle
+        self.phase = phase
+        PolarizationOpticalElement.__init__(self, name=name)
+
+    def get_jones_matrix(self, wave):
+        """ Compute the 2x2 jones matrix for the linear phase retarder
+        """
+        cth = xp.cos(self.angle)
+        sth = xp.sin(self.angle)
+        ph = self.phase
+        eiph = xp.exp(1j*ph)
+        self.jones_matrix = xp.asarray([[cth**2 + eiph*sth**2, (1 - eiph)*sth*cth],
+                                        [(1 - eiph)*sth*cth, sth**2 + eiph*cth**2]]) * xp.exp(-1j*ph)
+        return self.jones_matrix
+    
+class QuarterWavePlate(LinearPhaseRetarder):
+    """ Defines a quarter wave plate
+
+    Parameters
+    ----------
+    name : string
+        Descriptive name
+    angle: float
+        Fast axis angle, in radians.
+    """
+
+    def __init__(self, name=None, angle=0):
+        if name is None:
+            name = "Quarter wave plate"
+        LinearPhaseRetarder.__init__(self,  np.pi/2, angle, name=name,)
+
+class HalfWavePlate(LinearPhaseRetarder):
+    """ Defines a half wave plate
+
+    Parameters
+    ----------
+    name : string
+        Descriptive name
+    angle: float
+        Fast axis angle, in radians.
+    """
+
+    def __init__(self, name=None, angle=0):
+        if name is None:
+            name = "Half wave plate"
+        LinearPhaseRetarder.__init__(self, np.pi, angle, name=name,)
+
+class JonesMatrixOpticalElement(PolarizationOpticalElement):
+    """ Defines a general polarization optical element defined by a Jones matrix.
+
+    Parameters
+    ----------
+    name : string
+        Descriptive name
+    jones_matrix : array-like
+        A 2x2 complex array for a uniform Jones matrix, or else a 2x2xYxX complex
+        array to represent a spatially-varying Jones matrix
+    """
+
+    def __init__(self, jones_matrix, name=None):
+        if name is None:
+            name = "Jones matrix"
+        self.jones_matrix = jones_matrix
+        PolarizationOpticalElement.__init__(self, name=name)
+
+    def get_jones_matrix(self, wave):
+        return self.jones_matrix
 
 # ------ convert analytic optics to array optics ------
 
