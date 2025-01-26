@@ -38,15 +38,12 @@ class PlaneType(enum.Enum):
     rotation = 4  # coordinate system rotation
     intermediate = 5  # arbitrary plane between pupil and image
     inversion = 6  # coordinate system inversion (flip axes, e.g. like going through focus)
-    polarizer = 7
-
 
 _PUPIL = PlaneType.pupil
 _IMAGE = PlaneType.image
 _DETECTOR = PlaneType.detector  # specialized type of image plane
 _ROTATION = PlaneType.rotation  # not a real optic, just a coordinate transform
 _INTERMED = PlaneType.intermediate  # for Fresnel propagation
-_POLARIZER = PlaneType.polarizer # for vector diffraction
 
 _RADIANStoARCSEC = 180. * 60 * 60 / np.pi
 
@@ -178,8 +175,10 @@ class BaseWavefront(ABC):
 
         phasor = optic.get_phasor(self)
 
-        if optic.planetype == _POLARIZER:
-            # TO DO: this skips spatial shapes, which could matter for spatial jones matrix element...
+        if isinstance(optic, PolarizationOpticalElement):
+            # TO DO: this skips check of spatial shapes below, which could matter for spatial jones matrix element...
+            # TO DO: add check to see if you're multiplying polarization optic against scalar WF (or vice versa)?
+            # ^ this is a little tricky because polarization optics can be 2x2 or 2x2xYxX, so it's not as simple as checking ndim
             self.wavefront =  np.einsum('lm...,m...->l...', phasor, self.wavefront) # should handle both vector and tensor fields
             return self
 
@@ -3250,6 +3249,23 @@ class FITSOpticalElement(OpticalElement):
         if self._opd_in_radians:
             return xp.asarray(self.opd * wavelength.to(u.m).value / (2 * np.pi))
         return xp.asarray(self.opd)
+    
+class PolarizationOpticalElement(OpticalElement):
+    """ Abstract class for defining polarization optics.
+
+    TO DO:
+    * Add a check that PolarizationOpticalElements are interacting with PolarizedWavefronts
+    (i.e., reject interactions with Wavefront or FresnelWavefront objects)
+    """
+
+    def __init__(self, **kwargs):
+        OpticalElement.__init__(self, **kwargs)
+
+    def get_phasor(self, wave):
+        return self.get_jones_matrix(wave)
+    
+    def get_jones_matrix(self, wave):
+        raise NotImplementedError
 
 
 class CoordinateTransform(OpticalElement):

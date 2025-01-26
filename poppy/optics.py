@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 
 from . import utils
 from . import conf
-from .poppy_core import OpticalElement, Wavefront, BaseWavefront, PlaneType, _RADIANStoARCSEC
+from .poppy_core import OpticalElement, PolarizationOpticalElement, Wavefront, BaseWavefront, PlaneType, _RADIANStoARCSEC
 from . import geometry
 
 from . import accel_math
@@ -2287,19 +2287,6 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
     
 
 # ------ polarization optics --------
-
-class PolarizationOpticalElement(AnalyticOpticalElement):
-    """ Abstract class for defining polarization optics.
-    """
-
-    def __init__(self, **kwargs):
-        AnalyticOpticalElement.__init__(self, planetype=PlaneType.polarizer, **kwargs)
-
-    def get_phasor(self, wave):
-        return self.get_jones_matrix(wave)
-    
-    def get_jones_matrix(self, wave):
-        raise NotImplementedError
 
 class LinearPolarizer(PolarizationOpticalElement):
     """ Defines a linear polarizer
