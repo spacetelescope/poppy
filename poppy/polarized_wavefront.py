@@ -1,0 +1,192 @@
+import numpy as np
+import astropy.units as u
+
+from poppy.poppy_core import Wavefront
+from poppy.fresnel import FresnelWavefront
+
+from . import accel_math
+from .accel_math import xp, ensure_not_on_gpu
+
+if accel_math._NUMEXPR_AVAILABLE:
+    import numexpr as ne
+    pi = np.pi  # needed for evaluation inside numexpr strings.
+
+__all__ = ['PolarizedWavefront', 'PolarizedFresnelWavefront']
+
+class PolarizedWavefront(Wavefront):
+    '''
+    This class extends the Wavefront class to handle Fraunhofer propagation of
+    fully- and partially-polarized wavefronts.
+
+    Parameters not in Wavefront
+    ----------
+    input_stokes_vector : list-like
+        4-element list of stokes parameters for partially-polarized wavefronts.
+        If given, the PolarizedWavefront is a 2x2xYxX tensor. If None (default), a linearly polarized
+        wavefront is assumed (see input_polarization argument).
+    input_polarization: list-like
+        2-element list of input polarization for fully-polarized 2xYxX vector wavefronts.
+        (1,0) is an x-polarized field; (0,1) is y-polarized; (1,i) is circular-polarized, etc.
+        Ignored if input_stokes_vector is supplied. Default is (1,0).
+    '''
+
+    def __init__(self,
+                 input_stokes_vector=None,
+                 input_polarization=(1,0),
+                 **kwargs):
+        super(PolarizedWavefront, self).__init__(
+            **kwargs
+        )
+        # TO DO: clean up the logic of checking which is specified and handling appropriately
+        self.input_stokes_vector = input_stokes_vector
+        self.input_polarization = input_polarization
+        self.pol_type = None
+
+        if input_stokes_vector is not None: # wavefront tensor
+            self.input_polarization = None
+            self.pol_type = 'tensor'
+            self.wavefront = self.wavefront * xp.eye(2)[:, :, xp.newaxis, xp.newaxis]
+        elif input_polarization is not None: # wavefront vector
+            self.pol_type = 'vector'
+            self.wavefront = self.wavefront * xp.asarray(input_polarization)[:, xp.newaxis, xp.newaxis]
+        else:
+            raise ValueError('Either input_stokes_vector or input_polarization must be specified! For scalar diffraction, use Wavefront or FresnelWavefront.')
+
+    @property
+    def intensity(self):
+        """Electric field intensity of the wavefront, accounting for polarization"""
+
+        if self.pol_type == 'vector':
+            if accel_math._USE_NUMEXPR:
+                w = self.wavefront
+                return ne.evaluate("sum(real(abs(w))**2, 0)")
+            else:
+                return np.abs(self.wavefront) ** 2
+        elif self.pol_type == 'tensor':
+            return self.stokes_parameters[0] # I element of stokes parameters (I,Q,U,V)
+        else:
+            raise ValueError(f'pol_type must be either "vector" or "tensor". Got {self.pol_type} instead.')
+
+    @property
+    def stokes_parameters(self):
+        """ Stokes parameters of the wavefront (only valid when stokes_vector is provided)"""
+        if self.input_stokes_vector is None:
+            raise ValueError('Stokes parameters cannot be computed unless input_stokes_vector is supplied!')
+        return jones_to_mueller(self.wavefront, self.input_stokes_vector)
+
+class PolarizedFresnelWavefront(FresnelWavefront):
+    '''
+    This class extends the FresnelWavefront class to handle Fresnel propagation of
+    fully- and partially-polarized wavefronts.
+
+    Parameters not in FresnelWavefront
+    ----------
+    input_stokes_vector : list-like
+        4-element list of stokes parameters for partially-polarized wavefronts.
+        If given, the PolarizedFresnelWavefront is a 2x2xYxX tensor. If None (default), a linearly polarized
+        wavefront is assumed (see input_polarization argument).
+    input_polarization: list-like
+        2-element list of input polarization for fully-polarized 2xYxX vector wavefronts.
+        (1,0) is an x-polarized field; (0,1) is y-polarized; (1,i) is circular-polarized, etc.
+        Ignored if input_stokes_vector is supplied. Default is (1,0).
+    '''
+
+    def __init__(self,
+                 beam_radius,
+                 units=u.m,
+                 rayleigh_factor=2.0,
+                 oversample=2,
+                 input_stokes_vector=None,
+                 input_polarization=(1,0),
+                 **kwargs):
+        super(PolarizedFresnelWavefront, self).__init__(
+            beam_radius=beam_radius,
+            units=units,
+            rayleigh_factor=rayleigh_factor,
+            oversample=oversample,
+            **kwargs
+        )
+        # TO DO: clean up the logic of checking which is specified and handling appropriately
+        self.input_stokes_vector = input_stokes_vector
+        self.input_polarization = input_polarization
+        self.pol_type = None
+
+        if input_stokes_vector is not None: # wavefront tensor
+            self.input_polarization = None
+            self.pol_type = 'tensor'
+            self.wavefront = self.wavefront * xp.eye(2)[:, :, xp.newaxis, xp.newaxis]
+        elif input_polarization is not None: # wavefront vector
+            self.pol_type = 'vector'
+            self.wavefront = self.wavefront * xp.asarray(input_polarization)[:, xp.newaxis, xp.newaxis]
+        else:
+            raise ValueError('Either input_stokes_vector or input_polarization must be specified! For scalar diffraction, use Wavefront or FresnelWavefront.')
+
+    @property
+    def intensity(self):
+        """Electric field intensity of the wavefront, accounting for polarization"""
+
+        if self.pol_type == 'vector':
+            if accel_math._USE_NUMEXPR:
+                w = self.wavefront
+                return ne.evaluate("sum(real(abs(w))**2, 0)")
+            else:
+                return np.abs(self.wavefront) ** 2
+        elif self.pol_type == 'tensor':
+            return self.stokes_parameters[0] # I element of stokes parameters (I,Q,U,V)
+        else:
+            raise ValueError(f'pol_type must be either "vector" or "tensor". Got {self.pol_type} instead.')
+
+    @property
+    def stokes_parameters(self):
+        """ Stokes parameters of the wavefront (only valid when stokes_vector is provided)"""
+        if self.input_stokes_vector is None:
+            raise ValueError('Stokes parameters cannot be computed unless input_stokes_vector is supplied!')
+        return jones_to_mueller(self.wavefront, self.input_stokes_vector)
+    
+def jones_to_mueller(jones_matrix, input_stokes_vector):
+    """ Convert 2x2 Jones matrix to Stokes parameters
+    
+    Based on Eqn A4.13, Spectroscopic Ellipsometry: Principles and Applications H. Fujiwara
+    """
+    shape = jones_matrix.shape
+    j = jones_matrix.reshape((4,*shape[-2:]))
+    jc = j.conj()
+    e = j * jc
+
+    # M = np.asarray([[0.5*(e[0] + e[1] + e[2] + e[3]), 0.5*(e[0] - e[1] - e[2] + e[3]), (j[0]*jc[2]).real + (j[3]*jc[1]).real, -(jc[0]*j[2]).imag - (jc[3]*j[1]).imag],
+    #                 [0.5*(e[0] - e[1] + e[2] - e[3]), 0.5*(e[0] + e[1] - e[2] - e[3]), (j[0]*jc[2]).real - (j[3]*jc[1]).real, -(jc[0]*j[2]).imag + (jc[3]*j[1]).imag],
+    #                 [(j[0]*jc[3]).real + (j[2]*jc[1]).real, (j[0]*jc[3]).real - (j[2]*jc[1]).real, (j[0]*jc[1]).real + (j[2]*jc[3]).real, -(jc[0]*j[1]).imag + (jc[2]*j[3]).imag],
+    #                 [(jc[0]*j[3]).imag + (jc[2]*j[1]).imag, (jc[0]*j[3]).imag - (jc[2]*j[1]).imag, (jc[0]*j[1]).imag + (jc[2]*j[3]).imag, (j[0]*jc[1]).real - (j[2]*jc[3]).real]])
+    
+    e0, e1, e2, e3 = e
+    j0, j1, j2, j3 = j
+    jc0, jc1, jc2, jc3 = jc
+
+    # construct the Mueller matrix
+    # row 1
+    M00 = ne.evaluate('0.5*(e0 + e1 + e2 + e3)')
+    M01 = ne.evaluate('0.5*(e0 - e1 - e2 + e3)')
+    M02 = ne.evaluate('(j0*jc2).real + (j3*jc1).real')
+    M03 = ne.evaluate('-(jc0*j2).imag - (jc3*j1).imag')
+    # row 2
+    M10 = ne.evaluate('0.5*(e0 - e1 + e2 - e3)')
+    M11 = ne.evaluate('0.5*(e0 + e1 - e2 - e3)')
+    M12 = ne.evaluate('(j0*jc2).real - (j3*jc1).real')
+    M13 = ne.evaluate('-(jc0*j2).imag + (jc3*j1).imag')
+    # row 3
+    M20 = ne.evaluate('(j0*jc3).real + (j2*jc1).real')
+    M21 = ne.evaluate('(j0*jc3).real - (j2*jc1).real')
+    M22 = ne.evaluate('(j0*jc1).real + (j2*jc3).real')
+    M23 = ne.evaluate('-(jc0*j1).imag + (jc2*j3).imag')
+    # row 4
+    M30 = ne.evaluate('(jc0*j3).imag + (jc2*j1).imag')
+    M31 = ne.evaluate('(jc0*j3).imag - (jc2*j1).imag')
+    M32 = ne.evaluate('(jc0*j1).imag + (jc2*j3).imag')
+    M33 = ne.evaluate('(j0*jc1).real - (j2*jc3).real')
+
+    M = np.asarray([[M00, M01, M02, M03],
+                    [M10, M11, M12, M13],
+                    [M20, M21, M22, M23],
+                    [M30, M31, M32, M33]])
+
+    return xp.einsum('i...,i...', M, input_stokes_vector).real
