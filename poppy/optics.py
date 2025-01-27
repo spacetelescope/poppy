@@ -2347,7 +2347,7 @@ class LinearPhaseRetarder(PolarizationOpticalElement):
         ph = self.phase
         eiph = xp.exp(1j*ph)
         self.jones_matrix = xp.asarray([[cth**2 + eiph*sth**2, (1 - eiph)*sth*cth],
-                                        [(1 - eiph)*sth*cth, sth**2 + eiph*cth**2]]) * xp.exp(-1j*ph)
+                                        [(1 - eiph)*sth*cth, sth**2 + eiph*cth**2]]) * xp.exp(-1j*ph/2)
         return self.jones_matrix
     
 class QuarterWavePlate(LinearPhaseRetarder):
