@@ -142,7 +142,7 @@ def _fftshift(x, axes=(-2,-1)):
 
     See also ifftshift
     """
-    return xp.fft.fftshift(x, axes=(-2,-1))
+    return xp.fft.fftshift(x, axes=axes)
 
 def _ifftshift(x, axes=(-2,-1)):
     """ Inverse FFT shifts of array contents, using CUDA if available.
@@ -160,7 +160,7 @@ def _ifftshift(x, axes=(-2,-1)):
     See also fftshift
     """
 
-    return xp.fft.ifftshift(x, axes=(-2,-1))
+    return xp.fft.ifftshift(x, axes=axes)
 
 
 
@@ -236,7 +236,7 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
 
         context, queue = get_opencl_context()
         wf_on_gpu = pyopencl.array.to_device(queue, wavefront)
-        transform = gpyfft.fft.FFT(context, queue, wf_on_gpu, axes=(0,1))
+        transform = gpyfft.fft.FFT(context, queue, wf_on_gpu, axes=(-2,-1))
         event, = transform.enqueue(forward=forward)
         event.wait()
         wavefront[:] = wf_on_gpu.get()
