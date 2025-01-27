@@ -131,7 +131,7 @@ def _exp(x):
     else:
         return np.exp(x)
 
-def _fftshift(x):
+def _fftshift(x, axes=(-2,-1)):
     """ FFT shifts of array contents, using CUDA/CuPY if available.
     Otherwise defaults to numpy.
 
@@ -142,9 +142,9 @@ def _fftshift(x):
 
     See also ifftshift
     """
-    return xp.fft.fftshift(x)
+    return xp.fft.fftshift(x, axes=(-2,-1))
 
-def _ifftshift(x):
+def _ifftshift(x, axes=(-2,-1)):
     """ Inverse FFT shifts of array contents, using CUDA if available.
     Otherwise defaults to numpy.
     Note, ifftshift and fftshift are identical for even-length x,
@@ -160,7 +160,7 @@ def _ifftshift(x):
     See also fftshift
     """
 
-    return xp.fft.ifftshift(x)
+    return xp.fft.ifftshift(x, axes=(-2,-1))
 
 
 
@@ -188,8 +188,8 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         vice versa. This is to have a positive sign in the exponent for forward propagations.
         See sign convention documentation.
     normalization : float, optional
-        Normalization factor. Defaults to 1./wavefront.shape[0] for forward,
-        and wavefront.shape[0] for inverse. Use this only if you need a non-default
+        Normalization factor. Defaults to 1./wavefront.shape[-1] for forward,
+        and wavefront.shape[-1] for inverse. Use this only if you need a non-default
         behavior.
     fftshift : bool
         apply FFT shift after forwards propagation or before inverse propagation?
@@ -202,7 +202,7 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
     t0 = time.time()
 
     # OpenCL cfFFT only can FFT certain array sizes.
-    if _USE_OPENCL and not isproductofsmallprimes(wavefront.shape[0]):
+    if _USE_OPENCL and not isproductofsmallprimes(wavefront.shape[-1]):
         _log.debug(("Wavefront size {} not supported by OpenCL, therefore disabling "+
             "USE_OPENCL for this calculation.").format(wavefront.shape))
         _USE_OPENCL = False
@@ -232,7 +232,7 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
     t1 = time.time()
     if _USE_OPENCL:
         if normalization is None:
-            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
+            normalization = 1./wavefront.shape[-1] if forward else wavefront.shape[-1]
 
         context, queue = get_opencl_context()
         wf_on_gpu = pyopencl.array.to_device(queue, wavefront)
@@ -245,21 +245,21 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
     elif _USE_CUPY:
         do_fft = cp.fft.fft2 if forward else cp.fft.ifft2
         if normalization is None:
-            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
+            normalization = 1./wavefront.shape[-1] if forward else wavefront.shape[-1]
         wavefront = do_fft(wavefront)
 
     elif _USE_MKL:
         # Intel MKL is a drop-in replacement for numpy fft but much faster
         do_fft = mkl_fft.fft2 if forward else mkl_fft.ifft2
         if normalization is None:
-            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
+            normalization = 1./wavefront.shape[-1] if forward else wavefront.shape[-1]
         wavefront = do_fft(wavefront)
 
     elif _USE_FFTW:
         FFT_direction = 'forward' if forward else 'backward' # back compatible for use in _FFTW_INIT
         do_fft = pyfftw.interfaces.numpy_fft.fft2 if forward else pyfftw.interfaces.numpy_fft.ifft2
         if normalization is None:
-            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
+            normalization = 1./wavefront.shape[-1] if forward else wavefront.shape[-1]
 
 
         if (wavefront.shape, FFT_direction) not in _FFTW_INIT:
@@ -283,7 +283,7 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
     else: # Basic numpy FFT
         do_fft =  np.fft.fft2 if forward else np.fft.ifft2
         if normalization is None:
-            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
+            normalization = 1./wavefront.shape[-1] if forward else wavefront.shape[-1]
         wavefront = do_fft(wavefront)
     t2 = time.time()
 
