@@ -1,7 +1,17 @@
+'''
+TO DO:
+* resolve all TO DOs or NOT IMPLEMENTEDs
+* write display code for polarization optics and polarized wavefronts
+* finish writing tests
+* figure out padding issue
+* create polarization coronagraph masks
+* put together examples using Fraun+Fresnel prop, complicated optical system
+'''
+
 import numpy as np
 import astropy.units as u
 
-from poppy.poppy_core import Wavefront
+from poppy.poppy_core import Wavefront, BaseWavefront
 from poppy.fresnel import FresnelWavefront
 
 from . import accel_math
@@ -13,12 +23,11 @@ if accel_math._NUMEXPR_AVAILABLE:
 
 __all__ = ['PolarizedWavefront', 'PolarizedFresnelWavefront']
 
-class PolarizedWavefront(Wavefront):
+class BasePolarizedWavefront(BaseWavefront):
     '''
-    This class extends the Wavefront class to handle Fraunhofer propagation of
-    fully- and partially-polarized wavefronts.
+    Base class for polarized wavefronts, not intended for direct use.
 
-    Parameters not in Wavefront
+    Parameters not in BaseWavefront
     ----------
     input_stokes_vector : list-like
         4-element list of stokes parameters for partially-polarized wavefronts.
@@ -34,7 +43,7 @@ class PolarizedWavefront(Wavefront):
                  input_stokes_vector=None,
                  input_polarization=(1,0),
                  **kwargs):
-        super(PolarizedWavefront, self).__init__(
+        super(BasePolarizedWavefront, self).__init__(
             **kwargs
         )
         # TO DO: clean up the logic of checking which is specified and handling appropriately
@@ -72,9 +81,36 @@ class PolarizedWavefront(Wavefront):
         """ Stokes parameters of the wavefront (only valid when stokes_vector is provided)"""
         if self.input_stokes_vector is None:
             raise ValueError('Stokes parameters cannot be computed unless input_stokes_vector is supplied!')
-        return jones_to_mueller(self.wavefront, self.input_stokes_vector)
+        return jones_to_stokes(self.wavefront, self.input_stokes_vector)
 
-class PolarizedFresnelWavefront(FresnelWavefront):
+class PolarizedWavefront(BasePolarizedWavefront, Wavefront):
+    '''
+    This class extends the Wavefront class to handle Fraunhofer propagation of
+    fully- and partially-polarized wavefronts.
+
+    Parameters not in Wavefront
+    ----------
+    input_stokes_vector : list-like
+        4-element list of stokes parameters for partially-polarized wavefronts.
+        If given, the PolarizedWavefront is a 2x2xYxX tensor. If None (default), a linearly polarized
+        wavefront is assumed (see input_polarization argument).
+    input_polarization: list-like
+        2-element list of input polarization for fully-polarized 2xYxX vector wavefronts.
+        (1,0) is an x-polarized field; (0,1) is y-polarized; (1,i) is circular-polarized, etc.
+        Ignored if input_stokes_vector is supplied. Default is (1,0).
+    '''
+
+    def __init__(self,
+                 input_stokes_vector=None,
+                 input_polarization=(1,0),
+                 **kwargs):
+        super(PolarizedWavefront, self).__init__(
+            input_stokes_vector=input_stokes_vector,
+            input_polarization=input_polarization,
+            **kwargs
+        )
+
+class PolarizedFresnelWavefront(BasePolarizedWavefront, FresnelWavefront):
     '''
     This class extends the FresnelWavefront class to handle Fresnel propagation of
     fully- and partially-polarized wavefronts.
@@ -104,60 +140,34 @@ class PolarizedFresnelWavefront(FresnelWavefront):
             units=units,
             rayleigh_factor=rayleigh_factor,
             oversample=oversample,
+            input_stokes_vector=input_stokes_vector,
+            input_polarization=input_polarization,
             **kwargs
         )
-        # TO DO: clean up the logic of checking which is specified and handling appropriately
-        self.input_stokes_vector = input_stokes_vector
-        self.input_polarization = input_polarization
-        self.pol_type = None
 
-        if input_stokes_vector is not None: # wavefront tensor
-            self.input_polarization = None
-            self.pol_type = 'tensor'
-            self.wavefront = self.wavefront * xp.eye(2)[:, :, xp.newaxis, xp.newaxis]
-        elif input_polarization is not None: # wavefront vector
-            self.pol_type = 'vector'
-            self.wavefront = self.wavefront * xp.asarray(input_polarization)[:, xp.newaxis, xp.newaxis]
-        else:
-            raise ValueError('Either input_stokes_vector or input_polarization must be specified! For scalar diffraction, use Wavefront or FresnelWavefront.')
-
-    @property
-    def intensity(self):
-        """Electric field intensity of the wavefront, accounting for polarization"""
-
-        if self.pol_type == 'vector':
-            if accel_math._USE_NUMEXPR:
-                w = self.wavefront
-                return ne.evaluate("sum(real(abs(w))**2, 0)")
-            else:
-                return np.abs(self.wavefront) ** 2
-        elif self.pol_type == 'tensor':
-            return self.stokes_parameters[0] # I element of stokes parameters (I,Q,U,V)
-        else:
-            raise ValueError(f'pol_type must be either "vector" or "tensor". Got {self.pol_type} instead.')
-
-    @property
-    def stokes_parameters(self):
-        """ Stokes parameters of the wavefront (only valid when stokes_vector is provided)"""
-        if self.input_stokes_vector is None:
-            raise ValueError('Stokes parameters cannot be computed unless input_stokes_vector is supplied!')
-        return jones_to_mueller(self.wavefront, self.input_stokes_vector)
+def jones_to_stokes(jones_matrix, input_stokes_vector):
+    """ Convert 2x2 Jones matrix to Stokes parameters
     
-def jones_to_mueller(jones_matrix, input_stokes_vector):
+    Based on Eqn A4.13, Spectroscopic Ellipsometry: Principles and Applications H. Fujiwara
+    """
+    M = jones_to_mueller(jones_matrix)
+    return xp.einsum('i...,i...', M, input_stokes_vector).real
+    
+def jones_to_mueller(jones_matrix):
     """ Convert 2x2 Jones matrix to Stokes parameters
     
     Based on Eqn A4.13, Spectroscopic Ellipsometry: Principles and Applications H. Fujiwara
     """
     shape = jones_matrix.shape
-    j = jones_matrix.reshape((4,*shape[-2:]))
+    # ordering convention below starts with diagonal terms
+    j = xp.concatenate([[jones_matrix[0,0],
+                         jones_matrix[1,1],
+                         jones_matrix[0,1],
+                         jones_matrix[1,0]]],
+                         axis=0)
     jc = j.conj()
     e = j * jc
 
-    # M = np.asarray([[0.5*(e[0] + e[1] + e[2] + e[3]), 0.5*(e[0] - e[1] - e[2] + e[3]), (j[0]*jc[2]).real + (j[3]*jc[1]).real, -(jc[0]*j[2]).imag - (jc[3]*j[1]).imag],
-    #                 [0.5*(e[0] - e[1] + e[2] - e[3]), 0.5*(e[0] + e[1] - e[2] - e[3]), (j[0]*jc[2]).real - (j[3]*jc[1]).real, -(jc[0]*j[2]).imag + (jc[3]*j[1]).imag],
-    #                 [(j[0]*jc[3]).real + (j[2]*jc[1]).real, (j[0]*jc[3]).real - (j[2]*jc[1]).real, (j[0]*jc[1]).real + (j[2]*jc[3]).real, -(jc[0]*j[1]).imag + (jc[2]*j[3]).imag],
-    #                 [(jc[0]*j[3]).imag + (jc[2]*j[1]).imag, (jc[0]*j[3]).imag - (jc[2]*j[1]).imag, (jc[0]*j[1]).imag + (jc[2]*j[3]).imag, (j[0]*jc[1]).real - (j[2]*jc[3]).real]])
-    
     e0, e1, e2, e3 = e
     j0, j1, j2, j3 = j
     jc0, jc1, jc2, jc3 = jc
@@ -188,5 +198,5 @@ def jones_to_mueller(jones_matrix, input_stokes_vector):
                     [M10, M11, M12, M13],
                     [M20, M21, M22, M23],
                     [M30, M31, M32, M33]])
-
-    return xp.einsum('i...,i...', M, input_stokes_vector).real
+    
+    return M
