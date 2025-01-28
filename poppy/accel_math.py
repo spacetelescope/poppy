@@ -215,7 +215,7 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
     _log.debug("using {2} FFT of {0} array, FFT_direction={1}".format(
         str(wavefront.shape), 'forward' if forward else 'backward', method))
 
-    if (forward) and fftshift: # shift before backwards propagations (using forward FFT)
+    if fftshift: # shift before backwards propagations (using forward FFT)
         # This needs to be an ifftshift, for machine-precision equivalence to MFT
         # as tested by test_MFT_FFT_equivalence_in_OpticalSystem; ifftshift and fftshift are
         # precisely equivalent for even-sized arrays but differ by 1 pixel offset for odd-sized
@@ -295,7 +295,7 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         wavefront = do_fft(wavefront)
     t2 = time.time()
 
-    if (not forward) and fftshift:  # shift after forwards propagations (using inverse FFT)
+    if fftshift:  # shift after forwards propagations (using inverse FFT)
         # This needs to be a fftshift here, since we use ifftshift above
         # See comment above in this function.
         wavefront = _fftshift(wavefront)
