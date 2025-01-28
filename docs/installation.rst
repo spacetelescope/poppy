@@ -1,15 +1,13 @@
 Installation
 ==================
 
-POPPY may be installed one of three different ways.
+POPPY may be installed one of two different ways.
 
-1. Using ``conda`` through the `AstroConda channel <https://astroconda.readthedocs.io/en/latest/>`__. This is the recommended channel for most users on MacOS and Linux. But note that AstroConda does not support Windows.
-
-2. Using PyPi in the usual manner for Python packages::
+1. Using PyPI in the usual manner for Python packages::
 
     % pip install poppy --upgrade
 
-3. Cloning the source code hosted in `this repository on GitHub <https://github.com/spacetelescope/poppy>`_. It is possible to directly install the latest development version using your locally installed ``git`` package::
+2. Cloning the source code hosted in `this repository on GitHub <https://github.com/spacetelescope/poppy>`_. It is possible to directly install the latest development version using your locally installed ``git`` package::
 
     % git clone https://github.com/spacetelescope/poppy.git
     % cd poppy
@@ -19,7 +17,7 @@ POPPY may be installed one of three different ways.
 Requirements
 --------------
 
-* Python 3.6, or more recent.
+* Python 3.10, or more recent.
 * The standard Python scientific stack: :py:mod:`numpy`, :py:mod:`scipy`,
   :py:mod:`matplotlib`
 * POPPY relies upon the `astropy
@@ -38,7 +36,7 @@ improvements if you are spending substantial time running calculations. See
 * `psutil <https://pypi.python.org/pypi/psutil>`__ enables slightly better
   automatic selection of numbers of processes for multiprocess calculations.
 * `pyFFTW <https://pypi.python.org/pypi/pyFFTW>`__. The FFTW library can speed
-  up the FFTs used in multi-plane optical simulations such as coronagraphiy or
+  up the FFTs used in multi-plane optical simulations such as coronagraphy or
   slit spectroscopy. Since direct imaging simulations use a discrete matrix FFT
   instead, direct imaging simulation speed is unchanged.  pyFFTW is recommended
   if you expect to perform many coronagraphic calculations, particularly for
@@ -79,10 +77,9 @@ run this test suite to verify that your installation is working properly::
    % cd poppy/tests/
    % pytest
    ============================ test session starts =====================================
-   Python 3.6.5, pytest-3.6.1, py-1.5.3, pluggy-0.6.0
-   Running tests with Astropy version 3.0.3.
+   Python 3.7.9, pytest-6.2.3, py-1.9.0, pluggy-0.13.1
    ... [etc] ...
-   ================= 147 passed, 2 skipped, 1 xfailed in 173.92 seconds ==================
+   ===================== 166 passed, 9 skipped in 410.12s (0:06:50 ======================
 
 Some tests may be automatically skipped depending on whether certain optional packaged are
 installed, and other tests in development may be marked "expected to fail" (``xfail``), but

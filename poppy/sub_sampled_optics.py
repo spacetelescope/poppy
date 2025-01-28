@@ -29,12 +29,12 @@ class Subapertures(poppy.OpticalElement):
     #initialize this new class, where the array of optics define the subapertures (e.g. lenslets)
 
     Subapertures.sample_wf(wf) #this function takes the wavefront and subsamples it by the area of each optic
-    Subapertures.get_wavefront_array() #returns an array of input sub-wavefronts multipled by subaperture optics
+    Subapertures.get_wavefront_array() #returns an array of input sub-wavefronts multiplied by subaperture optics
     Subapertures.get_psfs() #fraunhofer or fresnel propagation of each pupil  to the image/ waist
-    image=Subapertures.get_composite_wavefont() # returns wavefront of image plane of all the spots put back together
+    image=Subapertures.get_composite_wavefront() # returns wavefront of image plane of all the spots put back together
     Subapertures.opd #single array made up of subapertures
     Subapertures.amplitude  #single array made up of subapertures
-    Subapertures.getphasor #returns propagated array of spots from get_composite_wavefont
+    Subapertures.getphasor #returns propagated array of spots from get_composite_wavefront
     Subapertures.get_centroids() # computes centroids of each subaperture after propagated to the detector
 
 
@@ -238,13 +238,14 @@ class Subapertures(poppy.OpticalElement):
 
         inputs:
         cent_function: function names
-            see available funtions in .utils (if using a different one make sure to include it at top of this file as well)
+            see available functions in .utils (if using a different one make sure to include it at top of this file as well)
         relative to: string
             can be either 'center' or 'origin' for default centroid function
         asFITS: bool
             if True, treats subwavefronts as fits objects
 
-        returns:
+        Returns
+        -------
         centroid_list: np array
             list of calculated centroids in shape (2, nx, ny)
         note: if using wf_reconstruction method you need to either use 'center' here
@@ -302,7 +303,9 @@ class ShackHartmannWavefrontSensor(Subapertures):
     """
     Shack-Hartmann Wavefront Sensor Class
     wrapper for Subapertures class
-    Parameters:
+
+    Parameters
+    ----------
     lenslet pitch: astropy unit quantity [length]
         diameter of each lenslet (required)
     lenslet focal length: astropy unit quantity [length]
@@ -373,7 +376,8 @@ class ShackHartmannWavefrontSensor(Subapertures):
         min_WFE: float w astropy unit
             desired minimum wavefront error
 
-        returns:
+        Returns
+        -------
         centroid: float
             calculated conversion from min wavefront error to centroid accuracy
         """
@@ -389,7 +393,8 @@ class ShackHartmannWavefrontSensor(Subapertures):
     @property
     def max_WFE(self):
         """
-        returns:
+        Returns
+        -------
         float, maximum wavefront error detectable for ideal lenslet before the spot crosses
         into the neighboring lenslet
 
@@ -434,7 +439,7 @@ class ShackHartmannWavefrontSensor(Subapertures):
         http://ebooks.spiedigitallibrary.org/book.aspx?doi=10.1117/3.769212.
         Modified to work with rectangular spotfields
         Modified from Greg Allan's master's thesis (Simulation and Testing of Wavefront Reconstruction Algorithms
-        for the Deformable Mirror (DeMi) Cubesat. Master's Thesis, Massachusetts Institute of Techonology, 2018)
+        for the Deformable Mirror (DeMi) Cubesat. Master's Thesis, Massachusetts Institute of Technology, 2018)
 
         inputs:
         centroids_x: np array
@@ -444,7 +449,8 @@ class ShackHartmannWavefrontSensor(Subapertures):
         subap_diameter: float with astropy unit quantity (length unit)
             diameter of subaperture (lenslets), represents distance between each centroid measurement for derivative matrix
 
-        returns:
+        Returns
+        -------
         w: np array with astropy unit (length)
             reconstructed wavefront array in same shape as input centroid measurement arrays,
             in same units as input centroid measurements

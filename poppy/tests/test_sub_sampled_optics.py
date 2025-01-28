@@ -24,7 +24,7 @@ def test_ShackHartmannWFS(n_lenslets=2):
 
     """
     wavelength = 635*u.nm
-    # define nominal shack harttmann wavefront sensor:
+    # define nominal shack hartmann wavefront sensor:
     shwfs = sub_sampled_optics.ShackHartmannWavefrontSensor(n_lenslets=n_lenslets)
     dm_size = shwfs.lenslet_pitch*24
 

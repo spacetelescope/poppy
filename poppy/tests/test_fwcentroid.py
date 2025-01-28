@@ -5,7 +5,7 @@ from ..fwcentroid import test_fwcentroid
 
 from .test_errorhandling import _exception_message_starts_with
 
-# fwcentroid is a standalong package that's just included as a copy in
+# fwcentroid is a standalone package that's just included as a copy in
 # poppy. It has its own test function
 
 def test_fwcentroid_square(n=20,):

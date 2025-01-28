@@ -1,5 +1,6 @@
 import warnings
 import numpy as np
+from poppy.accel_math import xp
 import astropy.io.fits as fits
 import pytest
 
@@ -17,7 +18,7 @@ def test_pad_to_size():
 
     for starting_shape in [(20,20), (21,21), (300,300), (128,256)]:
 
-        square = np.ones(starting_shape)
+        square = xp.ones(starting_shape)
 
         for desiredshape in [ (500, 500), (400,632), (2048, 312)]:
             newshape = utils.pad_to_size(square, desiredshape).shape
@@ -131,6 +132,19 @@ def test_radial_profile(plot=False):
     assert np.allclose(prof2, prof3)
     # TODO compare those to be near a sinc profile as expected?
 
+    # Test computing the deviation profiles
+    rad4, prof_stds = poppy.radial_profile(psf, stddev=True)
+    rad4, prof_mads = poppy.radial_profile(psf, mad=True)
+    # TODO add some more rigorous test of correctness; for now just test
+    # dimensionality of the outputs
+    assert prof_stds.shape == prof.shape, "Radial profile and stddev array output sizes should match"
+    assert prof_mads.shape == prof.shape, "Radial profile and median absolute deviation array output sizes should match"
+
+    # Test computing some arbitrary function
+    rad4, prof_max = poppy.radial_profile(psf, custom_function=np.max)
+    # compare, but ignore the 0th bin and last bin that have no pixels within that bin etc
+    assert np.all(prof_max[1:-1] >= prof[1:-1]), "Radial profile using max function should be >= profile using mean"
+
 def test_radial_profile_of_offset_source():
     """Test that we can compute the radial profile for a source slightly outside the FOV,
     compare that to a calculation for a centered source, and check we get consistent results
@@ -222,7 +236,7 @@ def test_measure_FWHM(display=False, verbose=False):
     # We test both well sampled and barely sampled cases.
     # In this test case the FWHM is 0.206265 arcsec, so pixel scale up to 0.2 arcsec.
     pixscales = [0.01, 0.1, 0.2]
-    # We allow slightly worse accurance for less well sampled data
+    # We allow slightly worse occurrence for less well sampled data
     tolerances= [0.01, 0.015, 0.04]
 
     for pixscale, tolerance in zip(pixscales, tolerances):

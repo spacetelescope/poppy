@@ -11,14 +11,17 @@ from abc import ABC, abstractmethod
 
 from . import utils, accel_math, poppy_core, optics
 
+from .accel_math import xp, _scipy
+
 import logging
 
 _log = logging.getLogger('poppy')
 
-if accel_math._USE_NUMEXPR:
+if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
 
-__all__ = ['ContinuousDeformableMirror', 'HexSegmentedDeformableMirror', 'CircularSegmentedDeformableMirror']
+__all__ = ['ContinuousDeformableMirror', 'HexSegmentedDeformableMirror', 'CircularSegmentedDeformableMirror',
+           'KeystoneSegmentedDeformableMirror']
 
 
 # noinspection PyUnresolvedReferences
@@ -33,7 +36,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
             actuator_spacing : float or astropy Quantity with dimension length
                 Spacing between adjacent actuators as seen in that plane
             influence_func : Influence function filename. Optional. If not supplied,
-                a Gaussian model approximatly representative of an influence function
+                a Gaussian model approximately representative of an influence function
                 for a Boston MEMS DMs will be used. This parameter can let you provide
                 a more detailed model for your particular mirror.
             radius : float or Quantity with dimension length
@@ -89,7 +92,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         optics.AnalyticOpticalElement.__init__(self, planetype=poppy_core.PlaneType.pupil, **kwargs)
         self._dm_shape = dm_shape  # number of actuators
         self.name = name
-        self._surface = np.zeros(dm_shape)  # array for the DM surface OPD, in meters
+        self._surface = xp.zeros(dm_shape)  # array for the DM surface OPD, in meters
         self.numacross = dm_shape[0]  # number of actuators across diameter of
             # the optic's cleared aperture (may be less than full diameter of array)
         self.flip_x = flip_x
@@ -156,7 +159,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         else:
             raise RuntimeError("must supply exactly one of the filename and hdulist arguments.")
 
-        self.influence_func = hdulist[0].data.copy()
+        self.influence_func = xp.array(hdulist[0].data.copy())
         self.influence_header = hdulist[0].header.copy()
         if len(self.influence_func.shape) != 2:
             raise RuntimeError("Influence function file must contain a 2D array.")
@@ -182,7 +185,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         import warnings
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
-            return scipy.ndimage.zoom(self.influence_func, scale)
+            return _scipy.ndimage.zoom(self.influence_func, scale)
 
     def _get_rescaled_actuator_surface(self, pixelscale):
         """ Return the actuator surface print-through, rescaled onto the
@@ -225,30 +228,33 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         """ Set the entire surface shape of the DM.
 
         Parameters
-        -------------
+        ----------
         new_surface : 2d ndarray, or scalar
             Desired DM surface OPD, in meters by default, or use
             the astropy units system to specify a different unit
         """
-        if np.isscalar(new_surface.value):
+        if xp.isscalar(new_surface.value):
             self._surface[:] = new_surface.to(u.meter).value
         else:
             assert new_surface.shape == self._surface.shape, "Supplied surface shape doesn't match DM. Must be {}".format(self._surface.shape)
-            self._surface[:] = np.asarray(new_surface.to(u.meter).value, dtype=float)
+            self._surface[:] = xp.asarray(new_surface.to(u.meter).value, dtype=float)
 
     @utils.quantity_input(new_value=u.meter)
     def set_actuator(self, actx, acty, new_value):
         """ Set an individual actuator of the DM.
+
         Parameters
-        -------------
+        ----------
         actx, acty : integers
             Coordinates of the actuator you wish to control
         new_value : float
             Desired surface height for that actuator, in meters
             by default or use astropy Units to specify another unit if desired.
+
         Example
-        -----------
+        -------
         dm.set_actuator(12, 22, 123.4*u.nm)
+
         """
 
         if self.include_actuator_mask:
@@ -270,7 +276,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         """ Y and X coordinates for the actuators
 
         Parameters
-        ------------
+        ----------
         one_d : bool
             Return 1-dimensional arrays of coordinates per axis?
             Default is to return 2D arrays with same shape as full array.
@@ -284,26 +290,29 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         """
 
         act_space_m = self.actuator_spacing.to(u.meter).value
-        y_act = (np.arange(self.dm_shape[0]) - self.pupil_center) * act_space_m
-        x_act = (np.arange(self.dm_shape[1]) - self.pupil_center) * act_space_m
+        y_act = (xp.arange(self.dm_shape[0]) - self.pupil_center) * act_space_m
+        x_act = (xp.arange(self.dm_shape[1]) - self.pupil_center) * act_space_m
 
         if not one_d:  # convert to 2D
             y_act.shape = (self.dm_shape[0], 1)
-            y_act = y_act * np.ones((1, self.dm_shape[1]))
+            y_act = y_act * xp.ones((1, self.dm_shape[1]))
 
             x_act.shape = (1, self.dm_shape[1])
-            x_act = x_act * np.ones((self.dm_shape[0], 1))
+            x_act = x_act * xp.ones((self.dm_shape[0], 1))
 
         if include_transformations:
             # Repeat the same transformations here as applied in AnalyticOpticalElement.get_coordinates()
             # But with opposite sense, since there the transformation is on the coordinate system and here
             # it is on the optic
             if hasattr(self, "rotation"):
-                angle = -np.deg2rad(self.rotation)
-                xp = np.cos(angle) * x_act + np.sin(angle) * y_act
-                yp = -np.sin(angle) * x_act + np.cos(angle) * y_act
-                x_act = xp
-                y_act = yp
+                if isinstance(self.rotation, u.Quantity) and self.rotation.unit==u.degree:
+                    angle = -np.deg2rad(self.rotation).value
+                else:
+                    angle = -np.deg2rad(self.rotation)
+                x_p = np.cos(angle) * x_act + np.sin(angle) * y_act
+                y_p = -np.sin(angle) * x_act + np.cos(angle) * y_act
+                x_act = x_p
+                y_act = y_p
             if getattr(self, 'inclination_x', 0) != 0:
                 y_act *= np.cos(np.deg2rad(self.inclination_x))
             if getattr(self, 'inclination_y', 0) != 0:
@@ -329,7 +338,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         if hasattr(self, 'shift_x') or hasattr(self, 'shift_y'):
             # Apply shifts here, if necessary. Doing it this way lets the same shift code apply
             # across all of the above 3 potential ingredients into the OPD, potentially at some
-            # small cost in accuracy rather than shifting each individuall at a subpixel level.
+            # small cost in accuracy rather than shifting each individually at a subpixel level.
 
             # suppress irrelevant scipy warning from ndzoom calls
             import warnings
@@ -339,13 +348,13 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
                 if (hasattr(self, 'shift_x') and self.shift_x !=0):
                     pixscale_m = wave.pixelscale.to(u.m/u.pixel).value
                     shift_x_pix = int(np.round(self.shift_x /pixscale_m))
-                    interpolated_surface = np.roll(interpolated_surface, shift_x_pix, axis=1)
+                    interpolated_surface = xp.roll(interpolated_surface, shift_x_pix, axis=1)
 
                 if (hasattr(self, 'shift_y') and self.shift_y !=0):
                     pixscale_m = wave.pixelscale.to(u.m/u.pixel).value
                     shift_y_pix = int(np.round(self.shift_y /pixscale_m))
-                    interpolated_surface = np.roll(interpolated_surface, shift_y_pix, axis=0)
-        
+                    interpolated_surface = xp.roll(interpolated_surface, shift_y_pix, axis=0)
+
         # account for DM being reflective (optional, governed by include_factor_of_two parameter)
         coefficient = 2 if self.include_factor_of_two else 1
 
@@ -357,16 +366,16 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         """
         surface = self._surface
         if self.flip_x:
-            surface = np.fliplr(surface)
+            surface = xp.fliplr(surface)
         if self.flip_y:
-            surface = np.flipud(surface)
+            surface = xp.flipud(surface)
 
         if self.include_actuator_mask:
             act_mask = self.actuator_mask
             if self.flip_x:
-                act_mask = np.fliplr(act_mask)
+                act_mask = xp.fliplr(act_mask)
             if self.flip_y:
-                act_mask = np.flipud(act_mask)
+                act_mask = xp.flipud(act_mask)
         else:
             act_mask = None
 
@@ -389,9 +398,9 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         # them as Gaussian functions relative to the y and x arrays that already include any
         # coordinate transforms present for this optic.
 
-        interpolated_surface = np.zeros(wave.shape)
+        interpolated_surface = xp.zeros(wave.shape)
 
-        crosstalk = 0.15  # amount of crosstalk on advancent actuator
+        crosstalk = 0.15  # amount of crosstalk on adjacent actuator
         sigma = self.actuator_spacing.to(u.meter).value / np.sqrt((-np.log(crosstalk)))
 
         pixelscale = x[0, 1] - x[0, 0]  # scale of x,y
@@ -432,7 +441,6 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
             target_val = (surface * act_mask).ravel()
         else:
             target_val = surface.ravel()
-
         # Compute the 'surface trace', i.e the values for each actuator, projected
         # into the appropriate locations on the detector. For each actuator, we
         # weight the surface value across a 2x2 square of pixels to account for subpixel
@@ -441,28 +449,31 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         # First, determine DM actuator coordinates in fractional pixels:
         # Since we are working in units of square pixels here, we need to include
         # any coordinate transformations onto the DM actuator coordinates before that.
-        dm_act_m = np.stack(self.get_act_coordinates(include_transformations=True))
-        center = (np.asarray(wave.shape)-1)/2  # need to be careful here re exact wave center
+        dm_act_m = xp.stack(self.get_act_coordinates(include_transformations=True))
+        center = (xp.asarray(wave.shape)-1)/2  # need to be careful here re exact wave center
         center.shape=(2,1,1)
         dm_act_pix = dm_act_m / wave.pixelscale.to(u.m/u.pixel).value + center
 
         # Then iterate over a 2x2 square of pixels, weighting linearly between adjacent pixels
         # based on the subpixel offset for each actuator
-        fracpart, intpart = np.modf(dm_act_pix)
+        fracpart, intpart = xp.modf(dm_act_pix)
         for ix in (0,1):
             for iy in (0,1):
                 xweight = fracpart[1] if ix==1 else (1-fracpart[1])
                 yweight = fracpart[0] if iy==1 else (1-fracpart[0])
                 try:
-                    self._surface_trace_flat[self._act_ind_flat[0] + ix + iy*wave.shape[0]] = (xweight*yweight).flat*target_val
+                    if accel_math._USE_CUPY:
+                        # for some reason you can't use .flat and multiply the array in CuPy, you have to use .flatten()
+                        self._surface_trace_flat[self._act_ind_flat[0] + ix + iy*wave.shape[0]]=(xweight*yweight).flatten()*target_val
+                    else:
+                        # in numpy, using .flat is slightly faster since it uses an iterator rather than making a copy
+                        self._surface_trace_flat[self._act_ind_flat[0] + ix + iy*wave.shape[0]]=(xweight*yweight).flat*target_val
                 except:
                     pass # Ignore any actuators outside the FoV
 
-
         # Now we can convolve with the influence function to get the full continuous surface.
         influence_rescaled = self._get_rescaled_influence_func(wave.pixelscale)
-        dm_surface = scipy.signal.fftconvolve(self._surface_trace_flat.reshape(wave.shape),
-                                              influence_rescaled, mode='same')
+        dm_surface = _scipy.signal.fftconvolve(self._surface_trace_flat.reshape(wave.shape), influence_rescaled, mode='same')
 
         return dm_surface
 
@@ -475,7 +486,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         y_wave, x_wave = self.get_coordinates(wave)
 
         N_act = self.numacross
-        center = (np.asarray(wave.shape)-1)/2  # need to be careful here re exact wave center
+        center = (xp.asarray(wave.shape)-1)/2  # need to be careful here re exact wave center
 
         if getattr(self, 'rotation', 0)==0:
             # The DM is not rotated, so each row or column has a consistent X or Y coordinate
@@ -490,12 +501,12 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         # _get_surface_via_convolution()
         dm_x_act_pix = x_act / wave.pixelscale.to(u.m/u.pixel).value + center[1]
         dm_y_act_pix = y_act / wave.pixelscale.to(u.m/u.pixel).value + center[0]
-        x_wave_ind_act = np.asarray(np.floor(dm_x_act_pix), dtype=int)
-        y_wave_ind_act = np.asarray(np.floor(dm_y_act_pix), dtype=int)
+        x_wave_ind_act = xp.asarray(xp.floor(dm_x_act_pix), dtype=int)
+        y_wave_ind_act = xp.asarray(xp.floor(dm_y_act_pix), dtype=int)
 
         if getattr(self, 'rotation', 0)==0:
-            act_trace_row = np.zeros((1, wave.shape[1]), dtype='bool')
-            act_trace_col = np.zeros((wave.shape[0], 1), dtype='bool')
+            act_trace_row = xp.zeros((1, wave.shape[1]), dtype='bool')
+            act_trace_col = xp.zeros((wave.shape[0], 1), dtype='bool')
             act_trace_row[0, x_wave_ind_act] = 1
             act_trace_col[y_wave_ind_act, 0] = 1
             act_trace_2d = act_trace_col * act_trace_row
@@ -504,17 +515,17 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
             # Depending on the amount of rotation, some actuators may have rotated outside of the wavefront array
             acts_in_pupil = ((0 < x_wave_ind_act) & (x_wave_ind_act < wave.shape[1]) &
                              (0 < y_wave_ind_act) & (y_wave_ind_act < wave.shape[0]))
-            act_trace_2d = np.zeros(wave.shape, dtype='bool')
+            act_trace_2d = xp.zeros(wave.shape, dtype='bool')
             for y, x in zip(y_wave_ind_act[acts_in_pupil], x_wave_ind_act[acts_in_pupil]):
                 act_trace_2d[y, x] = 1
 
         self._act_trace_2d = act_trace_2d
 
         act_trace_flat = act_trace_2d.ravel()
-        self._act_ind_flat = np.nonzero(act_trace_flat)  # 1-d indices of actuator centers in wavefront space
+        self._act_ind_flat = xp.nonzero(act_trace_flat)  # 1-d indices of actuator centers in wavefront space
         if self._act_ind_flat[0].shape[0] < N_act**2:
             raise RuntimeError("The specified sampling is too small a region to include all the DM actuators")
-        self._surface_trace_flat = np.zeros(act_trace_flat.shape)  # flattened representation of DM surface trace
+        self._surface_trace_flat = xp.zeros(act_trace_flat.shape)  # flattened representation of DM surface trace
 
     def _get_actuator_print_through(self, wave):
         """ DM surface print through. This function currently hardcoded for Boston MEMS.
@@ -535,8 +546,8 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         self._surface_trace_flat[self._act_ind_flat] = target_val
 
         actuator_rescaled = self._get_rescaled_actuator_surface(wave.pixelscale)
-        dm_surface = scipy.signal.fftconvolve(self._surface_trace_flat.reshape(wave.shape),
-                                              actuator_rescaled, mode='same')
+        dm_surface = _scipy.signal.fftconvolve(self._surface_trace_flat.reshape(wave.shape),
+                                               actuator_rescaled, mode='same')
 
         return dm_surface
 
@@ -550,6 +561,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
     def display(self, annotate=False, grid=False, what='opd', crosshairs=False, *args, **kwargs):
         """Display an Analytic optic by first computing it onto a grid.
+
         Parameters
         ----------
         wavelength : float
@@ -577,6 +589,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
             Draw annotations on plot
         grid : bool
             Show the grid for the DM actuator spacing
+
         """
 
         kwargs['crosshairs'] = crosshairs
@@ -595,7 +608,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         """ Display the optical surface, viewed as discrete actuators
 
         Parameters
-        ------------
+        ----------
         annotate : bool
             Annotate coordinates and types of actuators on the display? Default false.
         grid : bool
@@ -662,7 +675,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         if self.influence_type == 'from file':
             act_space_m = self.actuator_spacing.to(u.meter).value
             r = np.linspace(0, 4 * act_space_m, 50)
-            crosstalk = 0.15  # amount of crosstalk on advancent actuator
+            crosstalk = 0.15  # amount of crosstalk on adjacent actuator
             sigma = act_space_m / np.sqrt((-np.log(crosstalk)))
             plt.plot(r, np.exp(- (r / sigma) ** 2))
             plt.xlabel('Separation [m]')
@@ -678,13 +691,21 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 class SegmentedDeformableMirror(ABC):
     """ Abstract class for segmented DMs.
     See below for subclasses for hexagonal and circular apertures.
+
+    Classes to turn into a SegmentedDeformableMirror must implement the
+    poppy.MultiSegmentAperture ABC, including methods for
+       _n_aper_inside_ring
+       _one_aperture
+       _aper_center
+    and attributes:
+       segmentlist
     """
     def __init__(self, rings=1, include_factor_of_two=False):
-        self._surface = np.zeros((self._n_aper_inside_ring(rings + 1), 3))
+        self._surface = xp.zeros((self._n_aper_inside_ring(rings + 1), 3))
 
         # see _setup_arrays for the following
-        self._last_npix = np.nan
-        self._last_pixelscale = np.nan * u.meter / u.pixel
+        self._last_npix = xp.nan
+        self._last_pixelscale = xp.nan * u.meter / u.pixel
 
         self.include_factor_of_two = include_factor_of_two
 
@@ -707,8 +728,9 @@ class SegmentedDeformableMirror(ABC):
     @utils.quantity_input(piston=u.meter, tip=u.radian, tilt=u.radian)
     def set_actuator(self, segnum, piston, tip, tilt):
         """ Set an individual actuator of the DM.
+
         Parameters
-        -------------
+        -----------
         segnum : integer
             Index of the actuator you wish to control
         piston, tip, tilt : floats or astropy Quantities
@@ -718,9 +740,9 @@ class SegmentedDeformableMirror(ABC):
 
         if segnum not in self.segmentlist:
             raise ValueError("Segment {} is not present for this DM instance.".format(segnum))
-        self._surface[segnum] = [piston.to(u.meter).value,
-                                 tip.to(u.radian).value,
-                                 tilt.to(u.radian).value]
+        self._surface[segnum] = xp.array([piston.to(u.meter).value,
+                                          tip.to(u.radian).value,
+                                          tilt.to(u.radian).value])
 
     def _setup_arrays(self, npix, pixelscale, wave=None):
         """ Set up the arrays to compute an OPD into.
@@ -736,21 +758,21 @@ class SegmentedDeformableMirror(ABC):
             self._last_npix = npix
             self._last_pixelscale = pixelscale
 
-        self._seg_mask = np.zeros((npix, npix))
-        self._seg_x = np.zeros((npix, npix))
-        self._seg_y = np.zeros((npix, npix))
+        self._seg_mask = xp.zeros((npix, npix))
+        self._seg_x = xp.zeros((npix, npix))
+        self._seg_y = xp.zeros((npix, npix))
         self._seg_indices = dict()
 
-        self.transmission = np.zeros((npix, npix))
+        self.transmission = xp.zeros((npix, npix))
         for i in self.segmentlist:
             self._one_aperture(wave, i, value=i + 1)
         self._seg_mask = self.transmission
-        self._transmission = np.asarray(self._seg_mask != 0, dtype=float)
+        self._transmission = xp.asarray(self._seg_mask != 0, dtype=float)
 
         y, x = self.get_coordinates((wave))
 
         for i in self.segmentlist:
-            wseg = np.where(self._seg_mask == i+1)
+            wseg = xp.where(self._seg_mask == i+1)
             self._seg_indices[i] = wseg
             ceny, cenx = self._aper_center(i)
             self._seg_x[wseg] = x[wseg] - cenx
@@ -760,7 +782,7 @@ class SegmentedDeformableMirror(ABC):
         """ Return OPD  - Faster version with caching"""
         self._setup_arrays(wave.shape[0], wave.pixelscale, wave=wave)
 
-        self.opd = np.zeros(wave.shape)
+        self.opd = xp.zeros(wave.shape)
         for i in self.segmentlist:
             wseg = self._seg_indices[i]
             self.opd[wseg] = (self._surface[i, 0] +
@@ -815,7 +837,7 @@ class CircularSegmentedDeformableMirror(SegmentedDeformableMirror, optics.MultiC
             ----------
             rings, segment_radius, gap, center : various
                 All keywords for defining the segmented aperture geometry are inherited from
-                the MultiCircularperture class. See that class for details.
+                the MultiCircularAperture class. See that class for details.
 
              include_factor_of_two : Bool
                 include the factor of two due to reflection in the OPD function (optional, default False).
@@ -826,10 +848,46 @@ class CircularSegmentedDeformableMirror(SegmentedDeformableMirror, optics.MultiC
                 units, and the WFE is therefore a factor of two larger. The returned WFE will be twice the
                 amplitude of the requested values (convolved with the actuator response function etc.)
     """
-    
     def __init__(self, rings=1, segment_radius=1.0 * u.m, gap=0.01 * u.m,
                  name='CircSegDM', center=True, include_factor_of_two=False, **kwargs):
         #FIXME ? using grey pixel does not work. something in the geometry module generate a true divide error
         optics.MultiCircularAperture.__init__(self, name=name, rings=rings, segment_radius=segment_radius,
                                               gap=gap, center=center, gray_pixel = False, **kwargs)
         SegmentedDeformableMirror.__init__(self, rings=rings, include_factor_of_two=include_factor_of_two)
+
+
+# note, must inherit first from SegmentedDeformableMirror to get correct method resolution order
+class KeystoneSegmentedDeformableMirror(SegmentedDeformableMirror, optics.KeystoneSegmentedCircularAperture):
+    """ Circularly segmented DM. Each actuator is controllable in piston, tip, and tilt (and any zernike term)
+
+            Parameters
+            ----------
+            rings, segment_radius, gap, center : various
+                All keywords for defining the segmented aperture geometry are inherited from
+                the MultiCircularAperture class. See that class for details.
+
+             include_factor_of_two : Bool
+                include the factor of two due to reflection in the OPD function (optional, default False).
+                If this is set False (default), actuator commands are interpreted as being in units of
+                desired wavefront error directly; the returned WFE will be directly proportional to the requested
+                values (convolved with the actuator response function etc).
+                If this is set to True, then the actuator commands are interpreted as being in physical surface
+                units, and the WFE is therefore a factor of two larger. The returned WFE will be twice the
+                amplitude of the requested values (convolved with the actuator response function etc.)
+    """
+
+    def __init__(self, name='WedgeSegDM', radius=1.0 * u.m, rings=1, nsections=4, gap_radii=None, gap=0.01 * u.m,
+                 include_factor_of_two=False, **kwargs):
+        #FIXME ? using grey pixel does not work. something in the geometry module generate a true divide error
+        optics.KeystoneSegmentedCircularAperture.__init__(self, name=name, radius=radius, rings=rings,
+                                                          nsections=nsections, gap_radii=gap_radii,
+                                                          gap=gap, **kwargs)
+        SegmentedDeformableMirror.__init__(self, rings=rings, include_factor_of_two=include_factor_of_two)
+
+
+    def _setup_arrays(self, npix, pixelscale, wave=None):
+        # Small tweak to the superclass function, to allow invoking slightly better handling for pixels near
+        # edges of segments. This approach results in the DM segment maps covering the segment gaps better, to
+        # accomodate 'gray' pixels in the transmission map
+        super()._setup_arrays(npix, pixelscale, wave=wave)
+        self._transmission = optics.KeystoneSegmentedCircularAperture.get_transmission(self, wave)

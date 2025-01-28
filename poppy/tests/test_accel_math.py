@@ -10,6 +10,7 @@ from .. import matrixDFT
 from .. import accel_math
 from .. import optics
 
+@pytest.mark.skipif(accel_math._USE_CUPY, reason="Test not relavent if using CuPy")
 @pytest.mark.skipif(accel_math._NUMEXPR_AVAILABLE is False, reason="numexpr not available")
 def test_MFT_MFTwithnumexpr_equivalence(display=False, displaycrop=None):
     """ Test that the basic MFT transform is numerically equivalent to the
@@ -34,7 +35,6 @@ def test_MFT_MFTwithnumexpr_equivalence(display=False, displaycrop=None):
         # Further, note that the numpy normalization convention includes 1/n for the inverse transform and 1 for
         # the forward transform, while we want to more symmetrically apply 1/sqrt(n) in both directions.
         fftout = np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(imgin))) * np.sqrt(imgin.shape[0] * imgin.shape[1])
-
 
         norm_factor = abs(mftout).sum()
 
@@ -66,7 +66,8 @@ def test_r():
     accel_math._USE_NUMEXPR = default_use_numexpr
 
 @pytest.mark.skipif(accel_math._NUMEXPR_AVAILABLE is False, reason="numexpr not available")
-def test_exp():
+@pytest.mark.skipif(accel_math._USE_CUPY, reason="Test not relavent if using CuPy")
+def test_exp_numexpr():
     """ Test that calculating the exponential gives equivalent results via
     plain numpy and numexpr"""
     x = np.linspace(-3,3,13)
@@ -83,6 +84,7 @@ def test_exp():
 
     accel_math._USE_NUMEXPR = default_use_numexpr
 
+@pytest.mark.skipif(accel_math._USE_CUPY, reason="Test not relavent if using CuPy")
 def test_benchmark_fft():
     # minimalist case for speed, but at least it tests the function:
     accel_math.benchmark_fft(npix=512, iterations=2)

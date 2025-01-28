@@ -23,7 +23,7 @@ class SemiAnalyticCoronagraph(poppy_core.OpticalSystem):
     usual fashion.
 
     Parameters
-    -----------
+    ----------
     existing_optical_system : OpticalSystem
         An optical system which can be converted into a SemiAnalyticCoronagraph.
     oversample : int
@@ -37,7 +37,7 @@ class SemiAnalyticCoronagraph(poppy_core.OpticalSystem):
 
 
     Notes
-    ------
+    -----
 
     Note that this algorithm is only appropriate for certain types of Fourier transform,
     namely those using occulters limited to a sub-region of the image plane.
@@ -213,7 +213,7 @@ class MatrixFTCoronagraph(poppy_core.OpticalSystem):
     usual fashion.
 
     Parameters
-    -----------
+    ----------
     existing_optical_system : OpticalSystem
         An optical system which can be converted into a SemiAnalyticCoronagraph
     oversample : int
@@ -224,7 +224,7 @@ class MatrixFTCoronagraph(poppy_core.OpticalSystem):
 
 
     Notes
-    ------
+    -----
 
     This subclass is best suited for a coronagraph design in which the region
     transmitted by the focal plane mask is bounded and small, thereby offering a

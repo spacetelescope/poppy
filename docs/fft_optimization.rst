@@ -4,7 +4,7 @@ Appendix B: Optimizing FFT Performance with FFTW
 .. warning::
 
     This page is obsolete, and superceded by subsequent library development. You probably want
-    to use Intel MKL rather than FFTW. See :ref:`_performance_and_parallelization`.
+    to use Intel MKL rather than FFTW. See :ref:`performance_and_parallelization`.
 
 Optimizing numerical performance of FFTs is a complicated subject. Just using the FFTW library is no guarantee of optimal performance; you need to know how to configure it.
 
@@ -175,7 +175,7 @@ Caching of plans means that irunning the same script a second time is much faste
 -----------------------------------------------------------------------------------
 Immediately after executing the above, I ran the same script again. Now the planning times all become essentially negligible. 
 
-Oddly, the exection time for the largest array gets longer. I suspect this has something to do with memory or system load.  ::
+Oddly, the execution time for the largest array gets longer. I suspect this has something to do with memory or system load.  ::
 
     For arrays of size 1024x1024
     Building input circular aperture

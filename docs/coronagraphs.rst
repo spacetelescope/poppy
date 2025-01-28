@@ -3,7 +3,7 @@ Efficient Lyot coronagraph propagation
 =============================================
 
 
-Poppy has extensive functionality to faciliate the modeling of coronagraph point spread functions. In addition to the general summary of those capabilities here, see the examples in the notebooks subdirectory:
+Poppy has extensive functionality to facilitate the modeling of coronagraph point spread functions. In addition to the general summary of those capabilities here, see the examples in the notebooks subdirectory:
 `POPPY Examples <https://github.com/spacetelescope/poppy/blob/stable/notebooks/POPPY%20Examples.ipynb>`_
 and
 `MatrixFTCoronagraph_demo <https://github.com/spacetelescope/poppy/blob/stable/notebooks/MatrixFTCoronagraph_demo.ipynb>`_.
@@ -20,11 +20,11 @@ By default, an optical system defined in Poppy uses the Fast Fourier Transform (
    :alt: Schematics of two Lyot coronagraph design variants
    :align: right
 
-The upper design in the figure represents the classical Lyot coronagraph and its widely implemented, optimized descendent, the `apodized pupil Lyot coronagraph (APLC) <http://dx.doi.org/10.1051/0004-6361:20021573>`_. In this case an intermediate focal plane (labeled B) is occulted by a round, opaque mask. By applying the principle of electromagnetic field superposition, combined with knowledge of how FFT complexity scales with array size, `Soummer et al. (2007) <http://dx.doi.org/10.1364/OE.15.015935>`_ showed that the number of operations needed to compute the PSF is greatly reduced by replacing the FFT with discrete Fourier transfoms, implemented in a vectorized fashion and spatially restricted to the *occulted* region of the intermediate focal plane. This is the now widely-used **semi-analytical** computational method for numerically modeling Lyot coronagraphs.
+The upper design in the figure represents the classical Lyot coronagraph and its widely implemented, optimized descendent, the `apodized pupil Lyot coronagraph (APLC) <http://dx.doi.org/10.1051/0004-6361:20021573>`_. In this case an intermediate focal plane (labeled B) is occulted by a round, opaque mask. By applying the principle of electromagnetic field superposition, combined with knowledge of how FFT complexity scales with array size, `Soummer et al. (2007) <http://dx.doi.org/10.1364/OE.15.015935>`_ showed that the number of operations needed to compute the PSF is greatly reduced by replacing the FFT with discrete Fourier transforms, implemented in a vectorized fashion and spatially restricted to the *occulted* region of the intermediate focal plane. This is the now widely-used **semi-analytical** computational method for numerically modeling Lyot coronagraphs.
 
 The lower design in the above figure shows a slightly different Lyot coronagraph design case. Here the focal plane mask (FPM) is a diaphragm that restricts the outer edge of the transmitted field. `Zimmerman et al. (2016) <http://dx.doi.org/10.1117/1.JATIS.2.1.011012>`_ showed how this design variant can solve the same starlight cancellation problem, in particular for the baseline design of WFIRST. With this FPM geometry, the superposition simplification of `Soummer et al. (2007) <http://dx.doi.org/10.1364/OE.15.015935>`_ is not valid. However, again the execution time is greatly reduced by using discrete, vectorized Fourier transforms, now spatially restricted to the *transmitted* region of the intermediate focal plane.
 
-In Poppy, two subclasses of OpticalSystem exploit the computational methods described above: SemiAnalyticCoronagraph and MatrixFTCoronagraph. Let's see how to make use of these subclasses to speed up Lyot corongraph PSF calculations.
+In Poppy, two subclasses of OpticalSystem exploit the computational methods described above: SemiAnalyticCoronagraph and MatrixFTCoronagraph. Let's see how to make use of these subclasses to speed up Lyot coronagraph PSF calculations.
 
 Lyot coronagraph using the SemiAnalytic subclass
 ---------------------------------------------------
@@ -108,13 +108,13 @@ Again we will compare the execution time with the FFT case.::
         # Re-cast as MFT coronagraph with annular diaphragm FPM
         matrixFTcoron_annFPM_osys = poppy.MatrixFTCoronagraph( fftcoron_annFPM_osys, occulter_box=diaphragm.uninverted_optic.radius_inner )
         t0_fft = time.time()
-        annFPM_fft_psf, annFPM_fft_interm = fftcoron_annFPM_osys.calc_psf(wavelen, display_intermediates=True,\
+        annFPM_fft_psf, annFPM_fft_interim = fftcoron_annFPM_osys.calc_psf(wavelen, display_intermediates=True,\
                                                                  return_intermediates=True)
         t1_fft = time.time()
         
         plt.figure()
         t0_mft = time.time()
-        annFPM_mft_psf, annFPM_mft_interm = matrixFTcoron_annFPM_osys.calc_psf(wavelen, display_intermediates=True,\
+        annFPM_mft_psf, annFPM_mft_interim = matrixFTcoron_annFPM_osys.calc_psf(wavelen, display_intermediates=True,\
                                                                      return_intermediates=True)
         t1_mft = time.time()
 
@@ -142,10 +142,10 @@ Print some of the propagation parameters::
 
          lamoD_asec = wavelen/fftcoron_annFPM_osys.planes[0].pupil_diam * 180/np.pi * 3600
          print("System diffraction resolution element scale (lambda/D) in arcsec: %.3f" % lamoD_asec)
-         print("Array width in first focal plane, FFT: %d" % annFPM_fft_interm[1].amplitude.shape[0])
-         print("Array width in first focal plane, MatrixFT: %d" % annFPM_mft_interm[1].amplitude.shape[0])
-         print("Array width in Lyot plane, FFT: %d" % annFPM_fft_interm[2].amplitude.shape[0])
-         print("Array width in Lyot plane, MatrixFT: %d" % annFPM_mft_interm[2].amplitude.shape[0])
+         print("Array width in first focal plane, FFT: %d" % annFPM_fft_interim[1].amplitude.shape[0])
+         print("Array width in first focal plane, MatrixFT: %d" % annFPM_mft_interim[1].amplitude.shape[0])
+         print("Array width in Lyot plane, FFT: %d" % annFPM_fft_interim[2].amplitude.shape[0])
+         print("Array width in Lyot plane, MatrixFT: %d" % annFPM_mft_interim[2].amplitude.shape[0])
 
          System diffraction resolution element scale (lambda/D) in arcsec: 0.103
          Array width in first focal plane, FFT: 8192

@@ -2,7 +2,7 @@
 POPPY: Physical Optics Propagation in Python
 ============================================
 
-.. image:: docs/figures/readme_fig.png
+.. image:: https://github.com/spacetelescope/poppy/blob/develop/docs/figures/readme_fig.png?raw=true
 
 .. image:: https://img.shields.io/pypi/v/poppy.svg
    :target: https://pypi.python.org/pypi/poppy
@@ -35,6 +35,6 @@ Projects using POPPY
 
 POPPY provides the optical modeling framework used in:
 
-* WebbPSF, a PSF simulator for NASA's JWST and WFIRST space telescopes. See https://pypi.python.org/pypi/webbpsf
-* ``gpipsfs``, a PSF simulator for the Gemini Planet Imager coronagraph. See https://github.com/geminiplanetimager/gpipsfs 
+* WebbPSF, a PSF simulator for NASA's JWST and Roman space telescopes. See https://pypi.python.org/pypi/webbpsf
+* ``gpipsfs``, a PSF simulator for the Gemini Planet Imager coronagraph. See https://github.com/geminiplanetimager/gpipsfs
 

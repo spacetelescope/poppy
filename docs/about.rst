@@ -22,10 +22,10 @@ The Team
 -----------------
 
 POPPY is developed primarily by a team of astronomers at the `Space Telescope
-Science Insitute <http://www.stsci.edu/>`_, but is open to contributions from
+Science Institute <http://www.stsci.edu/>`_, but is open to contributions from
 scientists and software developers around the world. Development takes place
 on Github at http://github.com/spacetelescope/poppy. See that page for the most up-to-date
-list of contributors. 
+list of contributors.
 
 Direct contributors to POPPY code
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -51,6 +51,12 @@ Direct contributors to POPPY code
  * Rachel Morgan (:user:`remorgan01`)
  * Fanpeng Kong (:user:`fanpeng-kong`)
  * Kim Ward-Duong (:user:`spacegal-spiff`)
+ * Greg Brady (:user:`grbrady`)
+ * Kian Milani (:user:`kian1377`)
+ * Evan Mayer (:user:`evanmayer`)
+ * Adam Bolton (:user:`adambolton`)
+ * Bradley Sappington (:user:`BradleySappington`)
+ * Zachary Burnett(:user:`zacharyburnett`)
 
 Indirect Contributors (algorithms, advice, ideas, inspirations)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

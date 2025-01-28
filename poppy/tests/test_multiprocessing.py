@@ -10,7 +10,6 @@ import astropy
 import astropy.io.fits as fits
 import sys
 from distutils.version import LooseVersion
-from astropy.tests.helper import remote_data
 
 try:
     import pytest
@@ -21,10 +20,12 @@ except:
 
 if _HAVE_PYTEST:
 
-    #@pytest.mark.xfail
+    @pytest.mark.xfail
     # Just skip this test entirely for right now because sometimes it hangs the
     # entire Python process...
 
+    @pytest.mark.skipif( sys.platform=='win32',
+            reason='Multiprocessing forkserver context not supported on Windows')
     @pytest.mark.skipif( (sys.version_info < (3,4,0) ),
             reason="Python 3.4 required for reliable forkserver start method")
     @pytest.mark.skipif(LooseVersion(astropy.__version__) <  LooseVersion('1.0.3'),
@@ -52,6 +53,8 @@ if _HAVE_PYTEST:
         return psf_single, psf_multi
 
 
+    @pytest.mark.skipif( sys.platform=='win32',
+            reason='Multiprocessing forkserver context not supported on Windows')
     @pytest.mark.skipif( (sys.version_info < (3,4,0) ),
             reason="Python 3.4 required for reliable forkserver start method")
     @pytest.mark.skipif(LooseVersion(astropy.__version__) <  LooseVersion('1.0.3'),

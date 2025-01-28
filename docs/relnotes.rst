@@ -5,12 +5,173 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+1.1.2
+-----
+
+.. _rel1.1.2:
+
+*2025 Jan 13*
+
+**Software Infrastructure Updates and Internals:**
+ * Test readthedocs by @BradleySappington in https://github.com/spacetelescope/poppy/pull/567
+ * Update zernike.py by @mfeldt in https://github.com/spacetelescope/poppy/pull/569
+ * Avoid un-padding Fresnel wavefronts when rotating (fixes #572) by @mperrin in https://github.com/spacetelescope/poppy/pull/573
+ * trivial: remove comment text that mentions a deprecated astropy feature by @mperrin in https://github.com/spacetelescope/poppy/pull/574
+ * Fix CI and ReadtheDocs Build Failures by @BradleySappington in https://github.com/spacetelescope/poppy/pull/581
+ * build(deps): bump astropy from 5.2.2 to 5.3.2 by @dependabot in https://github.com/spacetelescope/poppy/pull/582
+ * build(deps): bump matplotlib from 3.7.1 to 3.7.2 by @dependabot in https://github.com/spacetelescope/poppy/pull/579
+ * build(deps): bump numpy from 1.24.3 to 1.25.2 by @dependabot in https://github.com/spacetelescope/poppy/pull/578
+ * build(deps): bump scipy from 1.10.1 to 1.11.1 by @dependabot in https://github.com/spacetelescope/poppy/pull/576
+ * build(deps): bump scipy from 1.11.1 to 1.11.2 by @dependabot in https://github.com/spacetelescope/poppy/pull/583
+ * Fix Various issues with CI actions by @BradleySappington in https://github.com/spacetelescope/poppy/pull/592
+ * Numpy 2.0 fixes:poly1d and NaN by @braingram in https://github.com/spacetelescope/poppy/pull/585
+ * build(deps): bump matplotlib from 3.7.2 to 3.8.0 by @dependabot in https://github.com/spacetelescope/poppy/pull/586
+ * build(deps): bump numpy from 1.25.2 to 1.26.0 by @dependabot in https://github.com/spacetelescope/poppy/pull/587
+ * build(deps): bump scipy from 1.11.2 to 1.11.3 by @dependabot in https://github.com/spacetelescope/poppy/pull/588
+ * build(deps): bump astropy from 5.3.2 to 5.3.4 by @dependabot in https://github.com/spacetelescope/poppy/pull/593
+ * update actions/checkout to v4 by @BradleySappington in https://github.com/spacetelescope/poppy/pull/597
+ * build(deps): bump matplotlib from 3.8.0 to 3.8.1 by @dependabot in https://github.com/spacetelescope/poppy/pull/598
+ * TST: Use astropy dev from nightly wheel by @pllim in https://github.com/spacetelescope/poppy/pull/596
+ * build(deps): bump numpy from 1.26.0 to 1.26.1 by @dependabot in https://github.com/spacetelescope/poppy/pull/599
+ * unpin sphinx version by @BradleySappington in https://github.com/spacetelescope/poppy/pull/594
+ * build(deps): bump astropy from 5.3.4 to 6.0.0 by @dependabot in https://github.com/spacetelescope/poppy/pull/600
+ * remove use of deprecated _get_optical_system by @braingram in https://github.com/spacetelescope/poppy/pull/595
+ * Update utils.py - add Median Absolute Deviation option to radial_profile by @saikrishanthpm in https://github.com/spacetelescope/poppy/pull/591
+ * use PyPI upload workflow from OpenAstronomy by @zacharyburnett in https://github.com/spacetelescope/poppy/pull/590
+ * add pie wedge segmented aperture by @mperrin in https://github.com/spacetelescope/poppy/pull/604
+ * build(deps): bump numpy from 1.26.2 to 1.26.3 by @dependabot in https://github.com/spacetelescope/poppy/pull/606
+ * update actions version by @zacharyburnett in https://github.com/spacetelescope/poppy/pull/608
+ * build(deps): bump numpy from 1.26.3 to 1.26.4 by @dependabot in https://github.com/spacetelescope/poppy/pull/609
+ * build(deps): bump matplotlib from 3.8.2 to 3.8.3 by @dependabot in https://github.com/spacetelescope/poppy/pull/610
+ * Implement WedgeSegmentedDeformableMirror by @mperrin in https://github.com/spacetelescope/poppy/pull/611
+ * [SCSB-145] require Python 3.10 by @zacharyburnett in https://github.com/spacetelescope/poppy/pull/612
+ * use canonical filename for RTD config by @zacharyburnett in https://github.com/spacetelescope/poppy/pull/613
+ * build(deps): bump astropy from 6.0.0 to 6.0.1 by @dependabot in https://github.com/spacetelescope/poppy/pull/615
+ * Minor: quiet two syntax warnings about string escape sequences by @mperrin in https://github.com/spacetelescope/poppy/pull/616
+ * Add optional progress bar display during PSF and datacube calculations by @mperrin in https://github.com/spacetelescope/poppy/pull/605
+ * build(deps): bump scipy from 1.12.0 to 1.13.0 by @dependabot in https://github.com/spacetelescope/poppy/pull/619
+ * build(deps): bump matplotlib from 3.8.3 to 3.8.4 by @dependabot in https://github.com/spacetelescope/poppy/pull/618
+ * build(deps): bump matplotlib from 3.8.4 to 3.9.0 by @dependabot in https://github.com/spacetelescope/poppy/pull/622
+ * Update intel channel location by @BradleySappington in https://github.com/spacetelescope/poppy/pull/627
+ * Merge Develop to branch by @BradleySappington in https://github.com/spacetelescope/poppy/pull/628
+ * Dependabot merged by @BradleySappington in https://github.com/spacetelescope/poppy/pull/626
+ * build(deps): bump numpy from 1.26.4 to 2.0.0 by @dependabot in https://github.com/spacetelescope/poppy/pull/623
+ * build(deps): bump matplotlib from 3.9.0 to 3.9.1 by @dependabot in https://github.com/spacetelescope/poppy/pull/629
+ * min pin numexpr by @BradleySappington in https://github.com/spacetelescope/poppy/pull/632
+ * use z-range for dependencies in requirements.txt by @BradleySappington in https://github.com/spacetelescope/poppy/pull/637
+ * build(deps): bump scipy from 1.14.0 to 1.14.1 by @dependabot in https://github.com/spacetelescope/poppy/pull/633
+ * fix float comparison bug for non-square subarrays by @mperrin in https://github.com/spacetelescope/poppy/pull/640
+ * Fix an issue with providing astropy Units to calc_datacube by @mperrin in https://github.com/spacetelescope/poppy/pull/639
+ * build(deps): update numexpr requirement from <2.10.0,>=2.9.0 to >=2.9.0,<2.11.0 by @dependabot in https://github.com/spacetelescope/poppy/pull/641
+ * build(deps): update astropy requirement from <6.2.0,>=6.1.2 to >=6.1.2,<7.1.0 by @dependabot in https://github.com/spacetelescope/poppy/pull/644
+ * misc minor fixes by @mperrin in https://github.com/spacetelescope/poppy/pull/617
+ * Allow shifting a detector, in alternative to shifting a source by @mperrin in https://github.com/spacetelescope/poppy/pull/643
+ * Combined Dependabot Updates by @york-stsci in https://github.com/spacetelescope/poppy/pull/650
+ * rename 'wedge' segment shame to 'keystone' by @mperrin in https://github.com/spacetelescope/poppy/pull/647
+ * add outfile option to calc_datacube by @mperrin in https://github.com/spacetelescope/poppy/pull/646
+ * [DRAFT] Documentation Fixes for release by @york-stsci in https://github.com/spacetelescope/poppy/pull/651
+ * Sphinx fixes by @york-stsci in https://github.com/spacetelescope/poppy/pull/652
+
+**New Contributors**
+ * @mfeldt made their first contribution in https://github.com/spacetelescope/poppy/pull/569
+ * @braingram made their first contribution in https://github.com/spacetelescope/poppy/pull/585
+ * @saikrishanthpm made their first contribution in https://github.com/spacetelescope/poppy/pull/591
+ * @york-stsci made their first contribution in https://github.com/spacetelescope/poppy/pull/650
+
+**Full Changelog**: https://github.com/spacetelescope/poppy/compare/v1.1.1...v1.1.2
+1.1.1
+-----
+
+.. _rel1.1.1:
+
+*2023 May 16*
+
+This is a very minor re-release, to fix some documentation formatting and release packaging issues with the 1.1.0 release. No changes in functionality.
+
+
+1.1.0
+-----
+
+.. _rel1.1.0:
+
+ *2023 May 12*
+
+**Software Infrastructure Updates and Internals:**
+ * Increase all CI test versions by 1, removing Python 3.8 and adding Python 3.11. Update minimum supported versions of astropy and numpy as well.
+ * Updated ReadTheDocs build's Python version by :user:`ojustino` in :pr:`512`
+ * Tried Python 3.8 with ReadTheDocs instead by :user:`ojustino` in :pr:`514`
+ * Fix position angle rotation passthrough for TiltOpticalPathDifference by :user:`evanmayer` in :pr:`524`
+ * Fix units error in MultiHexagonAperture, see #485 by :user:`mperrin` in :pr:`527`
+ * replacing `np.float` with `np.float_` per Issue 544 by :user:`adambolton` in :pr:`545`
+ * Update minimum versions across the board including remove python 3.8 and adding pythong 3.11 by :user:`BradleySappington` in :pr:`551`
+ * add option to mark levels in display_ee by :user:`douglase` in :pr:`540`
+ * minor: misc PEP8 code style consistency reformatting  by :user:`mperrin` in :pr:`554`
+ * Addition of CuPy as an Accelerated Computing Option by :user:`kian1377` in :pr:`499`
+ * remove usages of deprecated `codecov` package by :user:`zacharyburnett` in :pr:`559`
+ * Move metadata from non-standard setup.cfg into PEP 621-compliant pyproject.toml. (546 takeover) by :user:`BradleySappington` in :pr:`561`
+ * for now, skip a failing Fresnel test for the most recent scikit-image versions by :user:`mperrin` in :pr:`555`
+ * Remove older CUDA GPU code, now that it's replaced by CuPY GPU code by :user:`mperrin` in :pr:`556`
+
+**New Contributors:**
+ * :user:`evanmayer` made their first contribution in :pr:524
+ * :user:`adambolton` made their first contribution in :pr:545
+ * :user:`BradleySappington` made their first contribution in :pr:551
+ * :user:`zacharyburnett` made their first contribution in :pr:559
+
+**Full Changelog**: https://github.com/spacetelescope/poppy/compare/v1.0.3...v1.1.0
+
+
+1.0.3
+-----
+
+.. _rel1.0.3:
+
+*2022 June 30*
+
+This is another incremental release that introduces support and makes internal adjustments for Python 3.10.
+
+**Other enhancements and fixes:**
+ * zernike.py factorial() calls were corrected to ensure internal values are integers in Python 3.10 (:pr:`493` by :user:`AarynnCarter`)
+
+**Software Infrastructure Updates and Internals:**
+ * Fix for Astropy Development CI test (:pr:`498` by :user:`shanosborne`)
+ * Increase all CI test versions by 1, removing Python 3.7 and adding Python 3.10 (:pr:`503` by :user:`shanosborne`)
+ * Accept various dependabot updates to recommended (not minimum) dependency versions (various PRs by :user:`shanosborne` and :user:`mperrin`)
+ * Updated installation and release instructions to move away from AstroConda (:pr:`509` by :user:`ojustino`)
+
+1.0.2
+-----
+
+.. _rel1.0.2:
+
+*2022 January 28*
+
+This is a minor release, mostly to accomodate upstream changes in recent numpy and astropy versions.
+
+**Software Infrastructure Updates and Internals:**
+ * Update code due to changes in Astropy API (:pr:`482` by :user:`WilliamJamieson`)
+ * Update one test for numerical robustness with numpy's use of Intel avx512 instructions on some platforms (:pr:`487` by :user:`shanosborne`)
+ * Fix spelling mistakes across code base  (:pr:`479` by :user:`jsoref`)
+ * Updates to recommended (not minimum) dependency versions to track latest numpy, matplotlib, etc (various PRs by :user:`shanosborne`)
+
+1.0.1
+-----
+
+.. _rel1.0.1:
+
+*2021 December 9*
+
+This is a very minor re-release, to fix some documentation formatting and release packaging issues with the 1.0.0 release. No changes in functionality.
+
+
 1.0.0
 -----
 
 .. _rel1.0.0:
 
-*Date TBD*
+*2021 December 7*
+
+This is a major release with significant enhancements and changes, in particular with regards to changes in wavefront sign convention representations.
 
 .. admonition:: Changes and Clarifications in Signs for Wavefront Error and Phase
 
@@ -18,19 +179,47 @@ For a list of contributors, see :ref:`about`.
 
     This release includes optical algorithm updates after a thorough audit and cross-check of sign conventions for phase and wavefront error, disambiguating portions of the
     sign conventions and code to ensure consistency with several other relevant optical modeling packages. Poppy now strictly follows the sign conventions as advocated in e.g.
-    Wyant and Creath's `Basic Wavefront Aberration Theory for Optical Metrology <https://ui.adsabs.harvard.edu/abs/1992aooe...11....2W/abstract>_` (or see `here <https://wp.optics.arizona.edu/jcwyant/wp-content/uploads/sites/13/2016/08/03-BasicAberrations_and_Optical_Testing.pdf>_`). This makes poppy consistent with the convention more widely used in optical metrology and other optical software such as Code V; however this is not consistent with some other reference such as Goodman's classic text _Fourier Optics_.
+    Wyant and Creath's `Basic Wavefront Aberration Theory for Optical Metrology <https://ui.adsabs.harvard.edu/abs/1992aooe...11....2W/abstract>`_ (or see `the paper here <https://wp.optics.arizona.edu/jcwyant/wp-content/uploads/sites/13/2016/08/03-BasicAberrations_and_Optical_Testing.pdf>`_). This makes poppy consistent with the convention more widely used in optical metrology and other optical software such as Code V; however this is not consistent with some other reference such as Goodman's classic text *Fourier Optics*.
 
     To achieve that consistency, *this is a partially back-incompatible release*, with
     changes in the signs of complex exponentials in some Fourier propagation calculations. Depending on your use case this may result in some changes in output PSFs or
     different signs or orientations from prior results.
 
-    See :ref:`sign_conventions` for details, discussion, and demonstration. Many thanks to Derek
-    Sabatke (Ball Aerospace), Matthew Bergkoetter Alden Jurling and Tom Zielinski (NASA GSFC), and
+    See `Sign Conventions for Coordinates, Phase, and Wavefront Error <https://poppy-optics.readthedocs.io/en/latest/sign_conventions_for_coordinates_and_phase.html>`_ for details, discussion, and demonstration.
+
+    Many thanks to Derek
+    Sabatke (Ball Aerospace); Matthew Bergkoetter, Alden Jurling, and Tom Zielinski (NASA GSFC); and
     Randal Telfer (STScI) for invaluable discussions and aid in getting these
     details onto a more rigorous footing.
 
+
+**API Changes:**
+  * Several functions in the Zernike module were renamed for clarity, in particular the prior ``opd_expand`` is now :py:func:`~poppy.zernike.decompose_opd`, and ``opd_from_zernikes`` is now :py:func:`~poppy.zernike.compose_opd_from_basis`.
+    The prior function names also continue to work as aliases for backwards compatibility.  (:pr:`471` by :user:`mperrin`)
+
+**New Functionality:**
+ * New class :py:obj:`~poppy.TipTiltStage`, which allows putting additional tip-tilt on any arbitrary optic, and adjusting/controlling the tip and tilt. See `the tip-tilt documentation <https://poppy-optics.readthedocs.io/en/latest/available_optics.html#Tip-Tilt-Stage>`_ for example. (:pr:`414` by :user:`mperrin`)
+ * New class :py:obj:`~poppy.CircularSegmentedDeformableMirror`, which models an aperture comprising several individually-controllable circular mirrors. See `the circularly segmented deformable mirrors documentation <https://poppy-optics.readthedocs.io/en/latest/available_optics.html#Circularly-Segmented-Deformable-Mirrors>`_ for example. (:pr:`407` and :pr:`424` by :user:`Teusia`)
+ * New class :py:obj:`~poppy.KolmogorovWFE`, which models the phase distortions in a turbulent atmosphere. See `the propagation through atmosphere notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Propagation%20through%20turbulent%20atmosphere.ipynb>`_ for details. (:pr:`437` by :user:`DaPhil`)
+ * New class :py:obj:`~poppy.ThermalBloomingWFE`, which models the change in WFE from heating of air (or other transmission medium) due to high powered laser beams. See `the thermal blooming notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Thermal%20Blooming%20Demo.ipynb>`_ for details. (:pr:`438` by :user:`DaPhil`)
+
+
 **Other enhancements and fixes:**
  * Wavefront instances gain a `.wfe` attribute for the wavefront error in meters (computed from phase, so it will wrap if wavefront error exceeds +- 0.5 waves), and the wavefront display method can display wfe as well as intensity and phase.
+ * Faster algorithm for calculations in the :py:func:`~poppy.zernike.opd_from_zernikes` function (:pr:`400` by :user:`grbrady`). Run time of this function was reduced roughly in half.
+ * Various performance enhancements in FFTs, array rotations, zero padding, and array indexing in certain cases (:pr:`394`, :pr:`398`, :pr:`411`, :pr:`413` by :user:`mperrin`)
+ * Bug fix to a sign inconsistency in wavefront rotation: While the documentation states that positive rotations are counterclockwise, the code had the other sign. Updated code to match the documented behavior, which also matches the rotation convention for optical elements. (:pr:`411` by :user:`mperrin`)
+ * More robust algorithm for offset sources in optical systems with coordinate rotations and inversions (:pr:`420` by :user:`mperrin`). This ensures the correct sign of tilt is applied in the entrance pupil plane to achieve the requested source position in the output image plane.
+ * Added ``inwave=`` parameter to ``calc_psf`` and related functions, for both Fresnel and Fraunhofer propagation types, to allow providing a custom input wavefront, for instance the output of some prior upstream calculation. If provided, this is used instead of the default input wavefront (a plane wave of uniform intensity). (:pr:`402` by :user:`kian1377`)
+ * Improved support for astropy Quantities, including being able to specify monochromatic wavelengths using Quantities of wavelength, and to specify optic shifts using Quantities in length or angular units as appropriate (:pr:`445`, :pr:`447` by :user:`mperrin`).
+
+
+
+**Software Infrastructure Updates and Internals:**
+ * Continuous integration system migrated to Github Actions, replacing previous use of Travis CI. (:pr:`434` by :user:`shanosborne`)
+ * Updates to recommended (not minimum) dependency versions to track latest numpy, scipy, etc (various PRs by :user:`shanosborne`)
+ * Updates to minimum dependency versions, generally to upstream releases as of mid-2020. (:pr:`415`, :pr:`472` by :user:`mperrin`)
+ * Swap to use of base ``synphot`` rather than ``stsynphot`` package, to avoid dependency on many GBs of reference data. (:pr:`421` by :user:`mperrin`)
 
 
 0.9.2
@@ -40,7 +229,7 @@ For a list of contributors, see :ref:`about`.
 
 *2021 Feb 11*
 
-This release includes several updated optical element classes, bug fixes, and improved documentation. This is intended as a maintenance release shortly before v 1.0 which will introduce some backwards-incompatible changes. 
+This release includes several updated optical element classes, bug fixes, and improved documentation. This is intended as a maintenance release shortly before v 1.0 which will introduce some backwards-incompatible changes.
 
 **New Functionality:**
  * New OpticalElement classes for ScalarOpticalPathDifference, LetterFAperture, and LetterFOpticalPathDifference. (:pr:`386` by :user:`mperrin`)
@@ -50,7 +239,7 @@ This release includes several updated optical element classes, bug fixes, and im
 **Other enhancements and fixes:**
  * The ShackHartmannWavefrontSensor class was refactored and improved . (:pr:`369` by :user:`fanpeng-kong`). And a unit test case for this class was added (:pr:`376` by :user:`remorgan123` in collaboration with :user:`douglase`)
  * Expanded documentation and example code for usage of astropy Units. (:pr:`374`, :pr:`378` by :user:`mperrin`; with thanks to :user:`keflavich’ and  :user:`mcbeth`)
-* Made the HexagonalSegmentedDeformableMirror class consistent with ContinuousDeformableMirror in having an 'include_factor_of_two' parameter, for control in physical surface versus wavefront error units
+ * Made the HexagonalSegmentedDeformableMirror class consistent with ContinuousDeformableMirror in having an 'include_factor_of_two' parameter, for control in physical surface versus wavefront error units
  * Bug fix for influence functions of rotated hexagonally segmented deformable mirrors. (:pr:`371` by :user:`mperrin`)
  * Bug fix for FWHM measurement on integer data type images. (:pr:`368` by :user:`kjbrooks`)
  * Bug fix for StatisticalPSDWFE to avoid side effects from changing global numpy random generator state. (:pr:`377` by :user:`ivalaginja`)
@@ -79,17 +268,16 @@ This release includes several updated optical element classes, bug fixes, and im
 This is a minor release primarily for updates in packaging infrastructure, plus a handful of small enhancements related to datacubes, segmented apertures, and new functionality for subsampled optics.
 
 **New Functionality:**
- * Adds new `Subapertures` class for modeling subsampled optics (i.e. optics that have multiple spatially disjoint output beams). Adds `ShackHartmannWavefrontSensor` class to model that type of sensor. See `this notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Shack%20Hartmann%20Wavefront%20Sensor%20Demo.ipynb>`_ for details and example codes. (:pr:`346` thanks to :user:`remorgan01` and :user:`douglase`)
+ * Adds new `Subapertures` class for modeling subsampled optics (i.e. optics that have multiple spatially disjoint output beams). Adds `ShackHartmannWavefrontSensor` class to model that type of sensor. See `the Shack Hartmann Wavefront Sensor notebook <https://github.com/spacetelescope/poppy/blob/develop/notebooks/Shack%20Hartmann%20Wavefront%20Sensor%20Demo.ipynb>`_ for details and example codes. (:pr:`346` thanks to :user:`remorgan01` and :user:`douglase`)
 
 **Other enhancements and fixes:**
  * `calc_datacube` function now allows `nwavelengths>100`, removing a prior limitation of this function. (:pr:`351` by :user:`ojustino`)
  * `radial_profile` function can now be applied to datacubes, with a `slice` keyword to specify which slice of the cube should be examined. (:pr:`352` by :user:`mperrin`)
  * Improved the Zernike basis expansion function for segmented apertures, `opd_expand_segments`, to allow optional masking out of pixels at the segment borders. This can be useful in some circumstances for avoiding edge effects from partially illuminated pixels or interpolation artifacts when evaluating Zernike or hexike coefficients per segment. (:pr:`353` by :user:`mperrin`)
- * Allows `Segmented_PTT_Basis` to pass through keyword arguments to parent class `MultiHexagonAperture`, in particular for selecting/excluding particular segments from the apreture geometry. (:pr:`357` by :user:`kjbrooks`)
+ * Allows `Segmented_PTT_Basis` to pass through keyword arguments to parent class `MultiHexagonAperture`, in particular for selecting/excluding particular segments from the aperture geometry. (:pr:`357` by :user:`kjbrooks`)
  * Fix a log string formatting bug encountered in MFT propagation under certain conditions (:pr:`360` by :user:`mperrin`)
 
 **Software Infrastructure Updates and Internals:**
-
  * Removed dependency on the deprecated astropy-helpers package framework. (:pr:`349` by :user:`shanosborne`). Fixes :issue:`355`.
  * Switched code coverage CI service to codecov.io. (:pr:`349` by :user:`shanosborne`)
  * The minimum Python version is now 3.6. (:pr:`356` by :user:`mperrin`)
@@ -102,7 +290,6 @@ This is a minor release primarily for updates in packaging infrastructure, plus 
 *2019 Nov 25*
 
 **New Functionality:**
-
  * **Chaining together multiple propagations calculations:** Multiple `OpticalSystem` instances can now be chained together into a `CompoundOpticalSystem`. This includes mixed
    propagations that are partially Fresnel and partially Fraunhofer; Wavefront objects will be cast between types as
    needed. (:pr:`290` by :user:`mperrin`)
@@ -119,7 +306,7 @@ This is a minor release primarily for updates in packaging infrastructure, plus 
    transformation only applies the cosine scaling to the optic's appearance, and does *not* introduce wavefront for
    tilt. (:pr:`329` by :user:`mperrin`)
 
- * **Many improvements to the Continuous Deformable Mirror class**: 
+ * **Many improvements to the Continuous Deformable Mirror class**:
 
     * Enhance model of DM actuator influence functions for more precise subpixel spacing of DM actuators, rather than
       pokes separated by integer pixel spacing. This applies to the 'convolution by influence function' method for
@@ -142,9 +329,8 @@ This is a minor release primarily for updates in packaging infrastructure, plus 
    at the end (:pr:`298` by :user:`sdwill`)
 
 **Software Infrastructure Updates and Internals:**
-
  * PR :pr:`290` for CompoundOpticalSystem involved refactoring the Wavefront and FresnelWavefront classes to both be child classes of a new abstract base class BaseWavefront. This change should be transparent for most/all users and requires no changes in calling code.
- * PR :pr:`306` for wavelength-independent phase subsequently required refactoring of the optical element display code to correctly handle all cases. As a result the display code internals were clarified and made more consistent. (:pr:`314` and :pr:`321`  by :user:`mperrin` with contributions from :user:`ivalaginja` and :user:`shanosborne`). Again this change should be transparent for users. 
+ * PR :pr:`306` for wavelength-independent phase subsequently required refactoring of the optical element display code to correctly handle all cases. As a result the display code internals were clarified and made more consistent. (:pr:`314` and :pr:`321`  by :user:`mperrin` with contributions from :user:`ivalaginja` and :user:`shanosborne`). Again this change should be transparent for users.
  * Removed deprecated / unused decorator function in WFE classes, making their `get_opd` function API consistent with the rest of poppy. (:pr:`322` by :user:`mperrin`)
  * Accomodate some upstream changes in astropy (:pr:`294` by :user:`shanosborne`, :pr:`330` by :user:`mperrin`)
  * The `poppy.Instrument._get_optical_system` function, which has heretofore been an internal method (private, starting with
@@ -153,7 +339,6 @@ This is a minor release primarily for updates in packaging infrastructure, plus 
  * Note, minimum supported versions of some upstream packages such as numpy and matplotlib have been updated.
 
 **Bug Fixes and Misc Improvements:**
-
  * Correctly assign BUNIT keyword after rescaling OPDs (:issue:`285`, :pr:`286` by :user:`laurenmarietta`).
  * New header keywords in output PSF files for `OPD_FILE` and `OPDSLICE` to more cleanly record the information
    previously stored together in the `PUPILOPD` keyword (:pr:`316` by :user:`mperrin`)
@@ -174,7 +359,7 @@ This is a minor release primarily for updates in packaging infrastructure, plus 
 apertures such as from inclined optics. You may see warnings about this in cases when you use `inclination_y` or
 `inclination_x` attributes on a circular aperture. This warning is generally benign; the calculation is still more
 accurate than it would be without the subpixel sampling, though not perfectly precise. This known issue will likely be
-improved upon in a future release. 
+improved upon in a future release.
 
 
 0.8.0
@@ -232,7 +417,7 @@ improved upon in a future release.
 .. admonition:: Python version support: Future releases will require Python 3.
 
     Please note, this is the *final* release to support Python 2.7. All
-    future releases will require Python 3.5+. See `here <https://python3statement.org>`_ for more information on migrating to Python 3.
+    future releases will require Python 3.5+. See `Python 3 statement <https://python3statement.org>`_ for more information on migrating to Python 3.
 
 .. admonition:: Deprecated function names will go away in next release.
 
@@ -266,7 +451,7 @@ improved upon in a future release.
 **New Functionality:**
 
  * New `PhysicalFresnelWavefront` class that uses physical units for the wavefront (e.g.
-   volts/meter) and intensity (watts). See `this notebook
+   volts/meter) and intensity (watts). See `the physical units demo notebook
    <https://github.com/spacetelescope/poppy/blob/stable/notebooks/Physical%20Units%20Demo.ipynb>`_ for
    examples and further discussion.  (`#248 <https://github.com/spacetelescope/poppy/pull/248>`, @daphil).
  * `calc_psf` gains a new parameter to request returning the complex wavefront (`#234
@@ -353,7 +538,7 @@ improved upon in a future release.
 
  * Fix ConfigParser import (see `astropy/package-template#172 <https://github.com/astropy/package-template/pull/172>`_)
  * Fixes to formatting of ``astropy.units.Quantity`` values (`#171 <https://github.com/spacetelescope/poppy/issues/171>`_, `#174 <https://github.com/mperrin/poppy/pull/174>`_, `#179 <https://github.com/mperrin/poppy/pull/174>`_; @josephoenix, @neilzim)
- * Fixes to ``fftw_save_wisdom`` and ``fftw_load_wisdom`` (`#177 <https://github.com/spacetelescope/poppy/issues/177>`_, `#178 <https://github.com/mperrin/poppy/pull/178>`_; @mmecthley)
+ * Fixes to ``fftw_save_wisdom`` and ``fftw_load_wisdom`` (`#177 <https://github.com/spacetelescope/poppy/issues/177>`_, `#178 <https://github.com/mperrin/poppy/pull/178>`_; @mmechtley)
  * Add ``calc_datacube`` method to ``poppy.Instrument`` (`#182 <https://github.com/spacetelescope/poppy/issues/182>`_; @mperrin)
  * Test for Apple Accelerate more narrowly (`#176 <https://github.com/spacetelescope/poppy/issues/176>`_; @mperrin)
  * ``Wavefront.display()`` correctly handles ``vmin`` and ``vmax`` args (`#183 <https://github.com/spacetelescope/poppy/pull/183>`_; @neilzim)
@@ -384,7 +569,7 @@ some lingering bugs. As always, please let us know of any issues encountered via
    (`#145 <https://github.com/spacetelescope/poppy/issues/145>`_, `#165 <https://github.com/mperrin/poppy/pull/165>`_; @mperrin, douglase)
  * The ``getPhasor`` function for all OpticalElements has been refactored to split it into 3
    functions: ``get_transmission`` (for electric field amplitude transmission), ``get_opd``
-   (for the optical path difference affectig the phase), and ``get_phasor`` (which combines transmission
+   (for the optical path difference affecting the phase), and ``get_phasor`` (which combines transmission
    and OPD into the complex phasor). This division simplifies and makes more flexible the subclassing
    of optics, since in many cases (such as aperture stops) one only cares about setting either the
    transmission or the OPD.  Again, there are back compatibility hooks to allow existing code calling
@@ -403,7 +588,7 @@ some lingering bugs. As always, please let us know of any issues encountered via
  * Update many function names for `PEP8 style guide compliance <https://www.python.org/dev/peps/pep-0008/>`_.
    For instance `calc_psf` replaces `calcPSF`.  This was done with back compatible aliases to ensure
    that existing code continues to run with no changes required at this time, but *at some
-   future point* (but not soon!) the older names will go away, so users are encouranged to migrate to the new names.
+   future point* (but not soon!) the older names will go away, so users are encouraged to migrate to the new names.
    (@mperrin, josephoenix)
 
 And some smaller enhancements and fixes:
@@ -623,7 +808,7 @@ Released April 7, 2014
  * Added support for pyFFTW in addition to PyFFTW3.
  * pyFFTW will auto save wisdom to disk for more rapid execution on subsequent invocations
  * InverseTransmission of an AnalyticElement is now allowed inside a CompoundAnalyticOptic
- * Added SecondaryObscuration optic to conveniently model an opaque secondary mirror and adjustible support spiders.
+ * Added SecondaryObscuration optic to conveniently model an opaque secondary mirror and adjustable support spiders.
  * Added RectangleAperture. Added rotation keywords for RectangleAperture and SquareAperture.
  * Added AnalyticOpticalElement.sample() function to sample analytic functions onto a user defined grid. Refactored
    the display() and toFITS() functions. Improved functionality of display for CompoundAnalyticOptics.
@@ -633,7 +818,7 @@ Released April 7, 2014
 0.2.8
 -----
 
- * First release as a standalone package (previously was integrated as part of webbpsf). See the release notes for WebbPSF for prior verions.
+ * First release as a standalone package (previously was integrated as part of webbpsf). See the release notes for WebbPSF for prior versions.
  * switched package building to use `setuptools` instead of `distutils`/`stsci_distutils_hack`
  * new `Instrument` class in poppy provides much of the functionality previously in JWInstrument, to make it
    easier to model generic non-JWST instruments using this code.

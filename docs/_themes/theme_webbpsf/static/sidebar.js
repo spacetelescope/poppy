@@ -5,7 +5,7 @@
  * This script makes the Sphinx sidebar collapsible.
  *
  * .sphinxsidebar contains .sphinxsidebarwrapper.  This script adds
- * in .sphixsidebar, after .sphinxsidebarwrapper, the #sidebarbutton
+ * in .sphinxsidebar, after .sphinxsidebarwrapper, the #sidebarbutton
  * used to collapse and expand the sidebar.
  *
  * When the sidebar is collapsed the .sphinxsidebarwrapper is hidden

@@ -1,0 +1,3 @@
+.classifier:before {
+    content: "\00A0:\00A0" !important;
+}

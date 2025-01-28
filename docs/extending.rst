@@ -33,8 +33,8 @@ Example skeleton code::
 
     class myCustomOptic(poppy.AnalyticOpticalElement):
         def __init__(self, *args, **kwargs):
-            """ If your optic has adjustible parameters, then save them as attributes here """
-            poppy.AnalyticOpticalElement.__init__(**kwargs)
+            """ If your optic has adjustable parameters, then save them as attributes here """
+            super().__init__(**kwargs)
 
         def get_opd(self,wave):
             y, x = self.get_coordinates(wave)
@@ -51,7 +51,7 @@ Example skeleton code::
 
 
 Note the use of the `self.get_coordinates()` helper function, which returns `y` and
-`x` arrays giving the coordinates as appopriate for the sampling of the supplied
+`x` arrays giving the coordinates as appropriate for the sampling of the supplied
 `wave` object (by default in units of meters for most optics such as pupil planes,
 in arcseconds for image plane optics).  You can use these coordinates to
 calculate the transmission and path delay appropriate for your optic.  If
@@ -64,6 +64,35 @@ and rotations for any analytic optic: just add a `shift_x`, `shift_y` or
 `rotation` attribute for your optic object, and the coordinates will be shifted
 accordingly. These parameters should be passed to ``poppy.AnalyticOpticalElement.__init__`` via the
 ``**kwargs`` mechanism.
+
+
+Defining a pupil size for your optic
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Often it can be useful to set the `.pupil_diam` or `._default_display_size` attribute for your optic, which are two
+ways of specifying the diameter
+
+When defining an optical model you must specify the beam size to be used for wavefronts to be propagated
+through that optical system.
+This can be done in one of two ways. First, you can set the value directly when creating an OpticalSystem::
+
+    osys = poppy.OpticalSystem(pupil_diameter=2.4*u.m)
+
+Secondly, you can set the `.pupil_diam` attribute on the first optic in that optical system. The OpticalSystem
+will infer the size to use for input wavefronts from the diameter of the first optic in the system::
+
+    myoptic = myCustomOptic()
+    myoptic.pupil_diam = 2.4*u.m   # or set this in your class' init
+    osys.add_pupil(myoptic)
+
+Either of the above will let you set the diameter of the input wavefront as desired.
+
+The `._default_display_size` attribute is similar, but has different semantics. It is used to set the default
+size used to display an optic when calling `optic.display()` without specifying a grid size.
+Note that `.pupil_diam` only makes sense for pupil-plane optics, specified in physical size such as meters. `._default_display_size` can be set and applied
+to either pupil plane or intermediate plane optics (in linear units such as meters) and also to image plane optics
+(in angular units such as arcseconds)
+
 
 
 Defining a custom optic from a FITS file
@@ -90,14 +119,14 @@ The spatial or angular scale of these arrays must also be indicated by a FITS
 header keyword. By default, poppy checks for the keyword `PIXSCALE` for image
 plane pixel scale in arcseconds/pixel or `PUPLSCAL` for pupil plane scale in
 meters/pixel. However if your FITS file uses some alternate keyword, you can specify that
-keyword name with the `pupilscale=` argument in the call to the `~poppy.FITSOpticalElement` constructor, i.e.::
+keyword name with the `pixelscale=` argument in the call to the `~poppy.FITSOpticalElement` constructor, i.e.::
 
-     myoptic = poppy.FITSOpticalElement(transmission='transfile.fits', opd='opdfile.fits', pupilscale="PIXELSCL")
+     myoptic = poppy.FITSOpticalElement(transmission='transfile.fits', opd='opdfile.fits', pixelscale="PIXELSCL")
 
 
 Lastly if there is no such keyword available, you can specify the numerical scale directly via the same keyword by providing a float instead of a string::
 
-     myoptic = poppy.FITSOpticalElement(transmission='transfile.fits', opd='opdfile.fits', pupilscale=0.020)
+     myoptic = poppy.FITSOpticalElement(transmission='transfile.fits', opd='opdfile.fits', pixelscale=0.020)
 
 
 Creating a custom instrument

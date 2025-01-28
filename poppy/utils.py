@@ -23,6 +23,12 @@ import astropy.io.fits as fits
 
 import poppy
 
+from importlib import reload
+
+from . import accel_math
+
+from .accel_math import xp, _scipy
+
 try:
     import pyfftw
 except ImportError:
@@ -49,8 +55,12 @@ __all__ = ['display_psf', 'display_psf_difference', 'display_ee', 'measure_ee', 
 #    Display functions
 #
 
+def imshow(image, *args, **kwargs):
+    """If needed, fetch array fromm GPU before imshow"""
+    return plt.imshow( accel_math.ensure_not_on_gpu(image),
+                       *args, **kwargs)
 
-def imshow_with_mouseover(image, ax=None, *args, **kwargs):
+def imshow_with_mouseover(image0, ax=None, *args, **kwargs):
     """Wrapper for matplotlib imshow that displays the value under the
     cursor position
 
@@ -60,6 +70,9 @@ def imshow_with_mouseover(image, ax=None, *args, **kwargs):
     """
     if ax is None:
         ax = plt.gca()
+
+    image = accel_math.ensure_not_on_gpu(image0)
+
     ax.imshow(image, *args, **kwargs)
     aximage = ax.images[0].properties()['array']
     # need to account for half pixel offset of array coordinates for mouseover relative to pixel center,
@@ -72,7 +85,7 @@ def imshow_with_mouseover(image, ax=None, *args, **kwargs):
 
     def report_pixel(x, y):
         # map data coords back to pixel coords
-        # and be sure to clip appropriatedly to avoid array bounds errors
+        # and be sure to clip appropriately to avoid array bounds errors
         img_y = np.floor((y - imext[2]) / (imext[3] - imext[2]) * imsize[0])
         img_y = int(img_y.clip(0, imsize[0] - 1))
 
@@ -417,7 +430,7 @@ def display_psf_difference(hdulist_or_filename1=None, hdulist_or_filename2=None,
             return ax
 
 
-def display_ee(hdulist_or_filename=None, ext=0, overplot=False, ax=None, mark_levels=True, **kwargs):
+def display_ee(hdulist_or_filename=None, ext=0, overplot=False, ax=None, mark_levels=True, levels=None, **kwargs):
     """ Display Encircled Energy curve for a PSF
 
     The azimuthally averaged encircled energy is plotted as a function of radius.
@@ -435,7 +448,9 @@ def display_ee(hdulist_or_filename=None, ext=0, overplot=False, ax=None, mark_le
     mark_levels : bool
         If set, mark and label on the plots the radii for 50%, 80%, 95% encircled energy.
         Default is True
-
+    levels : list 
+        if not None and mark_levels is true then this list specifies alternative levels
+        
     """
     if isinstance(hdulist_or_filename, str):
         hdu_list = fits.open(hdulist_or_filename)
@@ -457,7 +472,11 @@ def display_ee(hdulist_or_filename=None, ext=0, overplot=False, ax=None, mark_le
         ax.set_ylabel("Encircled Energy")
 
     if mark_levels:
-        for level in [0.5, 0.8, 0.95]:
+        if levels is None:
+            markers=[0.5, 0.8, 0.95]
+        else:
+            markers=levels
+        for level in markers:
             ee_lev = radius[np.where(ee > level)[0][0]]
             yoffset = 0 if level < 0.9 else -0.05
             plt.text(ee_lev + 0.1, level + yoffset, 'EE=%2d%% at r=%.3f"' % (level * 100, ee_lev))
@@ -520,8 +539,9 @@ def display_profiles(hdulist_or_filename=None, ext=0, overplot=False, title=None
             plt.text(ee_lev + 0.1, level + yoffset, 'EE=%2d%% at r=%.3f"' % (level * 100, ee_lev))
 
 
-def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stddev=False, binsize=None, maxradius=None,
-                   normalize='None', pa_range=None, slice=0):
+def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stddev=False, mad=False,
+                   binsize=None, maxradius=None, normalize='None', pa_range=None, slice=0,
+                   custom_function=None):
     """ Compute a radial profile of the image.
 
     This computes a discrete radial profile evaluated on the provided binsize. For a version
@@ -544,6 +564,9 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
         size of step for profile. Default is pixel size.
     stddev : bool
         Compute standard deviation in each radial bin, not average?
+    mad : bool
+        Compute median absolute deviation (MAD) in each radial bin.
+        Cannot be used at same time as stddev; pick one or the other.
     normalize : string
         set to 'peak' to normalize peak intensity =1, or to 'total' to normalize total flux=1.
         Default is no normalization (i.e. retain whatever normalization was used in computing the PSF itself)
@@ -557,14 +580,20 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
     slice: integer, optional
         Slice into a datacube, for use on cubes computed by calc_datacube. Default 0 if a
         cube is provided with no slice specified.
+    custom_function : function
+        To evaluate an arbitrary function in each radial bin, provide some callable function that
+        takes a list of pixels and returns one float. For instance custome_function=np.min to compute
+        the minimum in each radial bin.
 
     Returns
-    --------
+    -------
     results : tuple
         Tuple containing (radius, profile) or (radius, profile, EE) depending on what is requested.
         The radius gives the center radius of each bin, while the EE is given inside the whole bin
         so you should use (radius+binsize/2) for the radius of the EE curve if you want to be
-        as precise as possible.
+        as precise as possible. The profile will be either the average within each bin, or the
+        standard or median absolute deviation within each bin if one of those options is selected.
+
     """
     if isinstance(hdulist_or_filename, str):
         hdu_list = fits.open(hdulist_or_filename)
@@ -649,6 +678,7 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
         radialprofile2 = radialprofile2[crop]
 
     if stddev:
+        # Compute standard deviation in each radial bin
         stddevs = np.zeros_like(radialprofile2)
         r_pix = r * binsize
         for i, radius in enumerate(rr):
@@ -660,9 +690,38 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
             stddevs[i] = np.nanstd(image[wg])
         return rr, stddevs
 
-    if not ee:
+    elif mad:
+        # Compute median absolute deviation in each radial bin
+        mads = np.zeros_like(radialprofile2)
+        r_pix = r * binsize
+        for i, radius in enumerate(rr):
+            if i == 0:
+                wg = np.where(r < radius + binsize / 2)
+            else:
+                wg = np.where((r_pix >= (radius - binsize / 2)) & (r_pix < (radius + binsize / 2)))
+            mads[i] = np.nanmedian(np.absolute(image[wg]-np.nanmedian(image[wg])))
+        return rr, mads
+    elif custom_function is not None:
+        # Compute some custom function in each radial bin
+        results = np.zeros_like(radialprofile2)
+        r_pix = r * binsize
+        for i, radius in enumerate(rr):
+            if i == 0:
+                wg = np.where(r < radius + binsize / 2)
+            else:
+                wg = np.where((r_pix >= (radius - binsize / 2)) & (r_pix < (radius + binsize / 2)))
+            if len(wg[0])==0: # Zero elements in this bin
+                results[i] = np.nan
+            else:
+                results[i] = custom_function(image[wg])
+        return rr, results
+
+
+    elif not ee:
+        # (Default behavior) Compute average in each radial bin
         return rr, radialprofile2
     else:
+        # also return the cumulative sum within each radial bin, i.e. the encircled energy
         ee = csim[rind]
         return rr, radialprofile2, ee
 
@@ -695,7 +754,7 @@ def measure_ee(hdulist_or_filename=None, ext=0, center=None, binsize=None, norma
         Default is no normalization (i.e. retain whatever normalization was used in computing the PSF itself)
 
     Returns
-    --------
+    -------
     encircled_energy: function
         A function which will return the encircled energy interpolated to any desired radius.
 
@@ -741,7 +800,7 @@ def measure_radius_at_ee(hdulist_or_filename=None, ext=0, center=None, binsize=N
         Default is no normalization (i.e. retain whatever normalization was used in computing the PSF itself)
 
     Returns
-    --------
+    -------
     radius: function
         A function which will return the radius of a desired encircled energy.
 
@@ -782,7 +841,7 @@ def measure_radial(hdulist_or_filename=None, ext=0, center=None, binsize=None):
         size of step for profile. Default is pixel size.
 
     Returns
-    --------
+    -------
     radial_profile: function
         A function which will return the mean PSF value at any desired radius.
 
@@ -1088,7 +1147,8 @@ def pad_to_oversample(array, oversample):
     padToSize
     """
     npix = array.shape[0]
-    padded = np.zeros(shape=(npix * oversample, npix * oversample), dtype=array.dtype)
+    n = int(np.round(npix * oversample))
+    padded = xp.zeros(shape=(n, n), dtype=array.dtype)
     n0 = float(npix) * (oversample - 1) / 2
     n1 = n0 + npix
     n0 = int(round(n0))  # because astropy test_plugins enforces integer indices
@@ -1115,10 +1175,9 @@ def pad_to_size(array, padded_shape):
 
 
     See Also
-    ---------
+    --------
     pad_to_oversample, pad_or_crop_to_shape
     """
-
     if len(padded_shape) < 2:
         outsize0 = padded_shape
         outsize1 = padded_shape
@@ -1126,7 +1185,7 @@ def pad_to_size(array, padded_shape):
         outsize0 = padded_shape[0]
         outsize1 = padded_shape[1]
     # npix = array.shape[0]
-    padded = np.zeros(shape=padded_shape, dtype=array.dtype)
+    padded = xp.zeros(shape=padded_shape, dtype=array.dtype)
     n0 = (outsize0 - array.shape[0]) // 2  # pixel offset for the inner array
     m0 = (outsize1 - array.shape[1]) // 2  # pixel offset in second dimension
     n1 = n0 + array.shape[0]
@@ -1161,20 +1220,19 @@ def pad_or_crop_to_shape(array, target_shape):
     pad_to_oversample, pad_to_size
 
     """
-
     if array.shape == target_shape:
         return array
 
     lx, ly = array.shape
     lx_w, ly_w = target_shape
-    border_x = np.abs(lx - lx_w) // 2
-    border_y = np.abs(ly - ly_w) // 2
+    border_x = xp.abs(lx - lx_w) // 2
+    border_y = xp.abs(ly - ly_w) // 2
 
     if (lx < lx_w) or (ly < ly_w):
         _log.debug("Array shape " + str(array.shape) + " is smaller than desired shape " + str(
             [lx_w, ly_w]) + "; will attempt to zero-pad the array")
 
-        resampled_array = np.zeros(shape=(lx_w, ly_w), dtype=array.dtype)
+        resampled_array = xp.zeros(shape=(lx_w, ly_w), dtype=array.dtype)
         resampled_array[border_x:border_x + lx, border_y:border_y + ly] = array
         _log.debug("  Padded with a {:d} x {:d} border to "
                    " match the desired shape".format(border_x, border_y))
@@ -1221,7 +1279,6 @@ def rebin_array(a=None, rc=(2, 2), verbose=False):
     anand@stsci.edu
 
     """
-
     r, c = rc
 
     R = a.shape[0]
@@ -1239,10 +1296,10 @@ def rebin_array(a=None, rc=(2, 2), verbose=False):
             print("row loop")
         for ci in range(0, nc):
             Clo = ci * c
-            b[ri, ci] = np.add.reduce(a[Rlo:Rlo + r, Clo:Clo + c].copy().flat)
+            b[ri, ci] = a[Rlo:Rlo + r, Clo:Clo + c].sum()
             if verbose:
                 print("    [%d:%d, %d:%d]" % (Rlo, Rlo + r, Clo, Clo + c))
-                print("%4.0f" % np.add.reduce(a[Rlo:Rlo + r, Clo:Clo + c].copy().flat))
+                print("%4.0f" % b[ri, ci])
     return b
 
 
@@ -1305,7 +1362,7 @@ class BackCompatibleQuantityInput(object):
         -----
 
         The checking of arguments inside variable arguments to a function is not
-        supported (i.e. \*arg or \**kwargs).
+        supported (i.e. *arg or **kwargs).
 
         Examples
         --------
@@ -1339,7 +1396,7 @@ class BackCompatibleQuantityInput(object):
         self.decorator_kwargs = kwargs
 
     def __call__(self, wrapped_function):
-        from astropy.utils.decorators import wraps
+        from functools import wraps
         from astropy.units import UnitsError, add_enabled_equivalencies, Quantity
         import inspect
 
@@ -1439,7 +1496,7 @@ def spectrum_from_spectral_type(sptype, return_list=False, catalog=None):
     convenient access function.
 
     Parameters
-    -----------
+    ----------
     sptype : str
         Spectral type, like "G0V"
     catalog : str
@@ -1632,7 +1689,7 @@ def spectrum_from_spectral_type(sptype, return_list=False, catalog=None):
             raise LookupError(errmsg)
 
 
-# Back compatibility allias
+# Back compatibility alias
 specFromSpectralType = spectrum_from_spectral_type
 
 
@@ -1654,7 +1711,7 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
     NOTE: Requires psutil package. Otherwise defaults to just 4?
 
     Parameters
-    -----------
+    ----------
     osys : OpticalSystem instance
         The optical system that we will be calculating for.
     nwavelengths : int
@@ -1682,7 +1739,7 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
                                                                                             wavefrontsize))
         # The following is a very rough estimate
         # empirical tests show that an 8192x8192 propagation results in Python sessions with ~4 GB memory used w/ FFTW
-        # usingg mumpy FT, the memory usage per process can exceed 5 GB for an 8192x8192 propagation.
+        # using numpy FT, the memory usage per process can exceed 5 GB for an 8192x8192 propagation.
         padding_factor = 4 if conf.use_fftw else 5
     else:
         # oversampling not relevant for memory size in MFT mode
@@ -1716,7 +1773,7 @@ def fftw_save_wisdom(filename=None):
     (Another location could be chosen - this is simple and works easily cross-platform.)
 
     Parameters
-    ------------
+    ----------
     filename : string, optional
         Filename to use (instead of the default, poppy_fftw_wisdom.json)
     """
@@ -1750,7 +1807,7 @@ def fftw_load_wisdom(filename=None):
     (Another location could be chosen - this is simple and works easily cross-platform.)
 
     Parameters
-    ------------
+    ----------
     filename : string, optional
         Filename to use (instead of the default, poppy_fftw_wisdom.json)
     """
@@ -1798,3 +1855,29 @@ def fftw_load_wisdom(filename=None):
             "optimization measurements (automatically). ")
 
     _loaded_fftw_wisdom = True
+
+# ##################################################################
+#   Progress bar (optional convenience)
+#
+
+def get_progressbar_wrapper(progressbar=True, nwaves=None):
+    """ Utility function to return an iterator that MAY display a progress bar,
+    or may not, depending
+    """
+    if progressbar:
+        # this relies on an optional dependency, tqdm
+        # if it's not present, just don't try to display a progressbar
+        try:
+            from tqdm import tqdm
+        except ImportError:
+            progressbar = False
+
+    if progressbar:
+        import functools
+        # set up an optional progressbar wrapper
+        iterate_wrapper = functools.partial(tqdm, ncols=80, total=nwaves)
+    else:
+        # null wrapper that does nothing, for no progress bar
+        iterate_wrapper = lambda x: x
+
+    return iterate_wrapper
