@@ -1,11 +1,13 @@
 '''
 TO DO:
-* resolve all TO DOs or NOT IMPLEMENTEDs
 * write display code for polarization optics and polarized wavefronts
-* finish writing tests
-* figure out padding issue
+    * compatibility with existing display functions
+    * new display functions for Stokes and vector WFs?
+* more tests!
+    * worried about interactions of polarized WFs with various types of optical elements
 * create polarization coronagraph masks
-* put together examples using Fraun+Fresnel prop, complicated optical system
+* put together examples using Fraun+Fresnel prop (vector/stokes), complicated optical system
+* resolve all other TO DOs or NOT IMPLEMENTEDs
 '''
 
 import numpy as np
@@ -82,6 +84,13 @@ class BasePolarizedWavefront(BaseWavefront):
         if self.input_stokes_vector is None:
             raise ValueError('Stokes parameters cannot be computed unless input_stokes_vector is supplied!')
         return jones_to_stokes(self.wavefront, self.input_stokes_vector)
+    
+    def display_stokes():
+        """TO DO: only one of display_stokes and display_vector is valid, depending on self.pol_type"""
+        raise NotImplementedError()
+    
+    def display_vector():
+        raise NotImplementedError()
 
 class PolarizedWavefront(BasePolarizedWavefront, Wavefront):
     '''
