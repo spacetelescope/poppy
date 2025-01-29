@@ -5,7 +5,8 @@ TO DO:
     * new display functions for Stokes and vector WFs?
 * more tests!
     * worried about interactions of polarized WFs with various types of optical elements
-* create polarization coronagraph masks
+    * test cases aren't checking all basic stokes combos yet
+* create polarized versions of some of the standard coronagraph masks
 * put together examples using Fraun+Fresnel prop (vector/stokes), complicated optical system
 * resolve all other TO DOs or NOT IMPLEMENTEDs
 '''
@@ -84,7 +85,7 @@ class BasePolarizedWavefront(BaseWavefront):
         if self.input_stokes_vector is None:
             raise ValueError('Stokes parameters cannot be computed unless input_stokes_vector is supplied!')
         return jones_to_stokes(self.wavefront, self.input_stokes_vector)
-    
+
     def display_stokes():
         """TO DO: only one of display_stokes and display_vector is valid, depending on self.pol_type"""
         raise NotImplementedError()
@@ -171,8 +172,8 @@ def jones_to_mueller(jones_matrix):
     # ordering convention below starts with diagonal terms
     j = xp.concatenate([[jones_matrix[0,0],
                          jones_matrix[1,1],
-                         jones_matrix[0,1],
-                         jones_matrix[1,0]]],
+                         jones_matrix[1,0],
+                         jones_matrix[0,1]]],
                          axis=0)
     jc = j.conj()
     e = j * jc
