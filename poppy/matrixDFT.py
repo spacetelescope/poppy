@@ -90,7 +90,8 @@ def matrix_dft(plane, nlamD, npix,
     ----------
     plane : 2D ndarray
         2D array (either real or complex) representing the input image plane or
-        pupil plane to transform.
+        pupil plane to transform. If more than two dimensions are supplied, the
+        DFT is performed over the last two dimensions.
     nlamD : float or 2-tuple of floats (nlamDY, nlamDX)
         Size of desired output region in lambda / D units, assuming that the
         pupil fills the input array (corresponds to 'm' in
@@ -126,7 +127,7 @@ def matrix_dft(plane, nlamD, npix,
                                   offset=offset, inverse=inverse, centering=centering)
     float = accel_math._float()
 
-    npupY, npupX = plane.shape[-2:] # spatial dimensions
+    npupY, npupX = plane.shape[-2:] # DFT over last two dimensions
 
     try:
         if np.isscalar(npix):
@@ -279,7 +280,7 @@ def matrix_dft_numexpr(plane, nlamD, npix,
         (offsetY, offsetX).
     """
 
-    npupY, npupX = plane.shape[-2:] # spatial dimensions
+    npupY, npupX = plane.shape[-2:] # DFT over last two dimensions
     float = accel_math._float() # shadow builtin float with either np.float32 or np.float64, depending
 
     try:

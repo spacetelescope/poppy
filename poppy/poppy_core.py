@@ -183,7 +183,7 @@ class BaseWavefront(ABC):
             return self
 
         if not np.isscalar(phasor) and phasor.size > 1:
-            assert self.wavefront.shape[-2:] == phasor.shape, "Phasor shape {} does not match wavefront shape {}".format(
+            assert self.shape == phasor.shape, "Phasor shape {} does not match wavefront shape {}".format(
                 phasor.shape, self.wavefront.shape) # only compare spatial dimensions
 
         self.wavefront *= phasor
@@ -881,7 +881,7 @@ class BaseWavefront(ABC):
                 pixelscale = self.pixelscale
 
             npix = self.wavefront.shape[-1]
-            V, U = xp.indices(self.wavefront.shape[-2:], dtype=_float()) # limit to spatial dimensions
+            V, U = xp.indices(self.shape, dtype=_float()) # limit to spatial dimensions
             V -= (npix - 1) / 2.0
             V *= pixelscale
             U -= (npix - 1) / 2.0
@@ -2550,7 +2550,7 @@ class OpticalElement(object):
 
                 lx, ly = resampled_amplitude.shape
                 # crop down to match size of wavefront:
-                lx_w, ly_w = wave.amplitude.shape[-2:] # 
+                lx_w, ly_w = wave.shape 
 
                 border_x = np.abs(lx - lx_w) // 2
                 border_y = np.abs(ly - ly_w) // 2
