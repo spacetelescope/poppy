@@ -3263,8 +3263,18 @@ class PolarizationOpticalElement(OpticalElement):
         OpticalElement.__init__(self, **kwargs)
 
     def get_phasor(self, wave):
-        return self.get_jones_matrix(wave)
-    
+        """ Get complex phasor.
+        
+        This multiplies the amplitude transmission by the 
+        2x2 Jones matrix for the polarization optic.
+
+        OPD is not a well-defined quantity for a polarization element
+        and is ignored.
+        """
+        jm = self.get_jones_matrix(wave) # 2x2 jones matrix
+        res = jm[:,:,None,None] * self.get_transmission(wave) # broadcast to 2x2xYxX
+        return res
+        
     def get_jones_matrix(self, wave):
         raise NotImplementedError
 

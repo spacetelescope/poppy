@@ -2289,7 +2289,7 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
 
 # ------ polarization optics --------
 
-class LinearPolarizer(PolarizationOpticalElement):
+class LinearPolarizer(PolarizationOpticalElement, AnalyticOpticalElement):
     """ Defines a linear polarizer
 
     Parameters
@@ -2302,12 +2302,13 @@ class LinearPolarizer(PolarizationOpticalElement):
         NOT IMPLEMENTED: Extinction ratio. Default is infinite (perfect linear polarizer).
     """
 
-    def __init__(self, name=None, angle=0, extinction=xp.inf):
+    def __init__(self, name=None, angle=0, extinction=xp.inf, **kwargs):
         if name is None:
             name = "Linear polarizer"
         self.angle = angle
         self.extinction = extinction
-        PolarizationOpticalElement.__init__(self, name=name)
+        
+        super(LinearPolarizer, self).__init__(name=name, **kwargs)
 
     def get_jones_matrix(self, wave):
         """ Compute the 2x2 jones matrix for the linear polarizer
@@ -2320,7 +2321,7 @@ class LinearPolarizer(PolarizationOpticalElement):
         #                                [0, 1./self.extinction]])
         return self.jones_matrix
     
-class CircularPolarizer(PolarizationOpticalElement):
+class CircularPolarizer(PolarizationOpticalElement, AnalyticOpticalElement):
     """ Defines a circular polarizer
 
     Note that you could also construct an equivalent from a combination of
@@ -2335,11 +2336,11 @@ class CircularPolarizer(PolarizationOpticalElement):
         Either 'left' or 'right'
     """
 
-    def __init__(self, handedness, name=None):
+    def __init__(self, handedness, name=None, **kwargs):
         if name is None:
             name = "Circular polarizer"
         self.handedness = handedness
-        PolarizationOpticalElement.__init__(self, name=name)
+        super(PolarizationOpticalElement, self).__init__(name=name, **kwargs)
 
     def get_jones_matrix(self, wave):
         """ Compute the 2x2 jones matrix for the linear polarizer
@@ -2355,7 +2356,7 @@ class CircularPolarizer(PolarizationOpticalElement):
                                         [factor*1j,     1]]) * 0.5
         return self.jones_matrix
     
-class LinearPhaseRetarder(PolarizationOpticalElement):
+class LinearPhaseRetarder(PolarizationOpticalElement, AnalyticOpticalElement):
     """ Defines a general linear phase retarder
 
     Parameters
@@ -2368,12 +2369,12 @@ class LinearPhaseRetarder(PolarizationOpticalElement):
         Fast axis angle, in radians.
     """
 
-    def __init__(self, phase, angle, name=None):
+    def __init__(self, phase, angle, name=None, **kwargs):
         if name is None:
             name = "Linear phase retarder"
         self.angle = angle
         self.phase = phase
-        PolarizationOpticalElement.__init__(self, name=name)
+        super(PolarizationOpticalElement, self).__init__(name=name, **kwargs)
 
     def get_jones_matrix(self, wave):
         """ Compute the 2x2 jones matrix for the linear phase retarder
@@ -2426,8 +2427,7 @@ class JonesMatrixOpticalElement(PolarizationOpticalElement):
     name : string
         Descriptive name
     jones_matrix : array-like
-        A 2x2 complex array for a uniform Jones matrix, or else a 2x2xYxX complex
-        array to represent a spatially-varying Jones matrix
+        A 2x2xYxX complex array to represent a spatially-varying, user-defined Jones matrix
     """
 
     def __init__(self, jones_matrix, name=None):
@@ -2435,8 +2435,8 @@ class JonesMatrixOpticalElement(PolarizationOpticalElement):
             name = "Jones matrix"
         self.jones_matrix = jones_matrix
         PolarizationOpticalElement.__init__(self, name=name)
-
-    def get_jones_matrix(self, wave):
+    
+    def get_phasor(self, wave):
         return self.jones_matrix
 
 # ------ convert analytic optics to array optics ------
