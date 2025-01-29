@@ -28,7 +28,8 @@ __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'ScalarOpticalPathDif
            'KeystoneSegmentedCircularAperture', 'RectangleAperture',
            'SquareAperture', 'SecondaryObscuration', 'LetterFAperture', 'AsymmetricSecondaryObscuration',
            'ThinLens',  'GaussianAperture', 'KnifeEdge', 'TiltOpticalPathDifference', 'CompoundAnalyticOptic', 'fixed_sampling_optic',
-           'PolarizationOpticalElement', 'LinearPolarizer', 'LinearPhaseRetarder', 'QuarterWavePlate', 'HalfWavePlate', 'JonesMatrixOpticalElement']
+           'PolarizationOpticalElement', 'LinearPolarizer', 'LinearPhaseRetarder', 'QuarterWavePlate', 'HalfWavePlate', 'JonesMatrixOpticalElement',
+           'CircularPolarizer']
 
 # ------ Generic Analytic elements -----
 
@@ -2317,6 +2318,41 @@ class LinearPolarizer(PolarizationOpticalElement):
                                         [sth*cth, sth**2]])
         #self.jones_matrix = xp.asarray([[1, 0],
         #                                [0, 1./self.extinction]])
+        return self.jones_matrix
+    
+class CircularPolarizer(PolarizationOpticalElement):
+    """ Defines a circular polarizer
+
+    Note that you could also construct an equivalent from a combination of
+    LinearPolarizer and QuarterWavePlate, but this is provided for
+    convenience.
+
+    Parameters
+    ----------
+    name : string
+        Descriptive name
+    handedness: str
+        Either 'left' or 'right'
+    """
+
+    def __init__(self, handedness, name=None):
+        if name is None:
+            name = "Circular polarizer"
+        self.handedness = handedness
+        PolarizationOpticalElement.__init__(self, name=name)
+
+    def get_jones_matrix(self, wave):
+        """ Compute the 2x2 jones matrix for the linear polarizer
+        """
+        if self.handedness.upper() == 'LEFT':
+            factor = 1
+        elif self.handedness.upper() == 'RIGHT':
+            factor = -1
+        else:
+            raise ValueError("Handedness should be either 'left' or 'right'. Got {self.handedness} instead!")
+
+        self.jones_matrix = xp.asarray([[1,  -1*factor*1j],
+                                        [factor*1j,     1]]) * 0.5
         return self.jones_matrix
     
 class LinearPhaseRetarder(PolarizationOpticalElement):
