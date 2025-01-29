@@ -1146,14 +1146,16 @@ def pad_to_oversample(array, oversample):
     ---------
     padToSize
     """
-    npix = array.shape[0]
+    shape = list(array.shape)
+    npix = shape[-2]
     n = int(np.round(npix * oversample))
-    padded = xp.zeros(shape=(n, n), dtype=array.dtype)
+    shape[-2:] = [n,n]
+    padded = xp.zeros(shape=shape, dtype=array.dtype)
     n0 = float(npix) * (oversample - 1) / 2
     n1 = n0 + npix
     n0 = int(round(n0))  # because astropy test_plugins enforces integer indices
     n1 = int(round(n1))
-    padded[n0:n1, n0:n1] = array
+    padded[..., n0:n1, n0:n1] = array
     return padded
 
 

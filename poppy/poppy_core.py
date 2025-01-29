@@ -880,8 +880,8 @@ class BaseWavefront(ABC):
             else:
                 pixelscale = self.pixelscale
 
-            npix = self.wavefront.shape[0]
-            V, U = xp.indices(self.wavefront.shape, dtype=_float())
+            npix = self.wavefront.shape[-1]
+            V, U = xp.indices(self.wavefront.shape[-2:], dtype=_float()) # limit to spatial dimensions
             V -= (npix - 1) / 2.0
             V *= pixelscale
             U -= (npix - 1) / 2.0
@@ -2550,11 +2550,12 @@ class OpticalElement(object):
 
                 lx, ly = resampled_amplitude.shape
                 # crop down to match size of wavefront:
-                lx_w, ly_w = wave.amplitude.shape
+                lx_w, ly_w = wave.amplitude.shape[-2:] # 
+
                 border_x = np.abs(lx - lx_w) // 2
                 border_y = np.abs(ly - ly_w) // 2
-                if (self.pixelscale * self.amplitude.shape[0] < wave.pixelscale * wave.amplitude.shape[0]) or (
-                        self.pixelscale * self.amplitude.shape[1] < wave.pixelscale * wave.amplitude.shape[0]):
+                if (self.pixelscale * self.amplitude.shape[0] < wave.pixelscale * wave.amplitude.shape[-1]) or (
+                        self.pixelscale * self.amplitude.shape[1] < wave.pixelscale * wave.amplitude.shape[-1]):
                     _log.warning("After resampling, optic phasor shape " + str(np.shape(resampled_opd)) +
                                  " is smaller than input wavefront " + str(
                                  (lx_w, ly_w)) + "; will zero-pad the rescaled array.")
