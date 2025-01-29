@@ -126,7 +126,7 @@ def matrix_dft(plane, nlamD, npix,
                                   offset=offset, inverse=inverse, centering=centering)
     float = accel_math._float()
 
-    npupY, npupX = plane.shape
+    npupY, npupX = plane.shape[-2:] # spatial dimensions
 
     try:
         if np.isscalar(npix):
@@ -211,13 +211,17 @@ def matrix_dft(plane, nlamD, npix,
     if inverse:
         expYV = xp.exp(-2.0 * np.pi * 1j * YV).T
         expXU = xp.exp(-2.0 * np.pi * 1j * XU)
-        t1 = xp.dot(expYV, plane)
-        t2 = xp.dot(t1, expXU)
     else:
         expXU = xp.exp(-2.0 * np.pi * -1j * XU)
         expYV = xp.exp(-2.0 * np.pi * -1j * YV).T
+
+    if xp.ndim(plane) == 2:
         t1 = xp.dot(expYV, plane)
         t2 = xp.dot(t1, expXU)
+    else: # for multi-dimensional "plane", MFT over last 2 dimensions
+        t1 = xp.einsum('ij,...jk->...ik', expYV, plane, optimize=True)
+        t2 = xp.einsum('...ij,jk->...ik', t1, expXU, optimize=True)
+
 
     norm_coeff = np.sqrt((nlamDY * nlamDX) / (npupY * npupX * npixY * npixX))
     return norm_coeff * t2
@@ -275,7 +279,7 @@ def matrix_dft_numexpr(plane, nlamD, npix,
         (offsetY, offsetX).
     """
 
-    npupY, npupX = plane.shape
+    npupY, npupX = plane.shape[-2:] # spatial dimensions
     float = accel_math._float() # shadow builtin float with either np.float32 or np.float64, depending
 
     try:
@@ -371,13 +375,16 @@ def matrix_dft_numexpr(plane, nlamD, npix,
     if inverse:
         expYV = ne.evaluate("exp(-two_pi_i * YV)").T
         expXU = ne.evaluate("exp(-two_pi_i * XU)")
-        t1 = np.dot(expYV, plane)
-        t2 = np.dot(t1, expXU)
     else:
         expYV = ne.evaluate("exp(two_pi_i * YV)").T
         expXU = ne.evaluate("exp(two_pi_i * XU)")
+
+    if np.ndim(plane) == 2:
         t1 = np.dot(expYV, plane)
         t2 = np.dot(t1, expXU)
+    else: # for multi-dimensional plane, MFT over last 2 dimensions
+        t1 = np.einsum('ij,...jk->...ik', expYV, plane, optimize=True)
+        t2 = np.einsum('...ij,jk->...ik', t1, expXU, optimize=True)
 
     if not conf.double_precision:
         # Work around numexpr bug where exp results must be complex128
