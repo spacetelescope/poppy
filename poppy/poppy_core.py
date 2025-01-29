@@ -175,19 +175,26 @@ class BaseWavefront(ABC):
 
         phasor = optic.get_phasor(self)
 
+        if not np.isscalar(phasor) and phasor.size > 1:
+            assert self.shape == phasor.shape[-2:], "Phasor shape {} does not match wavefront shape {}".format(
+                phasor.shape, self.wavefront.shape) # only compare spatial dimensions
+            
+        msg = "  Multiplied WF by phasor for " + str(optic)
+            
         if isinstance(optic, PolarizationOpticalElement):
-            # TO DO: this skips check of spatial shapes below, which could matter for spatial jones matrix element...
-            # TO DO: add check to see if you're multiplying polarization optic against scalar WF (or vice versa)?
-            # ^ this is a little tricky because polarization optics can be 2x2 or 2x2xYxX, so it's not as simple as checking ndim
-            self.wavefront =  np.einsum('lm...,m...->l...', phasor, self.wavefront) # should handle both vector and tensor fields
+            # check that PolarizationOpticalElement are interacting only with BasePolarizedWavefronts
+            from poppy.polarized_wavefront import BasePolarizedWavefront
+            if not isinstance(self, BasePolarizedWavefront):
+                raise ValueError('Cannot multiply scalar wavefront types with polarization optics!')
+            
+            # handle both vector and tensor fields
+            self.wavefront =  np.einsum('ml...,l...->m...', phasor, self.wavefront)
+            
+            self.history.append(msg)
+            self.location = 'after ' + optic.name
             return self
 
-        if not np.isscalar(phasor) and phasor.size > 1:
-            assert self.shape == phasor.shape, "Phasor shape {} does not match wavefront shape {}".format(
-                phasor.shape, self.wavefront.shape) # only compare spatial dimensions
-
         self.wavefront *= phasor
-        msg = "  Multiplied WF by phasor for " + str(optic)
         _log.debug(msg)
         self.history.append(msg)
         self.location = 'after ' + optic.name
