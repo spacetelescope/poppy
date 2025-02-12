@@ -85,13 +85,34 @@ class BasePolarizedWavefront(BaseWavefront):
         if self.input_stokes_vector is None:
             raise ValueError('Stokes parameters cannot be computed unless input_stokes_vector is supplied!')
         return jones_to_stokes(self.wavefront, self.input_stokes_vector)
-
-    def display_stokes():
-        """TO DO: only one of display_stokes and display_vector is valid, depending on self.pol_type"""
-        raise NotImplementedError()
     
-    def display_vector():
-        raise NotImplementedError()
+    def display_tensor(self, *args, **kwargs):
+        """ Display the vector or tensor field """
+
+        if self.pol_type == 'vector':
+            nrows = 2
+            indices = [0,1]
+        else: # tensor
+            nrows = 4
+            indices = [(0,0), (0,1), (1,0), (1,1)]
+
+        axes = []
+        for n, idx in enumerate(indices):
+            ax = super(BasePolarizedWavefront, self).display(
+                    *args,
+                    nrows=nrows,
+                    row=n+1,
+                    tensor_idx=idx,
+                    **kwargs)
+            title = ax.title
+            title_text = title.get_text()
+            title.set_text(str(idx))
+            axes.append(ax)
+        fig = ax.get_figure()
+        fig.suptitle(title_text)
+        return axes
+
+        
 
 class PolarizedWavefront(BasePolarizedWavefront, Wavefront):
     '''

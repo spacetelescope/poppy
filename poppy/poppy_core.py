@@ -344,19 +344,20 @@ class BaseWavefront(ABC):
                 imagecrop=None, pupilcrop=None,
                 colorbar=False, crosshairs=False, ax=None, title=None, vmin=None,
                 vmax=None, vmax_wfe=None, scale=None, use_angular_coordinates=None,
-                angular_coordinate_unit=u.arcsec):
+                angular_coordinate_unit=u.arcsec, tensor_idx=None):
         """Display wavefront on screen
 
         Parameters
         ----------
         what : string
-           What to display. Must be one of {intensity, phase, wfe, best, 'both'}.
+           What to display. Must be one of {'intensity', 'phase', 'wfe', 'best', 'both', or 'stokes'}.
            'intensity' shows the wavefront intensity,  'wfe' shows the wavefront
            error in meters or microns, 'phase' is similar to 'wfe' but shows wavefront
            phase in radians at the given wavelength.
            'Best' implies to display the phase if there is nonzero OPD,
            or else display the intensity for a perfect pupil.
            'both' will show two panels, for the wavefront intensity and wavefront error.
+           'stokes' will show four panels, for each of the Stokes parameters.
         nrows : int
             Number of rows to display in current figure (used for
             showing steps in a calculation)
@@ -408,6 +409,14 @@ class BaseWavefront(ABC):
             (Default: None, infer coordinates from planetype)
         angular_coordinate_unit : astropy unit
             Unit to use for angular coordinates display; default is arcsecond.
+        tensor_idx : int or tuple, optional
+            Index of the tensor element to display with Polarized Wavefronts.
+            If not provided and plotting anything other than intensity or
+            Stokes parameters, defaults to 0 or (0,0) in the case of vector
+            and tensor fields, respectively. If plotting intensity and tensor_idx=None,
+            will plot the total vector intensity or I Stokes parameter; otherwise,
+            plots the intensity of the specified vector/tensor element.
+            Ignored if what='stokes'.
 
         Returns
         -------
@@ -419,15 +428,44 @@ class BaseWavefront(ABC):
 
         if row is None:
             row = self.current_plane_index
+        
+        # handle polarized wavefronts
+        from poppy.polarized_wavefront import BasePolarizedWavefront
+        is_polarized = isinstance(self, BasePolarizedWavefront)
+        has_stokes = is_polarized and (self.input_stokes_vector is not None)
+        if is_polarized:
+            # only intensity is well-defined when tensor_idx is not provided.
+            # for all other cases, fall back to 0 or (0,0) field element.
+            if (what in ['phase', 'wfe', 'both', 'best']) and (tensor_idx is None):
+                if has_stokes:
+                    tensor_idx = (0,0)
+                else:
+                    tensor_idx = 0
+                _log.warning(f'tensor_idx not provided! Plotting {tensor_idx} element of vector/tensor field.')
 
-        intens = self.intensity.copy()
+            # if plotting intensity and tensor_idx is not supplied, then
+            # plot the I Stokes parameter or total vector intensity
+            if (what == 'intensity') and (tensor_idx is None):
+                intens = self.intensity.copy()
+            else: # not intensity, or tensor_idx is supplied
+                intens = xp.abs(self.wavefront)[tensor_idx]**2
+                amp = self.amplitude[tensor_idx].copy()
+                phase = self.phase[tensor_idx].copy()
+
+            # grab the stokes vector if available
+            if has_stokes:
+                stokes = self.stokes_parameters.copy()
+        else:
+            # non-polarized case
+            intens = self.intensity.copy()
+            phase = self.phase.copy()
+            amp = self.amplitude.copy()
 
         # make a version of the phase where we try to mask out
         # areas with particularly low intensity
-        phase = self.phase.copy()
         mean_intens = np.mean(intens[intens != 0])
-        phase[intens < mean_intens / 100] = np.nan
-        amp = self.amplitude
+        if what in ['phase', 'wfe', 'both', 'best']: # only compute this if it might be used
+            phase[intens < mean_intens / 100] = np.nan
 
         y, x = self.coordinates()
         # GPU arrays don't work in matplotlib
@@ -438,6 +476,8 @@ class BaseWavefront(ABC):
             intens = utils.remove_padding(intens, self.oversample)
             phase = utils.remove_padding(phase, self.oversample)
             amp = utils.remove_padding(amp, self.oversample)
+            if has_stokes:
+                stokes = utils.remove_padding(stokes, self.oversample)
             y = utils.remove_padding(y, self.oversample)
             x = utils.remove_padding(x, self.oversample)
 
@@ -475,6 +515,9 @@ class BaseWavefront(ABC):
             # what = 'intensity'  # show intensity for coronagraphic downstream propagation.
             else:
                 what = 'phase'  # for aberrated pupils
+            # for partially polarized wavefronts, best always shows the stokes parameters
+            if has_stokes:
+                what = 'stokes'
 
         # compute plot parameters for the subplot grid
         nc = int(np.ceil(np.sqrt(nrows)))
@@ -508,6 +551,11 @@ class BaseWavefront(ABC):
             # -pi to +pi, and we should display with a balanced color scale.
             vmx = np.clip(max(vmax, np.abs(vmin)), -np.pi, np.pi)
         norm_phase = matplotlib.colors.Normalize(vmin=-vmx, vmax=vmx)
+
+        # norm and colormap for stokes
+        if has_stokes:
+            norm_stokes = matplotlib.colors.Normalize(vmin=stokes.min(), vmax=stokes.max())
+            cmap_stokes = copy.copy(getattr(matplotlib.cm, conf.cmap_diverging))
 
         def wrap_lines_title(title):
             # Helper fn to add line breaks in plot titles,
@@ -633,9 +681,31 @@ class BaseWavefront(ABC):
                 plt.colorbar(ax.images[0], ax=ax, orientation='vertical', shrink=0.8)
             plot_axes = [ax]
             to_return = ax
+        elif what == 'stokes':
+            nstokes = 4
+            stokes_names = ['I','Q','U','V']
+
+            ax = plt.subplot(nrows, 1, row)
+            if title is None:
+                title = wrap_lines_title("Stokes " + self.location)
+            ax.set_title(title)
+            ax.set_frame_on(False)
+            ax.axis('off')
+
+            plot_axes = to_return = []
+            for n in range(nstokes):
+                ax = plt.subplot(nrows, 4, 4*(row - 1) + n + 1)
+                plt.imshow(stokes[n], extent=extent, cmap=cmap_stokes, norm=norm_stokes, origin='lower')
+                ax.set_title(stokes_names[n])
+                
+                ax.set_ylabel(unit_label)
+                ax.set_xlabel(unit_label)
+                if colorbar:
+                    plt.colorbar(orientation='vertical', ax=ax, shrink=0.8)
+                plot_axes.append(ax)
         else:
             raise ValueError("Invalid value for what to display; must be: "
-                             "'intensity', 'amplitude', 'phase', or 'both'.")
+                             "'intensity', 'amplitude', 'phase', 'stokes', or 'both'.")
 
         # now apply axes cropping and/or overplots, if requested.
         for ax in plot_axes:

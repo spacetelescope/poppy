@@ -1250,12 +1250,12 @@ def pad_or_crop_to_shape(array, target_shape):
 
 def remove_padding(array, oversample):
     """ Remove zeros around the edge of an array, assuming some integer oversampling padding factor """
-    npix = array.shape[0] / oversample
+    npix = array.shape[-1] / oversample
     n0 = float(npix) * (oversample - 1) / 2
     n1 = n0 + npix
     n0 = int(round(n0))
     n1 = int(round(n1))
-    return array[n0:n1, n0:n1].copy()
+    return array[..., n0:n1, n0:n1].copy()
 
 
 # Back compatibility alias:
