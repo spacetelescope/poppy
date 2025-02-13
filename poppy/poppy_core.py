@@ -213,9 +213,9 @@ class BaseWavefront(ABC):
         if not isinstance(wave, self.__class__):
             raise ValueError('Wavefronts can only be summed with other Wavefronts of the same class.')
 
-        if not self.wavefront.shape == wave.wavefront.shape:
+        if not self.shape == wave.shape:
             raise ValueError('Wavefronts can only be added if they have the same size and shape: {} vs {} '.format(
-                self.wavefront.shape, wave.wavefront.shape))
+                self.shape, wave.shape))
 
         try:
             if not np.isclose(self.pixelscale.value, wave.pixelscale.to(self.pixelscale.unit).value):
@@ -447,6 +447,8 @@ class BaseWavefront(ABC):
             # plot the I Stokes parameter or total vector intensity
             if (what == 'intensity') and (tensor_idx is None):
                 intens = self.intensity.copy()
+                phase = self.phase.copy()
+                amp = self.amplitude.copy()
             else: # not intensity, or tensor_idx is supplied
                 intens = xp.abs(self.wavefront)[tensor_idx]**2
                 amp = self.amplitude[tensor_idx].copy()
@@ -661,6 +663,7 @@ class BaseWavefront(ABC):
 
             plot_axes = [ax1, ax2]
             to_return = (ax1, ax2)
+
         elif what == 'amplitude':
             if ax is None:
                 ax = plt.subplot(nr, nc, int(row))
@@ -681,6 +684,7 @@ class BaseWavefront(ABC):
                 plt.colorbar(ax.images[0], ax=ax, orientation='vertical', shrink=0.8)
             plot_axes = [ax]
             to_return = ax
+
         elif what == 'stokes':
             nstokes = 4
             stokes_names = ['I','Q','U','V']
@@ -724,8 +728,8 @@ class BaseWavefront(ABC):
                     imagecrop *= u.arcsec if use_angular_coordinates else u.meter
                 imagecrop_value = imagecrop.to_value(pixelscale_unit*u.pixel)
 
-                cropsize_x = min((imagecrop_value / 2, intens.shape[1] / 2. * self.pixelscale.to_value(pixelscale_unit)))
-                cropsize_y = min((imagecrop_value / 2, intens.shape[0] / 2. * self.pixelscale.to_value(pixelscale_unit)))
+                cropsize_x = min((imagecrop_value / 2, intens.shape[-2] / 2. * self.pixelscale.to_value(pixelscale_unit)))
+                cropsize_y = min((imagecrop_value / 2, intens.shape[-1] / 2. * self.pixelscale.to_value(pixelscale_unit)))
                 ax.set_xbound(-cropsize_x, cropsize_x)
                 ax.set_ybound(-cropsize_y, cropsize_y)
 
@@ -1174,7 +1178,7 @@ class Wavefront(BaseWavefront):
             # (pre-)update state:
             self.planetype = PlaneType.image
             self.pixelscale = (self.wavelength / self.diam * u.radian / self.oversample).to(u.arcsec) / u.pixel
-            self.fov = self.wavefront.shape[0] * u.pixel * self.pixelscale
+            self.fov = self.shape[0] * u.pixel * self.pixelscale
             self.history.append('   FFT {},  to IMAGE plane  scale={:.4f}'.format(self.wavefront.shape, self.pixelscale))
 
         elif self.planetype == PlaneType.image and optic.planetype == PlaneType.pupil:
@@ -1187,7 +1191,7 @@ class Wavefront(BaseWavefront):
 
             # (pre-)update state:
             self.planetype = PlaneType.pupil
-            self.pixelscale = self.diam * self.oversample / (self.wavefront.shape[0] * u.pixel)
+            self.pixelscale = self.diam * self.oversample / (self.shape[0] * u.pixel)
             self.history.append('   FFT {},  to PUPIL scale={:.4f}'.format(self.wavefront.shape, self.pixelscale))
 
         # do FFT
@@ -1227,7 +1231,7 @@ class Wavefront(BaseWavefront):
             # pupil plane is padded - trim that out since it's not needed
             self.wavefront = utils.remove_padding(self.wavefront, self.oversample)
             self.ispadded = False
-        self._preMFT_pupil_shape = self.wavefront.shape  # save for possible inverseMFT
+        self._preMFT_pupil_shape = self.shape  # save for possible inverseMFT
         self._preMFT_pupil_pixelscale = self.pixelscale  # save for possible inverseMFT
 
         # the arguments for the matrixDFT are
@@ -1330,7 +1334,7 @@ class Wavefront(BaseWavefront):
         self._last_transform_type = 'InvMFT'
 
         self.planetype = PlaneType.pupil
-        self.pixelscale = next_pupil_diam / self.wavefront.shape[0] / u.pixel
+        self.pixelscale = next_pupil_diam / self.shape[0] / u.pixel
         self.diam = next_pupil_diam
 
     # note: the following are implemented as static methods to
@@ -1455,7 +1459,7 @@ class Wavefront(BaseWavefront):
         """
         # Generate a Fraunhofer wavefront with the same sampling
         wf = fresnel_wavefront
-        beam_diam = (wf.wavefront.shape[0]//wf.oversample) * wf.pixelscale*u.pixel
+        beam_diam = (wf.shape[0]//wf.oversample) * wf.pixelscale*u.pixel
         new_wf = Wavefront(diam=beam_diam,
                            npix=wf.shape[0]//wf.oversample,
                            oversample=wf.oversample,
@@ -1846,8 +1850,8 @@ class BaseOpticalSystem(ABC):
             if display and not display_intermediates:
                 cmap = copy.copy(getattr(matplotlib.cm, conf.cmap_sequential))
                 cmap.set_bad('0.3')
-                halffov_x = outfits[0].header['PIXELSCL'] * outfits[0].data.shape[1] / 2
-                halffov_y = outfits[0].header['PIXELSCL'] * outfits[0].data.shape[0] / 2
+                halffov_x = outfits[0].header['PIXELSCL'] * outfits[0].data.shape[-2] / 2
+                halffov_y = outfits[0].header['PIXELSCL'] * outfits[0].data.shape[-1] / 2
                 extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
                 unit = "arcsec"
                 vmax = outfits[0].data.max()
@@ -2371,7 +2375,7 @@ class OpticalSystem(BaseOpticalSystem):
                 steps.append('FFT')
 
         output_shape = [a * self.planes[-1].oversample for a in self.planes[-1].shape]
-        output_size = output_shape[0] * output_shape[1]
+        output_size = output_shape[-2] * output_shape[-1]
 
         return {'steps': steps, 'output_shape': output_shape, 'output_size': output_size}
 
@@ -2631,18 +2635,18 @@ class OpticalElement(object):
 
                 border_x = np.abs(lx - lx_w) // 2
                 border_y = np.abs(ly - ly_w) // 2
-                if (self.pixelscale * self.amplitude.shape[0] < wave.pixelscale * wave.amplitude.shape[-1]) or (
-                        self.pixelscale * self.amplitude.shape[1] < wave.pixelscale * wave.amplitude.shape[-1]):
+                if (self.pixelscale * self.amplitude.shape[-2] < wave.pixelscale * wave.amplitude.shape[-1]) or (
+                        self.pixelscale * self.amplitude.shape[-1] < wave.pixelscale * wave.amplitude.shape[-1]):
                     _log.warning("After resampling, optic phasor shape " + str(np.shape(resampled_opd)) +
                                  " is smaller than input wavefront " + str(
                                  (lx_w, ly_w)) + "; will zero-pad the rescaled array.")
                     self._resampled_opd = xp.zeros([lx_w, ly_w])
                     self._resampled_amplitude = xp.zeros([lx_w, ly_w])
 
-                    self._resampled_opd[border_x:border_x + resampled_opd.shape[0],
-                                        border_y:border_y + resampled_opd.shape[1]] = resampled_opd
-                    self._resampled_amplitude[border_x:border_x + resampled_opd.shape[0],
-                                              border_y:border_y + resampled_opd.shape[1]] = resampled_amplitude
+                    self._resampled_opd[border_x:border_x + resampled_opd.shape[-2],
+                                        border_y:border_y + resampled_opd.shape[-1]] = resampled_opd
+                    self._resampled_amplitude[border_x:border_x + resampled_opd.shape[-2],
+                                              border_y:border_y + resampled_opd.shape[-1]] = resampled_amplitude
                     _log.debug("padded an optic with a {:d} x {:d} border to "
                                "optic to match the wavefront".format(border_x, border_y))
 
@@ -2781,9 +2785,9 @@ class OpticalElement(object):
         # Determine the extent of the image in physical units, for axes labels.
         _log.debug("Display pixel scale = {} ".format(disp_pixelscale))
         if disp_pixelscale.decompose().unit == u.m / u.pix:
-            halfsize = disp_pixelscale.to(u.m / u.pix).value * disp_shape[0] / 2
+            halfsize = disp_pixelscale.to(u.m / u.pix).value * disp_shape[-2] / 2
         elif disp_pixelscale.decompose().unit == u.radian / u.pix:
-            halfsize = disp_pixelscale.to(u.arcsec / u.pix).value * disp_shape[0] / 2
+            halfsize = disp_pixelscale.to(u.arcsec / u.pix).value * disp_shape[-2] / 2
         else:
             raise RuntimeError("Pixelscale units not recognized in display; "
                                "must be equivalent to arcsec/pix or m/pix")
@@ -3338,6 +3342,7 @@ class PolarizationOpticalElement(OpticalElement):
 
     def __init__(self, **kwargs):
         OpticalElement.__init__(self, **kwargs)
+        self._opd_in_radians = True # not sure we need this
 
     def get_phasor(self, wave):
         """ Get complex phasor.
@@ -3348,9 +3353,24 @@ class PolarizationOpticalElement(OpticalElement):
         OPD is not a well-defined quantity for a polarization element
         and is ignored.
         """
-        jm = self.get_jones_matrix(wave) # 2x2 jones matrix
-        res = jm[:,:,None,None] * self.get_transmission(wave) # broadcast to 2x2xYxX
+        jm = self.get_jones_matrix(wave)
+        if xp.ndim(jm) == 2:  # 2x2 jones matrix
+            res = jm[:,:,None,None] * self.get_transmission(wave) # broadcast to 2x2xYxX
+        else:  # 2x2xYxX jones matrix
+            res = jm * self.get_transmission(wave)
         return res
+    
+    # def get_opd(self, wave):
+    #     """ 
+    #     Follows the convention in FITSOpticalElement to define a
+    #     wavelength-independent phase with _opd_in_radians
+    #     """
+    #     if isinstance(wave, BaseWavefront):
+    #         wavelength = wave.wavelength
+    #     else:
+    #         wavelength = wave
+    #     opd_rad = self.get_phasor(wave)
+    #     return xp.asarray(opd_rad * wavelength.to(u.m).value / (2 * np.pi))
         
     def get_jones_matrix(self, wave):
         raise NotImplementedError

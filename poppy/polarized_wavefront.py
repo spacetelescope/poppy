@@ -111,6 +111,47 @@ class BasePolarizedWavefront(BaseWavefront):
         fig = ax.get_figure()
         fig.suptitle(title_text)
         return axes
+    
+    def _display_after_optic(self, optic, default_nplanes=2, **kwargs):
+        """ Convenience function for displaying a wavefront during propagations.
+
+        Checks for hint information attached to either the wavefront or the
+        current optic, and uses that to configure the plot as desired.
+        Called from within the various propagate() functions.
+
+        This is a slight tweak of BaseWavefront._display_after_optic to
+        force partially-polarized wavefronts to display Stokes parameters
+        by default, regardless of what the optic wavefront_display_hint is.
+
+        Parameters
+        ----------
+        optic : OpticalElement instance
+            An optic that might have display hint information attached
+        default_nplanes :
+            How many rows to use for the display, if this is not
+            already annotated onto this wavefront object itself.
+
+        Returns the plot axes instance.
+        """
+        display_what = getattr(optic, 'wavefront_display_hint', 'best')
+        if self.pol_type == 'tensor':
+            display_what = 'stokes'
+        display_vmax = getattr(optic, 'wavefront_display_vmax_hint', None)
+        display_vmin = getattr(optic, 'wavefront_display_vmin_hint', None)
+        display_crop = getattr(optic, 'wavefront_display_imagecrop', None)
+        display_nrows = getattr(self, '_display_hint_expected_nplanes', default_nplanes)
+
+        ax = self.display(what=display_what,
+                          row=None,
+                          nrows=display_nrows,
+                          colorbar=False,
+                          vmax=display_vmax, vmin=display_vmin,
+                          imagecrop=display_crop,
+                          **kwargs)
+        if hasattr(optic, 'display_annotate'):
+            optic.display_annotate(optic, ax)  # atypical calling convention needed empirically
+
+        return ax
 
         
 
