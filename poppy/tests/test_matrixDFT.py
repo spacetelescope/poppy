@@ -700,7 +700,7 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(tmpdir, display=False, source_offs
     assert(np.all(absdiff < 1e-10))
 
 def test_MFT_FFT_equivalence_in_OpticalSystem_PolarizedWavefront(tmpdir, display=False, source_offset=1):
-    """ Test that propagating Wavefronts through an OpticalSystem
+    """ Test that propagating PolarizedWavefronts through an OpticalSystem
     using an MFT and an FFT give equivalent results.
 
     This is a somewhat higher level test that involves all the
@@ -759,7 +759,7 @@ def test_MFT_FFT_equivalence_in_OpticalSystem_PolarizedWavefront(tmpdir, display
     assert(np.all(absdiff < 1e-10))
 
 def test_MFT_FFT_equivalence_in_OpticalSystem_PolarizedWavefront_Stokes(tmpdir, display=False, source_offset=1):
-    """ Test that propagating Wavefronts through an OpticalSystem
+    """ Test that propagating PolarizedWavefronts through an OpticalSystem
     using an MFT and an FFT give equivalent results.
 
     This is a somewhat higher level test that involves all the

@@ -1205,6 +1205,9 @@ def pad_or_crop_to_shape(array, target_shape):
     adding zero pixels to pad, or cropping out pixels as needed.
     (Implicitly assumes the arrays have comparable pixel scale and units)
 
+    If a >2D array is passed in, the array will be padded or cropped in the
+    last two axes.
+
     Parameters
     ----------
     array : complex ndarray
@@ -1225,24 +1228,27 @@ def pad_or_crop_to_shape(array, target_shape):
     if array.shape == target_shape:
         return array
 
-    lx, ly = array.shape
+    lx, ly = array.shape[-2:] # limit to spatial dimensions (in case of PolarizedWavefront)
     lx_w, ly_w = target_shape
     border_x = xp.abs(lx - lx_w) // 2
     border_y = xp.abs(ly - ly_w) // 2
 
-    if (lx < lx_w) or (ly < ly_w):
-        _log.debug("Array shape " + str(array.shape) + " is smaller than desired shape " + str(
-            [lx_w, ly_w]) + "; will attempt to zero-pad the array")
+    new_shape = list(array.shape)
+    new_shape[-2:] = lx_w, ly_w
 
-        resampled_array = xp.zeros(shape=(lx_w, ly_w), dtype=array.dtype)
-        resampled_array[border_x:border_x + lx, border_y:border_y + ly] = array
+    if (lx < lx_w) or (ly < ly_w):
+        _log.debug("Array shape " + str(array.shape) + " is smaller than desired shape " + str(new_shape) +
+                   "; will attempt to zero-pad the array")
+
+        resampled_array = xp.zeros(shape=new_shape, dtype=array.dtype)
+        resampled_array[...,border_x:border_x + lx, border_y:border_y + ly] = array
         _log.debug("  Padded with a {:d} x {:d} border to "
                    " match the desired shape".format(border_x, border_y))
 
     else:
-        _log.debug("Array shape " + str(array.shape) + " is larger than desired shape " + str(
-            [lx_w, ly_w]) + "; will crop out just the center part.")
-        resampled_array = array[border_x:border_x + lx_w, border_y:border_y + ly_w]
+        _log.debug("Array shape " + str(array.shape) + " is larger than desired shape " + str(new_shape) +
+                   "; will crop out just the center part.")
+        resampled_array = array[...,border_x:border_x + lx_w, border_y:border_y + ly_w]
         _log.debug("  Trimmed a border of {:d} x {:d} pixels "
                    "to match the desired shape".format(border_x, border_y))
     return resampled_array
@@ -1255,7 +1261,7 @@ def remove_padding(array, oversample):
     n1 = n0 + npix
     n0 = int(round(n0))
     n1 = int(round(n1))
-    return array[..., n0:n1, n0:n1].copy()
+    return array[..., n0:n1, n0:n1].copy() # only along final two axes
 
 
 # Back compatibility alias:

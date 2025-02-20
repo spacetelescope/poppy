@@ -6,6 +6,144 @@ import poppy
 from poppy.accel_math import xp   # may be numpy, or cupy on GPU
 import astropy.units as u
 
+
+# ---- Polarized Wavefronts ----
+
+def test_wf_rotation():
+    """ Check that rotations of scalar and polarized Wavefronts behave the same way """
+
+    rect = poppy.RectangleAperture()
+
+    wf_pol = poppy.PolarizedWavefront(diam=1, npix=32, input_stokes_vector=(1,0,0,0))
+    wf_sc = poppy.Wavefront(diam=1, npix=32)
+
+    wf_pol *= rect
+    wf_sc *= rect
+
+    wf_pol.rotate(angle=20)
+    wf_sc.rotate(angle=20)
+
+    # check that the (0,0) element of the polarized wavefront matches the scalar wavefront
+    assert xp.allclose(wf_pol.wavefront[0,0], wf_sc.wavefront)
+    
+def test_wf_resampling():
+    """ Check that wavefronts can be resampled properly
+    
+    Note: this currently just checks that the output shapes are as expected,
+    and doesn't check the accuracy of the interpolated values.
+    """
+    npix_in = 256
+    npix_out = 64
+
+    # polarized wavefront with stokes
+    wf_pol = poppy.PolarizedWavefront(diam=1, npix=npix_in, input_stokes_vector=(1,0,0,0))
+    det = poppy.Detector(pixelscale=5*u.um/u.pixel, fov_pixels=npix_out)
+
+    wf_pol._resample_wavefront_pixelscale(det)
+    shape_out = wf_pol.wavefront.shape
+    assert xp.allclose((2,2,npix_out,npix_out), shape_out)
+
+    # polarized Fresnel wavefront with stokes
+    wf_pol = poppy.PolarizedFresnelWavefront(1*u.m, npix=npix_in, input_stokes_vector=(1,0,0,0))
+    det = poppy.Detector(pixelscale=5*u.um/u.pixel, fov_pixels=npix_out)
+
+    wf_pol._resample_wavefront_pixelscale(det)
+    shape_out = wf_pol.wavefront.shape
+    assert xp.allclose((2,2,npix_out,npix_out), shape_out)
+
+def test_wf_tilt():
+    """ Check that tilts of scalar and polarized Wavefronts behave the same way """
+    rect = poppy.RectangleAperture()
+
+    wf_pol = poppy.PolarizedWavefront(diam=1, npix=32, input_stokes_vector=(1,0,0,0))
+    wf_sc = poppy.Wavefront(diam=1, npix=32)
+
+    wf_pol *= rect
+    wf_sc *= rect
+
+    wf_pol.tilt(Xangle=1.0, Yangle=1.0)
+    wf_sc.tilt(Xangle=1.0, Yangle=1.0)
+
+    # check that the (0,0) element of the polarized wavefront matches the scalar wavefront
+    assert xp.allclose(wf_pol.wavefront[0,0], wf_sc.wavefront)
+
+def test_wf_invert():
+    """ Check that inverting scalar and polarized Wavefronts give the same result """
+    rect = poppy.RectangleAperture()
+
+    wf_pol = poppy.PolarizedWavefront(diam=1, npix=32, input_stokes_vector=(1,0,0,0))
+    wf_sc = poppy.Wavefront(diam=1, npix=32)
+
+    wf_pol *= rect
+    wf_sc *= rect
+
+    wf_pol.invert(axis='both')
+    wf_sc.invert(axis='both')
+
+    # check that the (0,0) element of the polarized wavefront matches the scalar wavefront
+    assert xp.allclose(wf_pol.wavefront[0,0], wf_sc.wavefront)
+
+# ---- Polarization optics ----
+
+def test_linearpolarizer():
+    """
+    Test tensor fields interacting with linear polarizers
+    at various orientations.
+    """
+
+    wf = poppy.PolarizedWavefront(diam=1, npix=1, input_stokes_vector=(1,0,0,0))
+
+    lp = poppy.LinearPolarizer(angle=0)
+    assert xp.allclose( xp.squeeze((wf * lp).stokes_parameters), [0.5,0.5,0,0] )
+
+    lp = poppy.LinearPolarizer(angle=xp.pi/2)
+    assert xp.allclose( xp.squeeze((wf * lp).stokes_parameters), [0.5,-0.5,0,0] )
+
+    lp = poppy.LinearPolarizer(angle=xp.pi/4)
+    assert xp.allclose( xp.squeeze((wf * lp).stokes_parameters), [0.5,0,0.5,0] )
+
+    lp = poppy.LinearPolarizer(angle=-xp.pi/4)
+    assert xp.allclose( xp.squeeze((wf * lp).stokes_parameters), [0.5,0,-0.5,0] )
+
+def test_circularpolarizer():
+    """
+    Test tensor fields interacting with circular polarizers.
+    """
+
+    wf = poppy.PolarizedWavefront(diam=1, npix=1, input_stokes_vector=(1,0,0,0))
+    
+    cp = poppy.CircularPolarizer(handedness='left')
+    assert xp.allclose( xp.squeeze((wf * cp).stokes_parameters), [0.5,0,0,-0.5] )
+
+    cp = poppy.CircularPolarizer(handedness='right')
+    assert xp.allclose( xp.squeeze((wf * cp).stokes_parameters), [0.5,0,0,0.5] )
+
+def test_qwp():
+    """
+    Test tensor fields interacting with quarterwave plates.
+    """
+    # linear to circular
+    wf = poppy.PolarizedWavefront(diam=1, npix=1, input_stokes_vector=(1,1,0,0))
+    qwp = poppy.QuarterWavePlate(angle=xp.pi/4)
+    assert xp.allclose( xp.squeeze((wf * qwp).stokes_parameters), [1,0,0,1] )
+    # circular to linear
+    wf = poppy.PolarizedWavefront(diam=1, npix=1, input_stokes_vector=(1,0,0,-1))
+    qwp = poppy.QuarterWavePlate(angle=xp.pi/4)
+    assert xp.allclose( xp.squeeze((wf * qwp).stokes_parameters), [1,1,0,0] )
+
+def test_hwp():
+    """
+    Test tensor fields interacting with halfwave plates.
+    """
+    # linear 2 theta rotation
+    wf = poppy.PolarizedWavefront(diam=1, npix=1, input_stokes_vector=(1,1,0,0))
+    hwp = poppy.HalfWavePlate(angle=xp.pi/4)
+    assert xp.allclose( xp.squeeze((wf * hwp).stokes_parameters), [1,-1,0,0] )
+    # circular handedness flip
+    wf = poppy.PolarizedWavefront(diam=1, npix=1, input_stokes_vector=(1,0,0,-1))
+    hwp = poppy.HalfWavePlate(angle=0)
+    assert xp.allclose( xp.squeeze((wf * hwp).stokes_parameters), [1,0,0,1] )
+
 # ---- Fresnel + Stokes (Partial Polarization) ---
 
 def test_fresnel_stokes_linearpolarizer():
@@ -310,7 +448,7 @@ def test_fraunhofer_vector_qwp():
 def test_fraunhofer_vector_hwp():
     """
     Starting with linearly- and circularly-polarized input, propagate a
-    PolarizedWavefront through a system with a HQP and check that the output is
+    PolarizedWavefront through a system with a HWP and check that the output is
     scaled correctly and in the expected polarization state
     """
     npix = 128

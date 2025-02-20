@@ -860,7 +860,7 @@ class BaseWavefront(ABC):
         # Provide 2-pixel margin around image to reduce interpolation errors at edge, but also make
         # sure that image is centered properly after it gets cropped down to detector size
         margin = 2
-        crop_shape = [margin + shape for shape in self.wavefront.shape]
+        crop_shape = [margin + shape for shape in self.shape]
 
         # Crop wavefront down to detector size + margin- don't waste computation interpolating
         # parts of plane that get cropped out later anyways
@@ -884,8 +884,21 @@ class BaseWavefront(ABC):
                 Bind arguments to scipy's RectBivariateSpline function.
                 For data on a regular 2D grid, RectBivariateSpline is more efficient than interp2d.
                 """
-                return scipy.interpolate.RectBivariateSpline(x_in, y_in, arr,
-                                                             kx=detector.interp_order, ky=detector.interp_order)
+                if xp.ndim(arr) == 2:
+                    return scipy.interpolate.RectBivariateSpline(x_in, y_in, arr,
+                                                                kx=detector.interp_order, ky=detector.interp_order)
+                else:
+                    # for polarized wavefronts, loop over polarization axis/axes and perform the interpolation
+                    def interpolator_multidim(x_out, y_out):
+                        pol_shape = arr.shape[:-2]
+                        resampled_arr = xp.empty((*pol_shape, len(x_out), len(y_out)), dtype=arr.dtype)
+                        for i in np.ndindex(pol_shape):
+                            interp = scipy.interpolate.RectBivariateSpline(x_in, y_in, arr[i],
+                                                                            kx=detector.interp_order,
+                                                                            ky=detector.interp_order)
+                            resampled_arr[i] = interp(x_out, y_out)
+                        return resampled_arr
+                    return interpolator_multidim
 
             # Interpolate real and imaginary parts separately
             real_resampled = interpolator(cropped_wf.real)(x_out, y_out)
@@ -961,7 +974,7 @@ class BaseWavefront(ABC):
             else:
                 pixelscale = self.pixelscale
 
-            npix = self.wavefront.shape[-1]
+            npix = self.shape[-1]
             V, U = xp.indices(self.shape, dtype=_float()) # limit to spatial dimensions
             V -= (npix - 1) / 2.0
             V *= pixelscale
@@ -1001,8 +1014,8 @@ class BaseWavefront(ABC):
             rot_imag = xp.rot90(self.wavefront.imag, k=-k)
         else:
             # arbitrary free rotation with interpolation
-            rot_real = _scipy.ndimage.rotate(self.wavefront.real, -angle, reshape=False)  # negative = CCW
-            rot_imag = _scipy.ndimage.rotate(self.wavefront.imag, -angle, reshape=False)
+            rot_real = _scipy.ndimage.rotate(self.wavefront.real, -angle, reshape=False, axes=(-2,-1))  # negative = CCW
+            rot_imag = _scipy.ndimage.rotate(self.wavefront.imag, -angle, reshape=False, axes=(-2,-1))
         self.wavefront = rot_real + 1j * rot_imag
 
         self.history.append('Rotated by {:.2f} degrees, CCW'.format(angle))
@@ -1020,11 +1033,11 @@ class BaseWavefront(ABC):
 
         """
         if axis.lower() == 'both':
-            self.wavefront = self.wavefront[::-1, ::-1]
+            self.wavefront = self.wavefront[..., ::-1, ::-1]
         elif axis.lower() == 'x':
-            self.wavefront = self.wavefront[:, ::-1]
+            self.wavefront = self.wavefront[..., :, ::-1]
         elif axis.lower() == 'y':
-            self.wavefront = self.wavefront[::-1]
+            self.wavefront = self.wavefront[..., ::-1]
         else:
             raise ValueError("Invalid/unknown value for the 'axis' parameter. Must be 'x', 'y', or 'both'.")
         self.history.append('Inverted axis direction for {} axes'.format(axis.upper()))
