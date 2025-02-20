@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 
 from . import utils
 from . import conf
-from .poppy_core import OpticalElement, PolarizationOpticalElement, Wavefront, BaseWavefront, PlaneType, _RADIANStoARCSEC
+from .poppy_core import OpticalElement, ArrayOpticalElement, PolarizationOpticalElement, Wavefront, BaseWavefront, PlaneType, _RADIANStoARCSEC
 from . import geometry
 
 from . import accel_math
@@ -29,7 +29,7 @@ __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'ScalarOpticalPathDif
            'SquareAperture', 'SecondaryObscuration', 'LetterFAperture', 'AsymmetricSecondaryObscuration',
            'ThinLens',  'GaussianAperture', 'KnifeEdge', 'TiltOpticalPathDifference', 'CompoundAnalyticOptic', 'fixed_sampling_optic',
            'PolarizationOpticalElement', 'LinearPolarizer', 'LinearPhaseRetarder', 'QuarterWavePlate', 'HalfWavePlate', 'JonesMatrixOpticalElement',
-           'CircularPolarizer', 'SimpleVectorVortexMask']
+           'CircularPolarizer', 'VectorVortexMask']
 
 # ------ Generic Analytic elements -----
 
@@ -2315,10 +2315,11 @@ class LinearPolarizer(PolarizationOpticalElement, AnalyticOpticalElement):
         """
         cth = xp.cos(self.angle)
         sth = xp.sin(self.angle)
-        self.jones_matrix = xp.asarray([[cth**2,  sth*cth],
-                                        [sth*cth, sth**2]])
-        #self.jones_matrix = xp.asarray([[1, 0],
-        #                                [0, 1./self.extinction]])
+        eps = 1/self.extinction
+        #self.jones_matrix = xp.asarray([[cth**2,  sth*cth],
+        #                                [sth*cth, sth**2]])
+        self.jones_matrix = xp.asarray([[cth**2 + eps*sth**2,  (1-eps)*sth*cth    ],
+                                        [(1-eps)*sth*cth,      eps*cth**2 + sth**2]])
         return self.jones_matrix
     
 class CircularPolarizer(PolarizationOpticalElement, AnalyticOpticalElement):
@@ -2401,7 +2402,6 @@ class QuarterWavePlate(LinearPhaseRetarder):
     def __init__(self, name=None, angle=0):
         if name is None:
             name = "Quarter wave plate"
-        #LinearPhaseRetarder.__init__(self,  np.pi/2, angle, name=name,)
         super(QuarterWavePlate, self).__init__(np.pi/2, angle, name=name)
 
 class HalfWavePlate(LinearPhaseRetarder):
@@ -2418,31 +2418,30 @@ class HalfWavePlate(LinearPhaseRetarder):
     def __init__(self, name=None, angle=0):
         if name is None:
             name = "Half wave plate"
-        #LinearPhaseRetarder.__init__(self, np.pi, angle, name=name,)
         super(HalfWavePlate, self).__init__(np.pi, angle, name=name,)
 
-class JonesMatrixOpticalElement(PolarizationOpticalElement):
-    """ Defines a general polarization optical element defined by a Jones matrix.
+class JonesMatrixOpticalElement(PolarizationOpticalElement, ArrayOpticalElement):
+    """ Defines a general polarization optical element specified by a fixed-sampling
+    Jones matrix.
 
     Parameters
     ----------
-    name : string
-        Descriptive name
     jones_matrix : array-like
         A 2x2xYxX complex array to represent a spatially-varying, user-defined Jones matrix
+    name : string, optional
+        Descriptive name
     """
 
-    def __init__(self, jones_matrix, name=None):
+    def __init__(self, jones_matrix, name=None, *args, **kwargs):
         if name is None:
             name = "Jones matrix"
         self.jones_matrix = jones_matrix
-        super(JonesMatrixOpticalElement, self).__init__(name=name)
-    
-    def get_phasor(self, wave):
-        return self.jones_matrix
-    
+        super(JonesMatrixOpticalElement, self).__init__(name=name, *args, **kwargs)
 
-class VectorVortexMask(PolarizationOpticalElement, AnalyticOpticalElement):
+    def get_jones_matrix(self, wave):
+        return self.jones_matrix    
+
+class VectorVortexMask(LinearPhaseRetarder):
     """" Defines a vector vortex coronagraph mask.
 
     Note that this implementation doesn't perform any tricks to
@@ -2454,24 +2453,15 @@ class VectorVortexMask(PolarizationOpticalElement, AnalyticOpticalElement):
     def __init__(self, charge=6, retardance=np.pi, name=None, **kwargs):
         if name is None:
             name = "VVC"
-        super(SimpleVectorVortexMask, self).__init__(name=name, **kwargs)
         self.charge = charge
         self.retardance = retardance
+        super(VectorVortexMask, self).__init__(retardance, None, name=name,  **kwargs)
 
     def get_jones_matrix(self, wave):
         y, x = self.get_coordinates(wave)
         theta = xp.arctan2(y, x) * self.charge / 2.0
-        cth = xp.cos(theta)
-        sth = xp.sin(theta)
-    
-        ph = self.retardance
-    
-        # TO DO: this is a copy-paste of the LinearPhaseRetarder jones matrix calc -- can you use that somehow?
-        eiph = xp.exp(1j*ph)
-        self.jones_matrix = xp.asarray([[cth**2 + eiph*sth**2, (1 - eiph)*sth*cth],
-                                        [(1 - eiph)*sth*cth, sth**2 + eiph*cth**2]]) * xp.exp(-1j*ph/2)
-        return self.jones_matrix
-
+        self.angle = theta # spatially-varying angle
+        return super(VectorVortexMask, self).get_jones_matrix(wave)
 
 # ------ convert analytic optics to array optics ------
 
