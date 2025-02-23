@@ -852,10 +852,10 @@ class BaseWavefront(ABC):
         _log.debug("Wavefront pixel scale:        {:.3f}".format(self.pixelscale.to(detector.pixelscale.unit)))
         _log.debug("Desired detector pixel scale: {:.3f}".format(detector.pixelscale))
         _log.debug("Wavefront FOV:        {} pixels, {:.3f}".format(self.shape,
-                                                                    self.shape[0]*u.pixel*self.pixelscale.to(
+                                                                    self.shape[-2]*u.pixel*self.pixelscale.to(
                                                                     detector.pixelscale.unit)))
         _log.debug("Desired detector FOV: {} pixels, {:.3f}".format(detector.shape,
-                                                                    detector.shape[0]*u.pixel*detector.pixelscale))
+                                                                    detector.shape[-2]*u.pixel*detector.pixelscale))
 
         # Provide 2-pixel margin around image to reduce interpolation errors at edge, but also make
         # sure that image is centered properly after it gets cropped down to detector size
@@ -910,14 +910,14 @@ class BaseWavefront(ABC):
             #wf_xmin = pixscale * cropped_wf.shape[0]/2
             # Note, carefully handle the offset-by-one to be consistent with
             # the use of arange above; avoid fencepost error.
-            wf_xmax = pixscale_in * cropped_wf.shape[0]/2
+            wf_xmax = pixscale_in * cropped_wf.shape[-2]/2
 
-            x,y = xp.ogrid[-wf_xmax:wf_xmax-pixscale_in:cropped_wf.shape[0]*1j,
-                             -wf_xmax:wf_xmax-pixscale_in:cropped_wf.shape[1]*1j]
+            x,y = xp.ogrid[-wf_xmax:wf_xmax-pixscale_in:cropped_wf.shape[-2]*1j,
+                             -wf_xmax:wf_xmax-pixscale_in:cropped_wf.shape[-1]*1j]
 
-            det_xmax = pixscale_out * detector.shape[0]/2
-            newx,newy = xp.mgrid[-det_xmax:det_xmax-pixscale_out:detector.shape[0]*1j,
-                                   -det_xmax:det_xmax-pixscale_out:detector.shape[1]*1j]
+            det_xmax = pixscale_out * detector.shape[-2]/2
+            newx,newy = xp.mgrid[-det_xmax:det_xmax-pixscale_out:detector.shape[-2]*1j,
+                                   -det_xmax:det_xmax-pixscale_out:detector.shape[-1]*1j]
 
             x0 = x[0,0]
             y0 = y[0,0]
@@ -929,7 +929,22 @@ class BaseWavefront(ABC):
 
             coords = xp.array([ivals, jvals])
 
-            new_wf = _scipy.ndimage.map_coordinates(cropped_wf, coords, order=detector.interp_order)
+            def interpolate(arr):
+                """
+                Handle the interpolation for scalar and polarized wavefronts
+                """
+                if xp.ndim(arr) == 2:
+                    return _scipy.ndimage.map_coordinates(arr, coords, order=detector.interp_order)
+                else:
+                    # for polarized wavefronts, loop over polarization axis/axes and perform the interpolation
+                    pol_shape = arr.shape[:-2]
+                    resampled_arr = xp.empty((*pol_shape, len(newx), len(newy)), dtype=arr.dtype)
+                    for i in np.ndindex(pol_shape):
+                        resampled_arr[i] = _scipy.ndimage.map_coordinates(arr[i], coords, order=detector.interp_order)
+                    return resampled_arr
+
+            #new_wf = _scipy.ndimage.map_coordinates(cropped_wf, coords, order=detector.interp_order)
+            new_wf = interpolate(cropped_wf)
 
         # enforce conservation of energy:
         new_wf *= 1. / pixscale_ratio
