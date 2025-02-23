@@ -73,7 +73,7 @@ class BasePolarizedWavefront(BaseWavefront):
                 w = self.wavefront
                 return ne.evaluate("sum(real(abs(w))**2, 0)")
             else:
-                return np.abs(self.wavefront) ** 2
+                return np.sum(np.abs(self.wavefront) ** 2, axis=0)
         elif self.pol_type == 'tensor':
             return self.stokes_parameters[0] # I element of stokes parameters (I,Q,U,V)
         else:

@@ -1014,8 +1014,8 @@ class BaseWavefront(ABC):
             rot_imag = xp.rot90(self.wavefront.imag, k=-k)
         else:
             # arbitrary free rotation with interpolation
-            rot_real = _scipy.ndimage.rotate(self.wavefront.real, -angle, reshape=False, axes=(-2,-1))  # negative = CCW
-            rot_imag = _scipy.ndimage.rotate(self.wavefront.imag, -angle, reshape=False, axes=(-2,-1))
+            rot_real = _scipy.ndimage.rotate(self.wavefront.real, -angle, reshape=False, axes=(-1,-2))  # negative = CCW
+            rot_imag = _scipy.ndimage.rotate(self.wavefront.imag, -angle, reshape=False, axes=(-1,-2))
         self.wavefront = rot_real + 1j * rot_imag
 
         self.history.append('Rotated by {:.2f} degrees, CCW'.format(angle))
@@ -1037,7 +1037,7 @@ class BaseWavefront(ABC):
         elif axis.lower() == 'x':
             self.wavefront = self.wavefront[..., :, ::-1]
         elif axis.lower() == 'y':
-            self.wavefront = self.wavefront[..., ::-1]
+            self.wavefront = self.wavefront[..., ::-1, :]
         else:
             raise ValueError("Invalid/unknown value for the 'axis' parameter. Must be 'x', 'y', or 'both'.")
         self.history.append('Inverted axis direction for {} axes'.format(axis.upper()))
