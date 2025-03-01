@@ -1,16 +1,3 @@
-'''
-TO DO:
-* write display code for polarization optics and polarized wavefronts
-    * compatibility with existing display functions
-    * new display functions for Stokes and vector WFs?
-* more tests!
-    * worried about interactions of polarized WFs with various types of optical elements
-    * test cases aren't checking all basic stokes combos yet
-* create polarized versions of some of the standard coronagraph masks
-* put together examples using Fraun+Fresnel prop (vector/stokes), complicated optical system
-* resolve all other TO DOs or NOT IMPLEMENTEDs
-'''
-
 import numpy as np
 import astropy.units as u
 
@@ -18,7 +5,7 @@ from poppy.poppy_core import Wavefront, BaseWavefront
 from poppy.fresnel import FresnelWavefront
 
 from . import accel_math
-from .accel_math import xp, ensure_not_on_gpu
+from .accel_math import xp
 
 if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
@@ -49,10 +36,6 @@ class BasePolarizedWavefront(BaseWavefront):
         super(BasePolarizedWavefront, self).__init__(
             **kwargs
         )
-        # TO DO: clean up the logic of checking which is specified and handling appropriately
-        #self.input_stokes_vector = input_stokes_vector
-        #self.input_polarization = input_polarization
-        self.pol_type = None
 
         if input_stokes_vector is not None: # wavefront tensor
             self.input_polarization = None
@@ -228,7 +211,7 @@ def jones_to_stokes(jones_matrix, input_stokes_vector):
     return xp.einsum('i...,i...', M, input_stokes_vector).real
     
 def jones_to_mueller(jones_matrix):
-    """ Convert 2x2 Jones matrix to Stokes parameters
+    """ Convert 2x2 Jones matrix to Mueller matrix
     
     Based on Eqn A4.13, Spectroscopic Ellipsometry: Principles and Applications H. Fujiwara
     """
