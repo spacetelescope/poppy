@@ -50,17 +50,19 @@ class BasePolarizedWavefront(BaseWavefront):
             **kwargs
         )
         # TO DO: clean up the logic of checking which is specified and handling appropriately
-        self.input_stokes_vector = input_stokes_vector
-        self.input_polarization = input_polarization
+        #self.input_stokes_vector = input_stokes_vector
+        #self.input_polarization = input_polarization
         self.pol_type = None
 
         if input_stokes_vector is not None: # wavefront tensor
             self.input_polarization = None
             self.pol_type = 'tensor'
             self.wavefront = self.wavefront * xp.eye(2)[:, :, xp.newaxis, xp.newaxis]
+            self.input_stokes_vector = xp.asarray(input_stokes_vector)
         elif input_polarization is not None: # wavefront vector
             self.pol_type = 'vector'
-            self.wavefront = self.wavefront * xp.asarray(input_polarization)[:, xp.newaxis, xp.newaxis]
+            self.input_polarization = xp.asarray(input_polarization)
+            self.wavefront = self.wavefront * self.input_polarization[:, xp.newaxis, xp.newaxis]
         else:
             raise ValueError('Either input_stokes_vector or input_polarization must be specified! For scalar diffraction, use Wavefront or FresnelWavefront.')
 
@@ -232,11 +234,11 @@ def jones_to_mueller(jones_matrix):
     """
     shape = jones_matrix.shape
     # ordering convention below starts with diagonal terms
-    j = xp.concatenate([[jones_matrix[0,0],
-                         jones_matrix[1,1],
-                         jones_matrix[1,0],
-                         jones_matrix[0,1]]],
-                         axis=0)
+    j = xp.concatenate(xp.asanyarray([[jones_matrix[0,0], # cupy requires casting the list to a cupy array
+                                       jones_matrix[1,1],
+                                       jones_matrix[1,0],
+                                       jones_matrix[0,1]]]),
+                                       axis=0)
     jc = j.conj()
     e = j * jc
 
@@ -244,29 +246,53 @@ def jones_to_mueller(jones_matrix):
     j0, j1, j2, j3 = j
     jc0, jc1, jc2, jc3 = jc
 
-    # construct the Mueller matrix
-    # row 1
-    M00 = ne.evaluate('0.5*(e0 + e1 + e2 + e3)')
-    M01 = ne.evaluate('0.5*(e0 - e1 - e2 + e3)')
-    M02 = ne.evaluate('(j0*jc2).real + (j3*jc1).real')
-    M03 = ne.evaluate('-(jc0*j2).imag - (jc3*j1).imag')
-    # row 2
-    M10 = ne.evaluate('0.5*(e0 - e1 + e2 - e3)')
-    M11 = ne.evaluate('0.5*(e0 + e1 - e2 - e3)')
-    M12 = ne.evaluate('(j0*jc2).real - (j3*jc1).real')
-    M13 = ne.evaluate('-(jc0*j2).imag + (jc3*j1).imag')
-    # row 3
-    M20 = ne.evaluate('(j0*jc3).real + (j2*jc1).real')
-    M21 = ne.evaluate('(j0*jc3).real - (j2*jc1).real')
-    M22 = ne.evaluate('(j0*jc1).real + (j2*jc3).real')
-    M23 = ne.evaluate('-(jc0*j1).imag + (jc2*j3).imag')
-    # row 4
-    M30 = ne.evaluate('(jc0*j3).imag + (jc2*j1).imag')
-    M31 = ne.evaluate('(jc0*j3).imag - (jc2*j1).imag')
-    M32 = ne.evaluate('(jc0*j1).imag + (jc2*j3).imag')
-    M33 = ne.evaluate('(j0*jc1).real - (j2*jc3).real')
+    if accel_math._USE_NUMEXPR:
+        # construct the Mueller matrix
+        # row 1
+        M00 = ne.evaluate('0.5*(e0 + e1 + e2 + e3)')
+        M01 = ne.evaluate('0.5*(e0 - e1 - e2 + e3)')
+        M02 = ne.evaluate('(j0*jc2).real + (j3*jc1).real')
+        M03 = ne.evaluate('-(jc0*j2).imag - (jc3*j1).imag')
+        # row 2
+        M10 = ne.evaluate('0.5*(e0 - e1 + e2 - e3)')
+        M11 = ne.evaluate('0.5*(e0 + e1 - e2 - e3)')
+        M12 = ne.evaluate('(j0*jc2).real - (j3*jc1).real')
+        M13 = ne.evaluate('-(jc0*j2).imag + (jc3*j1).imag')
+        # row 3
+        M20 = ne.evaluate('(j0*jc3).real + (j2*jc1).real')
+        M21 = ne.evaluate('(j0*jc3).real - (j2*jc1).real')
+        M22 = ne.evaluate('(j0*jc1).real + (j2*jc3).real')
+        M23 = ne.evaluate('-(jc0*j1).imag + (jc2*j3).imag')
+        # row 4
+        M30 = ne.evaluate('(jc0*j3).imag + (jc2*j1).imag')
+        M31 = ne.evaluate('(jc0*j3).imag - (jc2*j1).imag')
+        M32 = ne.evaluate('(jc0*j1).imag + (jc2*j3).imag')
+        M33 = ne.evaluate('(j0*jc1).real - (j2*jc3).real')
+    else:
+        # construct the Mueller matrix
+        # row 1
+        M00 =0.5*(e0 + e1 + e2 + e3)
+        M01 =0.5*(e0 - e1 - e2 + e3)
+        M02 = (j0*jc2).real + (j3*jc1).real
+        M03 =-(jc0*j2).imag - (jc3*j1).imag
+        # row 2
+        M10 = 0.5*(e0 - e1 + e2 - e3)
+        M11 = 0.5*(e0 + e1 - e2 - e3)
+        M12 =(j0*jc2).real - (j3*jc1).real
+        M13 = -(jc0*j2).imag + (jc3*j1).imag
+        # row 3
+        M20 = (j0*jc3).real + (j2*jc1).real
+        M21 = (j0*jc3).real - (j2*jc1).real
+        M22 = (j0*jc1).real + (j2*jc3).real
+        M23 = -(jc0*j1).imag + (jc2*j3).imag
+        # row 4
+        M30 = (jc0*j3).imag + (jc2*j1).imag
+        M31 = (jc0*j3).imag - (jc2*j1).imag
+        M32 = (jc0*j1).imag + (jc2*j3).imag
+        M33 = (j0*jc1).real - (j2*jc3).real
 
-    M = np.asarray([[M00, M01, M02, M03],
+
+    M = xp.asarray([[M00, M01, M02, M03],
                     [M10, M11, M12, M13],
                     [M20, M21, M22, M23],
                     [M30, M31, M32, M33]])
