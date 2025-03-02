@@ -272,7 +272,7 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
             pyfftw.interfaces.cache.enable()
             pyfftw.interfaces.cache.set_keepalive_time(30)
 
-            test_array = np.zeros(wavefront.shape)
+            test_array = xp.zeros(wavefront.shape)
             test_array = do_fft(test_array, overwrite_input=True, planner_effort='FFTW_MEASURE',
                                 threads=multiprocessing.cpu_count())
 
@@ -444,7 +444,7 @@ def get_processor_name():
         return (subprocess.check_output(command).strip()).decode()
     elif platform.system() == "Linux":
         command = "cat /proc/cpuinfo"
-        all_info = subprocess.check_output(command, shell=True).strip()
+        all_info = subprocess.check_output(command, shell=True).strip().decode('utf-8')
         for line in all_info.split("\n"):
             if "model name" in line:
                 return re.sub(".*model name.*:", "", line, 1)
@@ -661,12 +661,12 @@ def benchmark_2d_mfts(max_pow=13, savefig=False, extra_axes=None):
                         test_mft_numpy_512: "MFT with numpy, npix=512"}
     if _NUMEXPR_AVAILABLE:
         funcs_to_test.extend([test_mft_numexpr, test_mft_numexpr_512])
-        function_aliases.append({test_mft_numexpr: "MFT with numexpr, npix=64",
+        function_aliases.update({test_mft_numexpr: "MFT with numexpr, npix=64",
                                  test_mft_numexpr_512: "MFT with numexpr, npix=512"})
 
     b_array = benchmark(
         funcs_to_test,
-        arguments={2 ** i: np.random.uniform(size=shp(2 ** i, extra_axes)) + 1j * np.random.uniform(size=shp(2 ** i, extra_axes)) for i in
+        arguments={2 ** i: xp.random.uniform(size=shp(2 ** i, extra_axes)) + 1j * xp.random.uniform(size=shp(2 ** i, extra_axes)) for i in
                    range(2, max_pow)},
         argument_name='pupil array size, npupil',
         function_aliases=function_aliases
