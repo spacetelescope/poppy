@@ -124,11 +124,11 @@ def test_qwp():
     """
     # linear to circular
     wf = poppy.PolarizedWavefront(diam=1, npix=1, input_stokes_vector=(1,1,0,0))
-    qwp = poppy.QuarterWavePlate(angle=xp.pi/4)
+    qwp = poppy.QuarterWavePlate(xp.pi/4)
     assert xp.allclose( xp.squeeze((wf * qwp).stokes_parameters), [1,0,0,1] )
     # circular to linear
     wf = poppy.PolarizedWavefront(diam=1, npix=1, input_stokes_vector=(1,0,0,-1))
-    qwp = poppy.QuarterWavePlate(angle=xp.pi/4)
+    qwp = poppy.QuarterWavePlate(xp.pi/4)
     assert xp.allclose( xp.squeeze((wf * qwp).stokes_parameters), [1,1,0,0] )
 
 def test_hwp():
@@ -137,12 +137,30 @@ def test_hwp():
     """
     # linear 2 theta rotation
     wf = poppy.PolarizedWavefront(diam=1, npix=1, input_stokes_vector=(1,1,0,0))
-    hwp = poppy.HalfWavePlate(angle=xp.pi/4)
+    hwp = poppy.HalfWavePlate(xp.pi/4)
     assert xp.allclose( xp.squeeze((wf * hwp).stokes_parameters), [1,-1,0,0] )
     # circular handedness flip
     wf = poppy.PolarizedWavefront(diam=1, npix=1, input_stokes_vector=(1,0,0,-1))
-    hwp = poppy.HalfWavePlate(angle=0)
+    hwp = poppy.HalfWavePlate(0)
     assert xp.allclose( xp.squeeze((wf * hwp).stokes_parameters), [1,0,0,1] )
+
+
+def test_jones_matrix():
+    """
+    Test tensor fields interacting with JonesMatrixOpticalElements.
+
+    Note that this doesn't test any values -- it just exercises the code
+    """
+    npix = 256
+    wf = poppy.PolarizedWavefront(diam=1, npix=npix, input_stokes_vector=(1,0,0,0))
+
+    zbasis = poppy.zernike.zernike_basis(nterms=3, npix=npix, outside=0)
+    tilt = 0.5 # waves
+    jones_matrix = xp.asarray([[xp.exp(1j*tilt*2*xp.pi*zbasis[1]),    xp.zeros((npix,npix), dtype=complex)],
+                            [xp.zeros((npix,npix), dtype=complex), xp.exp(-1j*tilt*2*xp.pi*zbasis[1]) ]])
+    jm = poppy.JonesMatrixOpticalElement(jones_matrix)
+
+    wf_out = wf * jm
 
 # ---- Fresnel + Stokes (Partial Polarization) ---
 
@@ -195,7 +213,7 @@ def test_fresnel_stokes_qwp():
     for i in range(len(qwp_angles)):
         osys = fresnel.FresnelOpticalSystem(npix=npix)
         circ = poppy.CircularAperture(radius=D)
-        qwp = poppy.QuarterWavePlate(angle=qwp_angles[i])
+        qwp = poppy.QuarterWavePlate(qwp_angles[i])
         osys.add_optic(circ)
         osys.add_optic(qwp, distance=500*u.mm)
 
@@ -225,7 +243,7 @@ def test_fresnel_stokes_hwp():
     for i in range(len(stokes_true)):
         osys = fresnel.FresnelOpticalSystem(npix=npix)
         circ = poppy.CircularAperture(radius=D)
-        hwp = poppy.HalfWavePlate()
+        hwp = poppy.HalfWavePlate(0)
         osys.add_optic(circ)
         osys.add_optic(hwp, distance=500*u.mm)
 
@@ -289,7 +307,7 @@ def test_fresnel_vector_hwp():
     input_vector = [(1, 0), (f, 1j*f), (f, -1j*f)]
     #output_vector = [(0, 1), (f, -1j*f), (f, 1j*f)]
     filter_out = [
-        poppy.LinearPolarizer(angle=xp.pi/2.),
+        poppy.LinearPolarizer(xp.pi/2.),
         poppy.CircularPolarizer(handedness='right'),
         poppy.CircularPolarizer(handedness='left')
         ]
@@ -297,7 +315,7 @@ def test_fresnel_vector_hwp():
     for i in range(len(input_vector)):
         osys = fresnel.FresnelOpticalSystem(npix=npix)
         circ = poppy.CircularAperture(radius=D)
-        hwp = poppy.HalfWavePlate(angle=hwp_angle)
+        hwp = poppy.HalfWavePlate(hwp_angle)
         osys.add_optic(circ)
         osys.add_optic(hwp, distance=500*u.mm)
         osys.add_optic(filter_out[i])
@@ -392,7 +410,7 @@ def test_fraunhofer_stokes_hwp():
     for i in range(len(stokes_true)):
         osys = poppy.OpticalSystem(npix=npix)
         circ = poppy.CircularAperture(radius=D)
-        hwp = poppy.HalfWavePlate()
+        hwp = poppy.HalfWavePlate(0)
         osys.add_pupil(circ)
         osys.add_pupil(hwp)
         osys.add_image()
@@ -459,7 +477,7 @@ def test_fraunhofer_vector_hwp():
     input_vector = [(1, 0), (f, 1j*f), (f, -1j*f)]
     #output_vector = [(0, 1), (f, -1j*f), (f, 1j*f)]
     filter_out = [
-        poppy.LinearPolarizer(angle=xp.pi/2.),
+        poppy.LinearPolarizer(xp.pi/2.),
         poppy.CircularPolarizer(handedness='right'),
         poppy.CircularPolarizer(handedness='left')
         ]
@@ -467,7 +485,7 @@ def test_fraunhofer_vector_hwp():
     for i in range(len(input_vector)):
         osys = poppy.OpticalSystem(npix=npix)
         circ = poppy.CircularAperture(radius=D)
-        hwp = poppy.HalfWavePlate(angle=hwp_angle)
+        hwp = poppy.HalfWavePlate(hwp_angle)
         osys.add_pupil(circ)
         osys.add_pupil(hwp)
         osys.add_image()

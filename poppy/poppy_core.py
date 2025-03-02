@@ -3361,12 +3361,7 @@ class FITSOpticalElement(OpticalElement):
         return xp.asarray(self.opd)
     
 class PolarizationOpticalElement(OpticalElement):
-    """ Abstract class for defining polarization optics.
-
-    TO DO:
-    * Add a check that PolarizationOpticalElements are interacting with PolarizedWavefronts
-    (i.e., reject interactions with Wavefront or FresnelWavefront objects)
-    """
+    """ Abstract class for defining polarization optics """
 
     def __init__(self, **kwargs):
         OpticalElement.__init__(self, **kwargs)

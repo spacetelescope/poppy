@@ -197,9 +197,9 @@ def test_pyfftw_vs_numpyfft(verbose=False):
     """ Create an optical system with 2 parity test apertures,
     propagate light through it, and compare that we get the same results from both numpy and pyfftw"""
 
-    defaults = conf.use_fftw, conf.use_cuda, conf.use_opencl, conf.use_cupy
+    defaults = conf.use_fftw, conf.use_cupy, conf.use_opencl, conf.use_cupy
 
-    conf.use_cuda = False
+    conf.use_cupy = False
     conf.use_opencl = False
     conf.use_cupy = False
     
@@ -231,7 +231,7 @@ def test_pyfftw_vs_numpyfft(verbose=False):
             print(" Int. WF {} intensity diff: {}".format(i, np.abs(intermediates[i].total_intensity-total_int_input)) )
         print(" Final PSF intensity diff:", np.abs(intermediates[3].total_intensity-total_int_input) - expected)
 
-    conf.use_fftw, conf.use_cuda, conf.use_opencl, conf.use_cupy = defaults
+    conf.use_fftw, conf.use_cupy, conf.use_opencl, conf.use_cupy = defaults
 
 
 @pytest.mark.skipif(accel_math._OPENCL_AVAILABLE is False, reason="OPENCL not available")
@@ -239,10 +239,10 @@ def test_opencl_vs_numpyfft(verbose=False):
     """ Create an optical system with 2 parity test apertures,
     propagate light through it, and compare that we get the same results from both numpy and CUDA"""
 
-    defaults = conf.use_fftw, conf.use_cuda, conf.use_opencl
+    defaults = conf.use_fftw, conf.use_cupy, conf.use_opencl
 
     conf.use_fftw = False
-    conf.use_cudal = False
+    conf.use_cupy = False
 
     sys = setup_test_osys()
 
@@ -272,7 +272,7 @@ def test_opencl_vs_numpyfft(verbose=False):
             print(" Int. WF {} intensity diff: {}".format(i, np.abs(intermediates[i].total_intensity-total_int_input)) )
         print(" Final PSF intensity diff:", np.abs(intermediates[3].total_intensity-total_int_input) - expected)
 
-    conf.use_fftw, conf.use_cuda, conf.use_opencl = defaults
+    conf.use_fftw, conf.use_cupy, conf.use_opencl = defaults
 
 
 # TODO: Add a function that uses both the DFT and MFT for the exact same calc, and compare the results

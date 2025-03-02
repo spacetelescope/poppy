@@ -2294,15 +2294,15 @@ class LinearPolarizer(PolarizationOpticalElement, AnalyticOpticalElement):
 
     Parameters
     ----------
-    name : string
-        Descriptive name
     angle: float
         Polarization axis angle, in radians.
-    extinction : float
-        NOT IMPLEMENTED: Extinction ratio. Default is infinite (perfect linear polarizer).
+    extinction : float, optional
+        Extinction ratio. Default is infinite (perfect linear polarizer).
+    name : string, optional
+        Descriptive name
     """
 
-    def __init__(self, name=None, angle=0, extinction=xp.inf, **kwargs):
+    def __init__(self, angle, name=None, extinction=xp.inf, **kwargs):
         if name is None:
             name = "Linear polarizer"
         self.angle = angle
@@ -2316,8 +2316,6 @@ class LinearPolarizer(PolarizationOpticalElement, AnalyticOpticalElement):
         cth = xp.cos(self.angle)
         sth = xp.sin(self.angle)
         eps = 1/self.extinction
-        #self.jones_matrix = xp.asarray([[cth**2,  sth*cth],
-        #                                [sth*cth, sth**2]])
         self.jones_matrix = xp.asarray([[cth**2 + eps*sth**2,  (1-eps)*sth*cth    ],
                                         [(1-eps)*sth*cth,      eps*cth**2 + sth**2]])
         return self.jones_matrix
@@ -2335,6 +2333,8 @@ class CircularPolarizer(PolarizationOpticalElement, AnalyticOpticalElement):
         Descriptive name
     handedness: str
         Either 'left' or 'right'
+    name : string, optional
+        Descriptive name
     """
 
     def __init__(self, handedness, name=None, **kwargs):
@@ -2362,12 +2362,12 @@ class LinearPhaseRetarder(PolarizationOpticalElement, AnalyticOpticalElement):
 
     Parameters
     ----------
-    name : string
-        Descriptive name
     phase : float
         Phase retardance, in radians
     angle: float
         Fast axis angle, in radians.
+    name : string, optional
+        Descriptive name
     """
 
     def __init__(self, phase, angle, name=None, **kwargs):
@@ -2393,13 +2393,13 @@ class QuarterWavePlate(LinearPhaseRetarder):
 
     Parameters
     ----------
-    name : string
-        Descriptive name
     angle: float
-        Fast axis angle, in radians.
+        Fast axis angle, in radians
+    name : string, optional
+        Descriptive name
     """
 
-    def __init__(self, name=None, angle=0):
+    def __init__(self, angle, name=None):
         if name is None:
             name = "Quarter wave plate"
         super(QuarterWavePlate, self).__init__(np.pi/2, angle, name=name)
@@ -2409,13 +2409,13 @@ class HalfWavePlate(LinearPhaseRetarder):
 
     Parameters
     ----------
-    name : string
-        Descriptive name
     angle: float
         Fast axis angle, in radians.
+    name : string, optional
+        Descriptive name
     """
 
-    def __init__(self, name=None, angle=0):
+    def __init__(self, angle, name=None):
         if name is None:
             name = "Half wave plate"
         super(HalfWavePlate, self).__init__(np.pi, angle, name=name,)
@@ -2448,9 +2448,19 @@ class VectorVortexMask(LinearPhaseRetarder):
     approximate better sampling in the vicinity of the vortex singularity
     and is likely to be limited by numerical artifacts without extreme
     sampling.
+
+    Parameters
+    ----------
+    charge : int, optional
+        The charge of the vector vortex. Default: 6
+    retardance : float, optional
+        Global retardance of the vector vortex. Default is pi, for a
+        half-wave plate.
+    name : string, optional
+        Descriptive name
     """
 
-    def __init__(self, charge=6, retardance=np.pi, name=None, **kwargs):
+    def __init__(self, charge=6, retardance=xp.pi, name=None, **kwargs):
         if name is None:
             name = "VVC"
         self.charge = charge
