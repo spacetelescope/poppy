@@ -144,6 +144,24 @@ def test_hwp():
     hwp = poppy.HalfWavePlate(0)
     assert xp.allclose( xp.squeeze((wf * hwp).stokes_parameters), [1,0,0,1] )
 
+
+def test_jones_matrix():
+    """
+    Test tensor fields interacting with JonesMatrixOpticalElements.
+
+    Note that this doesn't test any values -- it just exercises the code
+    """
+    npix = 256
+    wf = poppy.PolarizedWavefront(diam=1, npix=npix, input_stokes_vector=(1,0,0,0))
+
+    zbasis = poppy.zernike.zernike_basis(nterms=3, npix=npix, outside=0)
+    tilt = 0.5 # waves
+    jones_matrix = xp.asarray([[xp.exp(1j*tilt*2*xp.pi*zbasis[1]),    xp.zeros((npix,npix), dtype=complex)],
+                            [xp.zeros((npix,npix), dtype=complex), xp.exp(-1j*tilt*2*xp.pi*zbasis[1]) ]])
+    jm = poppy.JonesMatrixOpticalElement(jones_matrix)
+
+    wf_out = wf * jm
+
 # ---- Fresnel + Stokes (Partial Polarization) ---
 
 def test_fresnel_stokes_linearpolarizer():

@@ -36,6 +36,8 @@ class BasePolarizedWavefront(BaseWavefront):
         super(BasePolarizedWavefront, self).__init__(
             **kwargs
         )
+        self.input_stokes_vector = None
+        self.input_polarization = None
 
         if input_stokes_vector is not None: # wavefront tensor
             self.input_polarization = None
