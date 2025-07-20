@@ -2456,15 +2456,18 @@ class VectorVortexMask(LinearPhaseRetarder):
     retardance : float, optional
         Global retardance of the vector vortex. Default is pi, for a
         half-wave plate.
+    dot_radius : float, optional
+        Radius of dot mask (in arcsec) centered on singularity. No dot mask if not given.
     name : string, optional
         Descriptive name
     """
 
-    def __init__(self, charge=6, retardance=xp.pi, name=None, **kwargs):
+    def __init__(self, charge=6, retardance=xp.pi, dot_radius=None, name=None, **kwargs):
         if name is None:
             name = "VVC"
         self.charge = charge
         self.retardance = retardance
+        self.dot_radius = dot_radius
         super(VectorVortexMask, self).__init__(retardance, None, name=name,  **kwargs)
 
     def get_jones_matrix(self, wave):
@@ -2472,6 +2475,14 @@ class VectorVortexMask(LinearPhaseRetarder):
         theta = xp.arctan2(y, x) * self.charge / 2.0
         self.angle = theta # spatially-varying angle
         return super(VectorVortexMask, self).get_jones_matrix(wave)
+
+    def get_transmission(self, wave):
+        if self.dot_radius is None:
+            self.transmission = xp.asarray(self.amplitude)
+        else:
+            mask = CircularOcculter(radius=self.dot_radius)
+            self.transmission = mask.get_transmission(wave)
+        return self.transmission
 
 # ------ convert analytic optics to array optics ------
 
