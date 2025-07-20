@@ -280,11 +280,13 @@ class PolarizedFresnelWavefront(BasePolarizedWavefront, FresnelWavefront):
             raise NotImplementedError("Conversion from scalar-type wavefronts to polarization-type wavefronts is not implemented!")
 
         if wf.ispadded:
-            beam_radius = wf.wavefront.shape[0] / wf.oversample / 2 * wf.pixelscale * u.pixel
+            beam_radius = wf.shape[0] / wf.oversample / 2 * wf.pixelscale * u.pixel
+            npix = wf.shape[0] // wf.oversample
         else:
-            beam_radius = wf.wavefront.shape[0] / 2 * wf.pixelscale * u.pixel
+            beam_radius = wf.shape[0] / 2 * wf.pixelscale * u.pixel
+            npix = wf.shape[0]
         new_wf = PolarizedFresnelWavefront(beam_radius=beam_radius,
-                                  npix=wf.shape[0],
+                                  npix=npix,
                                   oversample=wf.oversample,
                                   wavelength=wf.wavelength,
                                   input_stokes_vector=wf.input_stokes_vector,
