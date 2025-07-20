@@ -1,11 +1,12 @@
 import numpy as np
 import astropy.units as u
 
-from poppy.poppy_core import Wavefront, BaseWavefront
+from poppy.poppy_core import Wavefront, BaseWavefront, PlaneType
 from poppy.fresnel import FresnelWavefront
 
 from . import accel_math
 from .accel_math import xp
+from . import utils
 
 if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
@@ -169,6 +170,53 @@ class PolarizedWavefront(BasePolarizedWavefront, Wavefront):
             **kwargs
         )
 
+    @classmethod
+    def from_fresnel_wavefront(cls, fresnel_wavefront, verbose=False):
+        """Convert a Fresnel type wavefront object to a Fraunhofer one
+
+        Note, this function implicitly assumes this wavefront is at a
+        pupil plane, so the resulting Fraunhofer wavefront will have
+        pixelscale in meters/pix rather than arcsec/pix.
+
+        Note that this largely duplicates the Wavefront.from_fresnel_wavefront
+        code, with a few tweaks.
+
+        Parameters
+        ----------
+        fresnel_wavefront : Wavefront
+            The (Fresnel-type) wavefront to be converted.
+
+        """
+        # Generate a Fraunhofer wavefront with the same sampling
+        wf = fresnel_wavefront
+
+        # check that the input wavefront is a polarized type
+        if not isinstance(wf, BasePolarizedWavefront):
+            raise NotImplementedError("Conversion from scalar-type wavefronts to polarization-type wavefronts is not implemented!")
+
+        beam_diam = (wf.shape[0]//wf.oversample) * wf.pixelscale*u.pixel
+        new_wf = PolarizedWavefront(diam=beam_diam,
+                           npix=wf.shape[0]//wf.oversample,
+                           oversample=wf.oversample,
+                           wavelength=wf.wavelength,
+                           input_stokes_vector=wf.input_stokes_vector,
+                           input_polarization=wf.input_polarization)
+        if verbose:
+            print(wf.pixelscale, new_wf.pixelscale, new_wf.shape)
+        # Deal with metadata
+        new_wf.history = wf.history.copy()
+        new_wf.history.append("Converted to Fraunhofer propagation")
+        new_wf.history.append("  Fraunhofer array pixel scale = {:.4g}, oversample = {}".format(new_wf.pixelscale, new_wf.oversample))
+        # Copy over the contents of the array
+        new_wf.wavefront = utils.pad_or_crop_to_shape(wf.wavefront, new_wf.shape)
+        # Copy over misc internal info
+        if hasattr(wf, '_display_hint_expected_nplanes'):
+            new_wf._display_hint_expected_nplanes = wf._display_hint_expected_nplanes
+        new_wf.current_plane_index = wf.current_plane_index
+        new_wf.location = wf.location
+
+        return new_wf
+
 class PolarizedFresnelWavefront(BasePolarizedWavefront, FresnelWavefront):
     '''
     This class extends the FresnelWavefront class to handle Fresnel propagation of
@@ -203,6 +251,57 @@ class PolarizedFresnelWavefront(BasePolarizedWavefront, FresnelWavefront):
             input_polarization=input_polarization,
             **kwargs
         )
+
+    @classmethod
+    def from_wavefront(cls, wavefront):
+        """Convert a Fraunhofer type wavefront object to a Fresnel one
+
+        Note, for now this function only works if the input wavefront is at a
+        pupil plane, so the Fraunhofer wavefront has pixelscale
+        in meters/pix rather than arcsec/pix. Conversion from
+        image planes may be added later.
+
+        Note that this largely duplicates the FresnelWavefront.from_fresnel_wavefront
+        code, with a few tweaks.
+
+        Parameters
+        ----------
+        wavefront : Wavefront
+            The (Fraunhofer-type) wavefront to be converted
+
+        """
+        # Generate a Fresnel wavefront with the same sampling
+        wf = wavefront
+
+        if wf.planetype == PlaneType.image:
+            raise NotImplementedError("Conversion from image planes to Fresnel is not yet implemented.")
+
+        if not isinstance(wf, BasePolarizedWavefront):
+            raise NotImplementedError("Conversion from scalar-type wavefronts to polarization-type wavefronts is not implemented!")
+
+        if wf.ispadded:
+            beam_radius = wf.wavefront.shape[0] / wf.oversample / 2 * wf.pixelscale * u.pixel
+        else:
+            beam_radius = wf.wavefront.shape[0] / 2 * wf.pixelscale * u.pixel
+        new_wf = PolarizedFresnelWavefront(beam_radius=beam_radius,
+                                  npix=wf.shape[0],
+                                  oversample=wf.oversample,
+                                  wavelength=wf.wavelength,
+                                  input_stokes_vector=wf.input_stokes_vector,
+                                  input_polarization=wf.input_polarization,)
+        # Deal with metadata
+        new_wf.history = wf.history.copy()
+        new_wf.history.append("Converted to Fresnel propagation")
+        new_wf.history.append("  Fresnel array pixel scale = {:.4g}, oversample = {}".format(new_wf.pixelscale, new_wf.oversample))
+        # Copy over the contents of the array
+        new_wf.wavefront = utils.pad_to_size(wf.wavefront, new_wf.wavefront.shape)
+        # Copy over misc internal info
+        if hasattr(wf, '_display_hint_expected_nplanes'):
+            new_wf._display_hint_expected_nplanes = wf._display_hint_expected_nplanes
+        new_wf.current_plane_index = wf.current_plane_index
+        new_wf.location = wf.location
+
+        return new_wf
 
 def jones_to_stokes(jones_matrix, input_stokes_vector):
     """ Convert 2x2 Jones matrix to Stokes parameters

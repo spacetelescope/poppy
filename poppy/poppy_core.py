@@ -2471,6 +2471,7 @@ class CompoundOpticalSystem(OpticalSystem):
 
         """
         from poppy.fresnel import FresnelOpticalSystem, FresnelWavefront
+        from poppy.polarized_wavefront import BasePolarizedWavefront, PolarizedFresnelWavefront, PolarizedWavefront
 
         if return_intermediates:
             intermediate_wfs = []
@@ -2484,11 +2485,23 @@ class CompoundOpticalSystem(OpticalSystem):
             # If necessary, convert wavefront type.
             if (isinstance(optsys, FresnelOpticalSystem) and
                not isinstance(wavefront, FresnelWavefront)):
-                wavefront = FresnelWavefront.from_wavefront(wavefront)
+                # check scalar vs polarized
+                if isinstance(wavefront, BasePolarizedWavefront):
+                    # incoming wavefront is polarized
+                    wavefront = PolarizedFresnelWavefront.from_wavefront(wavefront)
+                else:
+                    # incoming wavefront is scalar
+                    wavefront = FresnelWavefront.from_wavefront(wavefront)
                 loghistory(wavefront, "CompoundOpticalSystem: Converted wavefront to Fresnel type")
             elif (not isinstance(optsys, FresnelOpticalSystem) and
                   isinstance(wavefront, FresnelWavefront)):
-                wavefront = Wavefront.from_fresnel_wavefront(wavefront)
+                # check scalar vs polarized
+                if isinstance(wavefront, BasePolarizedWavefront):
+                    # incoming wavefront is polarized
+                    wavefront = PolarizedWavefront.from_fresnel_wavefront(wavefront)
+                else:
+                    # incoming wavefront is scalar
+                    wavefront = Wavefront.from_fresnel_wavefront(wavefront)
                 loghistory(wavefront, "CompoundOpticalSystem: Converted wavefront to Fraunhofer type")
 
             # Propagate
