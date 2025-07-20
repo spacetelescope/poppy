@@ -1184,19 +1184,19 @@ def pad_to_size(array, padded_shape):
         outsize0 = padded_shape
         outsize1 = padded_shape
     else:
-        outsize0 = padded_shape[0]
-        outsize1 = padded_shape[1]
+        outsize0 = padded_shape[-2]
+        outsize1 = padded_shape[-1]
     # npix = array.shape[0]
     padded = xp.zeros(shape=padded_shape, dtype=array.dtype)
-    n0 = (outsize0 - array.shape[0]) // 2  # pixel offset for the inner array
-    m0 = (outsize1 - array.shape[1]) // 2  # pixel offset in second dimension
-    n1 = n0 + array.shape[0]
-    m1 = m0 + array.shape[1]
+    n0 = (outsize0 - array.shape[-2]) // 2  # pixel offset for the inner array
+    m0 = (outsize1 - array.shape[-1]) // 2  # pixel offset in second dimension
+    n1 = n0 + array.shape[-2]
+    m1 = m0 + array.shape[-1]
     n0 = int(round(n0))  # because astropy test_plugins enforces integer indices
     n1 = int(round(n1))
     m0 = int(round(m0))
     m1 = int(round(m1))
-    padded[n0:n1, m0:m1] = array
+    padded[..., n0:n1, m0:m1] = array
     return padded
 
 
