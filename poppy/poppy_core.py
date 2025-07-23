@@ -2655,7 +2655,7 @@ class OpticalElement(object):
             _log.debug("Non-matching pixel scales for wavefront and optic. Need to interpolate. "
                        "Pixelscales: wave {}, optic {}".format(wave.pixelscale, self.pixelscale))
             if hasattr(self, '_resampled_scale') and abs(
-                    self._resampled_scale - wave.pixelscale) / self._resampled_scale >= float_tolerance:
+                    self._resampled_scale - wave.pixelscale) / self._resampled_scale <= float_tolerance:
                 # we already did this same resampling, so just re-use it!
                 self.phasor = self._resampled_amplitude * xp.exp(1j * self._resampled_opd * scale)
             else:
@@ -2665,6 +2665,7 @@ class OpticalElement(object):
                 resampled_opd = _scipy.ndimage.zoom(original_opd, zoom, output=original_opd.dtype, order=self.interp_order)
                 original_amplitude = self.get_transmission(wave)
                 resampled_amplitude = _scipy.ndimage.zoom(original_amplitude, zoom, output=original_amplitude.dtype, order=self.interp_order)
+                self._resampled_scale = wave.pixelscale
                 _log.debug("resampled optic to match wavefront via spline interpolation by a" +
                            " zoom factor of {:.3g}".format(zoom))
                 _log.debug("resampled optic shape: {}   wavefront shape: {}".format(resampled_amplitude.shape,
@@ -3378,38 +3379,55 @@ class PolarizationOpticalElement(OpticalElement):
 
     def __init__(self, **kwargs):
         OpticalElement.__init__(self, **kwargs)
-        self._opd_in_radians = True # not sure we need this
+        #self._opd_in_radians = True # not sure we need this
 
-    def get_phasor(self, wave):
-        """ Get complex phasor.
-        
-        This multiplies the amplitude transmission by the 
-        2x2 Jones matrix for the polarization optic.
 
-        OPD is not a well-defined quantity for a polarization element
-        and is ignored.
+    def get_transmission(self, wave):
+        """
+        Get the polarization-dependent transmission elements
+        from the Jones matrix.
         """
         jm = self.get_jones_matrix(wave)
         if xp.ndim(jm) == 2:  # 2x2 jones matrix
-            res = jm[:,:,None,None] * self.get_transmission(wave) # broadcast to 2x2xYxX
-        else:  # 2x2xYxX jones matrix
-            res = jm * self.get_transmission(wave)
-        return res
+            jm = jm[:,:,None,None] * xp.ones(wave.shape, dtype=_float()) # broadcast to 2x2xYxX
+        return xp.abs(jm)
     
-    # def get_opd(self, wave):
-    #     """ 
-    #     Follows the convention in FITSOpticalElement to define a
-    #     wavelength-independent phase with _opd_in_radians
-    #     """
-    #     if isinstance(wave, BaseWavefront):
-    #         wavelength = wave.wavelength
-    #     else:
-    #         wavelength = wave
-    #     opd_rad = self.get_phasor(wave)
-    #     return xp.asarray(opd_rad * wavelength.to(u.m).value / (2 * np.pi))
+    def get_opd(self, wave):
+        """
+        Get the polarization-dependent optical path difference elements
+        (in meters) from the Jones matrix.
+        """
+        if isinstance(wave, BaseWavefront):
+            wavelength = wave.wavelength
+        else:
+            wavelength = wave
+        scale =  wavelength.to(u.meter).value / (2. * np.pi)
+
+        jm = self.get_jones_matrix(wave)
+        if xp.ndim(jm) == 2:  # 2x2 jones matrix
+            jm = jm[:,:,None,None] * xp.ones(wave.shape, dtype=_float()) # broadcast to 2x2xYxX
+
+        # radians phase to OPD for consistency with treatment of other optical elements
+        return scale * xp.angle(jm)
         
     def get_jones_matrix(self, wave):
         raise NotImplementedError
+        
+    # def get_phasor(self, wave):
+    #     """ Get complex phasor.
+        
+    #     This multiplies the amplitude transmission by the 
+    #     2x2 Jones matrix for the polarization optic.
+
+    #     OPD is not a well-defined quantity for a polarization element
+    #     and is ignored.
+    #     """
+    #     jm = self.get_jones_matrix(wave)
+    #     if xp.ndim(jm) == 2:  # 2x2 jones matrix
+    #         res = jm[:,:,None,None] * self.get_transmission(wave) # broadcast to 2x2xYxX
+    #     else:  # 2x2xYxX jones matrix
+    #         res = jm * self.get_transmission(wave)
+    #     return res
 
 
 class CoordinateTransform(OpticalElement):
