@@ -3390,7 +3390,9 @@ class PolarizationOpticalElement(OpticalElement):
         jm = self.get_jones_matrix(wave)
         if xp.ndim(jm) == 2:  # 2x2 jones matrix
             jm = jm[:,:,None,None] * xp.ones(wave.shape, dtype=_float()) # broadcast to 2x2xYxX
-        return xp.abs(jm)
+
+        self.amplitude = xp.abs(jm)
+        return self.amplitude
     
     def get_opd(self, wave):
         """
@@ -3408,10 +3410,97 @@ class PolarizationOpticalElement(OpticalElement):
             jm = jm[:,:,None,None] * xp.ones(wave.shape, dtype=_float()) # broadcast to 2x2xYxX
 
         # radians phase to OPD for consistency with treatment of other optical elements
-        return scale * xp.angle(jm)
+        self.opd = scale * xp.angle(jm)
+        return self.opd
         
     def get_jones_matrix(self, wave):
         raise NotImplementedError
+
+    def get_phasor(self, wave):
+        """
+        Modification of OpticalElement.get_phasor to perform
+        interpolation/resampling on the complex phasor to avoid
+        issues with interpolating phase-wrapped Jones matrices.
+
+        Parameters
+        ----------
+        wave : float or obj
+            either a scalar wavelength or a Wavefront object
+        """
+
+        # set the self.phasor attribute:
+        # first check whether we need to interpolate to do this.
+        float_tolerance = 0.001  # how big of a relative scale mismatch before resampling?
+        if self.pixelscale is not None and hasattr(wave, 'pixelscale') and abs(
+                wave.pixelscale - self.pixelscale) / self.pixelscale >= float_tolerance:
+            _log.debug("Non-matching pixel scales for wavefront and optic. Need to interpolate. "
+                       "Pixelscales: wave {}, optic {}".format(wave.pixelscale, self.pixelscale))
+            if hasattr(self, '_resampled_scale') and abs(
+                    self._resampled_scale - wave.pixelscale) / self._resampled_scale <= float_tolerance:
+                # we already did this same resampling, so just re-use it!
+                self.phasor = self._resampled_phasor 
+            else:
+                # raise NotImplementedError("Need to implement resampling.")
+                zoom = (self.pixelscale / wave.pixelscale).decompose().value
+
+                original_jones_matrix = self.get_jones_matrix(wave)
+
+                #ndim = xp.ndim(original_jones_matrix)
+
+                zoom = (1, 1, zoom, zoom) # all jones matrices are assumed to be 2x2xYxX cubes
+
+                #original_jones_matrix = original_jones_matrix[:,:,None,None] 
+                #if ndim > 2: # this is a 2x2xYxX jones matrix
+                #    zoom = (1,) * (ndim - 2) + (zoom, zoom)
+                #else: # this is a scalar
+                #    zoom = (zoom, zoom)
+
+                resampled_jones_matrix = _scipy.ndimage.zoom(original_jones_matrix, zoom, output=original_jones_matrix.dtype, order=self.interp_order)
+                self._resampled_scale = wave.pixelscale
+
+                formatted_zoom = [f'{z:.3g}' for z in zoom]
+                _log.debug("resampled optic to match wavefront via spline interpolation by a" +
+                           f" zoom factor of {', '.join(z for z in formatted_zoom)}")
+                _log.debug("resampled optic shape: {}   wavefront shape: {}".format(resampled_jones_matrix.shape,
+                                                                                    wave.shape))
+
+                lx, ly = resampled_jones_matrix.shape[-2:]
+                # crop down to match size of wavefront:
+                lx_w, ly_w = wave.shape
+
+                border_x = np.abs(lx - lx_w) // 2
+                border_y = np.abs(ly - ly_w) // 2
+                if (self.pixelscale * self.jones_matrix.shape[-2] < wave.pixelscale * wave.amplitude.shape[-1]) or (
+                        self.pixelscale * self.jones_matrix.shape[-1] < wave.pixelscale * wave.amplitude.shape[-1]):
+                    _log.warning("After resampling, optic phasor shape " + str(np.shape(resampled_jones_matrix)) +
+                                 " is smaller than input wavefront " + str(
+                                 (lx_w, ly_w)) + "; will zero-pad the rescaled array.")
+                    self._resampled_phasor = xp.zeros([2, 2, lx_w, ly_w])
+
+                    self._resampled_phasor[:, :, border_x:border_x + resampled_opd.shape[-2],
+                                                       border_y:border_y + resampled_opd.shape[-1]] = resampled_jones_matrix
+                    _log.debug("padded an optic with a {:d} x {:d} border to "
+                               "optic to match the wavefront".format(border_x, border_y))
+
+                else:
+                    self._resampled_phasor = resampled_jones_matrix[:, :, border_x:border_x + lx_w, border_y:border_y + ly_w]
+                    _log.debug("trimmed a border of {:d} x {:d} pixels from "
+                               "optic to match the wavefront".format(border_x, border_y))
+
+                self.phasor = self._resampled_phasor
+        else:
+            # compute the phasor directly, without any need to rescale.
+            self.phasor = self.get_jones_matrix(wave)
+
+        # check whether we need to pad or crop the array before returning or not.
+        # note: do not pad the phasor if it's just a scalar!
+        if self.phasor.size != 1 and self.phasor.shape != wave.shape:
+            # pad to match the wavefront sampling, from whatever sized array we started with.
+            # Allows more flexibility for differently sized FITS arrays, so long as they all have the
+            # same pixel scale as checked above!
+            return utils.pad_or_crop_to_shape(self.phasor, wave.shape)
+        else:
+            return self.phasor
         
     # def get_phasor(self, wave):
     #     """ Get complex phasor.

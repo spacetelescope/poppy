@@ -2316,8 +2316,11 @@ class LinearPolarizer(PolarizationOpticalElement, AnalyticOpticalElement):
         cth = xp.cos(self.angle)
         sth = xp.sin(self.angle)
         eps = 1/self.extinction
-        self.jones_matrix = xp.asarray([[cth**2 + eps*sth**2,  (1-eps)*sth*cth    ],
+        jones_matrix = xp.asarray([[cth**2 + eps*sth**2,  (1-eps)*sth*cth    ],
                                         [(1-eps)*sth*cth,      eps*cth**2 + sth**2]])
+
+        ones = xp.ones(wave.shape, dtype=_float())
+        self.jones_matrix = jones_matrix[:,:,None,None] * ones # broadcast to spatial jones matrix
         return self.jones_matrix
     
 class CircularPolarizer(PolarizationOpticalElement, AnalyticOpticalElement):
@@ -2353,8 +2356,11 @@ class CircularPolarizer(PolarizationOpticalElement, AnalyticOpticalElement):
         else:
             raise ValueError("Handedness should be either 'left' or 'right'. Got {self.handedness} instead!")
 
-        self.jones_matrix = xp.asarray([[1,  -1*factor*1j],
+        jones_matrix = xp.asarray([[1,  -1*factor*1j],
                                         [factor*1j,     1]]) * 0.5
+
+        ones = xp.ones(wave.shape, dtype=_float())
+        self.jones_matrix = jones_matrix[:,:,None,None] * ones # broadcast to spatial jones matrix
         return self.jones_matrix
     
 class LinearPhaseRetarder(PolarizationOpticalElement, AnalyticOpticalElement):
@@ -2384,8 +2390,11 @@ class LinearPhaseRetarder(PolarizationOpticalElement, AnalyticOpticalElement):
         sth = xp.sin(self.angle)
         ph = self.phase
         eiph = xp.exp(1j*ph)
-        self.jones_matrix = xp.asarray([[cth**2 + eiph*sth**2, (1 - eiph)*sth*cth],
+        jones_matrix = xp.asarray([[cth**2 + eiph*sth**2, (1 - eiph)*sth*cth],
                                         [(1 - eiph)*sth*cth, sth**2 + eiph*cth**2]]) * xp.exp(-1j*ph/2)
+
+        ones = xp.ones(wave.shape, dtype=_float())
+        self.jones_matrix = jones_matrix[:,:,None,None] * ones # broadcast to spatial jones matrix
         return self.jones_matrix
     
 class QuarterWavePlate(LinearPhaseRetarder):
