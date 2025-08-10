@@ -2319,8 +2319,13 @@ class LinearPolarizer(PolarizationOpticalElement, AnalyticOpticalElement):
         jones_matrix = xp.asarray([[cth**2 + eps*sth**2,  (1-eps)*sth*cth    ],
                                         [(1-eps)*sth*cth,      eps*cth**2 + sth**2]])
 
-        ones = xp.ones(wave.shape, dtype=_float())
-        self.jones_matrix = jones_matrix[:,:,None,None] * ones # broadcast to spatial jones matrix
+        if xp.ndim(jones_matrix) == 2:
+            # broadcast to include spatial dimensions
+            ones = xp.ones(wave.shape, dtype=_float())
+            self.jones_matrix = jones_matrix[:,:,None,None] * ones # broadcast to spatial jones matrix
+        else:
+            # already accounts for spatial dimensions
+            self.jones_matrix = jones_matrix
         return self.jones_matrix
     
 class CircularPolarizer(PolarizationOpticalElement, AnalyticOpticalElement):
@@ -2359,8 +2364,13 @@ class CircularPolarizer(PolarizationOpticalElement, AnalyticOpticalElement):
         jones_matrix = xp.asarray([[1,  -1*factor*1j],
                                         [factor*1j,     1]]) * 0.5
 
-        ones = xp.ones(wave.shape, dtype=_float())
-        self.jones_matrix = jones_matrix[:,:,None,None] * ones # broadcast to spatial jones matrix
+        if xp.ndim(jones_matrix) == 2:
+            # broadcast to include spatial dimensions
+            ones = xp.ones(wave.shape, dtype=_float())
+            self.jones_matrix = jones_matrix[:,:,None,None] * ones # broadcast to spatial jones matrix
+        else:
+            # already accounts for spatial dimensions
+            self.jones_matrix = jones_matrix
         return self.jones_matrix
     
 class LinearPhaseRetarder(PolarizationOpticalElement, AnalyticOpticalElement):
@@ -2392,9 +2402,13 @@ class LinearPhaseRetarder(PolarizationOpticalElement, AnalyticOpticalElement):
         eiph = xp.exp(1j*ph)
         jones_matrix = xp.asarray([[cth**2 + eiph*sth**2, (1 - eiph)*sth*cth],
                                         [(1 - eiph)*sth*cth, sth**2 + eiph*cth**2]]) * xp.exp(-1j*ph/2)
-
-        ones = xp.ones(wave.shape, dtype=_float())
-        self.jones_matrix = jones_matrix[:,:,None,None] * ones # broadcast to spatial jones matrix
+        if xp.ndim(jones_matrix) == 2:
+            # broadcast to include spatial dimensions
+            ones = xp.ones(wave.shape, dtype=_float())
+            self.jones_matrix = jones_matrix[:,:,None,None] * ones # broadcast to spatial jones matrix
+        else:
+            # already accounts for spatial dimensions
+            self.jones_matrix = jones_matrix
         return self.jones_matrix
     
 class QuarterWavePlate(LinearPhaseRetarder):
