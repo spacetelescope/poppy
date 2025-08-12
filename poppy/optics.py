@@ -2289,7 +2289,57 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
 
 # ------ polarization optics --------
 
-class LinearPolarizer(PolarizationOpticalElement, AnalyticOpticalElement):
+class AnalyticPolarizationOpticalElement(AnalyticOpticalElement, PolarizationOpticalElement):
+
+    def __init__(self, *args, **kwargs):
+        """
+        Equivalent to AnalyticOpticalElement, but for polarization
+        optical elements.
+        """
+        super().__init__(*args, **kwargs)
+
+    def get_transmission(self, wave):
+        """
+        Get the polarization-dependent transmission elements
+        from the Jones matrix.
+        """
+        jm = self.get_jones_matrix(wave)
+        if xp.ndim(jm) == 2:  # 2x2 jones matrix
+            jm = jm[:,:,None,None] * xp.ones(wave.shape, dtype=_float()) # broadcast to 2x2xYxX
+
+        self.amplitude = xp.abs(jm)
+        return self.amplitude
+    
+    def get_opd(self, wave):
+        """
+        Get the polarization-dependent optical path difference elements
+        (in meters) from the Jones matrix.
+        """
+        if isinstance(wave, BaseWavefront):
+            wavelength = wave.wavelength
+        else:
+            wavelength = wave
+        scale =  wavelength.to(u.meter).value / (2. * np.pi)
+
+        jm = self.get_jones_matrix(wave)
+        if xp.ndim(jm) == 2:  # 2x2 jones matrix
+            jm = jm[:,:,None,None] * xp.ones(wave.shape, dtype=_float()) # broadcast to 2x2xYxX
+
+        # radians phase to OPD for consistency with treatment of other optical elements
+        self.opd = scale * xp.angle(jm)
+        return self.opd
+        
+    def get_jones_matrix(self, wave):
+        raise NotImplementedError
+
+    def get_phasor(self, wave):
+        """
+        Return the jones matrix directly
+        """
+        self.jones_matrix = self.get_jones_matrix(wave)
+        return self.jones_matrix
+
+class LinearPolarizer(AnalyticPolarizationOpticalElement):
     """ Defines a linear polarizer
 
     Parameters
@@ -2328,7 +2378,7 @@ class LinearPolarizer(PolarizationOpticalElement, AnalyticOpticalElement):
             self.jones_matrix = jones_matrix
         return self.jones_matrix
     
-class CircularPolarizer(PolarizationOpticalElement, AnalyticOpticalElement):
+class CircularPolarizer(AnalyticPolarizationOpticalElement):
     """ Defines a circular polarizer
 
     Note that you could also construct an equivalent from a combination of
@@ -2373,7 +2423,7 @@ class CircularPolarizer(PolarizationOpticalElement, AnalyticOpticalElement):
             self.jones_matrix = jones_matrix
         return self.jones_matrix
     
-class LinearPhaseRetarder(PolarizationOpticalElement, AnalyticOpticalElement):
+class LinearPhaseRetarder(AnalyticPolarizationOpticalElement):
     """ Defines a general linear phase retarder
 
     Parameters
@@ -2391,7 +2441,7 @@ class LinearPhaseRetarder(PolarizationOpticalElement, AnalyticOpticalElement):
             name = "Linear phase retarder"
         self.angle = angle
         self.phase = phase
-        super(PolarizationOpticalElement, self).__init__(name=name, **kwargs)
+        super().__init__(name=name, **kwargs)
 
     def get_jones_matrix(self, wave):
         """ Compute the 2x2 jones matrix for the linear phase retarder
@@ -2491,13 +2541,14 @@ class VectorVortexMask(LinearPhaseRetarder):
         self.charge = charge
         self.retardance = retardance
         self.dot_radius = dot_radius
-        super(VectorVortexMask, self).__init__(retardance, None, name=name,  **kwargs)
+        super().__init__(retardance, None, name=name,  **kwargs)
 
     def get_jones_matrix(self, wave):
         y, x = self.get_coordinates(wave)
+        #print(wave.pixelscale, wave.fov)
         theta = xp.arctan2(y, x) * self.charge / 2.0
         self.angle = theta # spatially-varying angle
-        return super(VectorVortexMask, self).get_jones_matrix(wave)
+        return super(VectorVortexMask, self).get_jones_matrix(wave) * self.get_transmission(wave)
 
     def get_transmission(self, wave):
         if self.dot_radius is None:

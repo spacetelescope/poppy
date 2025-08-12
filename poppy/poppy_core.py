@@ -3502,23 +3502,6 @@ class PolarizationOpticalElement(OpticalElement):
         else:
             return self.phasor
         
-    # def get_phasor(self, wave):
-    #     """ Get complex phasor.
-        
-    #     This multiplies the amplitude transmission by the 
-    #     2x2 Jones matrix for the polarization optic.
-
-    #     OPD is not a well-defined quantity for a polarization element
-    #     and is ignored.
-    #     """
-    #     jm = self.get_jones_matrix(wave)
-    #     if xp.ndim(jm) == 2:  # 2x2 jones matrix
-    #         res = jm[:,:,None,None] * self.get_transmission(wave) # broadcast to 2x2xYxX
-    #     else:  # 2x2xYxX jones matrix
-    #         res = jm * self.get_transmission(wave)
-    #     return res
-
-
 class CoordinateTransform(OpticalElement):
     """ Performs a coordinate transformation (rotation or axes inversion
     in the optical train.
