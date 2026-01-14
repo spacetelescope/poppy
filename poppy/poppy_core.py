@@ -3475,10 +3475,10 @@ class PolarizationOpticalElement(OpticalElement):
                     _log.warning("After resampling, optic phasor shape " + str(np.shape(resampled_jones_matrix)) +
                                  " is smaller than input wavefront " + str(
                                  (lx_w, ly_w)) + "; will zero-pad the rescaled array.")
-                    self._resampled_phasor = xp.zeros([2, 2, lx_w, ly_w])
+                    self._resampled_phasor = xp.zeros([2, 2, lx_w, ly_w], dtype=complex)
 
-                    self._resampled_phasor[:, :, border_x:border_x + resampled_opd.shape[-2],
-                                                       border_y:border_y + resampled_opd.shape[-1]] = resampled_jones_matrix
+                    self._resampled_phasor[:, :, border_x:border_x + resampled_jones_matrix.shape[-2],
+                                                       border_y:border_y + resampled_jones_matrix.shape[-1]] = resampled_jones_matrix
                     _log.debug("padded an optic with a {:d} x {:d} border to "
                                "optic to match the wavefront".format(border_x, border_y))
 
