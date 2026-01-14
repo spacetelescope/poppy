@@ -131,7 +131,7 @@ def _exp(x):
     else:
         return np.exp(x)
 
-def _fftshift(x):
+def _fftshift(x, axes=(-2,-1)):
     """ FFT shifts of array contents, using CUDA/CuPY if available.
     Otherwise defaults to numpy.
 
@@ -142,9 +142,9 @@ def _fftshift(x):
 
     See also ifftshift
     """
-    return xp.fft.fftshift(x)
+    return xp.fft.fftshift(x, axes=axes)
 
-def _ifftshift(x):
+def _ifftshift(x, axes=(-2,-1)):
     """ Inverse FFT shifts of array contents, using CUDA if available.
     Otherwise defaults to numpy.
     Note, ifftshift and fftshift are identical for even-length x,
@@ -160,7 +160,7 @@ def _ifftshift(x):
     See also fftshift
     """
 
-    return xp.fft.ifftshift(x)
+    return xp.fft.ifftshift(x, axes=axes)
 
 
 
@@ -188,8 +188,8 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         vice versa. This is to have a positive sign in the exponent for forward propagations.
         See sign convention documentation.
     normalization : float, optional
-        Normalization factor. Defaults to 1./wavefront.shape[0] for forward,
-        and wavefront.shape[0] for inverse. Use this only if you need a non-default
+        Normalization factor. Defaults to 1./wavefront.shape[-1] for forward,
+        and wavefront.shape[-1] for inverse. Use this only if you need a non-default
         behavior.
     fftshift : bool
         apply FFT shift after forwards propagation or before inverse propagation?
@@ -202,7 +202,7 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
     t0 = time.time()
 
     # OpenCL cfFFT only can FFT certain array sizes.
-    if _USE_OPENCL and not isproductofsmallprimes(wavefront.shape[0]):
+    if _USE_OPENCL and not isproductofsmallprimes(wavefront.shape[-1]):
         _log.debug(("Wavefront size {} not supported by OpenCL, therefore disabling "+
             "USE_OPENCL for this calculation.").format(wavefront.shape))
         _USE_OPENCL = False
@@ -232,11 +232,11 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
     t1 = time.time()
     if _USE_OPENCL:
         if normalization is None:
-            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
+            normalization = 1./wavefront.shape[-1] if forward else wavefront.shape[-1]
 
         context, queue = get_opencl_context()
         wf_on_gpu = pyopencl.array.to_device(queue, wavefront)
-        transform = gpyfft.fft.FFT(context, queue, wf_on_gpu, axes=(0,1))
+        transform = gpyfft.fft.FFT(context, queue, wf_on_gpu, axes=(-2,-1))
         event, = transform.enqueue(forward=forward)
         event.wait()
         wavefront[:] = wf_on_gpu.get()
@@ -245,21 +245,21 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
     elif _USE_CUPY:
         do_fft = cp.fft.fft2 if forward else cp.fft.ifft2
         if normalization is None:
-            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
+            normalization = 1./wavefront.shape[-1] if forward else wavefront.shape[-1]
         wavefront = do_fft(wavefront)
 
     elif _USE_MKL:
         # Intel MKL is a drop-in replacement for numpy fft but much faster
         do_fft = mkl_fft.fft2 if forward else mkl_fft.ifft2
         if normalization is None:
-            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
+            normalization = 1./wavefront.shape[-1] if forward else wavefront.shape[-1]
         wavefront = do_fft(wavefront)
 
     elif _USE_FFTW:
         FFT_direction = 'forward' if forward else 'backward' # back compatible for use in _FFTW_INIT
         do_fft = pyfftw.interfaces.numpy_fft.fft2 if forward else pyfftw.interfaces.numpy_fft.ifft2
         if normalization is None:
-            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
+            normalization = 1./wavefront.shape[-1] if forward else wavefront.shape[-1]
 
 
         if (wavefront.shape, FFT_direction) not in _FFTW_INIT:
@@ -272,7 +272,7 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
             pyfftw.interfaces.cache.enable()
             pyfftw.interfaces.cache.set_keepalive_time(30)
 
-            test_array = np.zeros(wavefront.shape)
+            test_array = xp.zeros(wavefront.shape)
             test_array = do_fft(test_array, overwrite_input=True, planner_effort='FFTW_MEASURE',
                                 threads=multiprocessing.cpu_count())
 
@@ -283,7 +283,7 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
     else: # Basic numpy FFT
         do_fft =  np.fft.fft2 if forward else np.fft.ifft2
         if normalization is None:
-            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
+            normalization = 1./wavefront.shape[-1] if forward else wavefront.shape[-1]
         wavefront = do_fft(wavefront)
     t2 = time.time()
 
@@ -444,7 +444,7 @@ def get_processor_name():
         return (subprocess.check_output(command).strip()).decode()
     elif platform.system() == "Linux":
         command = "cat /proc/cpuinfo"
-        all_info = subprocess.check_output(command, shell=True).strip()
+        all_info = subprocess.check_output(command, shell=True).strip().decode('utf-8')
         for line in all_info.split("\n"):
             if "model name" in line:
                 return re.sub(".*model name.*:", "", line, 1)
@@ -467,7 +467,7 @@ def get_physical_cpu_count():
     else:
         raise NotImplementedError("make this cross platform")
 
-def benchmark_2d_ffts(mode='poppy', max_pow=13, verbose=False, savefig=False):
+def benchmark_2d_ffts(mode='poppy', max_pow=13, verbose=False, savefig=False, extra_axes=None):
     """Benchmark FFT runtime vs array size, for multiple transform libraries
 
     Parameters
@@ -481,6 +481,8 @@ def benchmark_2d_ffts(mode='poppy', max_pow=13, verbose=False, savefig=False):
         output numpy config info
     savefig : bool
         save plot result to a PDF?
+    extra_axes : tuple
+        Prepend extra dimensions and FFT over last two axes. Default: None
 
     """
 
@@ -497,26 +499,43 @@ def benchmark_2d_ffts(mode='poppy', max_pow=13, verbose=False, savefig=False):
     if mode == 'base':
         # Functions for benchmarking the low-level FFT functions in each library
         def pocketfft(it):
-            np.fft.fft2(it)
+            np.fft.fft2(it, axes=(-2,-1))
 
         def scipyfft(it):
-            scipy.fft.fft2(it)
+            scipy.fft.fft2(it, axes=(-2,-1))
+
+        # assume numpy and scipy are always available
+        funcs_to_test = [pocketfft, scipyfft]
+        function_aliases = {pocketfft: 'numpy.fft', scipyfft: 'scipy.fft'}
 
         def fftw_1thread(it):
             # note, FFTW defaults to 1 thread, unless you override the config,
             # but that's not a fair comparison
-            pyfftw.interfaces.numpy_fft.fft2(it, thread=1)
+            pyfftw.interfaces.numpy_fft.fft2(it, threads=1, axes=(-2,-1))
 
         def fftw(it):
             # explicitly try multithreaded here
-            pyfftw.interfaces.numpy_fft.fft2(it, threads=threads)
+            pyfftw.interfaces.numpy_fft.fft2(it, threads=threads, axes=(-2,-1))
 
+        if _FFTW_AVAILABLE:
+            funcs_to_test.extend([fftw, fftw_1thread])
+            function_aliases.update({
+                 fftw: 'pyfftw.fft, multithreaded',
+                 fftw_1thread: 'pyfftw.fft, single-thread'
+            })
+            
         def mklfft(it):
-            mkl_fft.fft2(it)
+            mkl_fft.fft2(it, axes=(-2,-1))
 
-        funcs_to_test = [pocketfft, fftw, mklfft, scipyfft, fftw_1thread, ]
-        function_aliases = {pocketfft: 'numpy.fft', fftw: 'pyfftw.fft, multithreaded', scipyfft: 'scipy.fft',
-                            mklfft: "MKL FFT", fftw_1thread: 'pyfftw.fft, single-thread'}
+        if _MKLFFT_AVAILABLE:
+            funcs_to_test.append(mklfft)
+            function_aliases.update({
+                mklfft: "MKL FFT"
+            })
+
+        #funcs_to_test = [pocketfft, fftw, mklfft, scipyfft, fftw_1thread, ]
+        #function_aliases = {pocketfft: 'numpy.fft', fftw: 'pyfftw.fft, multithreaded', scipyfft: 'scipy.fft',
+        #                    mklfft: "MKL FFT", fftw_1thread: 'pyfftw.fft, single-thread'}
         title = "Basic 2D FFT only"
 
     elif mode == 'poppy':
@@ -529,12 +548,20 @@ def benchmark_2d_ffts(mode='poppy', max_pow=13, verbose=False, savefig=False):
 
             fft_2d(it, fftshift=False)
 
+        funcs_to_test = [poppy_numpyfft,]
+        function_aliases = {poppy_numpyfft: 'poppy using numpy.fft'}
+
+
         def poppy_fftw(it):
             global _USE_FFTW, _USE_MKL
             _USE_FFTW = True
             _USE_MKL = False
 
             fft_2d(it, fftshift=False)
+
+        if _FFTW_AVAILABLE:
+            funcs_to_test.append(poppy_fftw)
+            function_aliases.update({poppy_fftw: 'poppy using pyfftw.fft'})
 
         def poppy_mklfft(it):
             global _USE_FFTW, _USE_MKL
@@ -543,15 +570,19 @@ def benchmark_2d_ffts(mode='poppy', max_pow=13, verbose=False, savefig=False):
 
             fft_2d(it, fftshift=False)
 
-        funcs_to_test = [poppy_numpyfft, poppy_fftw, poppy_mklfft]
-        function_aliases = {poppy_numpyfft: 'poppy using numpy.fft', poppy_fftw: 'poppy using pyfftw.fft',
-                            poppy_mklfft: "poppy using MKL FFT"}
+        if _MKLFFT_AVAILABLE:
+            funcs_to_test.append(poppy_mklfft)
+            function_aliases.update({poppy_mklfft: "poppy using MKL FFT"})
+
         title = 'full poppy.accel_math.fft_2d'
     else:
         raise ValueError(f"Unknown/invalid value for 'base' parameter: {base}")
 
-    def shp(len):
-        return (len, len)
+    def shp(len, extra_axes):
+        if extra_axes is None:
+            return (len, len)
+        else:
+            return (*extra_axes, len, len)
 
     if verbose:
         print(np.version)
@@ -561,7 +592,7 @@ def benchmark_2d_ffts(mode='poppy', max_pow=13, verbose=False, savefig=False):
     pyfftw.interfaces.cache.enable()
     b_array = benchmark(
         funcs_to_test,
-        arguments={2 ** i: np.random.uniform(size=shp(2 ** i)) + 1j * np.random.uniform(size=shp(2 ** i)) for i in
+        arguments={2 ** i: np.random.uniform(size=shp(2 ** i, extra_axes)) + 1j * np.random.uniform(size=shp(2 ** i, extra_axes)) for i in
                    range(2, max_pow)},
         argument_name='array size',
         function_aliases=function_aliases
@@ -578,8 +609,10 @@ def benchmark_2d_ffts(mode='poppy', max_pow=13, verbose=False, savefig=False):
     if savefig:
         plt.savefig(f"bench_ffts_{mode}.png")
 
+    return b_array
 
-def benchmark_2d_mfts(max_pow=13, savefig=False):
+
+def benchmark_2d_mfts(max_pow=13, savefig=False, extra_axes=None):
     """Benchmark MFT runtime vs array size, for multiple transform libraries
 
     Parameters
@@ -591,6 +624,8 @@ def benchmark_2d_mfts(max_pow=13, savefig=False):
         Maximum power of 2 array size to test up to
     savefig : bool
         save plot result to a PDF?
+    extra_axes : tuple
+        Prepend extra dimensions and MFT over last two axes. Default: None
 
     """
 
@@ -600,8 +635,11 @@ def benchmark_2d_mfts(max_pow=13, savefig=False):
     import functools
     import poppy
 
-    def shp(len):
-        return (len, len)
+    def shp(len, extra_axes):
+        if extra_axes is None:
+            return (len, len)
+        else:
+            return (*extra_axes, len, len)
 
     def test_mft_numpy(array, npix=64):
         global _USE_NUMEXPR
@@ -618,14 +656,20 @@ def benchmark_2d_mfts(max_pow=13, savefig=False):
     test_mft_numpy_512 = functools.partial(test_mft_numpy, npix=512)
     test_mft_numexpr_512 = functools.partial(test_mft_numexpr, npix=512)
 
+    funcs_to_test = [test_mft_numpy, test_mft_numpy_512, ]
+    function_aliases = {test_mft_numpy: "MFT with numpy, npix=64",
+                        test_mft_numpy_512: "MFT with numpy, npix=512"}
+    if _NUMEXPR_AVAILABLE:
+        funcs_to_test.extend([test_mft_numexpr, test_mft_numexpr_512])
+        function_aliases.update({test_mft_numexpr: "MFT with numexpr, npix=64",
+                                 test_mft_numexpr_512: "MFT with numexpr, npix=512"})
+
     b_array = benchmark(
-        [test_mft_numpy, test_mft_numexpr, test_mft_numpy_512, test_mft_numexpr_512],
-        arguments={2 ** i: np.random.uniform(size=shp(2 ** i)) + 1j * np.random.uniform(size=shp(2 ** i)) for i in
+        funcs_to_test,
+        arguments={2 ** i: xp.random.uniform(size=shp(2 ** i, extra_axes)) + 1j * xp.random.uniform(size=shp(2 ** i, extra_axes)) for i in
                    range(2, max_pow)},
         argument_name='pupil array size, npupil',
-        function_aliases={test_mft_numpy: "MFT with numpy, npix=64", test_mft_numexpr: "MFT with numexpr, npix=64",
-                          test_mft_numpy_512: "MFT with numpy, npix=512",
-                          test_mft_numexpr_512: "MFT with numexpr, npix=512"}
+        function_aliases=function_aliases
     )
     plt.figure(figsize=(12, 8))
     b_array.plot()
@@ -639,6 +683,8 @@ def benchmark_2d_mfts(max_pow=13, savefig=False):
 
     if savefig:
         plt.savefig(f"bench_mfts.png")
+
+    return b_array
 
 
 def is_on_gpu(array):

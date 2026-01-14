@@ -1139,11 +1139,13 @@ class FresnelWavefront(BaseWavefront):
             raise NotImplementedError("Conversion from image planes to Fresnel is not yet implemented.")
 
         if wf.ispadded:
-            beam_radius = wf.wavefront.shape[0] / wf.oversample / 2 * wf.pixelscale * u.pixel
+            beam_radius = wf.shape[0] / wf.oversample / 2 * wf.pixelscale * u.pixel
+            npix = wf.shape[0] // wf.oversample
         else:
-            beam_radius = wf.wavefront.shape[0] / 2 * wf.pixelscale * u.pixel
+            beam_radius = wf.shape[0] / 2 * wf.pixelscale * u.pixel
+            npix = wf.shape[0]
         new_wf = FresnelWavefront(beam_radius=beam_radius,
-                                  npix=wf.shape[0],
+                                  npix=npix,
                                   oversample=wf.oversample,
                                   wavelength=wf.wavelength)
         # Deal with metadata

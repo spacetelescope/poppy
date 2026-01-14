@@ -39,7 +39,6 @@ class PlaneType(enum.Enum):
     intermediate = 5  # arbitrary plane between pupil and image
     inversion = 6  # coordinate system inversion (flip axes, e.g. like going through focus)
 
-
 _PUPIL = PlaneType.pupil
 _IMAGE = PlaneType.image
 _DETECTOR = PlaneType.detector  # specialized type of image plane
@@ -177,11 +176,25 @@ class BaseWavefront(ABC):
         phasor = optic.get_phasor(self)
 
         if not np.isscalar(phasor) and phasor.size > 1:
-            assert self.wavefront.shape == phasor.shape, "Phasor shape {} does not match wavefront shape {}".format(
-                phasor.shape, self.wavefront.shape)
+            assert self.shape == phasor.shape[-2:], "Phasor shape {} does not match wavefront shape {}".format(
+                phasor.shape, self.wavefront.shape) # only compare spatial dimensions
+            
+        msg = "  Multiplied WF by phasor for " + str(optic)
+            
+        if isinstance(optic, PolarizationOpticalElement):
+            # check that PolarizationOpticalElement are interacting only with BasePolarizedWavefronts
+            from poppy.polarized_wavefront import BasePolarizedWavefront
+            if not isinstance(self, BasePolarizedWavefront):
+                raise ValueError('Cannot multiply scalar wavefront types with polarization optics!')
+            
+            # handle both vector and tensor fields
+            self.wavefront =  np.einsum('ml...,l...->m...', phasor, self.wavefront)
+            
+            self.history.append(msg)
+            self.location = 'after ' + optic.name
+            return self
 
         self.wavefront *= phasor
-        msg = "  Multiplied WF by phasor for " + str(optic)
         _log.debug(msg)
         self.history.append(msg)
         self.location = 'after ' + optic.name
@@ -200,9 +213,9 @@ class BaseWavefront(ABC):
         if not isinstance(wave, self.__class__):
             raise ValueError('Wavefronts can only be summed with other Wavefronts of the same class.')
 
-        if not self.wavefront.shape == wave.wavefront.shape:
+        if not self.shape == wave.shape:
             raise ValueError('Wavefronts can only be added if they have the same size and shape: {} vs {} '.format(
-                self.wavefront.shape, wave.wavefront.shape))
+                self.shape, wave.shape))
 
         try:
             if not np.isclose(self.pixelscale.value, wave.pixelscale.to(self.pixelscale.unit).value):
@@ -331,19 +344,20 @@ class BaseWavefront(ABC):
                 imagecrop=None, pupilcrop=None,
                 colorbar=False, crosshairs=False, ax=None, title=None, vmin=None,
                 vmax=None, vmax_wfe=None, scale=None, use_angular_coordinates=None,
-                angular_coordinate_unit=u.arcsec):
+                angular_coordinate_unit=u.arcsec, tensor_idx=None):
         """Display wavefront on screen
 
         Parameters
         ----------
         what : string
-           What to display. Must be one of {intensity, phase, wfe, best, 'both'}.
+           What to display. Must be one of {'intensity', 'phase', 'wfe', 'best', 'both', or 'stokes'}.
            'intensity' shows the wavefront intensity,  'wfe' shows the wavefront
            error in meters or microns, 'phase' is similar to 'wfe' but shows wavefront
            phase in radians at the given wavelength.
            'Best' implies to display the phase if there is nonzero OPD,
            or else display the intensity for a perfect pupil.
            'both' will show two panels, for the wavefront intensity and wavefront error.
+           'stokes' will show four panels, for each of the Stokes parameters.
         nrows : int
             Number of rows to display in current figure (used for
             showing steps in a calculation)
@@ -395,6 +409,14 @@ class BaseWavefront(ABC):
             (Default: None, infer coordinates from planetype)
         angular_coordinate_unit : astropy unit
             Unit to use for angular coordinates display; default is arcsecond.
+        tensor_idx : int or tuple, optional
+            Index of the tensor element to display with Polarized Wavefronts.
+            If not provided and plotting anything other than intensity or
+            Stokes parameters, defaults to 0 or (0,0) in the case of vector
+            and tensor fields, respectively. If plotting intensity and tensor_idx=None,
+            will plot the total vector intensity or I Stokes parameter; otherwise,
+            plots the intensity of the specified vector/tensor element.
+            Ignored if what='stokes'.
 
         Returns
         -------
@@ -406,15 +428,46 @@ class BaseWavefront(ABC):
 
         if row is None:
             row = self.current_plane_index
+        
+        # handle polarized wavefronts
+        from poppy.polarized_wavefront import BasePolarizedWavefront
+        is_polarized = isinstance(self, BasePolarizedWavefront)
+        has_stokes = is_polarized and (self.input_stokes_vector is not None)
+        if is_polarized:
+            # only intensity is well-defined when tensor_idx is not provided.
+            # for all other cases, fall back to 0 or (0,0) field element.
+            if (what in ['phase', 'wfe', 'both', 'best']) and (tensor_idx is None):
+                if has_stokes:
+                    tensor_idx = (0,0)
+                else:
+                    tensor_idx = 0
+                _log.warning(f'tensor_idx not provided! Plotting {tensor_idx} element of vector/tensor field.')
 
-        intens = self.intensity.copy()
+            # if plotting intensity and tensor_idx is not supplied, then
+            # plot the I Stokes parameter or total vector intensity
+            if (what == 'intensity') and (tensor_idx is None):
+                intens = self.intensity.copy()
+                phase = self.phase.copy()
+                amp = self.amplitude.copy()
+            else: # not intensity, or tensor_idx is supplied
+                intens = xp.abs(self.wavefront)[tensor_idx]**2
+                amp = self.amplitude[tensor_idx].copy()
+                phase = self.phase[tensor_idx].copy()
+
+            # grab the stokes vector if available
+            if has_stokes:
+                stokes = self.stokes_parameters.copy()
+        else:
+            # non-polarized case
+            intens = self.intensity.copy()
+            phase = self.phase.copy()
+            amp = self.amplitude.copy()
 
         # make a version of the phase where we try to mask out
         # areas with particularly low intensity
-        phase = self.phase.copy()
         mean_intens = np.mean(intens[intens != 0])
-        phase[intens < mean_intens / 100] = np.nan
-        amp = self.amplitude
+        if what in ['phase', 'wfe', 'both', 'best']: # only compute this if it might be used
+            phase[intens < mean_intens / 100] = np.nan
 
         y, x = self.coordinates()
         # GPU arrays don't work in matplotlib
@@ -425,6 +478,8 @@ class BaseWavefront(ABC):
             intens = utils.remove_padding(intens, self.oversample)
             phase = utils.remove_padding(phase, self.oversample)
             amp = utils.remove_padding(amp, self.oversample)
+            if has_stokes:
+                stokes = utils.remove_padding(stokes, self.oversample)
             y = utils.remove_padding(y, self.oversample)
             x = utils.remove_padding(x, self.oversample)
 
@@ -462,6 +517,9 @@ class BaseWavefront(ABC):
             # what = 'intensity'  # show intensity for coronagraphic downstream propagation.
             else:
                 what = 'phase'  # for aberrated pupils
+            # for partially polarized wavefronts, best always shows the stokes parameters
+            if has_stokes:
+                what = 'stokes'
 
         # compute plot parameters for the subplot grid
         nc = int(np.ceil(np.sqrt(nrows)))
@@ -495,6 +553,11 @@ class BaseWavefront(ABC):
             # -pi to +pi, and we should display with a balanced color scale.
             vmx = np.clip(max(vmax, np.abs(vmin)), -np.pi, np.pi)
         norm_phase = matplotlib.colors.Normalize(vmin=-vmx, vmax=vmx)
+
+        # norm and colormap for stokes
+        if has_stokes:
+            norm_stokes = matplotlib.colors.Normalize(vmin=stokes.min(), vmax=stokes.max())
+            cmap_stokes = copy.copy(getattr(matplotlib.cm, conf.cmap_diverging))
 
         def wrap_lines_title(title):
             # Helper fn to add line breaks in plot titles,
@@ -600,6 +663,7 @@ class BaseWavefront(ABC):
 
             plot_axes = [ax1, ax2]
             to_return = (ax1, ax2)
+
         elif what == 'amplitude':
             if ax is None:
                 ax = plt.subplot(nr, nc, int(row))
@@ -620,9 +684,32 @@ class BaseWavefront(ABC):
                 plt.colorbar(ax.images[0], ax=ax, orientation='vertical', shrink=0.8)
             plot_axes = [ax]
             to_return = ax
+
+        elif what == 'stokes':
+            nstokes = 4
+            stokes_names = ['I','Q','U','V']
+
+            ax = plt.subplot(nrows, 1, row)
+            if title is None:
+                title = wrap_lines_title("Stokes " + self.location)
+            ax.set_title(title)
+            ax.set_frame_on(False)
+            ax.axis('off')
+
+            plot_axes = to_return = []
+            for n in range(nstokes):
+                ax = plt.subplot(nrows, 4, 4*(row - 1) + n + 1)
+                plt.imshow(stokes[n], extent=extent, cmap=cmap_stokes, norm=norm_stokes, origin='lower')
+                ax.set_title(stokes_names[n])
+                
+                ax.set_ylabel(unit_label)
+                ax.set_xlabel(unit_label)
+                if colorbar:
+                    plt.colorbar(orientation='vertical', ax=ax, shrink=0.8)
+                plot_axes.append(ax)
         else:
             raise ValueError("Invalid value for what to display; must be: "
-                             "'intensity', 'amplitude', 'phase', or 'both'.")
+                             "'intensity', 'amplitude', 'phase', 'stokes', or 'both'.")
 
         # now apply axes cropping and/or overplots, if requested.
         for ax in plot_axes:
@@ -641,8 +728,8 @@ class BaseWavefront(ABC):
                     imagecrop *= u.arcsec if use_angular_coordinates else u.meter
                 imagecrop_value = imagecrop.to_value(pixelscale_unit*u.pixel)
 
-                cropsize_x = min((imagecrop_value / 2, intens.shape[1] / 2. * self.pixelscale.to_value(pixelscale_unit)))
-                cropsize_y = min((imagecrop_value / 2, intens.shape[0] / 2. * self.pixelscale.to_value(pixelscale_unit)))
+                cropsize_x = min((imagecrop_value / 2, intens.shape[-2] / 2. * self.pixelscale.to_value(pixelscale_unit)))
+                cropsize_y = min((imagecrop_value / 2, intens.shape[-1] / 2. * self.pixelscale.to_value(pixelscale_unit)))
                 ax.set_xbound(-cropsize_x, cropsize_x)
                 ax.set_ybound(-cropsize_y, cropsize_y)
 
@@ -719,7 +806,7 @@ class BaseWavefront(ABC):
     @property
     def shape(self):
         """ Shape of the wavefront array"""
-        return self.wavefront.shape
+        return self.wavefront.shape[-2:] # only include spatial dimensions
 
     @property
     def dtype(self):
@@ -765,15 +852,15 @@ class BaseWavefront(ABC):
         _log.debug("Wavefront pixel scale:        {:.3f}".format(self.pixelscale.to(detector.pixelscale.unit)))
         _log.debug("Desired detector pixel scale: {:.3f}".format(detector.pixelscale))
         _log.debug("Wavefront FOV:        {} pixels, {:.3f}".format(self.shape,
-                                                                    self.shape[0]*u.pixel*self.pixelscale.to(
+                                                                    self.shape[-2]*u.pixel*self.pixelscale.to(
                                                                     detector.pixelscale.unit)))
         _log.debug("Desired detector FOV: {} pixels, {:.3f}".format(detector.shape,
-                                                                    detector.shape[0]*u.pixel*detector.pixelscale))
+                                                                    detector.shape[-2]*u.pixel*detector.pixelscale))
 
         # Provide 2-pixel margin around image to reduce interpolation errors at edge, but also make
         # sure that image is centered properly after it gets cropped down to detector size
         margin = 2
-        crop_shape = [margin + shape for shape in self.wavefront.shape]
+        crop_shape = [margin + shape for shape in self.shape]
 
         # Crop wavefront down to detector size + margin- don't waste computation interpolating
         # parts of plane that get cropped out later anyways
@@ -797,8 +884,21 @@ class BaseWavefront(ABC):
                 Bind arguments to scipy's RectBivariateSpline function.
                 For data on a regular 2D grid, RectBivariateSpline is more efficient than interp2d.
                 """
-                return scipy.interpolate.RectBivariateSpline(x_in, y_in, arr,
-                                                             kx=detector.interp_order, ky=detector.interp_order)
+                if xp.ndim(arr) == 2:
+                    return scipy.interpolate.RectBivariateSpline(x_in, y_in, arr,
+                                                                kx=detector.interp_order, ky=detector.interp_order)
+                else:
+                    # for polarized wavefronts, loop over polarization axis/axes and perform the interpolation
+                    def interpolator_multidim(x_out, y_out):
+                        pol_shape = arr.shape[:-2]
+                        resampled_arr = xp.empty((*pol_shape, len(x_out), len(y_out)), dtype=arr.dtype)
+                        for i in np.ndindex(pol_shape):
+                            interp = scipy.interpolate.RectBivariateSpline(x_in, y_in, arr[i],
+                                                                            kx=detector.interp_order,
+                                                                            ky=detector.interp_order)
+                            resampled_arr[i] = interp(x_out, y_out)
+                        return resampled_arr
+                    return interpolator_multidim
 
             # Interpolate real and imaginary parts separately
             real_resampled = interpolator(cropped_wf.real)(x_out, y_out)
@@ -810,14 +910,14 @@ class BaseWavefront(ABC):
             #wf_xmin = pixscale * cropped_wf.shape[0]/2
             # Note, carefully handle the offset-by-one to be consistent with
             # the use of arange above; avoid fencepost error.
-            wf_xmax = pixscale_in * cropped_wf.shape[0]/2
+            wf_xmax = pixscale_in * cropped_wf.shape[-2]/2
 
-            x,y = xp.ogrid[-wf_xmax:wf_xmax-pixscale_in:cropped_wf.shape[0]*1j,
-                             -wf_xmax:wf_xmax-pixscale_in:cropped_wf.shape[1]*1j]
+            x,y = xp.ogrid[-wf_xmax:wf_xmax-pixscale_in:cropped_wf.shape[-2]*1j,
+                             -wf_xmax:wf_xmax-pixscale_in:cropped_wf.shape[-1]*1j]
 
-            det_xmax = pixscale_out * detector.shape[0]/2
-            newx,newy = xp.mgrid[-det_xmax:det_xmax-pixscale_out:detector.shape[0]*1j,
-                                   -det_xmax:det_xmax-pixscale_out:detector.shape[1]*1j]
+            det_xmax = pixscale_out * detector.shape[-2]/2
+            newx,newy = xp.mgrid[-det_xmax:det_xmax-pixscale_out:detector.shape[-2]*1j,
+                                   -det_xmax:det_xmax-pixscale_out:detector.shape[-1]*1j]
 
             x0 = x[0,0]
             y0 = y[0,0]
@@ -829,7 +929,22 @@ class BaseWavefront(ABC):
 
             coords = xp.array([ivals, jvals])
 
-            new_wf = _scipy.ndimage.map_coordinates(cropped_wf, coords, order=detector.interp_order)
+            def interpolate(arr):
+                """
+                Handle the interpolation for scalar and polarized wavefronts
+                """
+                if xp.ndim(arr) == 2:
+                    return _scipy.ndimage.map_coordinates(arr, coords, order=detector.interp_order)
+                else:
+                    # for polarized wavefronts, loop over polarization axis/axes and perform the interpolation
+                    pol_shape = arr.shape[:-2]
+                    resampled_arr = xp.empty((*pol_shape, len(newx), len(newy)), dtype=arr.dtype)
+                    for i in np.ndindex(pol_shape):
+                        resampled_arr[i] = _scipy.ndimage.map_coordinates(arr[i], coords, order=detector.interp_order)
+                    return resampled_arr
+
+            #new_wf = _scipy.ndimage.map_coordinates(cropped_wf, coords, order=detector.interp_order)
+            new_wf = interpolate(cropped_wf)
 
         # enforce conservation of energy:
         new_wf *= 1. / pixscale_ratio
@@ -874,8 +989,8 @@ class BaseWavefront(ABC):
             else:
                 pixelscale = self.pixelscale
 
-            npix = self.wavefront.shape[0]
-            V, U = xp.indices(self.wavefront.shape, dtype=_float())
+            npix = self.shape[-1]
+            V, U = xp.indices(self.shape, dtype=_float()) # limit to spatial dimensions
             V -= (npix - 1) / 2.0
             V *= pixelscale
             U -= (npix - 1) / 2.0
@@ -914,8 +1029,8 @@ class BaseWavefront(ABC):
             rot_imag = xp.rot90(self.wavefront.imag, k=-k)
         else:
             # arbitrary free rotation with interpolation
-            rot_real = _scipy.ndimage.rotate(self.wavefront.real, -angle, reshape=False)  # negative = CCW
-            rot_imag = _scipy.ndimage.rotate(self.wavefront.imag, -angle, reshape=False)
+            rot_real = _scipy.ndimage.rotate(self.wavefront.real, -angle, reshape=False, axes=(-1,-2))  # negative = CCW
+            rot_imag = _scipy.ndimage.rotate(self.wavefront.imag, -angle, reshape=False, axes=(-1,-2))
         self.wavefront = rot_real + 1j * rot_imag
 
         self.history.append('Rotated by {:.2f} degrees, CCW'.format(angle))
@@ -933,11 +1048,11 @@ class BaseWavefront(ABC):
 
         """
         if axis.lower() == 'both':
-            self.wavefront = self.wavefront[::-1, ::-1]
+            self.wavefront = self.wavefront[..., ::-1, ::-1]
         elif axis.lower() == 'x':
-            self.wavefront = self.wavefront[:, ::-1]
+            self.wavefront = self.wavefront[..., :, ::-1]
         elif axis.lower() == 'y':
-            self.wavefront = self.wavefront[::-1]
+            self.wavefront = self.wavefront[..., ::-1, :]
         else:
             raise ValueError("Invalid/unknown value for the 'axis' parameter. Must be 'x', 'y', or 'both'.")
         self.history.append('Inverted axis direction for {} axes'.format(axis.upper()))
@@ -1091,7 +1206,7 @@ class Wavefront(BaseWavefront):
             # (pre-)update state:
             self.planetype = PlaneType.image
             self.pixelscale = (self.wavelength / self.diam * u.radian / self.oversample).to(u.arcsec) / u.pixel
-            self.fov = self.wavefront.shape[0] * u.pixel * self.pixelscale
+            self.fov = self.shape[0] * u.pixel * self.pixelscale
             self.history.append('   FFT {},  to IMAGE plane  scale={:.4f}'.format(self.wavefront.shape, self.pixelscale))
 
         elif self.planetype == PlaneType.image and optic.planetype == PlaneType.pupil:
@@ -1104,7 +1219,7 @@ class Wavefront(BaseWavefront):
 
             # (pre-)update state:
             self.planetype = PlaneType.pupil
-            self.pixelscale = self.diam * self.oversample / (self.wavefront.shape[0] * u.pixel)
+            self.pixelscale = self.diam * self.oversample / (self.shape[0] * u.pixel)
             self.history.append('   FFT {},  to PUPIL scale={:.4f}'.format(self.wavefront.shape, self.pixelscale))
 
         # do FFT
@@ -1144,7 +1259,7 @@ class Wavefront(BaseWavefront):
             # pupil plane is padded - trim that out since it's not needed
             self.wavefront = utils.remove_padding(self.wavefront, self.oversample)
             self.ispadded = False
-        self._preMFT_pupil_shape = self.wavefront.shape  # save for possible inverseMFT
+        self._preMFT_pupil_shape = self.shape  # save for possible inverseMFT
         self._preMFT_pupil_pixelscale = self.pixelscale  # save for possible inverseMFT
 
         # the arguments for the matrixDFT are
@@ -1247,7 +1362,7 @@ class Wavefront(BaseWavefront):
         self._last_transform_type = 'InvMFT'
 
         self.planetype = PlaneType.pupil
-        self.pixelscale = next_pupil_diam / self.wavefront.shape[0] / u.pixel
+        self.pixelscale = next_pupil_diam / self.shape[0] / u.pixel
         self.diam = next_pupil_diam
 
     # note: the following are implemented as static methods to
@@ -1372,7 +1487,7 @@ class Wavefront(BaseWavefront):
         """
         # Generate a Fraunhofer wavefront with the same sampling
         wf = fresnel_wavefront
-        beam_diam = (wf.wavefront.shape[0]//wf.oversample) * wf.pixelscale*u.pixel
+        beam_diam = (wf.shape[0]//wf.oversample) * wf.pixelscale*u.pixel
         new_wf = Wavefront(diam=beam_diam,
                            npix=wf.shape[0]//wf.oversample,
                            oversample=wf.oversample,
@@ -1763,8 +1878,8 @@ class BaseOpticalSystem(ABC):
             if display and not display_intermediates:
                 cmap = copy.copy(getattr(matplotlib.cm, conf.cmap_sequential))
                 cmap.set_bad('0.3')
-                halffov_x = outfits[0].header['PIXELSCL'] * outfits[0].data.shape[1] / 2
-                halffov_y = outfits[0].header['PIXELSCL'] * outfits[0].data.shape[0] / 2
+                halffov_x = outfits[0].header['PIXELSCL'] * outfits[0].data.shape[-2] / 2
+                halffov_y = outfits[0].header['PIXELSCL'] * outfits[0].data.shape[-1] / 2
                 extent = [-halffov_x, halffov_x, -halffov_y, halffov_y]
                 unit = "arcsec"
                 vmax = outfits[0].data.max()
@@ -2288,7 +2403,7 @@ class OpticalSystem(BaseOpticalSystem):
                 steps.append('FFT')
 
         output_shape = [a * self.planes[-1].oversample for a in self.planes[-1].shape]
-        output_size = output_shape[0] * output_shape[1]
+        output_size = output_shape[-2] * output_shape[-1]
 
         return {'steps': steps, 'output_shape': output_shape, 'output_size': output_size}
 
@@ -2356,6 +2471,7 @@ class CompoundOpticalSystem(OpticalSystem):
 
         """
         from poppy.fresnel import FresnelOpticalSystem, FresnelWavefront
+        from poppy.polarized_wavefront import BasePolarizedWavefront, PolarizedFresnelWavefront, PolarizedWavefront
 
         if return_intermediates:
             intermediate_wfs = []
@@ -2369,11 +2485,23 @@ class CompoundOpticalSystem(OpticalSystem):
             # If necessary, convert wavefront type.
             if (isinstance(optsys, FresnelOpticalSystem) and
                not isinstance(wavefront, FresnelWavefront)):
-                wavefront = FresnelWavefront.from_wavefront(wavefront)
+                # check scalar vs polarized
+                if isinstance(wavefront, BasePolarizedWavefront):
+                    # incoming wavefront is polarized
+                    wavefront = PolarizedFresnelWavefront.from_wavefront(wavefront)
+                else:
+                    # incoming wavefront is scalar
+                    wavefront = FresnelWavefront.from_wavefront(wavefront)
                 loghistory(wavefront, "CompoundOpticalSystem: Converted wavefront to Fresnel type")
             elif (not isinstance(optsys, FresnelOpticalSystem) and
                   isinstance(wavefront, FresnelWavefront)):
-                wavefront = Wavefront.from_fresnel_wavefront(wavefront)
+                # check scalar vs polarized
+                if isinstance(wavefront, BasePolarizedWavefront):
+                    # incoming wavefront is polarized
+                    wavefront = PolarizedWavefront.from_fresnel_wavefront(wavefront)
+                else:
+                    # incoming wavefront is scalar
+                    wavefront = Wavefront.from_fresnel_wavefront(wavefront)
                 loghistory(wavefront, "CompoundOpticalSystem: Converted wavefront to Fraunhofer type")
 
             # Propagate
@@ -2527,7 +2655,7 @@ class OpticalElement(object):
             _log.debug("Non-matching pixel scales for wavefront and optic. Need to interpolate. "
                        "Pixelscales: wave {}, optic {}".format(wave.pixelscale, self.pixelscale))
             if hasattr(self, '_resampled_scale') and abs(
-                    self._resampled_scale - wave.pixelscale) / self._resampled_scale >= float_tolerance:
+                    self._resampled_scale - wave.pixelscale) / self._resampled_scale <= float_tolerance:
                 # we already did this same resampling, so just re-use it!
                 self.phasor = self._resampled_amplitude * xp.exp(1j * self._resampled_opd * scale)
             else:
@@ -2537,6 +2665,7 @@ class OpticalElement(object):
                 resampled_opd = _scipy.ndimage.zoom(original_opd, zoom, output=original_opd.dtype, order=self.interp_order)
                 original_amplitude = self.get_transmission(wave)
                 resampled_amplitude = _scipy.ndimage.zoom(original_amplitude, zoom, output=original_amplitude.dtype, order=self.interp_order)
+                self._resampled_scale = wave.pixelscale
                 _log.debug("resampled optic to match wavefront via spline interpolation by a" +
                            " zoom factor of {:.3g}".format(zoom))
                 _log.debug("resampled optic shape: {}   wavefront shape: {}".format(resampled_amplitude.shape,
@@ -2544,21 +2673,22 @@ class OpticalElement(object):
 
                 lx, ly = resampled_amplitude.shape
                 # crop down to match size of wavefront:
-                lx_w, ly_w = wave.amplitude.shape
+                lx_w, ly_w = wave.shape 
+
                 border_x = np.abs(lx - lx_w) // 2
                 border_y = np.abs(ly - ly_w) // 2
-                if (self.pixelscale * self.amplitude.shape[0] < wave.pixelscale * wave.amplitude.shape[0]) or (
-                        self.pixelscale * self.amplitude.shape[1] < wave.pixelscale * wave.amplitude.shape[0]):
+                if (self.pixelscale * self.amplitude.shape[-2] < wave.pixelscale * wave.amplitude.shape[-1]) or (
+                        self.pixelscale * self.amplitude.shape[-1] < wave.pixelscale * wave.amplitude.shape[-1]):
                     _log.warning("After resampling, optic phasor shape " + str(np.shape(resampled_opd)) +
                                  " is smaller than input wavefront " + str(
                                  (lx_w, ly_w)) + "; will zero-pad the rescaled array.")
                     self._resampled_opd = xp.zeros([lx_w, ly_w])
                     self._resampled_amplitude = xp.zeros([lx_w, ly_w])
 
-                    self._resampled_opd[border_x:border_x + resampled_opd.shape[0],
-                                        border_y:border_y + resampled_opd.shape[1]] = resampled_opd
-                    self._resampled_amplitude[border_x:border_x + resampled_opd.shape[0],
-                                              border_y:border_y + resampled_opd.shape[1]] = resampled_amplitude
+                    self._resampled_opd[border_x:border_x + resampled_opd.shape[-2],
+                                        border_y:border_y + resampled_opd.shape[-1]] = resampled_opd
+                    self._resampled_amplitude[border_x:border_x + resampled_opd.shape[-2],
+                                              border_y:border_y + resampled_opd.shape[-1]] = resampled_amplitude
                     _log.debug("padded an optic with a {:d} x {:d} border to "
                                "optic to match the wavefront".format(border_x, border_y))
 
@@ -2697,9 +2827,9 @@ class OpticalElement(object):
         # Determine the extent of the image in physical units, for axes labels.
         _log.debug("Display pixel scale = {} ".format(disp_pixelscale))
         if disp_pixelscale.decompose().unit == u.m / u.pix:
-            halfsize = disp_pixelscale.to(u.m / u.pix).value * disp_shape[0] / 2
+            halfsize = disp_pixelscale.to(u.m / u.pix).value * disp_shape[-2] / 2
         elif disp_pixelscale.decompose().unit == u.radian / u.pix:
-            halfsize = disp_pixelscale.to(u.arcsec / u.pix).value * disp_shape[0] / 2
+            halfsize = disp_pixelscale.to(u.arcsec / u.pix).value * disp_shape[-2] / 2
         else:
             raise RuntimeError("Pixelscale units not recognized in display; "
                                "must be equivalent to arcsec/pix or m/pix")
@@ -3243,8 +3373,135 @@ class FITSOpticalElement(OpticalElement):
         if self._opd_in_radians:
             return xp.asarray(self.opd * wavelength.to(u.m).value / (2 * np.pi))
         return xp.asarray(self.opd)
+    
+class PolarizationOpticalElement(OpticalElement):
+    """ Abstract class for defining polarization optics """
+
+    def __init__(self, **kwargs):
+        OpticalElement.__init__(self, **kwargs)
+        #self._opd_in_radians = True # not sure we need this
 
 
+    def get_transmission(self, wave):
+        """
+        Get the polarization-dependent transmission elements
+        from the Jones matrix.
+        """
+        jm = self.get_jones_matrix(wave)
+        if xp.ndim(jm) == 2:  # 2x2 jones matrix
+            jm = jm[:,:,None,None] * xp.ones(wave.shape, dtype=_float()) # broadcast to 2x2xYxX
+
+        self.amplitude = xp.abs(jm)
+        return self.amplitude
+    
+    def get_opd(self, wave):
+        """
+        Get the polarization-dependent optical path difference elements
+        (in meters) from the Jones matrix.
+        """
+        if isinstance(wave, BaseWavefront):
+            wavelength = wave.wavelength
+        else:
+            wavelength = wave
+        scale =  wavelength.to(u.meter).value / (2. * np.pi)
+
+        jm = self.get_jones_matrix(wave)
+        if xp.ndim(jm) == 2:  # 2x2 jones matrix
+            jm = jm[:,:,None,None] * xp.ones(wave.shape, dtype=_float()) # broadcast to 2x2xYxX
+
+        # radians phase to OPD for consistency with treatment of other optical elements
+        self.opd = scale * xp.angle(jm)
+        return self.opd
+        
+    def get_jones_matrix(self, wave):
+        raise NotImplementedError
+
+    def get_phasor(self, wave):
+        """
+        Modification of OpticalElement.get_phasor to perform
+        interpolation/resampling on the complex phasor to avoid
+        issues with interpolating phase-wrapped Jones matrices.
+
+        Parameters
+        ----------
+        wave : float or obj
+            either a scalar wavelength or a Wavefront object
+        """
+
+        # set the self.phasor attribute:
+        # first check whether we need to interpolate to do this.
+        float_tolerance = 0.001  # how big of a relative scale mismatch before resampling?
+        if self.pixelscale is not None and hasattr(wave, 'pixelscale') and abs(
+                wave.pixelscale - self.pixelscale) / self.pixelscale >= float_tolerance:
+            _log.debug("Non-matching pixel scales for wavefront and optic. Need to interpolate. "
+                       "Pixelscales: wave {}, optic {}".format(wave.pixelscale, self.pixelscale))
+            if hasattr(self, '_resampled_scale') and abs(
+                    self._resampled_scale - wave.pixelscale) / self._resampled_scale <= float_tolerance:
+                # we already did this same resampling, so just re-use it!
+                self.phasor = self._resampled_phasor 
+            else:
+                # raise NotImplementedError("Need to implement resampling.")
+                zoom = (self.pixelscale / wave.pixelscale).decompose().value
+
+                original_jones_matrix = self.get_jones_matrix(wave)
+
+                #ndim = xp.ndim(original_jones_matrix)
+
+                zoom = (1, 1, zoom, zoom) # all jones matrices are assumed to be 2x2xYxX cubes
+
+                #original_jones_matrix = original_jones_matrix[:,:,None,None] 
+                #if ndim > 2: # this is a 2x2xYxX jones matrix
+                #    zoom = (1,) * (ndim - 2) + (zoom, zoom)
+                #else: # this is a scalar
+                #    zoom = (zoom, zoom)
+
+                resampled_jones_matrix = _scipy.ndimage.zoom(original_jones_matrix, zoom, output=original_jones_matrix.dtype, order=self.interp_order)
+                self._resampled_scale = wave.pixelscale
+
+                formatted_zoom = [f'{z:.3g}' for z in zoom]
+                _log.debug("resampled optic to match wavefront via spline interpolation by a" +
+                           f" zoom factor of {', '.join(z for z in formatted_zoom)}")
+                _log.debug("resampled optic shape: {}   wavefront shape: {}".format(resampled_jones_matrix.shape,
+                                                                                    wave.shape))
+
+                lx, ly = resampled_jones_matrix.shape[-2:]
+                # crop down to match size of wavefront:
+                lx_w, ly_w = wave.shape
+
+                border_x = np.abs(lx - lx_w) // 2
+                border_y = np.abs(ly - ly_w) // 2
+                if (self.pixelscale * self.jones_matrix.shape[-2] < wave.pixelscale * wave.amplitude.shape[-1]) or (
+                        self.pixelscale * self.jones_matrix.shape[-1] < wave.pixelscale * wave.amplitude.shape[-1]):
+                    _log.warning("After resampling, optic phasor shape " + str(np.shape(resampled_jones_matrix)) +
+                                 " is smaller than input wavefront " + str(
+                                 (lx_w, ly_w)) + "; will zero-pad the rescaled array.")
+                    self._resampled_phasor = xp.zeros([2, 2, lx_w, ly_w], dtype=complex)
+
+                    self._resampled_phasor[:, :, border_x:border_x + resampled_jones_matrix.shape[-2],
+                                                       border_y:border_y + resampled_jones_matrix.shape[-1]] = resampled_jones_matrix
+                    _log.debug("padded an optic with a {:d} x {:d} border to "
+                               "optic to match the wavefront".format(border_x, border_y))
+
+                else:
+                    self._resampled_phasor = resampled_jones_matrix[:, :, border_x:border_x + lx_w, border_y:border_y + ly_w]
+                    _log.debug("trimmed a border of {:d} x {:d} pixels from "
+                               "optic to match the wavefront".format(border_x, border_y))
+
+                self.phasor = self._resampled_phasor
+        else:
+            # compute the phasor directly, without any need to rescale.
+            self.phasor = self.get_jones_matrix(wave)
+
+        # check whether we need to pad or crop the array before returning or not.
+        # note: do not pad the phasor if it's just a scalar!
+        if self.phasor.size != 1 and self.phasor.shape != wave.shape:
+            # pad to match the wavefront sampling, from whatever sized array we started with.
+            # Allows more flexibility for differently sized FITS arrays, so long as they all have the
+            # same pixel scale as checked above!
+            return utils.pad_or_crop_to_shape(self.phasor, wave.shape)
+        else:
+            return self.phasor
+        
 class CoordinateTransform(OpticalElement):
     """ Performs a coordinate transformation (rotation or axes inversion
     in the optical train.

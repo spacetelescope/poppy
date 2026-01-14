@@ -10,6 +10,7 @@ import os
 
 from poppy.accel_math import xp as np   # May or may not be on GPU
 
+from .. import polarized_wavefront
 from .. import poppy_core
 from .. import optics
 from .. import matrixDFT
@@ -694,6 +695,124 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(tmpdir, display=False, source_offs
         plt.subplot(133)
         poppy.display_psf_difference(fftpsf, mftpsf, title='Diff FFT-MFT')
 
+
+    absdiff = np.abs(np.asarray(mftpsf[0].data - fftpsf[0].data))   # Extra asarray helps with optional GPU support
+    assert(np.all(absdiff < 1e-10))
+
+def test_MFT_FFT_equivalence_in_OpticalSystem_PolarizedWavefront(tmpdir, display=False, source_offset=1):
+    """ Test that propagating PolarizedWavefronts through an OpticalSystem
+    using an MFT and an FFT give equivalent results.
+
+    This is a somewhat higher level test that involves all the
+    Wavefront class's _propagateTo() machinery, which is not
+    tested in the above function. Hence the two closely related tests.
+
+    This test now includes a source offset, to test equivalence of handling for
+    nonzero WFE, in this case for tilts.
+    """
+
+
+    # Note that the Detector class and Wavefront propagation always uses
+    # ADJUSTABLE-style MFTs (output centered in the array)
+    # which is not compatible with FFT outputs for even-sized arrays.
+    # Thus in order to get an exact equivalence, we have to set up our
+    # OpticalSystem so that it, very unusually, uses an odd size for
+    # its input wavefront. The easiest way to do this is to discretize
+    # an AnalyticOpticalElement onto a specific grid.
+
+    fn = str(tmpdir / "test.fits")
+    fits511 = optics.ParityTestAperture().to_fits(fn, wavelength=1e-6, npix=511)
+    pup511 = poppy_core.FITSOpticalElement(transmission=fits511)
+
+    # set up simple optical system that will just FFT
+    fftsys = poppy_core.OpticalSystem(oversample=1)
+    fftsys.add_pupil(pup511)
+    fftsys.add_image()
+    fftsys.source_offset_r = source_offset
+    fftsys.source_offset_theta = 90
+
+    wf = polarized_wavefront.PolarizedWavefront(oversample=1, npix=511, diam=pup511.pupil_diam, input_polarization=(1,0))
+    fftpsf, fftplanes = fftsys.calc_psf(inwave=wf, display=False, return_intermediates=True)
+
+    # set up equivalent using an MFT, tuned to get the exact same scale
+    # for the image plane
+    mftsys = poppy_core.OpticalSystem(oversample=1)
+    mftsys.add_pupil(pup511)
+    mftsys.add_detector(pixelscale=fftplanes[1].pixelscale , fov_pixels=fftplanes[1].shape, oversample=1) #, offset=(pixscale/2, pixscale/2))
+    mftsys.source_offset_r = source_offset
+    mftsys.source_offset_theta = 90
+
+    wf = polarized_wavefront.PolarizedWavefront(oversample=1, npix=511, diam=pup511.pupil_diam, input_polarization=(1,0))
+    mftpsf, mftplanes = mftsys.calc_psf(inwave=wf, display=False, return_intermediates=True)
+
+    if display:
+        import poppy
+        plt.figure(figsize=(15,4))
+        plt.subplot(131)
+        poppy.display_psf(fftpsf, title="FFT PSF")
+        plt.subplot(132)
+        poppy.display_psf(mftpsf, title='MFT PSF')
+        plt.subplot(133)
+        poppy.display_psf_difference(fftpsf, mftpsf, title='Diff FFT-MFT')
+
+    absdiff = np.abs(np.asarray(mftpsf[0].data - fftpsf[0].data))   # Extra asarray helps with optional GPU support
+    assert(np.all(absdiff < 1e-10))
+
+def test_MFT_FFT_equivalence_in_OpticalSystem_PolarizedWavefront_Stokes(tmpdir, display=False, source_offset=1):
+    """ Test that propagating PolarizedWavefronts through an OpticalSystem
+    using an MFT and an FFT give equivalent results.
+
+    This is a somewhat higher level test that involves all the
+    Wavefront class's _propagateTo() machinery, which is not
+    tested in the above function. Hence the two closely related tests.
+
+    This test now includes a source offset, to test equivalence of handling for
+    nonzero WFE, in this case for tilts.
+    """
+
+
+    # Note that the Detector class and Wavefront propagation always uses
+    # ADJUSTABLE-style MFTs (output centered in the array)
+    # which is not compatible with FFT outputs for even-sized arrays.
+    # Thus in order to get an exact equivalence, we have to set up our
+    # OpticalSystem so that it, very unusually, uses an odd size for
+    # its input wavefront. The easiest way to do this is to discretize
+    # an AnalyticOpticalElement onto a specific grid.
+
+    fn = str(tmpdir / "test.fits")
+    fits511 = optics.ParityTestAperture().to_fits(fn, wavelength=1e-6, npix=511)
+    pup511 = poppy_core.FITSOpticalElement(transmission=fits511)
+
+    # set up simple optical system that will just FFT
+    fftsys = poppy_core.OpticalSystem(oversample=1)
+    fftsys.add_pupil(pup511)
+    fftsys.add_image()
+    fftsys.source_offset_r = source_offset
+    fftsys.source_offset_theta = 90
+
+    wf = polarized_wavefront.PolarizedWavefront(oversample=1, npix=511, diam=pup511.pupil_diam, input_stokes_vector=(1,0,0,0))
+    fftpsf, fftplanes = fftsys.calc_psf(inwave=wf, display=False, return_intermediates=True)
+
+    # set up equivalent using an MFT, tuned to get the exact same scale
+    # for the image plane
+    mftsys = poppy_core.OpticalSystem(oversample=1)
+    mftsys.add_pupil(pup511)
+    mftsys.add_detector(pixelscale=fftplanes[1].pixelscale , fov_pixels=fftplanes[1].shape, oversample=1) #, offset=(pixscale/2, pixscale/2))
+    mftsys.source_offset_r = source_offset
+    mftsys.source_offset_theta = 90
+
+    wf = polarized_wavefront.PolarizedWavefront(oversample=1, npix=511, diam=pup511.pupil_diam, input_stokes_vector=(1,0,0,0))
+    mftpsf, mftplanes = mftsys.calc_psf(inwave=wf, display=False, return_intermediates=True)
+
+    if display:
+        import poppy
+        plt.figure(figsize=(15,4))
+        plt.subplot(131)
+        poppy.display_psf(fftpsf, title="FFT PSF")
+        plt.subplot(132)
+        poppy.display_psf(mftpsf, title='MFT PSF')
+        plt.subplot(133)
+        poppy.display_psf_difference(fftpsf, mftpsf, title='Diff FFT-MFT')
 
     absdiff = np.abs(np.asarray(mftpsf[0].data - fftpsf[0].data))   # Extra asarray helps with optional GPU support
     assert(np.all(absdiff < 1e-10))

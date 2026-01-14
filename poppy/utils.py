@@ -1146,14 +1146,16 @@ def pad_to_oversample(array, oversample):
     ---------
     padToSize
     """
-    npix = array.shape[0]
+    shape = list(array.shape)
+    npix = shape[-2]
     n = int(np.round(npix * oversample))
-    padded = xp.zeros(shape=(n, n), dtype=array.dtype)
+    shape[-2:] = [n,n]
+    padded = xp.zeros(shape=shape, dtype=array.dtype)
     n0 = float(npix) * (oversample - 1) / 2
     n1 = n0 + npix
     n0 = int(round(n0))  # because astropy test_plugins enforces integer indices
     n1 = int(round(n1))
-    padded[n0:n1, n0:n1] = array
+    padded[..., n0:n1, n0:n1] = array
     return padded
 
 
@@ -1182,19 +1184,19 @@ def pad_to_size(array, padded_shape):
         outsize0 = padded_shape
         outsize1 = padded_shape
     else:
-        outsize0 = padded_shape[0]
-        outsize1 = padded_shape[1]
+        outsize0 = padded_shape[-2]
+        outsize1 = padded_shape[-1]
     # npix = array.shape[0]
     padded = xp.zeros(shape=padded_shape, dtype=array.dtype)
-    n0 = (outsize0 - array.shape[0]) // 2  # pixel offset for the inner array
-    m0 = (outsize1 - array.shape[1]) // 2  # pixel offset in second dimension
-    n1 = n0 + array.shape[0]
-    m1 = m0 + array.shape[1]
+    n0 = (outsize0 - array.shape[-2]) // 2  # pixel offset for the inner array
+    m0 = (outsize1 - array.shape[-1]) // 2  # pixel offset in second dimension
+    n1 = n0 + array.shape[-2]
+    m1 = m0 + array.shape[-1]
     n0 = int(round(n0))  # because astropy test_plugins enforces integer indices
     n1 = int(round(n1))
     m0 = int(round(m0))
     m1 = int(round(m1))
-    padded[n0:n1, m0:m1] = array
+    padded[..., n0:n1, m0:m1] = array
     return padded
 
 
@@ -1202,6 +1204,9 @@ def pad_or_crop_to_shape(array, target_shape):
     """ Adapt an array to match a desired shape, by
     adding zero pixels to pad, or cropping out pixels as needed.
     (Implicitly assumes the arrays have comparable pixel scale and units)
+
+    If a >2D array is passed in, the array will be padded or cropped in the
+    last two axes.
 
     Parameters
     ----------
@@ -1223,24 +1228,27 @@ def pad_or_crop_to_shape(array, target_shape):
     if array.shape == target_shape:
         return array
 
-    lx, ly = array.shape
+    lx, ly = array.shape[-2:] # limit to spatial dimensions (in case of PolarizedWavefront)
     lx_w, ly_w = target_shape
     border_x = xp.abs(lx - lx_w) // 2
     border_y = xp.abs(ly - ly_w) // 2
 
-    if (lx < lx_w) or (ly < ly_w):
-        _log.debug("Array shape " + str(array.shape) + " is smaller than desired shape " + str(
-            [lx_w, ly_w]) + "; will attempt to zero-pad the array")
+    new_shape = list(array.shape)
+    new_shape[-2:] = lx_w, ly_w
 
-        resampled_array = xp.zeros(shape=(lx_w, ly_w), dtype=array.dtype)
-        resampled_array[border_x:border_x + lx, border_y:border_y + ly] = array
+    if (lx < lx_w) or (ly < ly_w):
+        _log.debug("Array shape " + str(array.shape) + " is smaller than desired shape " + str(new_shape) +
+                   "; will attempt to zero-pad the array")
+
+        resampled_array = xp.zeros(shape=new_shape, dtype=array.dtype)
+        resampled_array[...,border_x:border_x + lx, border_y:border_y + ly] = array
         _log.debug("  Padded with a {:d} x {:d} border to "
                    " match the desired shape".format(border_x, border_y))
 
     else:
-        _log.debug("Array shape " + str(array.shape) + " is larger than desired shape " + str(
-            [lx_w, ly_w]) + "; will crop out just the center part.")
-        resampled_array = array[border_x:border_x + lx_w, border_y:border_y + ly_w]
+        _log.debug("Array shape " + str(array.shape) + " is larger than desired shape " + str(new_shape) +
+                   "; will crop out just the center part.")
+        resampled_array = array[...,border_x:border_x + lx_w, border_y:border_y + ly_w]
         _log.debug("  Trimmed a border of {:d} x {:d} pixels "
                    "to match the desired shape".format(border_x, border_y))
     return resampled_array
@@ -1248,12 +1256,12 @@ def pad_or_crop_to_shape(array, target_shape):
 
 def remove_padding(array, oversample):
     """ Remove zeros around the edge of an array, assuming some integer oversampling padding factor """
-    npix = array.shape[0] / oversample
+    npix = array.shape[-1] / oversample
     n0 = float(npix) * (oversample - 1) / 2
     n1 = n0 + npix
     n0 = int(round(n0))
     n1 = int(round(n1))
-    return array[n0:n1, n0:n1].copy()
+    return array[..., n0:n1, n0:n1].copy() # only along final two axes
 
 
 # Back compatibility alias:

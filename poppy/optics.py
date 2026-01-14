@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 
 from . import utils
 from . import conf
-from .poppy_core import OpticalElement, Wavefront, BaseWavefront, PlaneType, _RADIANStoARCSEC
+from .poppy_core import OpticalElement, ArrayOpticalElement, PolarizationOpticalElement, Wavefront, BaseWavefront, PlaneType, _RADIANStoARCSEC
 from . import geometry
 
 from . import accel_math
@@ -27,7 +27,9 @@ __all__ = ['AnalyticOpticalElement', 'ScalarTransmission', 'ScalarOpticalPathDif
            'HexagonAperture', 'MultiHexagonAperture', 'NgonAperture', 'MultiCircularAperture',
            'KeystoneSegmentedCircularAperture', 'RectangleAperture',
            'SquareAperture', 'SecondaryObscuration', 'LetterFAperture', 'AsymmetricSecondaryObscuration',
-           'ThinLens',  'GaussianAperture', 'KnifeEdge', 'TiltOpticalPathDifference', 'CompoundAnalyticOptic', 'fixed_sampling_optic']
+           'ThinLens',  'GaussianAperture', 'KnifeEdge', 'TiltOpticalPathDifference', 'CompoundAnalyticOptic', 'fixed_sampling_optic',
+           'PolarizationOpticalElement', 'LinearPolarizer', 'LinearPhaseRetarder', 'QuarterWavePlate', 'HalfWavePlate', 'JonesMatrixOpticalElement',
+           'CircularPolarizer', 'VectorVortexMask']
 
 # ------ Generic Analytic elements -----
 
@@ -2283,6 +2285,278 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
 
         self.opd = opd
         return self.opd
+    
+
+# ------ polarization optics --------
+
+class AnalyticPolarizationOpticalElement(AnalyticOpticalElement, PolarizationOpticalElement):
+
+    def __init__(self, *args, **kwargs):
+        """
+        Equivalent to AnalyticOpticalElement, but for polarization
+        optical elements.
+        """
+        super().__init__(*args, **kwargs)
+
+    def get_transmission(self, wave):
+        """
+        Get the polarization-dependent transmission elements
+        from the Jones matrix.
+        """
+        jm = self.get_jones_matrix(wave)
+        if xp.ndim(jm) == 2:  # 2x2 jones matrix
+            jm = jm[:,:,None,None] * xp.ones(wave.shape, dtype=_float()) # broadcast to 2x2xYxX
+
+        self.amplitude = xp.abs(jm)
+        return self.amplitude
+    
+    def get_opd(self, wave):
+        """
+        Get the polarization-dependent optical path difference elements
+        (in meters) from the Jones matrix.
+        """
+        if isinstance(wave, BaseWavefront):
+            wavelength = wave.wavelength
+        else:
+            wavelength = wave
+        scale =  wavelength.to(u.meter).value / (2. * np.pi)
+
+        jm = self.get_jones_matrix(wave)
+        if xp.ndim(jm) == 2:  # 2x2 jones matrix
+            jm = jm[:,:,None,None] * xp.ones(wave.shape, dtype=_float()) # broadcast to 2x2xYxX
+
+        # radians phase to OPD for consistency with treatment of other optical elements
+        self.opd = scale * xp.angle(jm)
+        return self.opd
+        
+    def get_jones_matrix(self, wave):
+        raise NotImplementedError
+
+    def get_phasor(self, wave):
+        """
+        Return the jones matrix directly
+        """
+        self.jones_matrix = self.get_jones_matrix(wave)
+        return self.jones_matrix
+
+class LinearPolarizer(AnalyticPolarizationOpticalElement):
+    """ Defines a linear polarizer
+
+    Parameters
+    ----------
+    angle: float
+        Polarization axis angle, in radians.
+    extinction : float, optional
+        Extinction ratio. Default is infinite (perfect linear polarizer).
+    name : string, optional
+        Descriptive name
+    """
+
+    def __init__(self, angle, name=None, extinction=xp.inf, **kwargs):
+        if name is None:
+            name = "Linear polarizer"
+        self.angle = angle
+        self.extinction = extinction
+        
+        super(LinearPolarizer, self).__init__(name=name, **kwargs)
+
+    def get_jones_matrix(self, wave):
+        """ Compute the 2x2 jones matrix for the linear polarizer
+        """
+        cth = xp.cos(self.angle)
+        sth = xp.sin(self.angle)
+        eps = 1/self.extinction
+        jones_matrix = xp.asarray([[cth**2 + eps*sth**2,  (1-eps)*sth*cth    ],
+                                        [(1-eps)*sth*cth,      eps*cth**2 + sth**2]])
+
+        if xp.ndim(jones_matrix) == 2:
+            # broadcast to include spatial dimensions
+            ones = xp.ones(wave.shape, dtype=_float())
+            self.jones_matrix = jones_matrix[:,:,None,None] * ones # broadcast to spatial jones matrix
+        else:
+            # already accounts for spatial dimensions
+            self.jones_matrix = jones_matrix
+        return self.jones_matrix
+    
+class CircularPolarizer(AnalyticPolarizationOpticalElement):
+    """ Defines a circular polarizer
+
+    Note that you could also construct an equivalent from a combination of
+    LinearPolarizer and QuarterWavePlate, but this is provided for
+    convenience.
+
+    Parameters
+    ----------
+    name : string
+        Descriptive name
+    handedness: str
+        Either 'left' or 'right'
+    name : string, optional
+        Descriptive name
+    """
+
+    def __init__(self, handedness, name=None, **kwargs):
+        if name is None:
+            name = "Circular polarizer"
+        self.handedness = handedness
+        super(PolarizationOpticalElement, self).__init__(name=name, **kwargs)
+
+    def get_jones_matrix(self, wave):
+        """ Compute the 2x2 jones matrix for the linear polarizer
+        """
+        if self.handedness.upper() == 'LEFT':
+            factor = 1
+        elif self.handedness.upper() == 'RIGHT':
+            factor = -1
+        else:
+            raise ValueError("Handedness should be either 'left' or 'right'. Got {self.handedness} instead!")
+
+        jones_matrix = xp.asarray([[1,  -1*factor*1j],
+                                        [factor*1j,     1]]) * 0.5
+
+        if xp.ndim(jones_matrix) == 2:
+            # broadcast to include spatial dimensions
+            ones = xp.ones(wave.shape, dtype=_float())
+            self.jones_matrix = jones_matrix[:,:,None,None] * ones # broadcast to spatial jones matrix
+        else:
+            # already accounts for spatial dimensions
+            self.jones_matrix = jones_matrix
+        return self.jones_matrix
+    
+class LinearPhaseRetarder(AnalyticPolarizationOpticalElement):
+    """ Defines a general linear phase retarder
+
+    Parameters
+    ----------
+    phase : float
+        Phase retardance, in radians
+    angle: float
+        Fast axis angle, in radians.
+    name : string, optional
+        Descriptive name
+    """
+
+    def __init__(self, phase, angle, name=None, **kwargs):
+        if name is None:
+            name = "Linear phase retarder"
+        self.angle = angle
+        self.phase = phase
+        super().__init__(name=name, **kwargs)
+
+    def get_jones_matrix(self, wave):
+        """ Compute the 2x2 jones matrix for the linear phase retarder
+        """
+        cth = xp.cos(self.angle)
+        sth = xp.sin(self.angle)
+        ph = self.phase
+        eiph = xp.exp(1j*ph)
+        jones_matrix = xp.asarray([[cth**2 + eiph*sth**2, (1 - eiph)*sth*cth],
+                                        [(1 - eiph)*sth*cth, sth**2 + eiph*cth**2]]) * xp.exp(-1j*ph/2)
+        if xp.ndim(jones_matrix) == 2:
+            # broadcast to include spatial dimensions
+            ones = xp.ones(wave.shape, dtype=_float())
+            self.jones_matrix = jones_matrix[:,:,None,None] * ones # broadcast to spatial jones matrix
+        else:
+            # already accounts for spatial dimensions
+            self.jones_matrix = jones_matrix
+        return self.jones_matrix
+    
+class QuarterWavePlate(LinearPhaseRetarder):
+    """ Defines a quarter wave plate
+
+    Parameters
+    ----------
+    angle: float
+        Fast axis angle, in radians
+    name : string, optional
+        Descriptive name
+    """
+
+    def __init__(self, angle, name=None):
+        if name is None:
+            name = "Quarter wave plate"
+        super(QuarterWavePlate, self).__init__(np.pi/2, angle, name=name)
+
+class HalfWavePlate(LinearPhaseRetarder):
+    """ Defines a half wave plate
+
+    Parameters
+    ----------
+    angle: float
+        Fast axis angle, in radians.
+    name : string, optional
+        Descriptive name
+    """
+
+    def __init__(self, angle, name=None):
+        if name is None:
+            name = "Half wave plate"
+        super(HalfWavePlate, self).__init__(np.pi, angle, name=name,)
+
+class JonesMatrixOpticalElement(PolarizationOpticalElement, ArrayOpticalElement):
+    """ Defines a general polarization optical element specified by a fixed-sampling
+    Jones matrix.
+
+    Parameters
+    ----------
+    jones_matrix : array-like
+        A 2x2xYxX complex array to represent a spatially-varying, user-defined Jones matrix
+    name : string, optional
+        Descriptive name
+    """
+
+    def __init__(self, jones_matrix, name=None, *args, **kwargs):
+        if name is None:
+            name = "Jones matrix"
+        self.jones_matrix = jones_matrix
+        super(JonesMatrixOpticalElement, self).__init__(name=name, *args, **kwargs)
+
+    def get_jones_matrix(self, wave):
+        return self.jones_matrix    
+
+class VectorVortexMask(LinearPhaseRetarder):
+    """" Defines a vector vortex coronagraph mask.
+
+    Note that this implementation doesn't perform any tricks to
+    approximate better sampling in the vicinity of the vortex singularity
+    and is likely to be limited by numerical artifacts without extreme
+    sampling.
+
+    Parameters
+    ----------
+    charge : int, optional
+        The charge of the vector vortex. Default: 6
+    retardance : float, optional
+        Global retardance of the vector vortex. Default is pi, for a
+        half-wave plate.
+    dot_radius : float, optional
+        Radius of dot mask (in arcsec) centered on singularity. No dot mask if not given.
+    name : string, optional
+        Descriptive name
+    """
+
+    def __init__(self, charge=6, retardance=xp.pi, dot_radius=None, name=None, **kwargs):
+        if name is None:
+            name = "VVC"
+        self.charge = charge
+        self.retardance = retardance
+        self.dot_radius = dot_radius
+        super().__init__(retardance, None, name=name,  **kwargs)
+
+    def get_jones_matrix(self, wave):
+        y, x = self.get_coordinates(wave)
+        #print(wave.pixelscale, wave.fov)
+        theta = xp.arctan2(y, x) * self.charge / 2.0
+        self.angle = theta # spatially-varying angle
+        return super(VectorVortexMask, self).get_jones_matrix(wave) * self.get_transmission(wave)
+
+    def get_transmission(self, wave):
+        if self.dot_radius is None:
+            self.transmission = xp.asarray(self.amplitude)
+        else:
+            mask = CircularOcculter(radius=self.dot_radius)
+            self.transmission = mask.get_transmission(wave)
+        return self.transmission
 
 # ------ convert analytic optics to array optics ------
 
