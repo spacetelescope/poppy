@@ -29,6 +29,9 @@ license-files = ["LICENSE.md"]
 all = [
     "synphot",
 ]
+rust = [
+    "poppy-rs",
+]
 test = [
     "pytest",
     "pytest-astropy",
