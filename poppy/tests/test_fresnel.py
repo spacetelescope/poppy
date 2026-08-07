@@ -1,5 +1,5 @@
 import pytest
-from pkg_resources import parse_version as version
+from importlib.metadata import version
 
 from .. import poppy_core
 from .. import optics
