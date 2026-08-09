@@ -305,16 +305,16 @@ class BaseWavefront(ABC):
         Parameters
         ----------
         filename : string
-            filename to use
-        what : string
-            what to write. Must be one of 'parts', 'intensity', 'complex'
+            Filename to write to.
         overwrite : bool, optional
-            overwhat existing? default is True
+            Overwrite an existing file? Default is True.
+        what : string, optional
+            What to write. Must be one of 'all', 'parts', 'intensity', 'phase', or 'complex'.
+            Passed through to `as_fits`. Default is 'intensity'.
 
-        Returns
-        -------
-        outfile: file on disk
-            The output is written to disk.
+        Notes
+        -----
+        This method returns None; the output is written directly to disk.
 
         """
         self.as_fits(**kwargs).writeto(filename, overwrite=overwrite)
@@ -330,19 +330,20 @@ class BaseWavefront(ABC):
         Parameters
         ----------
         what : string
-           What to display. Must be one of {intensity, phase, wfe, best, 'both'}.
-           'intensity' shows the wavefront intensity,  'wfe' shows the wavefront
-           error in meters or microns, 'phase' is similar to 'wfe' but shows wavefront
-           phase in radians at the given wavelength.
-           'Best' implies to display the phase if there is nonzero OPD,
-           or else display the intensity for a perfect pupil.
-           'both' will show two panels, for the wavefront intensity and wavefront error.
+           What to display. Must be one of {'intensity', 'amplitude', 'phase', 'wfe', 'best', 'both'}.
+           'intensity' shows the wavefront intensity. 'amplitude' shows the electric field amplitude.
+           'wfe' shows the wavefront error in nanometers of OPD. 'phase' is similar to 'wfe' but shows
+           wavefront phase in radians at the given wavelength.
+           'best' displays phase if there is nonzero OPD, otherwise intensity for a perfect pupil.
+           'both' shows two panels: wavefront amplitude and wavefront phase.
         nrows : int
             Number of rows to display in current figure (used for
             showing steps in a calculation)
         row : int
             Which row to display this one in? If set to None, use the
             wavefront's self.current_plane_index
+        title : str, optional
+            Title string for the plot. If None, a default title is generated from the wavefront location.
         vmin, vmax : floats
             min and maximum values to display. When left unspecified, these default
             to [0, intens.max()] for linear (scale='linear') intensity plots,
@@ -369,6 +370,8 @@ class BaseWavefront(ABC):
             is given in units of meters, and the default is no cropping
             (i.e. the entire array will be displayed unless this keyword
             is set explicitly).
+        pupilcrop : float, optional
+            Accepted for API consistency but currently not implemented; has no effect.
         showpadding : bool, optional
             For wavefronts that have been padded with zeros for oversampling,
             show the entire padded arrays, or just the good parts?
@@ -391,8 +394,9 @@ class BaseWavefront(ABC):
 
         Returns
         -------
-        figure : matplotlib figure
-            The current figure is modified.
+        ax : matplotlib.axes.Axes or tuple of Axes
+            The matplotlib Axes instance(s) used for the plot. Returns a single Axes for
+            all ``what`` values except 'both', which returns a 2-tuple of Axes (intensity, phase).
         """
         if scale is None:
             scale = 'log' if self.planetype == PlaneType.image else 'linear'
@@ -656,11 +660,14 @@ class BaseWavefront(ABC):
         ----------
         optic : OpticalElement instance
             An optic that might have display hint information attached
-        default_nplanes :
+        default_nplanes : int
             How many rows to use for the display, if this is not
             already annotated onto this wavefront object itself.
 
-        Returns the plot axes instance.
+        Returns
+        -------
+        ax : matplotlib.axes.Axes
+            The plot axes instance.
         """
         display_what = getattr(optic, 'wavefront_display_hint', 'best')
         display_vmax = getattr(optic, 'wavefront_display_vmax_hint', None)
@@ -849,8 +856,9 @@ class BaseWavefront(ABC):
 
         Parameters
         ----------
-        Xangle, Yangle : float
-            tilt angles, specified in arcseconds
+        Xangle, Yangle : float or astropy.units.Quantity
+            Tilt angles. If given as plain floats they are interpreted as arcseconds.
+            Astropy Quantities with any angular unit are also accepted.
 
         """
         if self.planetype == PlaneType.image:
@@ -1188,6 +1196,20 @@ class Wavefront(BaseWavefront):
         This is only used if transforming back from a 'detector' type plane to a pupil, for instance
         inside the semi-analytic coronagraphy algorithm, but is not used in more typical propagations.
 
+        Parameters
+        ----------
+        pupil : OpticalElement
+            The pupil plane optic to propagate to. Used to determine the target sampling
+            if the optic has a defined shape and pixelscale.
+        pupil_npix : int, optional
+            Number of pixels on a side for the output pupil array. If None (default), the size
+            is inferred from the next optic's shape, or from the pupil shape that existed
+            before the preceding forward MFT.
+
+        Notes
+        -----
+        Modifies the wavefront in-place, updating ``wavefront``, ``planetype``,
+        ``pixelscale``, and ``diam``.
         """
 
         assert self.planetype == PlaneType.image
@@ -1249,9 +1271,15 @@ class Wavefront(BaseWavefront):
 
         shape : tuple of ints
             Shape of the wavefront array
-        pixelscale : float or 2-tuple of floats
+        pixelscale : float or astropy.units.Quantity
             the pixel scale in meters/pixel, optionally different in
             X and Y
+
+        Returns
+        -------
+        Y, X : ndarray
+            2D coordinate arrays in units of meters, centered at (0, 0),
+            following the numpy.indices convention (Y axis first).
         """
         y, x = xp.indices(shape, dtype=_float())
         pixelscale_mpix = pixelscale.to(u.meter / u.pixel).value if isinstance(pixelscale, u.Quantity) else pixelscale
@@ -1279,8 +1307,8 @@ class Wavefront(BaseWavefront):
 
         shape : tuple of ints
             Shape of the wavefront array
-        pixelscale : float or 2-tuple of floats
-            the pixelscale in meters/pixel, optionally different in
+        pixelscale : float or astropy.units.Quantity
+            the pixelscale in arcsec/pixel, optionally different in
             X and Y
         last_transform_type : string
             Was the last transformation on the Wavefront an FFT
@@ -1288,6 +1316,12 @@ class Wavefront(BaseWavefront):
         image_centered : string
             Was POPPY trying to keeping the center of the image on
             a pixel, crosshairs ('array_center'), or corner?
+
+        Returns
+        -------
+        Y, X : ndarray
+            2D coordinate arrays in units of arcseconds, with the origin at the
+            center of the PSF, following the numpy.indices convention (Y axis first).
         """
         y, x = xp.indices(shape, dtype=_float())
         pixelscale_arcsecperpix = pixelscale.to(u.arcsec / u.pixel).value
@@ -1352,9 +1386,16 @@ class Wavefront(BaseWavefront):
 
         Parameters
         ----------
-        fresnel_wavefront : Wavefront
-            The (Fresnel-type) wavefront to be converted.
+        fresnel_wavefront : FresnelWavefront
+            The Fresnel-type wavefront to be converted.
+        verbose : bool, optional
+            If True, print sampling information during conversion. Default is False.
 
+        Returns
+        -------
+        new_wf : Wavefront
+            A Fraunhofer-type Wavefront with the same array contents and sampling
+            as the input Fresnel wavefront (cropped to remove oversampling padding).
         """
         # Generate a Fraunhofer wavefront with the same sampling
         wf = fresnel_wavefront
@@ -1432,7 +1473,10 @@ class BaseOpticalSystem(ABC):
         pixel.  Default is 2.
     verbose : bool
         whether to be more verbose with log output while computing
-    pupil_diameter : astropy.Quantity of dimension length
+    npix : int, optional
+        Number of pixels per side for the input wavefront. If not set, the
+        size is inferred from the first optical element, or defaults to 1024.
+    pupil_diameter : astropy.units.Quantity of dimension length
         Diameter of entrance pupil. Defaults to size of first optical element
         if unspecified, or else 1 meter.
 
@@ -1584,7 +1628,7 @@ class BaseOpticalSystem(ABC):
             wavelength parameter. Defaults to 1s if not specified.
         save_intermediates : bool, optional
             whether to output intermediate optical planes to disk. Default is False
-        save_intermediate_what : string, optional
+        save_intermediates_what : string, optional
             What to save - phase, intensity, amplitude, complex, parts, all. Default is all.
         return_intermediates: bool, optional
             return intermediate wavefronts as well as PSF?
@@ -1605,6 +1649,9 @@ class BaseOpticalSystem(ABC):
             while iterating over wavelengths. Note, this requires the
             optional dependency package 'tqdm', which is not included as
             a requirement.
+        inwave : Wavefront, optional
+            If provided, use this as the input wavefront instead of creating one
+            automatically from the optical system's entrance pupil parameters.
 
         Returns
         -------
@@ -2077,8 +2124,12 @@ class OpticalSystem(BaseOpticalSystem):
 
         Parameters
         ----------
-        wavelength : float
-            Wavelength in meters
+        wavelength : float or astropy.units.Quantity
+            Wavelength in meters (or other units if specified as a Quantity).
+        inwave : Wavefront, optional
+            If provided, use this as the input wavefront directly, rather than
+            constructing one from the optical system's pupil parameters. Must be
+            a `Wavefront` instance. Any requested source offset tilt is still applied.
 
         Returns
         -------
@@ -2174,6 +2225,7 @@ class OpticalSystem(BaseOpticalSystem):
             Wavefront to propagate through this optical system
         normalize : string
             How to normalize the wavefront?
+            * 'none' = no normalization (default)
             * 'first' = set total flux = 1 after the first optic, presumably a pupil
             * 'last' = set total flux = 1 after the entire optical system.
             * 'exit_pupil' = set total flux = 1 at the last pupil of the optical system.
@@ -2184,8 +2236,13 @@ class OpticalSystem(BaseOpticalSystem):
             If True, the second return value of the method will be a list of `poppy.Wavefront` objects
             representing intermediate optical planes from the calculation.
 
-        Returns a wavefront, and optionally also the intermediate wavefronts after
-        each step of propagation.
+        Returns
+        -------
+        wavefront : Wavefront
+            The propagated wavefront after passing through all planes.
+        intermediate_wfs : list of Wavefront
+            Only returned if ``return_intermediates=True``. A list of `poppy.Wavefront` objects
+            representing intermediate optical planes from the calculation.
 
         """
 
@@ -2285,7 +2342,14 @@ class CompoundOpticalSystem(OpticalSystem):
 
         Parameters
         ----------
-        optsyslist : List of OpticalSystem and/or FresnelOpticalSystem instances.
+        optsyslist : list of OpticalSystem and/or FresnelOpticalSystem instances
+            The ordered list of optical systems to concatenate.
+        name : str, optional
+            Descriptive name for this compound system. If not provided, a name is
+            generated automatically from the number of sub-systems.
+        **kwargs
+            Additional keyword arguments are passed to the `BaseOpticalSystem` constructor
+            (e.g., ``verbose``, ``oversample``).
 
         """
         # validate the input optical systems make sense
@@ -2318,6 +2382,18 @@ class CompoundOpticalSystem(OpticalSystem):
         Input wavefronts for a compound system are defined by the first OpticalSystem in the list.
         We tweak the _display_hint_expected_planes to reflect the full compound system however.
 
+        Parameters
+        ----------
+        wavelength : float or astropy.units.Quantity
+            Wavelength in meters (or other units if given as a Quantity).
+        inwave : Wavefront, optional
+            If provided, use this as the input wavefront instead of generating one
+            from the first sub-system's entrance pupil parameters.
+
+        Returns
+        -------
+        inwave : Wavefront
+            Input wavefront appropriate for propagating through this compound system.
         """
         inwave = self.optsyslist[0].input_wavefront(wavelength, inwave=inwave)
         inwave._display_hint_expected_nplanes = len(self)     # For displaying a multi-step calculation nicely
@@ -2489,6 +2565,12 @@ class OpticalElement:
         wave : float or obj
             either a scalar wavelength or a Wavefront object
 
+        Returns
+        -------
+        phasor : ndarray of complex
+            Complex phasor array (transmission * exp(i * opd * 2*pi/lambda)), shaped to match
+            the wavefront. May be a scalar 1.0 if this is a null optic.
+
         """
 
         if isinstance(wave, BaseWavefront):
@@ -2605,6 +2687,12 @@ class OpticalElement:
             arcsec for image plane optics, meters for all other optics.
             If unspecified, a default value will be chosen instead, possibly
             from the ._default_display_size attribute, if present.
+
+        Returns
+        -------
+        ax : matplotlib.axes.Axes or tuple of Axes
+            The matplotlib Axes used for the plot. Returns a single Axes for all ``what``
+            values except 'both', which returns a 2-tuple ``(ax1, ax2)`` for amplitude and OPD.
         """
         if colorbar_orientation is None:
             colorbar_orientation = "horizontal" if nrows == 1 else 'vertical'
@@ -2790,6 +2878,22 @@ class ArrayOpticalElement(OpticalElement):
     """
 
     def __init__(self, opd=None, transmission=None, pixelscale=None, **kwargs):
+        """
+        Parameters
+        ----------
+        opd : ndarray, optional
+            Optical path difference array in meters. If not provided and ``transmission`` is
+            given, OPD defaults to an array of zeros with the same shape.
+        transmission : ndarray, optional
+            Electric field amplitude transmission array (values 0–1). If not provided and
+            ``opd`` is given, transmission defaults to an array of ones with the same shape.
+        pixelscale : astropy.units.Quantity or float, optional
+            Pixel scale of the provided arrays, in meters/pixel (pupil plane) or
+            arcsec/pixel (image plane). If not set, no pixel scale is associated with the optic.
+        **kwargs
+            Additional keyword arguments passed to `OpticalElement` (e.g., ``name``,
+            ``planetype``, ``oversample``).
+        """
         super().__init__(**kwargs)
         if opd is not None:
             self.opd = opd
@@ -2840,9 +2944,10 @@ class FITSOpticalElement(OpticalElement):
     transmission, opd : string or fits HDUList
         Either FITS filenames *or* actual fits.HDUList objects for the
         transmission (from 0-1) and opd (in meters)
-    transmission_slice, opd_slice : integers, optional
+    transmission_index, opd_index : ints, optional
         If either transmission or OPD files are datacubes, you can specify the
-        slice index using this argument.
+        slice index using this argument. (Formerly called ``transmission_slice``
+        and ``opd_slice`` in older versions of POPPY.)
     opdunits : string
         units for the OPD file. Default is 'meters'. can be 'meter', 'meters',
         'micron(s)', 'nanometer(s)', or their SI abbreviations. If this keyword
@@ -2869,7 +2974,7 @@ class FITSOpticalElement(OpticalElement):
         Rotation for that optic, in degrees counterclockwise. This is
         implemented using spline interpolation via the
         scipy.ndimage.rotate function.
-    pixelscale : optical str or float
+    pixelscale : optional str or float
         By default, poppy will attempt to determine the appropriate pixel scale
         by examining the FITS header, checking keywords "PIXELSCL", "PUPLSCAL" and/or 'PIXSCALE'.
         PIXELSCL is the default and should be preferred for new files; the latter two are
@@ -2878,9 +2983,6 @@ class FITSOpticalElement(OpticalElement):
         and use a different keyword, provide that as a string here. Alternatively,
         you can just set a floating point value directly too (in meters/pixel
         or arcsec/pixel, respectively, for pupil or image planes).
-    transmission_index, opd_index : ints, optional
-        If the input transmission or OPD files are datacubes, provide a scalar
-        index here for which cube slice should be used.
 
 
     *NOTE:* All mask files must be *squares*.
@@ -3303,7 +3405,9 @@ class CoordinateInversion(CoordinateTransform):
 
     Parameters
     ----------
-    axes : string
+    name : str, optional
+        Descriptive name for this element. Default is 'Coordinate inversion'.
+    axis : string
         either 'both', 'x', or 'y', for which axes to invert
     hide : bool
         Should this optic be displayed or hidden when showing the
