@@ -346,7 +346,7 @@ class FresnelWavefront(BaseWavefront):
         if self.oversample < 2:
             _log.warning("Oversampling > 2x suggested for reliable results in Fresnel propagation.")
 
-        self._y, self._x = xp.indices(self.shape, dtype=float)
+        self._y, self._x = accel_math.indices(self.shape, dtype=accel_math._float())
         self._y -= (self.wavefront.shape[0]) / 2.0
         self._x -= (self.wavefront.shape[1]) / 2.0
         """saves x and y indices for future use"""

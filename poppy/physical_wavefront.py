@@ -10,7 +10,7 @@ from scipy.linalg import lstsq
 from poppy.fresnel import FresnelWavefront, QuadraticLens
 
 from . import accel_math
-from .accel_math import ensure_not_on_gpu, xp
+from .accel_math import ensure_numpy_array, xp
 
 if accel_math._USE_CUPY:
     lstsq = xp.linalg.lstsq
@@ -66,7 +66,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
         """Spatial grid (m)."""
         y, x = self.coordinates()
 
-        return ensure_not_on_gpu(x[0, :])
+        return ensure_numpy_array(x[0, :])
 
     @property
     def dx(self):
@@ -102,7 +102,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
     def power(self):
         """Power of the wavefront (W)."""
 
-        return ensure_not_on_gpu((self.dx ** 2) * self.total_intensity)
+        return ensure_numpy_array((self.dx ** 2) * self.total_intensity)
 
     def scale_power(self, P):
         """
@@ -154,7 +154,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
         power = self.power
         x = self.x
         dx = self.dx
-        intensity = ensure_not_on_gpu(self.intensity) * mask
+        intensity = ensure_numpy_array(self.intensity) * mask
         center_y = dx ** 2 * np.sum(np.dot(intensity, x)) / power
         center_x = dx ** 2 * np.sum(np.dot(x, intensity)) / power
 
@@ -175,7 +175,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
         pow = self.power
         x = self.x
         dx = self.dx
-        intensity = ensure_not_on_gpu(self.intensity) * mask
+        intensity = ensure_numpy_array(self.intensity) * mask
         sigma_xx = dx ** 2 * np.sum(np.dot((x - center_x) ** 2, intensity)) / pow
         sigma_yy = dx ** 2 * np.sum(np.dot(intensity, (x - center_y) ** 2)) / pow
         sigma_xy = dx ** 2 * np.dot(np.dot((x - center_y), intensity), (x - center_y)) / pow

@@ -1362,7 +1362,7 @@ def decompose_opd_segments(opd, aperture=None, nterms=15, basis=None,
 
                 # Having trouble getting this to work on GPU, so
                 # ensure this step runs on CPU
-                this_seg_mask = accel_math.ensure_not_on_gpu(this_seg_mask)
+                this_seg_mask = accel_math.ensure_numpy_array(this_seg_mask)
                 this_seg_mask = scipy.ndimage.binary_erosion(this_seg_mask,
                         iterations=ignore_border)
                 this_seg_mask = xp.asarray(this_seg_mask)  # put back on GPU, if necessary

@@ -79,7 +79,7 @@ def airy_2d(diameter=1.0, wavelength=1e-6, shape=(512, 512), pixelscale=0.010,
 
     if center is None:
         center = (xp.asarray(shape) - 1.) / 2
-    y, x = xp.indices(shape, dtype=float)
+    y, x = accel_math.indices(shape, dtype=accel_math._float())
     y -= center[0]
     x -= center[1]
     y *= pixelscale
@@ -130,7 +130,7 @@ def sinc2_2d(width=1.0, height=None, wavelength=1e-6, shape=(512, 512), pixelsca
 
     if center is None:
         center = (xp.asarray(shape) - 1.) / 2
-    y, x = xp.indices(shape, float)
+    y, x = accel_math.indices(shape, dtype=accel_math._float())
     y -= center[0]
     x -= center[1]
     y *= pixelscale

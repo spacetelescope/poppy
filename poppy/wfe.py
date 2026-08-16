@@ -18,7 +18,7 @@ import astropy.units as u
 import numpy as np
 
 from . import accel_math, utils, zernike
-from .accel_math import ensure_not_on_gpu, xp
+from .accel_math import ensure_numpy_array, xp
 from .optics import AnalyticOpticalElement, CircularAperture
 from .physical_wavefront import PhysicalFresnelWavefront
 from .poppy_core import BaseWavefront, PlaneType
@@ -1032,7 +1032,7 @@ class ThermalBloomingWFE(WavefrontError):
         
         gamma = self.gamma
         cs2 = self.cs2
-        intens = ensure_not_on_gpu(wave.intensity)
+        intens = ensure_numpy_array(wave.intensity)
         npix = wave.npix
         dx = wave.dx
         rho = np.zeros((npix, npix))
@@ -1086,10 +1086,10 @@ class ThermalBloomingWFE(WavefrontError):
         gamma = self.gamma
         cs2 = self.cs2
         rho0 = self.rho0
-        intens = ensure_not_on_gpu(wave.intensity)
+        intens = ensure_numpy_array(wave.intensity)
         rho_dot_FT = np.fft.fft2(intens)
         rho_dot_FT *= -(gamma-1.0)*self.abs_coeff/cs2
-        q = ensure_not_on_gpu(wave.q)
+        q = ensure_numpy_array(wave.q)
         
         for idx_x in range(npix):
             for idx_y in range(npix):

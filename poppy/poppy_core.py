@@ -415,8 +415,8 @@ class BaseWavefront(ABC):
 
         y, x = self.coordinates()
         # GPU arrays don't work in matplotlib
-        y = accel_math.ensure_not_on_gpu(y)
-        x = accel_math.ensure_not_on_gpu(x)
+        y = accel_math.ensure_numpy_array(y)
+        x = accel_math.ensure_numpy_array(x)
 
         if self.planetype == PlaneType.pupil and self.ispadded and not showpadding:
             intens = utils.remove_padding(intens, self.oversample)
@@ -712,7 +712,7 @@ class BaseWavefront(ABC):
         """Wavefront error of the wavefront, in meters as an astropy.Quantity"""
         if accel_math._USE_CUPY:
             # since this returns an astropy quantity, the array must not be in GPU memory
-            return accel_math.ensure_not_on_gpu(self.phase) * (self.wavelength / (2 * np.pi))
+            return accel_math.ensure_numpy_array(self.phase) * (self.wavelength / (2 * np.pi))
         else:
             return self.phase * (self.wavelength/(2*np.pi))
 
@@ -874,7 +874,7 @@ class BaseWavefront(ABC):
                 pixelscale = self.pixelscale
 
             npix = self.wavefront.shape[0]
-            V, U = xp.indices(self.wavefront.shape, dtype=_float())
+            V, U = accel_math.indices(self.wavefront.shape, dtype=_float())
             V -= (npix - 1) / 2.0
             V *= pixelscale
             U -= (npix - 1) / 2.0
@@ -1281,7 +1281,7 @@ class Wavefront(BaseWavefront):
             2D coordinate arrays in units of meters, centered at (0, 0),
             following the numpy.indices convention (Y axis first).
         """
-        y, x = xp.indices(shape, dtype=_float())
+        y, x = accel_math.indices(shape, dtype=_float())
         pixelscale_mpix = pixelscale.to(u.meter / u.pixel).value if isinstance(pixelscale, u.Quantity) else pixelscale
         if not np.isscalar(pixelscale_mpix):
             pixel_scale_x, pixel_scale_y = pixelscale_mpix
@@ -1323,7 +1323,7 @@ class Wavefront(BaseWavefront):
             2D coordinate arrays in units of arcseconds, with the origin at the
             center of the PSF, following the numpy.indices convention (Y axis first).
         """
-        y, x = xp.indices(shape, dtype=_float())
+        y, x = accel_math.indices(shape, dtype=_float())
         pixelscale_arcsecperpix = pixelscale.to(u.arcsec / u.pixel).value
         if not np.isscalar(pixelscale_arcsecperpix):
             pixel_scale_x, pixel_scale_y = pixelscale_arcsecperpix
@@ -1678,7 +1678,7 @@ class BaseOpticalSystem(ABC):
         # ensure wavelength is a quantity which is iterable:
         # (the check for a quantity of type length is applied in the decorator)
         if np.isscalar(wavelength.value):
-            wavelength = np.asarray([wavelength.value], dtype=_float()) * wavelength.unit
+            wavelength = np.asarray([wavelength.value], dtype=_float(force_numpy=True)) * wavelength.unit
 
         if weight is None:
             weight = [1.0] * len(wavelength)
@@ -1697,7 +1697,7 @@ class BaseOpticalSystem(ABC):
         else:
             retain_intermediates = False
 
-        normwts = np.asarray(weight, dtype=_float())
+        normwts = np.asarray(weight, dtype=_float(force_numpy=True))
         normwts /= normwts.sum()
 
         _USE_FFTW = (conf.use_fftw and accel_math._FFTW_AVAILABLE)

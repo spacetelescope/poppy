@@ -112,17 +112,73 @@ def update_math_settings():
 update_math_settings()
 
 
-def _float():
-    """ Returns numpy data type for desired precision based on configuration """
-    # How many bits per float to use?
+def _float(force_numpy=False):
+    """ Returns data type for desired precision based on configuration.
+
+    When MLX is active, returns the MLX dtype (mx.float32) unless force_numpy=True.
+
+    Parameters
+    ----------
+    force_numpy : bool, optional
+        If True, always return a NumPy dtype regardless of the active backend.
+        Use this for the few call sites that explicitly call np.asarray(..., dtype=_float()).
+    """
+    if _USE_MLX and not force_numpy:
+        return mx.float32
     return np.float64 if conf.double_precision else np.float32
 
 
-def _complex():
-    """ Returns numpy data type for desired precision based on configuration """
-    # How many bits per complex float to use?
+def _complex(force_numpy=False):
+    """ Returns data type for desired precision based on configuration.
+
+    When MLX is active, returns the MLX dtype (mx.complex64) unless force_numpy=True.
+
+    Parameters
+    ----------
+    force_numpy : bool, optional
+        If True, always return a NumPy dtype regardless of the active backend.
+        Use this for the few call sites that explicitly call np.asarray(..., dtype=_complex()).
+    """
+    if _USE_MLX and not force_numpy:
+        return mx.complex64
     return np.complex128 if conf.double_precision else np.complex64
 
+def indices(shape, dtype=None):
+    """Return an array of index arrays for an array of the given shape.
+
+    Provides a unified interface across NumPy, CuPy, and MLX backends.
+    MLX has no native ``indices`` function; this function builds equivalent
+    output using ``mx.meshgrid`` and ``mx.stack``.
+
+    Parameters
+    ----------
+    shape : tuple of int
+        The shape of the array for which to generate indices.
+    dtype : data-type, optional
+        The desired data type of the output arrays.  If ``None``, defaults to
+        integer (``int64`` for NumPy/CuPy, ``int32`` for MLX).  Pass
+        ``accel_math._float()`` to get floating-point indices in the current
+        backend's preferred precision.  When MLX is active, *dtype* must be an
+        MLX ``Dtype`` object (e.g. ``mx.int32``, ``mx.float32``); passing a
+        NumPy dtype raises ``ValueError``.
+
+    Returns
+    -------
+    ndarray
+        An array of shape ``(len(shape), *shape)`` containing index arrays
+        along each axis, identical in layout to ``numpy.indices(shape)``.
+    """
+    if _USE_MLX:
+        # MLX does not have a native indices function; build equivalent output
+        # using meshgrid.
+        #
+        mlx_dtype = mx.int32 if dtype is None else dtype
+        if not isinstance(mlx_dtype, mx.Dtype):
+            raise ValueError("MLX backend requires dtype to be an MLX Dtype (e.g., mx.int32, mx.float32), not a NumPy dtype or other.")
+        ranges = [mx.arange(int(s), dtype=mlx_dtype) for s in shape]
+        return mx.stack(mx.meshgrid(*ranges, indexing='ij'))
+    else:
+        return xp.indices(shape, dtype=dtype)
 
 def _r(x, y):
     """ Function to speed up computing the radius given x and y, using Numexpr if available
@@ -690,6 +746,25 @@ def is_on_gpu(array):
 
 def ensure_not_on_gpu(array):
     """Utility function to ensure an array is in CPU memory,
-    copying it from the GPU memory if necessary
+    for cases where the GPU has separate memory (e.g. CuPy).
+
+    For non-CuPy arrays this is a no-op.
     """
-    return array.get() if is_on_gpu(array) else array
+    if _USE_CUPY and isinstance(array, cp.ndarray):
+        return array.get()
+    return array
+
+
+def ensure_numpy_array(array):
+    """Ensure arrays are converted to NumPy-compatible arrays,
+    instead of CuPy or MLX arrays, for example.
+
+    This is intended for CPU-only library boundaries (matplotlib, astropy/FITS, scipy).
+    It is not a guarantee of copy semantics.
+    """
+    if _USE_CUPY and isinstance(array, cp.ndarray):
+        return array.get()
+    if _MLX_AVAILABLE and array.__class__.__module__.startswith("mlx."):
+        mx.eval(array)
+        return np.array(array, copy=False)
+    return array

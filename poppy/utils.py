@@ -52,7 +52,7 @@ __all__ = ['display_psf', 'display_psf_difference', 'display_ee', 'measure_ee', 
 
 def imshow(image, *args, **kwargs):
     """If needed, fetch array from GPU before imshow"""
-    return plt.imshow( accel_math.ensure_not_on_gpu(image),
+    return plt.imshow(accel_math.ensure_numpy_array(image),
                        *args, **kwargs)
 
 def imshow_with_mouseover(image0, ax=None, *args, **kwargs):
@@ -66,7 +66,7 @@ def imshow_with_mouseover(image0, ax=None, *args, **kwargs):
     if ax is None:
         ax = plt.gca()
 
-    image = accel_math.ensure_not_on_gpu(image0)
+    image = accel_math.ensure_numpy_array(image0)
 
     ax.imshow(image, *args, **kwargs)
     aximage = ax.images[0].properties()['array']

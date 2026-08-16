@@ -196,7 +196,7 @@ def filled_circle_aa(shape, xcenter, ycenter, radius, xarray=None, yarray=None,
     array = xp.zeros(shape)
 
     if xarray is None or yarray is None:
-        yarray, xarray = xp.indices(shape)
+        yarray, xarray = accel_math.indices(shape)
 
     r = xp.sqrt( (xarray-xcenter)**2 + (yarray-ycenter)**2)
     array[r < radius ]  = fillvalue
