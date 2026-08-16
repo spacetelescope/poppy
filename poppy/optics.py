@@ -1173,7 +1173,7 @@ class LetterFAperture(AnalyticOpticalElement):
         yr = y / radius
         xr = x / radius
 
-        self.transmission = xp.zeros(wave.shape, dtype=float)
+        self.transmission = xp.zeros(wave.shape, dtype=_float())
         self.transmission[(xr < 0) & (xr > -0.5) & (xp.abs(yr) < 1)] = 1
         self.transmission[(xr >= 0) & (xr < 0.75) & (xp.abs(yr - 0.75) < 0.25)] = 1
         self.transmission[(xr >= 0) & (xr < 0.5) & (xp.abs(yr) < 0.25)] = 1

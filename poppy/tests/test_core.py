@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from astropy.io import fits
 
-from poppy.accel_math import xp  # May be numpy, or CuPy on GPU
+from poppy.accel_math import xp, indices # May be numpy, or CuPy on GPU
 
 try:
     import scipy
@@ -444,7 +444,7 @@ def test_rotation_in_OpticalSystem(display=False, npix=1024):
 
 def test_ArrayOpticalElement():
     import poppy
-    y,x = xp.indices((10, 10)) # arbitrary something to stick in an optical element
+    y,x = indices((10, 10)) # arbitrary something to stick in an optical element
 
     ar = poppy.ArrayOpticalElement(opd=x, transmission=y, pixelscale=1*u.meter/u.pixel)
 

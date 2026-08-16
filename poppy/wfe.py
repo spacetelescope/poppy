@@ -760,8 +760,8 @@ class KolmogorovWFE(WavefrontError):
         # apply required symmetry
         a[0, int(npix/2)+1:npix] = sign*a[0, 1:int(npix/2)][::-1]
         a[int(npix/2)+1:npix, 0] = sign*a[1:int(npix/2), 0][::-1]
-        a[int(npix/2)+1:npix, int(npix/2)+1:npix] = sign*xp.rot90(a[1:int(npix/2), 1:int(npix/2)], 2)
-        a[int(npix/2)+1:npix, 1:int(npix/2)] = sign*xp.rot90(a[1:int(npix/2), int(npix/2)+1:npix], 2)
+        a[int(npix/2)+1:npix, int(npix/2)+1:npix] = sign * accel_math.rot90(a[1:int(npix/2), 1:int(npix/2)], 2)
+        a[int(npix/2)+1:npix, 1:int(npix/2)] = sign * accel_math.rot90(a[1:int(npix/2), int(npix/2)+1:npix], 2)
         
         # remove any overall phase resulting from the zero-frequency component
         a[0, 0] = 0.0

@@ -6,7 +6,7 @@
 
 import matplotlib.pyplot as plt
 
-from poppy.accel_math import _scipy, xp
+from poppy.accel_math import _scipy, xp, indices, _float
 
 _RADtoARCSEC = 180. * 60 * 60 / xp.pi  # ~ 206265
 _ARCSECtoRAD = xp.pi / (180. * 60 * 60)
@@ -79,7 +79,7 @@ def airy_2d(diameter=1.0, wavelength=1e-6, shape=(512, 512), pixelscale=0.010,
 
     if center is None:
         center = (xp.asarray(shape) - 1.) / 2
-    y, x = accel_math.indices(shape, dtype=accel_math._float())
+    y, x = indices(shape, dtype=_float())
     y -= center[0]
     x -= center[1]
     y *= pixelscale

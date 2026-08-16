@@ -4,6 +4,7 @@
 
 import numpy as np
 
+from poppy import accel_math
 from poppy.accel_math import xp
 
 from .. import geometry
@@ -84,7 +85,7 @@ def test_filled_aa_circle(plot=True):
     # test some specific values in comparison to the pixwt function
 
     # brute force run pixwt on some array
-    y,x = xp.indices((100, 100))
+    y,x = accel_math.indices((100, 100))
     res_1 = geometry.pixwt(50,50,40,x,y)
 
 

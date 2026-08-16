@@ -909,8 +909,8 @@ class BaseWavefront(ABC):
         k, remainder = np.divmod(angle, 90)
         if remainder == 0:
             # rotation is a multiple of 90
-            rot_real = xp.rot90(self.wavefront.real, k=-k)  # negative = CCW
-            rot_imag = xp.rot90(self.wavefront.imag, k=-k)
+            rot_real = accel_math.rot90(self.wavefront.real, k=-k)  # negative = CCW
+            rot_imag = accel_math.rot90(self.wavefront.imag, k=-k)
         else:
             # arbitrary free rotation with interpolation
             rot_real = _scipy.ndimage.rotate(self.wavefront.real, -angle, reshape=False)  # negative = CCW
@@ -3172,8 +3172,8 @@ class FITSOpticalElement(OpticalElement):
                 k, remainder = np.divmod(rotation, 90)
                 if remainder == 0:
                     # rotation is a multiple of 90
-                    self.amplitude = xp.rot90(self.amplitude, k=-k)   # negative = CCW
-                    self.opd = xp.rot90(self.opd, k=-k)
+                    self.amplitude = accel_math.rot90(self.amplitude, k=-k)   # negative = CCW
+                    self.opd = accel_math.rot90(self.opd, k=-k)
                 else:
                     # arbitrary free rotation with interpolation
                     # do rotation with interpolation, but try to clean up some of the artifacts afterwards.

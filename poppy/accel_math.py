@@ -768,3 +768,43 @@ def ensure_numpy_array(array):
         mx.eval(array)
         return np.array(array, copy=False)
     return array
+
+
+def rot90(m, k=1):
+    """Rotate an array by a multiple of 90 degrees in the plane defined by the first two axes.
+
+    Provides a unified interface across NumPy, CuPy, and MLX backends.
+    MLX has no native ``rot90`` function; this function builds equivalent
+    output using ``mx.transpose`` and ``mx.flip``.
+    For numpy or CuPy, it simply calls ``xp.rot90``.
+
+    Parameters
+    ----------
+    m : array_like
+        Array to be rotated.
+    k : int, optional
+        Number of times the array is rotated by 90 degrees. Default is 1.
+
+    Returns
+    -------
+    y : ndarray
+        Rotated array.
+
+    """
+    # Normalize k to be in range [0, 4)
+    k = k % 4
+
+    if _USE_MLX:
+        # Convert input to MLX array if needed
+        if not isinstance(m, mx.array):
+            m = mx.array(m)
+        
+        # Use MLX transpose and flip to implement rot90
+        # One 90-degree counter-clockwise rotation: transpose, then flip along axis 0
+        result = m
+        for _ in range(k):
+            result = xp.flip(xp.transpose(result), axis=0)
+        return result
+    else:
+        # Use native xp.rot90 for numpy and cupy
+        return xp.rot90(m, k=k)

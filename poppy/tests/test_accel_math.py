@@ -193,3 +193,70 @@ def test_indices():
         finally:
             conf.use_mlx, conf.double_precision = defaults
             accel_math.update_math_settings()
+
+
+def test_rot90():
+    """Test accel_math.rot90() rotates arrays correctly and matches np.rot90.
+
+    Verifies:
+    - Rotation works correctly for k=0, 1, 2, 3
+    - Results match numpy.rot90 as the reference
+    - Works on both NumPy and MLX backends
+    - Handles modulo wrapping (k=4 equivalent to k=0, etc.)
+    """
+    # Create a test array with distinct values
+    test_array = np.array([[1, 2, 3],
+                           [4, 5, 6],
+                           [7, 8, 9]])
+
+    # --- Test NumPy backend ---
+    # Test each rotation amount k = 0, 1, 2, 3
+    for k in range(4):
+        result = accel_math.rot90(test_array, k=k)
+        expected = np.rot90(test_array, k=k)
+        result_np = np.asarray(accel_math.ensure_numpy_array(result))
+        np.testing.assert_array_equal(
+            result_np, expected,
+            err_msg=f"NumPy backend: rot90 with k={k} does not match np.rot90",
+        )
+
+    # Test modulo wrapping: k=4 should be same as k=0, k=5 same as k=1, etc.
+    result_k4 = accel_math.rot90(test_array, k=4)
+    result_k0 = accel_math.rot90(test_array, k=0)
+    np.testing.assert_array_equal(
+        np.asarray(accel_math.ensure_numpy_array(result_k4)),
+        np.asarray(accel_math.ensure_numpy_array(result_k0)),
+        err_msg="NumPy backend: k=4 should be equivalent to k=0",
+    )
+
+    # --- Test MLX backend (if available) ---
+    if accel_math._MLX_AVAILABLE:
+        defaults = conf.use_mlx, conf.double_precision
+        try:
+            conf.use_mlx = True
+            accel_math.update_math_settings()
+
+            # Convert test array to MLX
+            test_array_mlx = accel_math.xp.array(test_array)
+
+            # Test each rotation amount k = 0, 1, 2, 3
+            for k in range(4):
+                result_mlx = accel_math.rot90(test_array_mlx, k=k)
+                expected = np.rot90(test_array, k=k)
+                result_np = np.asarray(accel_math.ensure_numpy_array(result_mlx))
+                np.testing.assert_array_equal(
+                    result_np, expected,
+                    err_msg=f"MLX backend: rot90 with k={k} does not match np.rot90",
+                )
+
+            # Test modulo wrapping on MLX
+            result_mlx_k4 = accel_math.rot90(test_array_mlx, k=4)
+            result_mlx_k0 = accel_math.rot90(test_array_mlx, k=0)
+            np.testing.assert_array_equal(
+                np.asarray(accel_math.ensure_numpy_array(result_mlx_k4)),
+                np.asarray(accel_math.ensure_numpy_array(result_mlx_k0)),
+                err_msg="MLX backend: k=4 should be equivalent to k=0",
+            )
+        finally:
+            conf.use_mlx, conf.double_precision = defaults
+            accel_math.update_math_settings()

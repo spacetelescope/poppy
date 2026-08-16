@@ -171,6 +171,9 @@ def filled_circle_aa(shape, xcenter, ycenter, radius, xarray=None, yarray=None,
         fillvalue=1, clip=True, cliprange=(0,1)):
     """Draw a filled circle with subpixel antialiasing into an array.
 
+    Note, supports GPUs via CuPY but not MLX, due to MLX's incompatibility with the usages of `np.where` in this function.
+    If MLX is enabled, this function will fall back to using numpy instead.
+
     Parameters
     ----------
     shape : 2d ndarray
@@ -192,30 +195,40 @@ def filled_circle_aa(shape, xcenter, ycenter, radius, xarray=None, yarray=None,
     cliprange : array_like
         if clip is True, give values to use in the clip function.
     """
+    global xp
+    original_xp = xp
+    if accel_math._USE_MLX:
+        # the geometry code is not yet compatible with MLX, so we have to fall back to numpy for this function
+        backend_xp = accel_math.xp  # save handle to the MLX backend
+        xp = np  # set backend to numpy for this module
 
-    array = xp.zeros(shape)
+    try:
+        array = xp.zeros(shape)
 
-    if xarray is None or yarray is None:
-        yarray, xarray = accel_math.indices(shape)
+        if xarray is None or yarray is None:
+            yarray, xarray = accel_math.indices(shape)
 
-    r = xp.sqrt( (xarray-xcenter)**2 + (yarray-ycenter)**2)
-    array[r < radius ]  = fillvalue
+        r = xp.sqrt((xarray-xcenter)**2 + (yarray-ycenter)**2)
+        array[r < radius] = fillvalue
 
-    pixscale = xp.abs(xarray[0,1] - xarray[0,0])
-    area_per_pix = pixscale**2
+        pixscale = xp.abs(xarray[0, 1] - xarray[0, 0])
+        area_per_pix = pixscale**2
 
-    if xp.abs(pixscale -1.0) > 0.01:
-        import warnings
-        warnings.warn('filled_circle_aa may not yield exact results for grey pixels when pixel scale <1')
-    border = xp.where( xp.abs(r-radius) < pixscale)
+        if xp.abs(pixscale - 1.0) > 0.01:
+            import warnings
+            warnings.warn('filled_circle_aa may not yield exact results for grey pixels when pixel scale <1')
+        border = xp.where(xp.abs(r-radius) < pixscale)
 
-    weights = pixwt(xcenter, ycenter, radius, xarray[border], yarray[border])
+        weights = pixwt(xcenter, ycenter, radius, xarray[border], yarray[border])
 
-    array[border] = weights *fillvalue/area_per_pix
+        array[border] = weights * fillvalue / area_per_pix
 
+        if clip:
+            assert len(cliprange) == 2
+            result = np.asarray(array).clip(*cliprange)
+        else:
+            result = array
+    finally:
+        xp = original_xp
+    return xp.asarray(result)
 
-    if clip:
-        assert len(cliprange) == 2
-        return xp.asarray(array).clip(*cliprange)
-    else:
-        return array
