@@ -74,6 +74,11 @@ class Conf(_config.ConfigNamespace):
             'is available)?')
     use_cupy = _config.ConfigItem(True, 'Use CuPy for FFTs on GPU (assuming it' +
             'is available)?')
+    use_mlx = _config.ConfigItem(
+        True,
+        "Use Apple MLX for array math/FFTs on Apple Silicon (assuming it is available)? "
+        "When enabled, POPPY runs in single precision.",
+    )
     use_numexpr = _config.ConfigItem(True, 'Use NumExpr to accelerate array math (assuming it' +
             'is available)?')
 

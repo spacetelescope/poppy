@@ -66,9 +66,17 @@ except:
     cp = None
     _CUPY_AVAILABLE = False    
 
+try:
+    import mlx.core as mx
+    _MLX_AVAILABLE = True
+except ImportError:
+    mx = None
+    _MLX_AVAILABLE = False
+
 _USE_CUPY = (conf.use_cupy and _CUPY_AVAILABLE)
+_USE_MLX = (conf.use_mlx and _MLX_AVAILABLE and not _USE_CUPY)
 _USE_OPENCL = (conf.use_opencl and _OPENCL_AVAILABLE)
-_USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE and not _USE_CUPY)
+_USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE and not _USE_CUPY and not _USE_MLX)
 _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
 _USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE)
 
@@ -78,18 +86,23 @@ _scipy = scipy
 def update_math_settings():
     """ Update the module-level math flags, based on user settings
     """
-    global _USE_CUPY, _USE_OPENCL, _USE_NUMEXPR, _USE_FFTW, _USE_MKL
+    global _USE_CUPY, _USE_MLX, _USE_OPENCL, _USE_NUMEXPR, _USE_FFTW, _USE_MKL
     global xp, _scipy
 
     _USE_CUPY = (conf.use_cupy and _CUPY_AVAILABLE)
+    _USE_MLX = (conf.use_mlx and _MLX_AVAILABLE and not _USE_CUPY)
     _USE_OPENCL = (conf.use_opencl and _OPENCL_AVAILABLE)
-    _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE and not _USE_CUPY)
+    _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE and not _USE_CUPY and not _USE_MLX)
     _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
     _USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE)
 
     if _USE_CUPY:
         xp = cp
         _scipy = cupyx.scipy
+    elif _USE_MLX:
+        conf.double_precision = False
+        xp = mx
+        _scipy = scipy
     else:
         xp = np
         _scipy = scipy
@@ -117,7 +130,7 @@ def _r(x, y):
     if _USE_NUMEXPR:
         return ne.evaluate("sqrt(x**2+y**2)")
     else:
-        return np.sqrt(x ** 2 + y ** 2)
+        return xp.sqrt(x ** 2 + y ** 2)
 
 
 def _exp(x):
@@ -128,10 +141,8 @@ def _exp(x):
     """
     if _USE_NUMEXPR:
         return ne.evaluate("exp(x)", optimization='moderate', )
-    elif _USE_CUPY:
-        return cp.exp(x)
     else:
-        return np.exp(x)
+        return xp.exp(x)
 
 def _fftshift(x):
     """ FFT shifts of array contents, using CUDA/CuPY if available.
@@ -200,7 +211,7 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
 
     """
     ## To use a fast FFT, it must both be enabled and the library itself has to be present
-    global _USE_OPENCL, _USE_CUPY # need to declare global in case we need to change it, below
+    global _USE_OPENCL, _USE_CUPY, _USE_MLX  # need to declare global in case we need to change it, below
     t0 = time.time()
 
     # OpenCL cfFFT only can FFT certain array sizes.
@@ -212,6 +223,8 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
     # This annoyingly complicated if/elif is just for the debug print statement
     if _USE_CUPY:
         method = 'cupy (GPU)'
+    elif _USE_MLX:
+        method = 'mlx (Apple Silicon)'
     elif _USE_OPENCL:
         method = 'pyopencl (OpenCL GPU)'
     elif _USE_MKL:
@@ -249,6 +262,12 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         if normalization is None:
             normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
         wavefront = do_fft(wavefront)
+    elif _USE_MLX:
+        do_fft = mx.fft.fft2 if forward else mx.fft.ifft2
+        if normalization is None:
+            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
+        wavefront = do_fft(mx.asarray(wavefront, dtype=mx.complex64))
+        wavefront = np.asarray(wavefront)
 
     elif _USE_MKL:
         # Intel MKL is a drop-in replacement for numpy fft but much faster
@@ -370,13 +389,13 @@ tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
     print(f"Timing performance of FFT for {npix} x {npix}, {complextype}, with {iterations} iterations")
 
     defaults = (poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cupy,
-            poppy.conf.use_opencl, poppy.conf.double_precision)
+            poppy.conf.use_mlx, poppy.conf.use_opencl, poppy.conf.double_precision)
     poppy.conf.double_precision = double_precision
 
     # Time baseline performance in numpy
     print("Timing performance in plain numpy:")
 
-    poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cupy, poppy.conf.use_opencl = (False, False, False, False, False)
+    poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cupy, poppy.conf.use_mlx, poppy.conf.use_opencl = (False, False, False, False, False, False)
     update_math_settings()
     time_numpy = timer.timeit(number=iterations) / iterations
     print(f"  {time_numpy:.3f} s")
@@ -419,15 +438,27 @@ tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
     else:
         time_opencl = np.nan
 
+    if poppy.accel_math._MLX_AVAILABLE:
+        print("Timing performance with MLX:")
+        poppy.conf.use_opencl = False
+        poppy.conf.use_cupy = False
+        poppy.conf.use_mlx = True
+        update_math_settings()
+        time_mlx = timer.timeit(number=iterations) / iterations
+        print(f"  {time_mlx:.3f} s")
+    else:
+        time_mlx = np.nan
+
 
     poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cupy,\
-            poppy.conf.use_opencl, poppy.conf.double_precision = defaults
+            poppy.conf.use_mlx, poppy.conf.use_opencl, poppy.conf.double_precision = defaults
 
     return {'numpy': time_numpy,
             'fftw': time_fftw,
             'numexpr': time_numexpr,
             'mkl': time_mkl,
-            'opencl': time_opencl}
+            'opencl': time_opencl,
+            'mlx': time_mlx}
 
 
 def get_processor_name():
