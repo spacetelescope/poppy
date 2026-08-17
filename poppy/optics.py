@@ -52,11 +52,11 @@ class AnalyticOpticalElement(OpticalElement):
         transmission, opd : string
             These are *not allowed* for Analytic optical elements, and this class will raise an
             error if you try to set one.
-        shift_x, shift_y : astropy Quantity or float (length or angle, depending on plane type), optional
+        shift_x, shift_y : astropy Quantity (length or angle, depending on plane type) or float, optional
             Translations of this optic. Plain floats are interpreted in meters for pupil plane
             elements or arcseconds for image plane elements; astropy Quantities will be converted
             to the appropriate unit automatically.
-        rotation : astropy Quantity or float angle, optional
+        rotation : astropy Quantity angle or float, optional
             Rotation of the optic around its center, in degrees counterclockwise, or an
             angular astropy Quantity. Note that if you apply both shift and rotation,
             the optic rotates around its own center, rather than the optical axis.
@@ -256,7 +256,7 @@ class AnalyticOpticalElement(OpticalElement):
         ----------
         what : string
             What quantity to save. See the sample function of this class
-        wavelength : astropy Quantity or float length
+        wavelength : astropy Quantity length or float
             Wavelength for evaluating the optic; passed to sample(),
             in meters (plain float) or an astropy Quantity.
         npix : integer
@@ -418,7 +418,7 @@ class ScalarOpticalPathDifference(AnalyticOpticalElement):
     ----------
     name : string, optional
         Descriptive name. Auto-generated from OPD value if not given.
-    opd : astropy Quantity or float length
+    opd : astropy Quantity length or float
         Optical path difference to apply uniformly. Plain float is interpreted as meters.
         Default is 1 micron.
     """
@@ -506,7 +506,7 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
             occulters; these will raise a DeprecationWarning.
         sigma : float
             The numerical size parameter, as specified in Krist et al. 2009 SPIE
-        wavelength : astropy Quantity or float length, optional
+        wavelength : astropy Quantity length or float, optional
             Wavelength this BLC is optimized for (only used for the 'linear' kind).
             Plain float is interpreted as meters.
 
@@ -679,7 +679,7 @@ class IdealFQPM(AnalyticImagePlaneElement):
     ----------
     name : string
         Descriptive name
-    wavelength : astropy Quantity or float length
+    wavelength : astropy Quantity length or float
         Wavelength at which there is exactly 1/2 a wave of retardance.
 
     """
@@ -715,9 +715,9 @@ class CircularPhaseMask(AnalyticImagePlaneElement):
     ----------
     name : string
         Descriptive name
-    radius : astropy Quantity or float
+    radius : astropy Quantity angle or float
         Radius of the mask, in arcseconds (plain float) or as an astropy Quantity.
-    wavelength : astropy Quantity or float length
+    wavelength : astropy Quantity length or float
         Wavelength for which the phase mask was designed, in meters (plain float) or as an astropy Quantity.
     retardance : float
         Optical path delay at that wavelength, specified in waves
@@ -771,10 +771,10 @@ class RectangularFieldStop(AnalyticImagePlaneElement):
     ----------
     name : string
         Descriptive name
-    width : astropy Quantity or float angle
+    width : astropy Quantity angle or float
         Width of the field stop, in arcseconds (plain float) or as an astropy Quantity.
         Default is 0.5 arcsec.
-    height : astropy Quantity or float angle
+    height : astropy Quantity angle or float
         Height of the field stop, in arcseconds (plain float) or as an astropy Quantity.
         Default is 5.0 arcsec.
     """
@@ -914,10 +914,10 @@ class AnnularFieldStop(AnalyticImagePlaneElement):
     ----------
     name : string
         Descriptive name
-    radius_inner : astropy Quantity or float angle
+    radius_inner : astropy Quantity angle or float
         Radius of the central opaque region, in arcseconds (plain float) or as an astropy Quantity.
         Default is 0.0 (no central opaque spot).
-    radius_outer : astropy Quantity or float angle
+    radius_outer : astropy Quantity angle or float
         Radius of the circular field stop outer edge, in arcseconds (plain float) or as an
         astropy Quantity. Default is 1.0 arcsec. Set to 0.0 for no outer edge.
     """
@@ -965,7 +965,7 @@ class CircularOcculter(AnnularFieldStop):
     ----------
     name : string
         Descriptive name
-    radius : astropy Quantity or float angle
+    radius : astropy Quantity angle or float
         Radius of the occulting spot, in arcseconds (plain float) or as an astropy Quantity.
         Default is 1.0 arcsec.
 
@@ -984,10 +984,10 @@ class BarOcculter(AnalyticImagePlaneElement):
     ----------
     name : string
         Descriptive name
-    width : astropy Quantity or float angle
+    width : astropy Quantity angle or float
         Width of the bar stop, in arcseconds (plain float) or as an astropy Quantity.
         Default is 1.0 arcsec.
-    height : astropy Quantity or float angle
+    height : astropy Quantity angle or float
         Height of the bar stop, in arcseconds (plain float) or as an astropy Quantity.
         Default is 10.0 arcsec.
 
@@ -1143,7 +1143,7 @@ class LetterFAperture(AnalyticOpticalElement):
     ----------
     name : string, optional
         Descriptive name. Auto-generated if not provided.
-    radius : astropy Quantity or float length
+    radius : astropy Quantity length or float
         Radius of the overall aperture, in meters. Default is 1.0 m.
     pad_factor : float, optional
         Factor by which to oversize the wavefront array relative to the pupil diameter.
@@ -1186,7 +1186,7 @@ class LetterFOpticalPathDifference(AnalyticOpticalElement):
     ----------
     name : string, optional
         Descriptive name. Auto-generated if not provided.
-    radius : astropy Quantity or float length
+    radius : astropy Quantity length or float
         Radius of the overall aperture, in meters. Default is 1.0 m.
     pad_factor : float, optional
         Factor by which to oversize the wavefront array relative to the pupil diameter.
@@ -1367,9 +1367,9 @@ class MultiSegmentAperture(AnalyticOpticalElement, ABC):
     ----------
     name : string, optional
         Descriptive name. Default is "MultiSegment".
-    segment_size : astropy Quantity or float length
+    segment_size : astropy Quantity length or float
         Characteristic size (e.g. flat-to-flat diameter) of each segment in meters.
-    gap : astropy Quantity or float length
+    gap : astropy Quantity length or float
         Gap between adjacent segments in meters. Default is 0.01 m.
     rings : int
         Number of rings of segments (not counting the center). Default is 1.
@@ -1703,7 +1703,7 @@ class KeystoneSegmentedCircularAperture(MultiSegmentAperture, CircularAperture):
     ----------
     name : string, optional
         Descriptive name. Auto-generated if not provided.
-    radius : astropy Quantity or float length
+    radius : astropy Quantity length or float
         Radius of the full circular aperture, in meters. Default is 1.0 m.
     rings : int
         Number of rings of segments. Default is 2.
@@ -1874,10 +1874,10 @@ class RectangleAperture(AnalyticOpticalElement):
     ----------
     name : string
         Descriptive name
-    width : astropy Quantity or float length
+    width : astropy Quantity length or float
         Width of the rectangle, in meters (plain float) or as an astropy Quantity.
         Default is 0.5 m.
-    height : astropy Quantity or float length
+    height : astropy Quantity length or float
         Height of the rectangle, in meters (plain float) or as an astropy Quantity.
         Default is 1.0 m.
     rotation : float
@@ -1956,13 +1956,13 @@ class SecondaryObscuration(AnalyticOpticalElement):
 
     Parameters
     ----------
-    secondary_radius : astropy Quantity or float length
+    secondary_radius : astropy Quantity length or float
         Radius of the circular secondary obscuration, in meters or other unit.
         Default 0.5 m
     n_supports : int
         Number of secondary mirror supports ("spiders"). These will be
         spaced equally around a circle.  Default is 4.
-    support_width : astropy Quantity or float length
+    support_width : astropy Quantity length or float
         Width of each support, in meters or other unit. Default is 0.01 m = 1 cm.
     support_angle_offset : float
         Angular offset, in degrees, of the first secondary support from the X axis.
@@ -2022,13 +2022,13 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
 
     Parameters
     ----------
-    secondary_radius : astropy Quantity or float length
+    secondary_radius : astropy Quantity length or float
         Radius of the circular secondary obscuration, in meters (plain float) or as an
         astropy Quantity. Default 0.5 m
     support_angle : array_like of float
         The angle measured counterclockwise from +Y for each support, in degrees.
         Default is (0, 90, 240).
-    support_width : astropy Quantity or float length, or list thereof
+    support_width : astropy Quantity length or float, or list thereof
         if scalar, gives the width for all support struts
         if a list, gives separately the width for each support strut independently.
         Widths in meters or other unit if specified. Default is 0.01 m = 1 cm.
@@ -2114,10 +2114,10 @@ class ThinLens(CircularAperture):
         This is applied as a normalization over an area defined by the circumscribing circle
         of the input wavefront. That is, there will be nwaves defocus peak-to-valley
         over the region of the pupil that has nonzero input intensity.
-    reference_wavelength : astropy Quantity or float length
+    reference_wavelength : astropy Quantity length or float
         Wavelength at which ``nwaves`` defocus is specified,
         either in meters (plain float) or as an astropy Quantity.
-    radius : astropy Quantity or float length
+    radius : astropy Quantity length or float
         Pupil radius over which the Zernike defocus term should be computed such that rho = 1 at r = ``radius``,
         either in meters (plain float) or as an astropy Quantity.
     """
@@ -2167,13 +2167,13 @@ class GaussianAperture(AnalyticOpticalElement):
     ----------
     name : string
         Descriptive name
-    fwhm : astropy Quantity or float length, optional
+    fwhm : astropy Quantity length or float, optional
         Full width at half maximum for the Gaussian, in meters (plain float) or as an
         astropy Quantity.
-    w : astropy Quantity or float length, optional
+    w : astropy Quantity length or float, optional
         Beam radius parameter, equal to fwhm/(2*sqrt(ln(2))), in meters (plain float) or
         as an astropy Quantity. Exactly one of ``fwhm`` or ``w`` must be specified.
-    pupil_diam : astropy Quantity or float length, optional
+    pupil_diam : astropy Quantity length or float, optional
         Default pupil diameter for cases when it is not otherwise specified
         (e.g. displaying the optic by itself). Default value is 3x the FWHM.
 
