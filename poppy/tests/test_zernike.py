@@ -3,6 +3,7 @@ import numpy as np
 import poppy.accel_math
 from poppy import optics, poppy_core, zernike
 from poppy.accel_math import xp as np
+import pytest
 
 
 def test_zernikes_rms(nterms=10, size=500):
@@ -229,6 +230,61 @@ def test_decompose_opd(npix=512, input_coefficients=(0.1, 0.2, 0.3, 0.4, 0.5)):
     max_diff_v2 = np.max(np.abs(np.asarray(input_coefficients) - np.asarray(recovered_coeffs_v2)))
     assert max_diff_v2 < 1e-3, "recovered coefficients from wf_expand more than 0.1% off"
 
+
+@pytest.mark.parametrize("aper_shape", ['circle', 'f']) # run test twice for each aperture parameter
+def test_decompose_opd_basis_matrix(aper_shape, npix=512, nterms=10, input_coeffs=(0.1, 0.2, 0.3, 0.4, 0.5)):
+    """
+    Simple test for zernike.decompose_opd_basis_matrix
+    Checks that that function can run without errors and that a
+    reconstructed OPD return similar results as other functions
+    """
+
+    # Build OPD from those coefficients
+    opd = zernike.compose_opd_from_basis(input_coeffs, npix=npix)
+
+    if aper_shape == 'circle':
+        aperture = np.isfinite(opd).astype(float)
+    elif aper_shape == 'f':
+        aperture = poppy.LetterFAperture().sample(npix=npix)  # Very asymmetric test aperture
+        opd *= aperture
+    else:
+        raise ValueError('unknown aperture shape')
+    opd_nan_filled = np.nan_to_num(opd)
+
+    # Run test_decompose_opd_basis_matrix  without error
+    coeffs_new = zernike.decompose_opd_basis_matrix(
+        opd_nan_filled, aperture=aperture, nterms=nterms
+    )
+
+    # Check correct number of coefficients returned
+    assert len(coeffs_new) == nterms
+
+    # Recovers coefficients between test_decompose_opd_basis_matrix
+    # and the actual input
+    assert np.allclose(coeffs_new[0:5], input_coeffs)
+    assert np.allclose(coeffs_new[5:], 0)
+
+    if aper_shape == 'circle':
+        # Some additional tests we can do on a circular aperture
+
+        # Consistency with existing decompose_opd, which implicitly assumes orthonormal basis
+        # not necessarily identical result but similar
+        coeffs_simple_algorithm = zernike.decompose_opd(opd_nan_filled, aperture=aperture, nterms=nterms)
+        assert np.allclose(coeffs_new[0:5], coeffs_simple_algorithm[0:5], atol=1e-3)
+
+        # Consistency with  existing decompose_opd nonorthonormal
+        # not necessarily identical result but similar
+        # not really "old" but other implementation
+        coeffs_old = zernike.decompose_opd_nonorthonormal_basis(opd_nan_filled, aperture=aperture, nterms=nterms)
+        assert np.allclose(coeffs_new[0:5], coeffs_old[0:5], atol=1e-3)
+
+        # Also test the faster_orthogonal=True branch runs and gives similar results
+        # when compare in the orthogonal case
+        coeffs_old_orthogonal = zernike.decompose_opd(opd_nan_filled, aperture=aperture, nterms=nterms)
+        coeffs_new_fast = zernike.decompose_opd_basis_matrix(
+            opd_nan_filled, aperture=aperture, nterms=nterms, faster_orthogonal=True
+        )
+        assert np.allclose(coeffs_new_fast[0:5], coeffs_old_orthogonal[0:5], atol=1e-3)
 
 def test_compose_opd_from_basis():
     coeffs = [0,0.1, 0.4, 2, -0.3]

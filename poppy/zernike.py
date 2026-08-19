@@ -1025,6 +1025,104 @@ def decompose_opd(opd, aperture=None, nterms=15, basis=zernike_basis,
 
     return coeffs
 
+def decompose_opd_basis_matrix(opd, aperture=None, nterms=15, basis=zernike_basis_faster,
+
+                                       verbose=False, faster_orthogonal = False,  **kwargs):
+
+    """ Non-iterative version of  decompose_opd, it works for cases where the basis function is
+
+    orthonormal and *not* orthonormal. This function calculate the direct answer via matrix multiplications
+
+    Parameters
+    -----------
+    opd : 2d ndarray
+        the OPD you want to fit
+    aperture : 2D numpy array, optional
+        Aperture mask for which pixels are included within the aperture.
+        All positive nonzero values are considered within the aperture;
+        any pixels with zero, negative, or NaN values will be considered
+        outside the aperture, and set equal to the 'outside' parameter value.
+        If this parameter is not set, the aperture will be inferred from
+        the finite (i.e. non-NaN) pixels in the OPD array.`
+    nterms : int
+        number of terms to fit
+    basis : function
+        which basis function to use. Defaults to Zernike
+    faster_orthogonal = bool
+        Faster performance for orthogonal case. Default is False
+
+    Other Parameters
+    ----------------
+        Additional keyword arguments to this function are passed through to the `basis` callable.
+
+    Returns
+    -------
+    coeffs : list
+        List of coefficients (of length `nterms`) from which the
+        input OPD map can be constructed in the given basis.
+        (No additional unit conversions are performed. If the input
+        wavefront is in waves, coeffs will be in waves.)
+        Note that the first coefficient (element 0 in Python indexing)
+        corresponds to the Z=1 Zernike piston term, and so on.
+
+    Notes
+    -----
+    This version is based on David Arostein python code on February 5, 2023. See description below.
+    We seek an expression like:
+    opd = sum(coeffs[i] * basis_set[i])
+    Apply the dot product with basis_set[j] to both sides:
+    opd . basis_set[j] = sum(coeffs[i] * basis_set[i]) . basis_set[j]
+    When you have an orthogonal basis, this becomes an expression for how to find coeffs[j];
+    this is used in the original code, in the "for" loop over iterations:
+    this_coeff = (opd_copy * b)[wgood].sum() / ngood
+    But when we don't have an orthogonal basis, the equation becomes a matrix equation for the coefficients:
+    B * coeffs = opd . basis_set
+    with:
+    B = a matrix with Bij = basis_set[i] . basis_set[j] = (basis_set[i] * basis_set[j])[wgood].sum()
+    f = opd . basis_set is a vector with elements f[i] = (opd * basis_set[i])[wgood].sum()
+    and then solve thw system for coeffs
+    """
+
+    if aperture is None:
+
+        _log.warning("No aperture supplied - "
+                  "using the finite (non-NaN) part of the OPD map as a guess.")
+        aperture = np.isfinite(opd)
+    # any pixels with zero or NaN in the aperture are outside the area
+    apmask = (np.isfinite(aperture) & (aperture > 0))
+    # Determine if this basis function accepts an 'aperture' parameter or not
+    # If so, append that into the function's kwargs. This check is needed to
+    # handle e.g. both the zernike_basis function (which doesn't accept aperture)
+    # and hexike_basis or arbitrary_basis (which do).
+    if 'aperture' in inspect.signature(basis).parameters:
+        kwargs['aperture'] = aperture
+    basis_set = basis(
+        nterms=nterms,
+        npix=opd.shape[0],
+        outside=np.nan,
+        **kwargs
+    )
+    wgood = (apmask & np.isfinite(basis_set[1]))
+    ngood = apmask.sum()
+    b = np.zeros((nterms, nterms))
+    f = np.zeros(nterms)
+    for i, Zi in enumerate(basis_set):
+        f[i] = (opd * Zi)[wgood].sum()
+        for j, Zj in enumerate(basis_set[:i+1]):
+            b[i, j] = (Zi * Zj)[wgood].sum()
+            if i != j:
+                b[j, i] = b[i, j]
+
+    binv = np.linalg.pinv(b)
+
+    if faster_orthogonal:
+        coeffs = [binv[i, i] * fi for i, fi in enumerate(f)]
+    else:
+        coeffs = np.matmul(binv, f)
+        
+    return coeffs
+
+
 
 def decompose_opd_nonorthonormal_basis(opd, aperture=None, nterms=15, basis=zernike_basis_faster,
                                        iterations=5, verbose=False, **kwargs):
