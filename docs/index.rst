@@ -75,6 +75,6 @@ Contents
 Getting Help
 -------------------
 POPPY is developed and maintained by :ref:`Marshall Perrin and collaborators <about_team>`. Questions, comments, and
-pull requests always welcome, either via the `Github repository <https://github.com/spacetelescope/poppy>`_ or email to help@stsci.edu.
+pull requests always welcome, either via the `Github repository <https://github.com/spacetelescope/poppy>`_ or via the STScI Help Desk.
 
 
