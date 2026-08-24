@@ -64,13 +64,22 @@ try:
     _CUPY_AVAILABLE = True
 except:
     cp = None
-    _CUPY_AVAILABLE = False    
+    _CUPY_AVAILABLE = False
+
+try:
+    # try to import poppy_rs, a Rust-accelerated backend for FFT operations
+    import poppy_rs
+    _RUST_AVAILABLE = True
+except ImportError:
+    poppy_rs = None
+    _RUST_AVAILABLE = False
 
 _USE_CUPY = (conf.use_cupy and _CUPY_AVAILABLE)
 _USE_OPENCL = (conf.use_opencl and _OPENCL_AVAILABLE)
 _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE and not _USE_CUPY)
 _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
 _USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE)
+_USE_RUST = (conf.use_rust and _RUST_AVAILABLE and not _USE_CUPY and not _USE_OPENCL)
 
 xp = np
 _scipy = scipy
@@ -78,7 +87,7 @@ _scipy = scipy
 def update_math_settings():
     """ Update the module-level math flags, based on user settings
     """
-    global _USE_CUPY, _USE_OPENCL, _USE_NUMEXPR, _USE_FFTW, _USE_MKL
+    global _USE_CUPY, _USE_OPENCL, _USE_NUMEXPR, _USE_FFTW, _USE_MKL, _USE_RUST
     global xp, _scipy
 
     _USE_CUPY = (conf.use_cupy and _CUPY_AVAILABLE)
@@ -86,6 +95,7 @@ def update_math_settings():
     _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE and not _USE_CUPY)
     _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
     _USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE)
+    _USE_RUST = (conf.use_rust and _RUST_AVAILABLE and not _USE_CUPY and not _USE_OPENCL)
 
     if _USE_CUPY:
         xp = cp
@@ -202,6 +212,12 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
     ## To use a fast FFT, it must both be enabled and the library itself has to be present
     global _USE_OPENCL, _USE_CUPY # need to declare global in case we need to change it, below
     t0 = time.time()
+
+    if _USE_RUST:
+        _log.debug("using poppy_rs (Rust) FFT of {} array, FFT_direction={}".format(
+            str(wavefront.shape), 'forward' if forward else 'backward'))
+        return poppy_rs.fft_2d(wavefront, forward=forward,
+                               normalization=normalization, fftshift=fftshift)
 
     # OpenCL cfFFT only can FFT certain array sizes.
     if _USE_OPENCL and not isproductofsmallprimes(wavefront.shape[0]):
