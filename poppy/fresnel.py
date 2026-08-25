@@ -179,10 +179,10 @@ class FixedSamplingImagePlaneElement(FITSOpticalElement):
     making it impossible to display the wavefront with extents.
 
     The method used to apply this element requires additional information from the user that is not required
-    for FITSOpticalElements. These additional parameters are listed below.
+    for FITSOpticalElements. These additional parameters are listed below, under Parameters.
 
-    Parameters not in FITSOpticalElement
-    ------------------------------------
+    Parameters
+    ----------
     wavelength_c: astropy.quantity
         Central wavelength of the user's system, required in order to
         convert the pixelscale to units of lambda/D and scale the
