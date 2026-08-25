@@ -511,8 +511,10 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
             Plain float is interpreted as meters.
 
     """
+
     allowable_kinds = ['circular', 'linear']
-    """ Allowable types of BLC supported by this class"""
+    """ Allowable types of BLC supported by this class
+    """
 
     @utils.quantity_input(wavelength=u.meter)
     def __init__(self, name="unnamed BLC", kind='circular', sigma=1, wavelength=None, **kwargs):

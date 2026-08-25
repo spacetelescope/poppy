@@ -250,8 +250,8 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
             Desired surface height for that actuator, in meters
             by default or use astropy Units to specify another unit if desired.
 
-        Example
-        -------
+        Examples
+        --------
         dm.set_actuator(12, 22, 123.4*u.nm)
 
         """
