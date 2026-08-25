@@ -73,4 +73,3 @@ for these comparisons was the University of Arizona’s HPC Puma nodes. The node
  Fresnel            2048         4.16                   0.0845                  49.2            
  Fresnel            4096         17.5                   0.225                   77.8            
 ================== ============ ====================== ======================= =================
-
