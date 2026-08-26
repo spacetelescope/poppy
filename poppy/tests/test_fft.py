@@ -1,25 +1,19 @@
 # Tests for FFT based propagation
 
 import numpy as np
-import astropy.io.fits as fits
-
 import pytest
-
-from .. import poppy_core
-from .. import optics
-from .. import accel_math
-from .test_core import check_wavefront
-
 
 # For some reason, the following block of code in poppy_core is not sufficient
 # to handle the "no pyfftw installed" case when running in test mode, even though it works
 # just fine when actually running poppy. Empirically this check has to be repeated
 # here in order to let the tests work when pyfftw is not present.
-from .. import conf
+from .. import accel_math, conf, optics, poppy_core
+from .test_core import check_wavefront
+
 if conf.use_fftw:
     try:
         # try to import FFTW and use it
-        import pyfftw
+        pass
     except:
         # we tried but failed to import it.
         conf.use_fftw = False
@@ -41,7 +35,7 @@ def test_fft_normalization():
     osys.add_pupil() # null plane to force FFT
     osys.add_detector(pixelscale=0.01, fov_arcsec=10.0) # use a large FOV so we grab essentially all the light
 
-    poppy_core._log.info('TEST: wavelen = {0}, radius = {1}'.format(wavelen, radius))
+    poppy_core._log.info(f'TEST: wavelen = {wavelen}, radius = {radius}')
 
     psf, waves = osys.calc_psf(wavelength=2.0e-6, normalize='first', return_intermediates=True)
 
@@ -50,7 +44,7 @@ def test_fft_normalization():
 
     # Expected value here is 0.9977, limited by FOV size as the aperture
     poppy_core._log.info('TEST: Computed PSF of circular aperture')
-    poppy_core._log.info('TEST: PSF total intensity sum is {0}'.format(psf[0].data.sum()))
+    poppy_core._log.info(f'TEST: PSF total intensity sum is {psf[0].data.sum()}')
     poppy_core._log.info('TEST:  Expected value is 0.9977 ')
 
     assert abs(psf[0].data.sum() - 0.9977) < 0.001
@@ -159,12 +153,12 @@ def test_parity_FFT_forward_inverse(display=False):
         for i, plane in enumerate(planes):
             ax = plt.subplot(2,nplanes,i+1)
             plane.display(ax = ax)
-            plt.title("Plane {0}".format(i))
+            plt.title(f"Plane {i}")
         plt.subplot(2,nplanes,nplanes+1)
         plt.imshow(absdiff)
         plt.title("Abs(Pupil0-Pupil2)")
         plt.colorbar()
-        print("Max abs(difference) = {}".format(maxabsdiff))
+        print(f"Max abs(difference) = {maxabsdiff}")
     return (p0,p2)
 
 
@@ -228,7 +222,7 @@ def test_pyfftw_vs_numpyfft(verbose=False):
     if verbose:
         print ("PSF difference: ", np.abs(psf_fftw[0].data-psf_numpy[0].data).max())
         for i in [1,2]:
-            print(" Int. WF {} intensity diff: {}".format(i, np.abs(intermediates[i].total_intensity-total_int_input)) )
+            print(f" Int. WF {i} intensity diff: {np.abs(intermediates[i].total_intensity-total_int_input)}" )
         print(" Final PSF intensity diff:", np.abs(intermediates[3].total_intensity-total_int_input) - expected)
 
     conf.use_fftw, conf.use_cuda, conf.use_opencl, conf.use_cupy = defaults
@@ -269,7 +263,7 @@ def test_opencl_vs_numpyfft(verbose=False):
     if verbose:
         print ("PSF difference: ", np.abs(psf_opencl[0].data-psf_numpy[0].data).max())
         for i in [1,2]:
-            print(" Int. WF {} intensity diff: {}".format(i, np.abs(intermediates[i].total_intensity-total_int_input)) )
+            print(f" Int. WF {i} intensity diff: {np.abs(intermediates[i].total_intensity-total_int_input)}" )
         print(" Final PSF intensity diff:", np.abs(intermediates[3].total_intensity-total_int_input) - expected)
 
     conf.use_fftw, conf.use_cuda, conf.use_opencl = defaults

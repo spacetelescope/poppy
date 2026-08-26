@@ -1,15 +1,12 @@
 # Tests for individual Optic classes
 
-import matplotlib.pyplot as pl
 import astropy.units as u
-
-from .. import poppy_core
-from .. import optics
-from .. import utils
-
-from .. import accel_math
+import matplotlib.pyplot as pl
 import numpy as np
+
 from poppy.accel_math import xp
+
+from .. import accel_math, optics, poppy_core
 
 wavelength=1e-6
 
@@ -194,7 +191,6 @@ def test_SquareFieldStop():
 
 
 def test_CircularPhaseMask():
-    import poppy
     optic= optics.CircularPhaseMask(radius=1, retardance=0.25, wavelength=3e-6)
     wave = poppy_core.Wavefront(npix=100, pixelscale=0.05, wavelength=3e-6)
 
@@ -442,9 +438,10 @@ def test_ObscuredCircularAperture_Airy(display=False):
 
 
     if display:
-        from .. import utils
         #comparison of the two
         from matplotlib.colors import LogNorm
+
+        from .. import utils
         norm = LogNorm(vmin=1e-6, vmax=1e-2)
 
         pl.figure(figsize=(15,5))
@@ -491,6 +488,7 @@ def test_CompoundAnalyticOptic(display=False):
 
     if display:
         from matplotlib import pyplot as plt
+
         from poppy import utils
         plt.figure()
         plt.subplot(1, 2, 1)

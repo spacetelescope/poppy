@@ -2,14 +2,16 @@
 #
 # Various functions related to accelerated computations using FFTW, CUPY, numexpr, and related.
 #
+import logging
+import multiprocessing
+import time
+
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy
-import multiprocessing
-import matplotlib.pyplot as plt
+
 from . import conf
 
-import time
-import logging
 _log = logging.getLogger('poppy')
 
 try:
@@ -42,9 +44,9 @@ except ImportError:
 
 try:
     # try to import OpenCL packages to see if they are is available
+    import gpyfft
     import pyopencl
     import pyopencl.array
-    import gpyfft
     _OPENCL_AVAILABLE = True
     _OPENCL_STATE = dict()
 except ImportError:
@@ -266,8 +268,7 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
             # The first time you run FFTW to transform a given size, it does a speed test to
             # determine optimal algorithm that is destructive to your chosen array.
             # So only do that test on a copy, not the real array:
-            _log.info("Measuring pyfftw optimal plan for %s, direction=%s" % (
-                str(wavefront.shape), FFT_direction))
+            _log.info(f"Measuring pyfftw optimal plan for {str(wavefront.shape)}, direction={FFT_direction}")
 
             pyfftw.interfaces.cache.enable()
             pyfftw.interfaces.cache.set_keepalive_time(30)
@@ -294,7 +295,7 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
 
     wavefront *= normalization
     t3 = time.time()
-    _log.debug("    FFT_2D: FFT in {:3f} s, full function  in {:.3f} s".format(t2-t1, t3-t0))
+    _log.debug(f"    FFT_2D: FFT in {t2-t1:3f} s, full function  in {t3-t0:.3f} s")
 
     return wavefront
 
@@ -354,19 +355,19 @@ def benchmark_fft(npix=2048, iterations=20, double_precision=True):
     """ Performance benchmark function for standard imaging """
     #import poppy
     import timeit
+
     import poppy
 
 
     complextype = 'complex128' if double_precision else 'complex64'
 
     timer = timeit.Timer("tmp2 = poppy.accel_math.fft_2d(tmp, fftshift=False)",
-            setup="""
+            setup=f"""
 import poppy
 import numpy as np
 tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
-            """.format(npix=npix, complextype=complextype))
-    print("Timing performance of FFT for {npix} x {npix}, {complextype}, with {iterations} iterations".format(
-        npix=npix, iterations=iterations, complextype=complextype))
+            """)
+    print(f"Timing performance of FFT for {npix} x {npix}, {complextype}, with {iterations} iterations")
 
     defaults = (poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cupy,
             poppy.conf.use_opencl, poppy.conf.double_precision)
@@ -378,14 +379,14 @@ tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
     poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cupy, poppy.conf.use_opencl = (False, False, False, False, False)
     update_math_settings()
     time_numpy = timer.timeit(number=iterations) / iterations
-    print("  {:.3f} s".format(time_numpy))
+    print(f"  {time_numpy:.3f} s")
 
     if poppy.accel_math._FFTW_AVAILABLE:
         print("Timing performance with FFTW:")
         poppy.conf.use_fftw = True
         update_math_settings()
         time_fftw = timer.timeit(number=iterations) / iterations
-        print("  {:.3f} s".format(time_fftw))
+        print(f"  {time_fftw:.3f} s")
     else:
         time_fftw = np.nan
 
@@ -394,7 +395,7 @@ tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
         poppy.conf.use_numexpr = True
         update_math_settings()
         time_numexpr = timer.timeit(number=iterations) / iterations
-        print("  {:.3f} s".format(time_numexpr))
+        print(f"  {time_numexpr:.3f} s")
     else:
         time_numexpr = np.nan
 
@@ -405,7 +406,7 @@ tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
         poppy.conf.use_mkl = True
         update_math_settings()
         time_mkl = timer.timeit(number=iterations) / iterations
-        print("  {:.3f} s".format(time_mkl))
+        print(f"  {time_mkl:.3f} s")
     else:
         time_mkl = np.nan
 
@@ -414,7 +415,7 @@ tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
         poppy.conf.use_opencl = True
         update_math_settings()
         time_opencl = timer.timeit(number=iterations) / iterations
-        print("  {:.3f} s".format(time_opencl))
+        print(f"  {time_opencl:.3f} s")
     else:
         time_opencl = np.nan
 
@@ -434,7 +435,10 @@ def get_processor_name():
 
     With thanks to https://stackoverflow.com/a/20161999
     """
-    import os, platform, subprocess, re
+    import os
+    import platform
+    import re
+    import subprocess
 
     if platform.system() == "Windows":
         return platform.processor()
@@ -458,7 +462,9 @@ def get_physical_cpu_count():
     Hyperthreading makes that number harder to interpret.
 
     """
-    import os, platform, subprocess, re
+    import os
+    import platform
+    import subprocess
 
     if platform.system() == "Darwin":
         os.environ['PATH'] = os.environ['PATH'] + os.pathsep + '/usr/sbin'
@@ -548,7 +554,7 @@ def benchmark_2d_ffts(mode='poppy', max_pow=13, verbose=False, savefig=False):
                             poppy_mklfft: "poppy using MKL FFT"}
         title = 'full poppy.accel_math.fft_2d'
     else:
-        raise ValueError(f"Unknown/invalid value for 'base' parameter: {base}")
+        raise ValueError(f"Unknown/invalid value for 'mode' parameter: {mode}")
 
     def shp(len):
         return (len, len)
@@ -595,9 +601,10 @@ def benchmark_2d_mfts(max_pow=13, savefig=False):
     """
 
     # modified based on https://github.com/numpy/numpy/issues/17839#issuecomment-733543850
+    import functools
+
     from simple_benchmark import benchmark
 
-    import functools
     import poppy
 
     def shp(len):
@@ -638,7 +645,7 @@ def benchmark_2d_mfts(max_pow=13, savefig=False):
     plt.title(f"Matrix Fourier Transform timings\n{cpu_label}", fontweight='bold')
 
     if savefig:
-        plt.savefig(f"bench_mfts.png")
+        plt.savefig("bench_mfts.png")
 
 
 def is_on_gpu(array):

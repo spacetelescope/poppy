@@ -1,13 +1,10 @@
 
-import numpy as np
 import astropy.units as u
+import numpy as np
 
-from poppy.accel_math import xp, ensure_not_on_gpu
-from .. import poppy_core
-from .. import optics
-from .. import zernike
-from .. import wfe
-from .. import physical_wavefront
+from poppy.accel_math import ensure_not_on_gpu, xp
+
+from .. import optics, physical_wavefront, poppy_core, wfe, zernike
 
 NWAVES = 0.5
 WAVELENGTH = 1e-6
@@ -66,7 +63,7 @@ def test_ZernikeAberration(display=False):
     r = np.sqrt(y**2 + x**2)
     stddev = np.std((zern_wave.phase - tl_wave.phase)[r < RADIUS])
 
-    assert stddev < 1e-16, ("ZernikeAberration disagrees with ThinLens! stddev {}".format(stddev))
+    assert stddev < 1e-16, (f"ZernikeAberration disagrees with ThinLens! stddev {stddev}")
 
 
 def test_zernike_get_opd():
@@ -171,7 +168,7 @@ def test_StatisticalPSDWFE(index=3, seed=1234, plot=False):
         tbin = csim[rind[1:]] - csim[rind[:-1]]  # sum for image values in radius bins
         radialprofile = tbin / nr
 
-        # pre-pend the initial element that the above code misses.
+        # prepend the initial element that the above code misses.
         radialprofile2 = np.empty(len(radialprofile) + 1)
         if rind[0] != 0:
             radialprofile2[0] = csim[rind[0]] / (
@@ -211,20 +208,21 @@ def test_StatisticalPSDWFE(index=3, seed=1234, plot=False):
         psd_wfe.display(what='both')
         plt.figure()
         plt.loglog(rad[1:], prof_norm[1:],
-                   label='StatisticalPSD output for {}'.format(index))
+                   label=f'StatisticalPSD output for {index}')
         plt.plot(rad[drop:-drop], plaw_fit(rad[drop:-drop]),
-                 label='power law fit: {:.5f}'.format(plaw_fit.alpha.value))
+                 label=f'power law fit: {plaw_fit.alpha.value:.5f}')
         plt.xlabel("Spatial frequency [1/m]")
         plt.ylabel("Normalized PSD")
         plt.legend()
     
     # check the spectral index is as desired, within at least a few percent
     assert np.isclose(index, plaw_fit.alpha, rtol=0.03), ("Measured output spectral index doesn't "
-            "match input within 3%: {} vs {}".format(index, plaw_fit.alpha) )
+            f"match input within 3%: {index} vs {plaw_fit.alpha}" )
 
 def test_PowerSpectrumWFE(plot=False):
     # verify self-consistency of PowerSpectrumWFE with a reference case
     import os
+
     import astropy.io.fits as fits
     
     # declare internal functions
@@ -279,12 +277,12 @@ def test_PowerSpectrumWFE(plot=False):
         plt.figure(dpi=100)
         plt.imshow(surf_ref.value, origin='lower')
         plt.colorbar().set_label(surf_ref.unit)
-        plt.title('Ref surf, RMS={0:.4f}, PV={1:.2f}'.format(rms_ref, pv_ref))
+        plt.title(f'Ref surf, RMS={rms_ref:.4f}, PV={pv_ref:.2f}')
 
         plt.figure(dpi=100)
         plt.imshow(psd_opd.value, origin='lower')
         plt.colorbar().set_label(psd_opd.unit)
-        plt.title('PSD surf, RMS={0:.4f}, PV={1:.2f}'.format(psd_rms, psd_pv))
+        plt.title(f'PSD surf, RMS={psd_rms:.4f}, PV={psd_pv:.2f}')
 
 def test_KolmogorovWFE():
     CN2 = 1e-14*u.m**(-2/3)

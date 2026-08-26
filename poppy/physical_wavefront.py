@@ -1,17 +1,17 @@
-# -*- coding: utf-8 -*-
 
-import numpy as np
-import scipy.constants as const
-import astropy.units as u
 from copy import deepcopy
+
+import astropy.units as u
+import numpy as np
+import scipy
+import scipy.constants as const
 from scipy.linalg import lstsq
 
 from poppy.fresnel import FresnelWavefront, QuadraticLens
 
 from . import accel_math
-from .accel_math import xp, ensure_not_on_gpu
+from .accel_math import ensure_not_on_gpu, xp
 
-import scipy
 if accel_math._USE_CUPY:
     lstsq = xp.linalg.lstsq
 else:
@@ -48,7 +48,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
                  M2=1.0,
                  n0=1.00027398,  # refractive index of air @ 15 deg C, lambda=1064nm
                  **kwargs):
-        super(PhysicalFresnelWavefront, self).__init__(
+        super().__init__(
             beam_radius=beam_radius,
             units=units,
             rayleigh_factor=rayleigh_factor,
@@ -136,7 +136,7 @@ class PhysicalFresnelWavefront(FresnelWavefront):
         """
 
         pow = xp.array(self.power)
-        super(PhysicalFresnelWavefront, self).propagate_fresnel(z, **kwargs)
+        super().propagate_fresnel(z, **kwargs)
         self.scale_power(pow * xp.exp(-attenuation_coeff * z.to(u.m).value))
 
     def center(self, mask=1.0):

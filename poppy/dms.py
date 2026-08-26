@@ -1,19 +1,18 @@
 # Code for modeling deformable mirrors
 # By Neil Zimmerman based on Marshall's dms.py in the gpipsfs repo
 
-import numpy as np
-import matplotlib.pyplot as plt
-import scipy.ndimage.interpolation
-import scipy.signal
+import logging
+from abc import ABC
+
 import astropy.io.fits as fits
 import astropy.units as u
-from abc import ABC, abstractmethod
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.ndimage
+import scipy.signal
 
-from . import utils, accel_math, poppy_core, optics
-
-from .accel_math import xp, _scipy
-
-import logging
+from . import accel_math, optics, poppy_core, utils
+from .accel_math import _scipy, xp
 
 _log = logging.getLogger('poppy')
 
@@ -236,7 +235,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         if xp.isscalar(new_surface.value):
             self._surface[:] = new_surface.to(u.meter).value
         else:
-            assert new_surface.shape == self._surface.shape, "Supplied surface shape doesn't match DM. Must be {}".format(self._surface.shape)
+            assert new_surface.shape == self._surface.shape, f"Supplied surface shape doesn't match DM. Must be {self._surface.shape}"
             self._surface[:] = xp.asarray(new_surface.to(u.meter).value, dtype=float)
 
     @utils.quantity_input(new_value=u.meter)
@@ -251,15 +250,15 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
             Desired surface height for that actuator, in meters
             by default or use astropy Units to specify another unit if desired.
 
-        Example
-        -------
+        Examples
+        --------
         dm.set_actuator(12, 22, 123.4*u.nm)
 
         """
 
         if self.include_actuator_mask:
             if not self.actuator_mask[acty, actx]:
-                raise RuntimeError("Actuator ({}, {}) is masked out for that DM.".format(actx, acty))
+                raise RuntimeError(f"Actuator ({actx}, {acty}) is masked out for that DM.")
 
         if actx < 0 or actx > self.dm_shape[1] - 1:
             raise ValueError("X axis coordinate is out of range")
@@ -401,7 +400,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         interpolated_surface = xp.zeros(wave.shape)
 
         crosstalk = 0.15  # amount of crosstalk on adjacent actuator
-        sigma = self.actuator_spacing.to(u.meter).value / np.sqrt((-np.log(crosstalk)))
+        sigma = self.actuator_spacing.to(u.meter).value / np.sqrt(-np.log(crosstalk))
 
         pixelscale = x[0, 1] - x[0, 0]  # scale of x,y
 
@@ -676,7 +675,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
             act_space_m = self.actuator_spacing.to(u.meter).value
             r = np.linspace(0, 4 * act_space_m, 50)
             crosstalk = 0.15  # amount of crosstalk on adjacent actuator
-            sigma = act_space_m / np.sqrt((-np.log(crosstalk)))
+            sigma = act_space_m / np.sqrt(-np.log(crosstalk))
             plt.plot(r, np.exp(- (r / sigma) ** 2))
             plt.xlabel('Separation [m]')
             for i in range(4):
@@ -739,7 +738,7 @@ class SegmentedDeformableMirror(ABC):
         """
 
         if segnum not in self.segmentlist:
-            raise ValueError("Segment {} is not present for this DM instance.".format(segnum))
+            raise ValueError(f"Segment {segnum} is not present for this DM instance.")
         self._surface[segnum] = xp.array([piston.to(u.meter).value,
                                           tip.to(u.radian).value,
                                           tilt.to(u.radian).value])
@@ -769,7 +768,7 @@ class SegmentedDeformableMirror(ABC):
         self._seg_mask = self.transmission
         self._transmission = xp.asarray(self._seg_mask != 0, dtype=float)
 
-        y, x = self.get_coordinates((wave))
+        y, x = self.get_coordinates(wave)
 
         for i in self.segmentlist:
             wseg = xp.where(self._seg_mask == i+1)
@@ -888,6 +887,6 @@ class KeystoneSegmentedDeformableMirror(SegmentedDeformableMirror, optics.Keysto
     def _setup_arrays(self, npix, pixelscale, wave=None):
         # Small tweak to the superclass function, to allow invoking slightly better handling for pixels near
         # edges of segments. This approach results in the DM segment maps covering the segment gaps better, to
-        # accomodate 'gray' pixels in the transmission map
+        # accommodate 'gray' pixels in the transmission map
         super()._setup_arrays(npix, pixelscale, wave=wave)
         self._transmission = optics.KeystoneSegmentedCircularAperture.get_transmission(self, wave)

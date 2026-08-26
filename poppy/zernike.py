@@ -22,22 +22,19 @@ Gram-Schmidt orthonormalization process as applied to this case is
     Mahajan and Dai, 2006. Optics Letters Vol 31, 16, p 2462:
 """
 
-import numpy as np
 import inspect
-from math import factorial
-import scipy
-
-import sys
 import logging
+from functools import lru_cache
+from math import factorial
 
 import astropy.units as u
+import numpy as np
+import scipy
 
 from poppy.poppy_core import Wavefront
 
 from . import accel_math
 from .accel_math import xp
-
-from functools import lru_cache
 
 __all__ = [
     'R', 'cached_zernike1', 'hex_aperture', 'hexike_basis', 'noll_indices',
@@ -75,7 +72,7 @@ def zern_name(i):
     if i < len(names):
         return names[i]
     else:
-        return "Z%d" % i
+        return f"Z{i}"
 
 
 def str_zernike(n, m):
@@ -98,11 +95,11 @@ def str_zernike(n, m):
         if n == 0:
             return "1"
         else:
-            return "sqrt(%d)* ( %s ) " % (n + 1, outstr)
+            return f"sqrt({n+1:d})* ( {outstr} ) "
     elif signed_m > 0:
-        return "\\sqrt{%d}* ( %s ) * \\cos(%d \\theta)" % (2 * (n + 1), outstr, m)
+        return f"\\sqrt{{{2 * (n + 1):d}}}* ( {outstr} ) * \\cos({m} \\theta)"
     else:
-        return "\\sqrt{%d}* ( %s ) * \\sin(%d \\theta)" % (2 * (n + 1), outstr, m)
+        return f"\\sqrt{{{2 * (n + 1):d}}}* ( {outstr} ) * \\sin({m} \\theta)"
 
 
 def noll_indices(j):
@@ -149,7 +146,7 @@ def noll_indices(j):
 
         m = row_m[resid] * sign
 
-    _log.debug("J=%d:\t(n=%d, m=%d)" % (j, n, m))
+    _log.debug(f"J={j:d}:\t(n={n}, m={m})")
     return n, m
 
 
@@ -230,9 +227,9 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
     if not n >= m:
         raise ValueError("Zernike index m must be >= index n")
     if (n - m) % 2 != 0:
-        _log.warning("Radial polynomial is zero for these inputs: m={}, n={} "
-                  "(are you sure you wanted this Zernike?)".format(m, n))
-    _log.debug("Zernike(n=%d, m=%d)" % (n, m))
+        _log.warning(f"Radial polynomial is zero for these inputs: m={m}, n={n} "
+                  "(are you sure you wanted this Zernike?)")
+    _log.debug(f"Zernike(n={n}, m={m})")
 
     if theta is None and rho is None:
         x = (xp.arange(npix, dtype=xp.float64) - (npix - 1) / 2.) / ((npix - 1) / 2.)
@@ -294,7 +291,7 @@ def zernike1(j, **kwargs):
     return zernike(n, m, **kwargs)
 
 
-@lru_cache()
+@lru_cache
 def cached_zernike1(j, shape, pixelscale, pupil_radius, outside=np.nan, noll_normalize=True):
     """Compute Zernike based on Noll index *j*, using an LRU cache
     for efficiency. Refer to the `zernike1` docstring for details.
@@ -360,7 +357,7 @@ def zernike_basis(nterms=15, npix=512, rho=None, theta=None, **kwargs):
     return zern_output
 
 
-@lru_cache()
+@lru_cache
 def zernike_basis_faster(nterms=15, npix=512, outside=np.nan):
     """
     Return a cube of Zernike terms from 1 to N each as a 2D array
@@ -401,7 +398,7 @@ def zernike_basis_faster(nterms=15, npix=512, outside=np.nan):
     aperture[rho > 1] = 0.0  # this is the aperture mask
     noll_normalize = True
 
-    @lru_cache()
+    @lru_cache
     def cached_R(n, m):
         """Compute R[n, m], the Zernike radial polynomial
 
@@ -575,7 +572,7 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
             c[(j + 1, k)] = -1 / A * (Z[j + 1] * H[k] * apmask_float).sum()
             if c[(j + 1, k)] != 0:
                 nextG += c[(j + 1, k)] * H[k]
-            _log.debug("    c[%s] = %f", str((j + 1, k)), c[(j + 1, k)])
+            _log.debug("    c[{(j + 1, k)!s}] = {c[(j + 1, k)]}")
 
         nextH = nextG / np.sqrt((nextG ** 2).sum() / A)
 
@@ -782,8 +779,8 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
 
         # calculate padding for oversizing zernike_basis
         ceil = lambda x: xp.ceil(x) if x > 0 else 0  # avoid negative values
-        padding = (int(ceil((max_extent - (shape[0] - 1) / 2.))),
-                   int(ceil((max_extent - (shape[1] - 1) / 2.))))
+        padding = (int(ceil(max_extent - (shape[0] - 1) / 2.)),
+                   int(ceil(max_extent - (shape[1] - 1) / 2.)))
         padded_shape = (shape[0] + padding[0] * 2, shape[1] + padding[1] * 2)
         npix = padded_shape[0]
 
@@ -825,7 +822,7 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
 
     return basis
 
-class Segment_PTT_Basis(object):
+class Segment_PTT_Basis:
     def __init__(self, rings=2, flattoflat=1*u.m, gap=1*u.cm, center=False,
                  pupil_diam=None, **kwargs):
         """
@@ -896,7 +893,7 @@ class Segment_PTT_Basis(object):
         if nterms is None:
             nterms = 3*self.nsegments
         elif nterms > 3*self.nsegments:
-            raise ValueError("nterms must be <= {} for the specified segment aperture.".format(3*self.nsegments))
+            raise ValueError(f"nterms must be <= {3*self.nsegments} for the specified segment aperture.")
 
         # Re-use the machinery inside the HexSegmentedDM class to set up the
         # arrays defining the segment and zernike geometry.
@@ -934,7 +931,7 @@ class Segment_Piston_Basis(Segment_PTT_Basis):
         if nterms is None:
             nterms = self.nsegments
         elif nterms > self.nsegments:
-            raise ValueError("nterms must be <= {} for the specified segment aperture.".format(self.nsegments))
+            raise ValueError(f"nterms must be <= {self.nsegments} for the specified segment aperture.")
 
         aperture = self.hexdm.sample(npix=npix)
 
@@ -1028,6 +1025,104 @@ def decompose_opd(opd, aperture=None, nterms=15, basis=zernike_basis,
 
     return coeffs
 
+def decompose_opd_basis_matrix(opd, aperture=None, nterms=15, basis=zernike_basis_faster,
+
+                                       verbose=False, faster_orthogonal = False,  **kwargs):
+
+    """ Non-iterative version of  decompose_opd, it works for cases where the basis function is
+
+    orthonormal and *not* orthonormal. This function calculate the direct answer via matrix multiplications
+
+    Parameters
+    -----------
+    opd : 2d ndarray
+        the OPD you want to fit
+    aperture : 2D numpy array, optional
+        Aperture mask for which pixels are included within the aperture.
+        All positive nonzero values are considered within the aperture;
+        any pixels with zero, negative, or NaN values will be considered
+        outside the aperture, and set equal to the 'outside' parameter value.
+        If this parameter is not set, the aperture will be inferred from
+        the finite (i.e. non-NaN) pixels in the OPD array.`
+    nterms : int
+        number of terms to fit
+    basis : function
+        which basis function to use. Defaults to Zernike
+    faster_orthogonal = bool
+        Faster performance for orthogonal case. Default is False
+
+    Other Parameters
+    ----------------
+        Additional keyword arguments to this function are passed through to the `basis` callable.
+
+    Returns
+    -------
+    coeffs : list
+        List of coefficients (of length `nterms`) from which the
+        input OPD map can be constructed in the given basis.
+        (No additional unit conversions are performed. If the input
+        wavefront is in waves, coeffs will be in waves.)
+        Note that the first coefficient (element 0 in Python indexing)
+        corresponds to the Z=1 Zernike piston term, and so on.
+
+    Notes
+    -----
+    This version is based on David Arostein python code on February 5, 2023. See description below.
+    We seek an expression like:
+    opd = sum(coeffs[i] * basis_set[i])
+    Apply the dot product with basis_set[j] to both sides:
+    opd . basis_set[j] = sum(coeffs[i] * basis_set[i]) . basis_set[j]
+    When you have an orthogonal basis, this becomes an expression for how to find coeffs[j];
+    this is used in the original code, in the "for" loop over iterations:
+    this_coeff = (opd_copy * b)[wgood].sum() / ngood
+    But when we don't have an orthogonal basis, the equation becomes a matrix equation for the coefficients:
+    B * coeffs = opd . basis_set
+    with:
+    B = a matrix with Bij = basis_set[i] . basis_set[j] = (basis_set[i] * basis_set[j])[wgood].sum()
+    f = opd . basis_set is a vector with elements f[i] = (opd * basis_set[i])[wgood].sum()
+    and then solve thw system for coeffs
+    """
+
+    if aperture is None:
+
+        _log.warning("No aperture supplied - "
+                  "using the finite (non-NaN) part of the OPD map as a guess.")
+        aperture = np.isfinite(opd)
+    # any pixels with zero or NaN in the aperture are outside the area
+    apmask = (np.isfinite(aperture) & (aperture > 0))
+    # Determine if this basis function accepts an 'aperture' parameter or not
+    # If so, append that into the function's kwargs. This check is needed to
+    # handle e.g. both the zernike_basis function (which doesn't accept aperture)
+    # and hexike_basis or arbitrary_basis (which do).
+    if 'aperture' in inspect.signature(basis).parameters:
+        kwargs['aperture'] = aperture
+    basis_set = basis(
+        nterms=nterms,
+        npix=opd.shape[0],
+        outside=np.nan,
+        **kwargs
+    )
+    wgood = (apmask & np.isfinite(basis_set[1]))
+    ngood = apmask.sum()
+    b = np.zeros((nterms, nterms))
+    f = np.zeros(nterms)
+    for i, Zi in enumerate(basis_set):
+        f[i] = (opd * Zi)[wgood].sum()
+        for j, Zj in enumerate(basis_set[:i+1]):
+            b[i, j] = (Zi * Zj)[wgood].sum()
+            if i != j:
+                b[j, i] = b[i, j]
+
+    binv = np.linalg.pinv(b)
+
+    if faster_orthogonal:
+        coeffs = [binv[i, i] * fi for i, fi in enumerate(f)]
+    else:
+        coeffs = np.matmul(binv, f)
+        
+    return coeffs
+
+
 
 def decompose_opd_nonorthonormal_basis(opd, aperture=None, nterms=15, basis=zernike_basis_faster,
                                        iterations=5, verbose=False, **kwargs):
@@ -1106,7 +1201,7 @@ def decompose_opd_nonorthonormal_basis(opd, aperture=None, nterms=15, basis=zern
             opd_copy -= this_coeff * b
             coeffs[i] += this_coeff
         if verbose:
-            print("Iteration {}/{}: {}".format(count, iterations, coeffs))
+            print(f"Iteration {count}/{iterations}: {coeffs}")
 
     return coeffs
 
@@ -1287,7 +1382,7 @@ def decompose_opd_segments(opd, aperture=None, nterms=15, basis=None,
             coeffs[i] += this_coeff
 
         if verbose:
-            print("Iteration {}/{}: {}".format(count, iterations, coeffs))
+            print(f"Iteration {count}/{iterations}: {coeffs}")
     return coeffs
 
 # Back compatibility aliases, for the names in poppy pre 1.0:

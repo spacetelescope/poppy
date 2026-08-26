@@ -1,8 +1,8 @@
 
 import numpy as np
+
 from .. import fwcentroid
 from ..fwcentroid import test_fwcentroid
-
 from .test_errorhandling import _exception_message_starts_with
 
 # fwcentroid is a standalone package that's just included as a copy in

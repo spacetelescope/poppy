@@ -5,6 +5,34 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+1.2.0
+-----
+
+*2026 Aug 25*
+
+**What's Changed:**
+ * Updated release method notes by @york-stsci in https://github.com/spacetelescope/poppy/pull/657
+ * Fix various typos by @luzpaz in https://github.com/spacetelescope/poppy/pull/661
+ * build(deps): update scipy requirement from <1.15.0,>=1.14.1 to >=1.14.1,<1.16.0 by @dependabot[bot] in https://github.com/spacetelescope/poppy/pull/660
+ * [SCSB-205] `project.license.file` -> `project.license-files` by @zacharyburnett in https://github.com/spacetelescope/poppy/pull/662
+ * build(deps): update numexpr requirement from <2.11.0,>=2.9.0 to >=2.9.0,<2.15.0 by @dependabot[bot] in https://github.com/spacetelescope/poppy/pull/667
+ * [SCSB-225] migrate `[tool.pytest.ini_options]` to native TOML by @zacharyburnett in https://github.com/spacetelescope/poppy/pull/669
+ * remove `ez_setup.py` by @zacharyburnett in https://github.com/spacetelescope/poppy/pull/668
+ * Code linting and formatting with Ruff by @mperrin in https://github.com/spacetelescope/poppy/pull/672
+ * import scipy.ndimage instead of the removed scipy.ndimage.interpolation by @schlafly in https://github.com/spacetelescope/poppy/pull/673
+ * remove distutils usage and stale checks by @braingram in https://github.com/spacetelescope/poppy/pull/677
+ * Update minimum supported dependency versions following SPEC0 by @mperrin in https://github.com/spacetelescope/poppy/pull/678
+ * Improve docstrings for poppy_core.py and optics.py by @mperrin in https://github.com/spacetelescope/poppy/pull/680
+ * new decomposition function based on matrix multiplication from D Aros… by @marcio-melendez in https://github.com/spacetelescope/poppy/pull/679
+ * Remove an old deprecated help email. by @mperrin in https://github.com/spacetelescope/poppy/pull/681
+
+**New Contributors**
+ * @luzpaz made their first contribution in https://github.com/spacetelescope/poppy/pull/661
+ * @schlafly made their first contribution in https://github.com/spacetelescope/poppy/pull/673
+ * @marcio-melendez made their first contribution in https://github.com/spacetelescope/poppy/pull/679
+
+**Full Changelog**: https://github.com/spacetelescope/poppy/compare/1.1.2...v1.2.0
+
 1.1.2
 -----
 

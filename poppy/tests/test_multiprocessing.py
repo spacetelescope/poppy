@@ -1,15 +1,11 @@
 # Test functions for poppy multiprocessing
 
-from .. import poppy_core
-from .. import optics
-from .. import conf
-from .. import utils
-
-import numpy as np
-import astropy
-import astropy.io.fits as fits
 import sys
-from distutils.version import LooseVersion
+
+import astropy
+import numpy as np
+
+from .. import conf, optics, poppy_core, utils
 
 try:
     import pytest
@@ -26,10 +22,6 @@ if _HAVE_PYTEST:
 
     @pytest.mark.skipif( sys.platform=='win32',
             reason='Multiprocessing forkserver context not supported on Windows')
-    @pytest.mark.skipif( (sys.version_info < (3,4,0) ),
-            reason="Python 3.4 required for reliable forkserver start method")
-    @pytest.mark.skipif(LooseVersion(astropy.__version__) <  LooseVersion('1.0.3'),
-            reason="astropy >=1.0.3 required for tests of multiprocessing")
     def test_basic_multiprocessing():
         """For a simple optical system, test that single process and
         multiprocess calculation give the same results"""
@@ -55,10 +47,6 @@ if _HAVE_PYTEST:
 
     @pytest.mark.skipif( sys.platform=='win32',
             reason='Multiprocessing forkserver context not supported on Windows')
-    @pytest.mark.skipif( (sys.version_info < (3,4,0) ),
-            reason="Python 3.4 required for reliable forkserver start method")
-    @pytest.mark.skipif(LooseVersion(astropy.__version__) <  LooseVersion('1.0.3'),
-            reason="astropy >=1.0.3 required for tests of multiprocessing")
     def test_multiprocessing_intermediate_planes():
         """ Test that using multiprocessing you can retrieve the intermediate planes,
         and they are consistent with the intermediate planes from a
@@ -86,7 +74,7 @@ if _HAVE_PYTEST:
 
         for i in range(len(planes_single)):
             assert (np.allclose(planes_single[i].intensity, planes_multi[i].intensity)), \
-                "Intermediate plane {} from multiprocessing does not match same plane from single process.".format(i)
+                f"Intermediate plane {i} from multiprocessing does not match same plane from single process."
 
         return psf_single, psf_multi
 

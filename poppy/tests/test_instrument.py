@@ -1,11 +1,9 @@
 
-import matplotlib.pyplot as plt
 import numpy as np
-import astropy.io.fits as fits
 import pytest
 from astropy import units as u
 
-from poppy import poppy_core, instrument, optics, utils
+from poppy import instrument, poppy_core, utils
 from poppy.instrument import _HAS_SYNPHOT
 
 WEIGHTS_DICT = {'wavelengths': [2.0e-6, 2.1e-6, 2.2e-6], 'weights': [0.3, 0.5, 0.2]}
@@ -81,7 +79,7 @@ def test_instrument_source_synphot():
         "Number of wavelengths in PSF header does not match number requested"
 
     assert np.allclose(psf_weights_explicit[0].data, psf_weights_synphot[0].data,
-            rtol=1e-4), ( # Slightly larger tolerance to accomodate minor changes w/ synphot versions
+            rtol=1e-4), ( # Slightly larger tolerance to accommodate minor changes w/ synphot versions
         "synphot multiwavelength PSF does not match the weights and wavelengths pre-computed for "
         "a 5500 K blackbody in Johnson B (has synphot changed?)"
     )
@@ -155,10 +153,10 @@ def test_instrument_gaussian_jitter():
         expected_post_sigma = np.sqrt((fwhm_no_jitter/fwhm_to_sigma)**2 + JITTER_SIGMA**2)
         pre_sigma = fwhm_no_jitter/fwhm_to_sigma
         post_sigma = fwhm_with_jitter/fwhm_to_sigma
-        poppy_core._log.info("TEST: Jitter sigma={0:.4f}.   PSF sigma pre: {1:.4f}    post: {2:.4f}    expected: {3:.4f}".format(JITTER_SIGMA, pre_sigma, post_sigma, expected_post_sigma))
+        poppy_core._log.info(f"TEST: Jitter sigma={JITTER_SIGMA:.4f}.   PSF sigma pre: {pre_sigma:.4f}    post: {post_sigma:.4f}    expected: {expected_post_sigma:.4f}")
 
         reldiff = np.abs(post_sigma-expected_post_sigma)/post_sigma
-        assert reldiff < tolerance, "Post-jitter PSF width is too different from expected width: {:.4f}, {:.4f} arcsec".format(post_sigma, expected_post_sigma)
+        assert reldiff < tolerance, f"Post-jitter PSF width is too different from expected width: {post_sigma:.4f}, {expected_post_sigma:.4f} arcsec"
 
 
 def test_instrument_calc_datacube():

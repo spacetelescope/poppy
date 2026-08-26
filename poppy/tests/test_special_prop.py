@@ -1,19 +1,16 @@
 # Test functions for specialized propagators 
-import os
 
-import numpy as np
-import matplotlib.pyplot as plt
-from astropy.io import fits
 import time
-import pytest
+
+import matplotlib.pyplot as plt
+import numpy as np
+
 try:
     import scipy
 except ImportError:
     scipy = None
 
-from .. import poppy_core
-from .. import optics
-from .. import special_prop
+from .. import optics, poppy_core, special_prop
 
 wavelen = 1e-6
 radius = 6.5/2
@@ -56,7 +53,7 @@ def test_SAMC(fft_oversample=4, samc_oversample=8, npix=512,
                     return_intermediates=True)
     t_stop_sam = time.time()
 
-    print("SAMC calculation: {} s".format(t_stop_sam - t_start_sam))
+    print(f"SAMC calculation: {t_stop_sam - t_start_sam} s")
     if display:
         plt.suptitle("Calculation using SAMC method")
         plt.figure()
@@ -64,7 +61,7 @@ def test_SAMC(fft_oversample=4, samc_oversample=8, npix=512,
     t_start_fft = time.time()
     psf_fft = osys.calc_psf(display_intermediates=display)
     t_stop_fft = time.time()
-    print("Basic FFT calculation: {} s".format(t_stop_fft - t_start_fft))
+    print(f"Basic FFT calculation: {t_stop_fft - t_start_fft} s")
     if display:
         plt.suptitle("Calculation using Basic FFT method")
 

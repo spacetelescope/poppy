@@ -55,13 +55,15 @@
 __all__ = ['MatrixFourierTransform']
 
 import numpy as np
-from . import conf
-from . import accel_math
+
+from . import accel_math, conf
 from .accel_math import xp
+
 if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
 
 import logging
+
 _log = logging.getLogger('poppy')
 
 FFTSTYLE = 'FFTSTYLE'
@@ -316,18 +318,18 @@ def matrix_dft_numexpr(plane, nlamD, npix,
         dU = 1.0 / float(npixX)
         dV = 1.0 / float(npixY)
     else:
-        dU = nlamDX / float(npixX)
-        dV = nlamDY / float(npixY)
-        dX = 1.0 / float(npupX)
-        dY = 1.0 / float(npupY)
+        dU = nlamDX / float(npixX)   # noqa: F841
+        dV = nlamDY / float(npixY)   # noqa: F841
+        dX = 1.0 / float(npupX)   # noqa: F841
+        dY = 1.0 / float(npupY)   # noqa: F841
 
 
     # Setup arrays since numexpr can't call arange directly
     float = accel_math._float()
-    ar_npupX = np.arange(npupX, dtype=float)
-    ar_npupY = np.arange(npupY, dtype=float)
-    ar_npixX = np.arange(npixX, dtype=float)
-    ar_npixY = np.arange(npixY, dtype=float)
+    ar_npupX = np.arange(npupX, dtype=float)   # noqa: F841
+    ar_npupY = np.arange(npupY, dtype=float)   # noqa: F841
+    ar_npixX = np.arange(npixX, dtype=float)   # noqa: F841
+    ar_npixY = np.arange(npixY, dtype=float)   # noqa: F841
 
     if centering == FFTSTYLE:
         Xs = ne.evaluate("(ar_npupX - (npupX / 2)) * dX")
@@ -338,10 +340,10 @@ def matrix_dft_numexpr(plane, nlamD, npix,
 
     elif centering == ADJUSTABLE:
         if offset is None:
-            offsetY, offsetX = 0.0, 0.0
+            offsetY, offsetX = 0.0, 0.0   # noqa: F841
         else:
             try:
-                offsetY, offsetX = tuple(np.asarray(offset, dtype=float))
+                offsetY, offsetX = tuple(np.asarray(offset, dtype=float))   # noqa: F841
             except ValueError:
                 raise ValueError(
                     "'offset' must be supplied as a 2-tuple with "
@@ -365,7 +367,7 @@ def matrix_dft_numexpr(plane, nlamD, npix,
     XU = np.outer(Xs, Us)
     YV = np.outer(Ys, Vs)
 
-    two_pi_i = 2*np.pi*1j
+    two_pi_i = 2 * np.pi * 1j
     # SIGN CONVENTION: plus signs in exponent for basic forward propagation, with
     # phase increasing with time. This convention differs from prior poppy version < 1.0
     if inverse:
@@ -443,20 +445,20 @@ class MatrixFourierTransform:
             )
         self.centering = centering
         _log.debug("MatrixFourierTransform initialized using centering "
-                   "type = {0}".format(centering))
+                   f"type = {centering}")
 
     def _validate_args(self, nlamD, npix, offset):
         if self.centering == SYMMETRIC:
             if not np.isscalar(nlamD) or not np.isscalar(npix):
                 raise RuntimeError(
-                    'The selected centering mode, {}, does not support '
-                    'rectangular arrays.'.format(self.centering)
+                    f'The selected centering mode, {self.centering}, does not support '
+                    'rectangular arrays.'
                 )
         if self.centering == FFTSTYLE or self.centering == SYMMETRIC:
             if offset is not None:
                 raise RuntimeError(
-                    'The selected centering mode, {}, does not support '
-                    'position offsets.'.format(self.centering)
+                    f'The selected centering mode, {self.centering}, does not support '
+                    'position offsets.'
                 )
 
     def perform(self, pupil, nlamD, npix, offset=None):
@@ -491,11 +493,11 @@ class MatrixFourierTransform:
         """
         self._validate_args(nlamD, npix, offset)
         _log.debug(
-            "Forward MatrixFourierTransform: array shape {}, "
-            "centering style {}, "
-            "output region size {} in lambda / D units, "
-            "output array size {} pixels, "
-            "offset {}".format(pupil.shape, self.centering, nlamD, npix, offset)
+            f"Forward MatrixFourierTransform: array shape {pupil.shape}, "
+            f"centering style {self.centering}, "
+            f"output region size {nlamD} in lambda / D units, "
+            f"output array size {npix} pixels, "
+            f"offset {offset}"
         )
         return matrix_dft(pupil, nlamD, npix,
                           centering=self.centering, offset=offset)
@@ -533,11 +535,11 @@ class MatrixFourierTransform:
         """
         self._validate_args(nlamD, npix, offset)
         _log.debug(
-            "Inverse MatrixFourierTransform: array shape {}, "
-            "centering style {}, "
-            "output region size {} in lambda / D units, "
-            "output array size {} pixels, "
-            "offset {}".format(image.shape, self.centering, nlamD, npix, offset)
+            f"Inverse MatrixFourierTransform: array shape {image.shape}, "
+            f"centering style {self.centering}, "
+            f"output region size {nlamD} in lambda / D units, "
+            f"output array size {npix} pixels, "
+            f"offset {offset}"
         )
         return matrix_idft(image, nlamD, npix,
                            centering=self.centering, offset=offset)

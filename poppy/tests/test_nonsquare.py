@@ -1,7 +1,7 @@
-from .. import poppy_core as poppy
-from .. import optics
 import numpy as np
-import astropy.io.fits as fits
+
+from .. import optics
+from .. import poppy_core as poppy
 
 
 def test_nonsquare_detector_axes_lengths():
@@ -68,8 +68,7 @@ def test_nonsquare_detector_values(oversample=1, pixelscale=0.010, wavelength=1e
         # the maximum ought to be the same no matter what 
         for i in range(1, len(fovs_to_test)):
             thispsf = results[i]
-            if verbose: print("i = {}, shape={}, Maxes= {}, {}, diff={}".format(i,
-                fovs_to_test[i], psf0.max(), thispsf.max(), psf0.max() - thispsf.max()))
+            if verbose: print(f"i = {i}, shape={fovs_to_test[i]}, Maxes= {psf0.max()}, {thispsf.max()}, diff={psf0.max() - thispsf.max()}")
 
 
             assert(np.allclose(psf0.max(), thispsf.max()))

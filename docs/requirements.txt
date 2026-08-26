@@ -1,9 +1,0 @@
-sphinx_rtd_theme
-stsci_rtd_theme
-sphinx-automodapi
-sphinx-issues
-numpy >= 1.13
-scipy
-matplotlib
-nbsphinx
-pandoc

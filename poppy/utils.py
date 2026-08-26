@@ -8,26 +8,21 @@ import json
 import logging
 import os.path
 import pickle
+import warnings
 
+import astropy.io.fits as fits
+import astropy.units as u
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.interpolate
 import scipy.ndimage
-import warnings
-
 from astropy import config
-import astropy.units as u
-
-import astropy.io.fits as fits
 
 import poppy
 
-from importlib import reload
-
 from . import accel_math
-
-from .accel_math import xp, _scipy
+from .accel_math import xp
 
 try:
     import pyfftw
@@ -56,7 +51,7 @@ __all__ = ['display_psf', 'display_psf_difference', 'display_ee', 'measure_ee', 
 #
 
 def imshow(image, *args, **kwargs):
-    """If needed, fetch array fromm GPU before imshow"""
+    """If needed, fetch array from GPU before imshow"""
     return plt.imshow( accel_math.ensure_not_on_gpu(image),
                        *args, **kwargs)
 
@@ -92,7 +87,7 @@ def imshow_with_mouseover(image0, ax=None, *args, **kwargs):
         img_x = np.floor((x - imext[0]) / (imext[1] - imext[0]) * imsize[1])
         img_x = int(img_x.clip(0, imsize[1] - 1))
 
-        return "(%6.3f, %6.3f)     %-12.6g" % (x, y, aximage[img_y, img_x])
+        return f"({x:6.3f}, {y:6.3f})     {aximage[img_y, img_x]:<12.6g}"
 
     ax.format_coord = report_pixel
     return ax
@@ -247,7 +242,7 @@ def display_psf(hdulist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
         ceny *= coordinate_rescale  # if display coordinate unit isn't arcseconds, rescale the centroid accordingly
         cenx *= coordinate_rescale
         ax.plot(cenx, ceny, 'k+', markersize=15, markeredgewidth=1)
-        _log.info("centroid: (%f, %f) " % (cenx, ceny))
+        _log.info(f"centroid: ({cenx:f}, {ceny:f}) ")
 
     if imagecrop is not None:
         halffov_x = min((imagecrop / 2.0, halffov_x))
@@ -259,7 +254,7 @@ def display_psf(hdulist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
         ax.axvline(0, ls=':', color='k')
     if title is None:
         try:
-            fspec = "%s, %s" % (hdulist[ext].header['INSTRUME'], hdulist[ext].header['FILTER'])
+            fspec = "{}, {}".format(hdulist[ext].header['INSTRUME'], hdulist[ext].header['FILTER'])
         except KeyError:
             fspec = str(hdulist_or_filename)
         title = "PSF sim for " + fspec
@@ -448,9 +443,9 @@ def display_ee(hdulist_or_filename=None, ext=0, overplot=False, ax=None, mark_le
     mark_levels : bool
         If set, mark and label on the plots the radii for 50%, 80%, 95% encircled energy.
         Default is True
-    levels : list 
+    levels : list
         if not None and mark_levels is true then this list specifies alternative levels
-        
+
     """
     if isinstance(hdulist_or_filename, str):
         hdu_list = fits.open(hdulist_or_filename)
@@ -479,7 +474,7 @@ def display_ee(hdulist_or_filename=None, ext=0, overplot=False, ax=None, mark_le
         for level in markers:
             ee_lev = radius[np.where(ee > level)[0][0]]
             yoffset = 0 if level < 0.9 else -0.05
-            plt.text(ee_lev + 0.1, level + yoffset, 'EE=%2d%% at r=%.3f"' % (level * 100, ee_lev))
+            plt.text(ee_lev + 0.1, level + yoffset, f'EE={level * 100:2d}% at r={ee_lev:.3f}"')
 
 
 def display_profiles(hdulist_or_filename=None, ext=0, overplot=False, title=None, **kwargs):
@@ -510,7 +505,7 @@ def display_profiles(hdulist_or_filename=None, ext=0, overplot=False, title=None
 
     if title is None:
         try:
-            title = "%s, %s" % (hdu_list[ext].header['INSTRUME'], hdu_list[ext].header['FILTER'])
+            title = "{}, {}".format(hdu_list[ext].header['INSTRUME'], hdu_list[ext].header['FILTER'])
         except KeyError:
             title = str(hdulist_or_filename)
 
@@ -523,7 +518,7 @@ def display_profiles(hdulist_or_filename=None, ext=0, overplot=False, title=None
     plt.semilogy(radius, profile)
 
     fwhm = 2 * radius[np.where(profile < profile[0] * 0.5)[0][0]]
-    plt.text(fwhm, profile[0] * 0.5, 'FWHM = %.3f"' % fwhm)
+    plt.text(fwhm, profile[0] * 0.5, f'FWHM = {fwhm:.3f}"')
 
     plt.subplot(2, 1, 2)
     # plt.semilogy(radius, ee, nonposy='clip')
@@ -536,7 +531,7 @@ def display_profiles(hdulist_or_filename=None, ext=0, overplot=False, title=None
         if (ee > level).any():
             ee_lev = radius[np.where(ee > level)[0][0]]
             yoffset = 0 if level < 0.9 else -0.05
-            plt.text(ee_lev + 0.1, level + yoffset, 'EE=%2d%% at r=%.3f"' % (level * 100, ee_lev))
+            plt.text(ee_lev + 0.1, level + yoffset, f'EE={level * 100:2d}% at r={ee_lev:.3f}"')
 
 
 def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stddev=False, mad=False,
@@ -654,7 +649,7 @@ def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stdde
     tbin = csim[rind[1:]] - csim[rind[:-1]]  # sum for image values in radius bins
     radialprofile = tbin / nr
 
-    # pre-pend the initial element that the above code misses.
+    # prepend the initial element that the above code misses.
     radialprofile2 = np.empty(len(radialprofile) + 1)
     if rind[0] != 0:
         radialprofile2[0] = csim[rind[0]] / (
@@ -891,7 +886,7 @@ def measure_fwhm(hdulist_or_filename, ext=0, center=None, plot=False, threshold=
         FWHM in arcseconds
 
     """
-    from astropy.modeling import models, fitting
+    from astropy.modeling import fitting, models
 
     if isinstance(hdulist_or_filename, str):
         hdulist = fits.open(hdulist_or_filename)
@@ -905,21 +900,21 @@ def measure_fwhm(hdulist_or_filename, ext=0, center=None, plot=False, threshold=
 
     pixelscale = hdulist[ext].header['PIXELSCL']
 
-    _log.debug("Pixelscale is {} arcsec/pix.".format(pixelscale, ))
+    _log.debug(f"Pixelscale is {pixelscale} arcsec/pix.")
 
     # Prepare array r with radius in arcseconds
     y, x = np.indices(image.shape, dtype=float)
     if center is None:
         # get exact center of image
         center = tuple((a - 1) / 2.0 for a in image.shape[::-1])
-    _log.debug("Using PSF center = {}".format(center))
+    _log.debug(f"Using PSF center = {center}")
     x -= center[0]
     y -= center[1]
     r = np.sqrt(x ** 2 + y ** 2) * pixelscale  # radius in arcseconds
 
     # Select pixels above that threshold
     wpeak = np.where(image > threshold)  # note, image is normalized to peak=1 above
-    _log.debug("Using {} pixels above {} of peak".format(len(wpeak[0]), threshold))
+    _log.debug(f"Using {len(wpeak[0])} pixels above {threshold} of peak")
 
     rpeak = r[wpeak]
     impeak = image[wpeak]
@@ -929,7 +924,7 @@ def measure_fwhm(hdulist_or_filename, ext=0, center=None, plot=False, threshold=
         std_guess = hdulist[ext].header['DIFFLMT'] / 2.354
     else:
         std_guess = measure_fwhm_radprof(hdulist, ext=ext, center=center, nowarn=True) / 2.354
-    _log.debug("Initial guess Gaussian sigma= {} arcsec".format(std_guess))
+    _log.debug(f"Initial guess Gaussian sigma= {std_guess} arcsec")
 
     # Determine best fit Gaussian parameters
     g_init = models.Gaussian1D(amplitude=1., mean=0, stddev=std_guess)
@@ -937,7 +932,7 @@ def measure_fwhm(hdulist_or_filename, ext=0, center=None, plot=False, threshold=
 
     fit_g = fitting.LevMarLSQFitter()
     g = fit_g(g_init, rpeak, impeak)
-    _log.debug("Fit results for Gaussian: {}, {}".format(g.amplitude, g.stddev))
+    _log.debug(f"Fit results for Gaussian: {g.amplitude}, {g.stddev}")
 
     # Convert from the fit result sigma parameter to FWHM.
     # note, astropy fitting doesn't constrain the stddev to be positive for some reason.
@@ -955,7 +950,7 @@ def measure_fwhm(hdulist_or_filename, ext=0, center=None, plot=False, threshold=
 
         plt.axhline(0.5, ls=":")
         plt.axvline(fwhm / 2, ls=':')
-        plt.text(0.1, 0.2, 'FWHM={:.4f} arcsec'.format(fwhm), transform=plt.gca().transAxes, )
+        plt.text(0.1, 0.2, f'FWHM={fwhm:.4f} arcsec', transform=plt.gca().transAxes, )
 
         plt.gca().set_ylim(threshold * .5, 2)
 
@@ -1008,7 +1003,7 @@ def measure_fwhm_radprof(HDUlist_or_filename=None, ext=0, center=None, level=0.5
     if len(wlower[0]) == 0:
         raise ValueError(
             "The supplied array's pixel values never go below {0:.2f} of its maximum, {1:.3g}. " +
-            "Cannot measure FWHM.".format(level, rpmax))
+            "Cannot measure FWHM.")
     wmin = np.min(wlower[0])
     # go just a bit beyond the half way mark
     winterp = np.arange(0, wmin + 2, dtype=int)[::-1]
@@ -1104,7 +1099,7 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=20, verbo
     cent_of_mass = fwcentroid(image, halfwidth=boxsize, **kwargs)
 
     if verbose:
-        print("Center of mass: (%.4f, %.4f)" % (cent_of_mass[1], cent_of_mass[0]))
+        print(f"Center of mass: ({cent_of_mass[1]:.4f}, {cent_of_mass[0]:.4f})")
 
     if relativeto == 'center':
         imcen = np.array([(image.shape[0] - 1) / 2., (image.shape[1] - 1) / 2.])
@@ -1234,15 +1229,15 @@ def pad_or_crop_to_shape(array, target_shape):
 
         resampled_array = xp.zeros(shape=(lx_w, ly_w), dtype=array.dtype)
         resampled_array[border_x:border_x + lx, border_y:border_y + ly] = array
-        _log.debug("  Padded with a {:d} x {:d} border to "
-                   " match the desired shape".format(border_x, border_y))
+        _log.debug(f"  Padded with a {border_x:d} x {border_y:d} border to "
+                   " match the desired shape")
 
     else:
         _log.debug("Array shape " + str(array.shape) + " is larger than desired shape " + str(
             [lx_w, ly_w]) + "; will crop out just the center part.")
         resampled_array = array[border_x:border_x + lx_w, border_y:border_y + ly_w]
-        _log.debug("  Trimmed a border of {:d} x {:d} pixels "
-                   "to match the desired shape".format(border_x, border_y))
+        _log.debug(f"  Trimmed a border of {border_x:d} x {border_y:d} pixels "
+                   "to match the desired shape")
     return resampled_array
 
 
@@ -1298,8 +1293,8 @@ def rebin_array(a=None, rc=(2, 2), verbose=False):
             Clo = ci * c
             b[ri, ci] = a[Rlo:Rlo + r, Clo:Clo + c].sum()
             if verbose:
-                print("    [%d:%d, %d:%d]" % (Rlo, Rlo + r, Clo, Clo + c))
-                print("%4.0f" % b[ri, ci])
+                print(f"    [{Rlo:d}:{Rlo + r:d}, {Clo:d}:{Clo + c:d}]")
+                print(f"{b[ri, ci]:4.0f}")
     return b
 
 
@@ -1330,7 +1325,7 @@ def krebin(a, shape):
 #
 
 
-class BackCompatibleQuantityInput(object):
+class BackCompatibleQuantityInput:
     # Modified from code in astropy.units.decorators.py
     # See http://docs.astropy.org/en/stable/_modules/astropy/units/decorators.html
 
@@ -1396,9 +1391,10 @@ class BackCompatibleQuantityInput(object):
         self.decorator_kwargs = kwargs
 
     def __call__(self, wrapped_function):
-        from functools import wraps
-        from astropy.units import UnitsError, add_enabled_equivalencies, Quantity
         import inspect
+        from functools import wraps
+
+        from astropy.units import Quantity, UnitsError, add_enabled_equivalencies
 
         # Extract the function signature for the function we are wrapping.
         wrapped_signature = inspect.signature(wrapped_function)
@@ -1440,30 +1436,26 @@ class BackCompatibleQuantityInput(object):
                         try:
                             tmp = np.asarray(arg, dtype=float)
                         except (ValueError, TypeError):
-                            raise ValueError("Argument '{0}' to function '{1}'"
-                                             " must be a number (not '{3}'), and convertable to"
-                                             " units='{2}'.".format(param.name,
-                                                                    wrapped_function.__name__,
-                                                                    target_unit.to_string(), arg))
+                            raise ValueError(f"Argument '{param.name}' to function '{wrapped_function.__name__}'"
+                                             f" must be a number (not '{arg}'), and convertible to"
+                                             f" units='{target_unit.to_string()}'.")
 
                     try:
                         equivalent = arg.unit.is_equivalent(target_unit,
                                                             equivalencies=self.equivalencies)
 
                         if not equivalent:
-                            raise UnitsError("Argument '{0}' to function '{1}'"
-                                             " must be in units convertable to"
-                                             " '{2}'.".format(param.name,
-                                                              wrapped_function.__name__,
-                                                              target_unit.to_string()))
+                            raise UnitsError(f"Argument '{param.name}' to function '{wrapped_function.__name__}'"
+                                             " must be in units convertible to"
+                                             f" '{target_unit.to_string()}'.")
 
                     # Either there is no .unit or no .is_equivalent
                     except AttributeError:
                         if hasattr(arg, "unit"):
                             error_msg = "a 'unit' attribute without an 'is_equivalent' method"
-                            raise TypeError("Argument '{0}' to function '{1}' has {2}. "
+                            raise TypeError(f"Argument '{param.name}' to function '{wrapped_function.__name__}' has {error_msg}. "
                                             "You may want to pass in an astropy Quantity instead."
-                                            .format(param.name, wrapped_function.__name__, error_msg))
+                                            )
                         else:
                             # apply the default unit here, without complaint
                             # print("Updating: "+param.name)
@@ -1520,13 +1512,13 @@ def spectrum_from_spectral_type(sptype, return_list=False, catalog=None):
         import os
         cdbs = os.getenv('PYSYN_CDBS')
         if cdbs is None:
-            raise EnvironmentError("Environment variable $PYSYN_CDBS must be defined for synphot")
+            raise OSError("Environment variable $PYSYN_CDBS must be defined for synphot")
         if os.path.exists(os.path.join(os.getenv('PYSYN_CDBS'), 'grid', 'phoenix')):
             catalog = 'phoenix'
         elif os.path.exists(os.path.join(os.getenv('PYSYN_CDBS'), 'grid', 'ck04models')):
             catalog = 'ck04'
         else:
-            raise IOError("Could not find either phoenix or ck04models subdirectories of $PYSYN_CDBS/grid")
+            raise OSError("Could not find either phoenix or ck04models subdirectories of $PYSYN_CDBS/grid")
 
     if catalog.lower() == 'ck04':
         catname = 'ck04models'
@@ -1650,7 +1642,7 @@ def spectrum_from_spectral_type(sptype, return_list=False, catalog=None):
         sptype_list.insert(0, "Flat spectrum in F_lambda")
         # add a variety of spectral type slopes, per request from Dean Hines
         for slope in [-3, -2, -1.5, -1, -0.75, -0.5, 0.5, 0.75, 1.0, 1.5, 2, 3]:
-            sptype_list.insert(0, "Power law F_nu ~ nu^(%s)" % str(slope))
+            sptype_list.insert(0, f"Power law F_nu ~ nu^({str(slope)})")
         # sptype_list.insert(0,"Power law F_nu ~ nu^(-0.75)")
         # sptype_list.insert(0,"Power law F_nu ~ nu^(-1.0)")
         # sptype_list.insert(0,"Power law F_nu ~ nu^(-1.5)")
@@ -1682,9 +1674,9 @@ def spectrum_from_spectral_type(sptype, return_list=False, catalog=None):
         keys = lookuptable[sptype]
         try:
             return grid_to_spec(catname, keys[0], keys[1], keys[2])
-        except IOError:
+        except OSError:
             errmsg = ("Could not find a match in catalog {0} for key {1}. Check that is a valid name in the " +
-                      "lookup table, and/or that synphot is installed properly.".format(catname, sptype))
+                      "lookup table, and/or that synphot is installed properly.")
             _log.critical(errmsg)
             raise LookupError(errmsg)
 
@@ -1735,8 +1727,7 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
     propinfo = osys._propagation_info()
     if 'FFT' in propinfo['steps']:
         wavefrontsize = wfshape[0] * wfshape[1] * osys.oversample ** 2 * 16  # 16 bytes = complex double size
-        _log.debug('FFT propagation with array={0}, oversample = {1} uses {2} bytes'.format(wfshape[0], osys.oversample,
-                                                                                            wavefrontsize))
+        _log.debug(f'FFT propagation with array={wfshape[0]}, oversample = {osys.oversample} uses {wavefrontsize} bytes')
         # The following is a very rough estimate
         # empirical tests show that an 8192x8192 propagation results in Python sessions with ~4 GB memory used w/ FFTW
         # using numpy FT, the memory usage per process can exceed 5 GB for an 8192x8192 propagation.
@@ -1744,7 +1735,7 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
     else:
         # oversampling not relevant for memory size in MFT mode
         wavefrontsize = wfshape[0] * wfshape[1] * 16  # 16 bytes = complex double size
-        _log.debug('MFT propagation with array={0} uses {2} bytes'.format(wfshape[0], osys.oversample, wavefrontsize))
+        _log.debug(f'MFT propagation with array={wfshape[0]} uses {wavefrontsize} bytes')
         padding_factor = 1
 
     mem_per_prop = wavefrontsize * padding_factor
@@ -1762,7 +1753,7 @@ def estimate_optimal_nprocesses(osys, nwavelengths=None, padding_factor=None, me
         if recommendation > nwavelengths:
             recommendation = nwavelengths
 
-    _log.info("estimated optimal # of processes is {0}".format(recommendation))
+    _log.info(f"estimated optimal # of processes is {recommendation}")
     return recommendation
 
 
@@ -1827,8 +1818,8 @@ def fftw_load_wisdom(filename=None):
         try:
             wisdom = json.load(wisdom_file)
         except ValueError:  # catches json.JSONDecodeError on Python 3.x too
-            warnings.warn("Unable to parse FFTW wisdom in {}. "
-                          "The file may be corrupt.".format(filename), FFTWWisdomWarning)
+            warnings.warn(f"Unable to parse FFTW wisdom in {filename}. "
+                          "The file may be corrupt.", FFTWWisdomWarning)
             return
 
     # Python 3.x+ doesn't let us use ascii implicitly, but PyFFTW only accepts bytestrings
@@ -1839,9 +1830,9 @@ def fftw_load_wisdom(filename=None):
 
     success_double, success_single, success_longdouble = pyfftw.import_wisdom(wisdom_tuple)
 
-    _log.debug("Reloaded double precision wisdom: {}".format(success_double))
-    _log.debug("Reloaded single precision wisdom: {}".format(success_single))
-    _log.debug("Reloaded longdouble precision wisdom: {}".format(success_longdouble))
+    _log.debug(f"Reloaded double precision wisdom: {success_double}")
+    _log.debug(f"Reloaded single precision wisdom: {success_single}")
+    _log.debug(f"Reloaded longdouble precision wisdom: {success_longdouble}")
 
     try:
         saved_fftw_init = pickle.loads(wisdom['_FFTW_INIT'].encode('ascii'))

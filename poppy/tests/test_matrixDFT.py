@@ -3,20 +3,18 @@
 #
 #
 
-import matplotlib
-import matplotlib.pyplot as plt
-import astropy.io.fits as fits
+import logging
 import os
 
-from poppy.accel_math import xp as np   # May or may not be on GPU
+import astropy.io.fits as fits
+import matplotlib
+import matplotlib.pyplot as plt
 
-from .. import poppy_core
-from .. import optics
-from .. import matrixDFT
+from poppy.accel_math import xp as np  # May or may not be on GPU
+
+from .. import matrixDFT, optics, poppy_core
 from .test_errorhandling import _exception_message_starts_with
 
-
-import logging
 _log = logging.getLogger('poppy_tests')
 
 
@@ -29,8 +27,8 @@ def complexinfo(a, str=None):
         print("\t", str)
     re = a.real.copy()
     im = a.imag.copy()
-    _log.debug("\t%.2e  %.2g  =  re.sum im.sum" % (re.sum(), im.sum()))
-    _log.debug("\t%.2e  %.2g  =  abs(re).sum abs(im).sum" % (abs(re).sum(), abs(im).sum()))
+    _log.debug("\t{:.2e}  {:.2g}  =  re.sum im.sum".format(re.sum(), im.sum()))
+    _log.debug("\t{:.2e}  {:.2g}  =  abs(re).sum abs(im).sum".format(abs(re).sum(), abs(im).sum()))
 
 
 
@@ -88,7 +86,7 @@ def test_MFT_flux_conservation(centering='FFTSTYLE', outdir=None, outname='test_
 
     # Set up constants for either a more precise test or a less precise but much
     # faster test:
-    print("Testing MFT flux conservation for centering = {}".format(centering))
+    print(f"Testing MFT flux conservation for centering = {centering}")
     if precision ==0.001:
         npupil = 800
         npix = 4096
@@ -262,9 +260,9 @@ def test_DFT_rect(centering='FFTSTYLE', outdir=None, outname='DFT1R_', npix=None
         plt.imshow(np.abs(pupil2))
         plt.gca().set_title('back to pupil')
         plt.draw()
-        plt.suptitle('Matrix DFT with rectangular arrays using centering={0}'.format(centering))
+        plt.suptitle(f'Matrix DFT with rectangular arrays using centering={centering}')
 
-        plt.savefig('test_DFT_rectangular_results_{0}.pdf'.format(centering))
+        plt.savefig(f'test_DFT_rectangular_results_{centering}.pdf')
 
     _log.info( "Post-inverse FFT total: "+str( abs(pupil2r).sum() ))
     _log.info( "Post-inverse pupil max: "+str(pupil2r.max()))
@@ -566,7 +564,7 @@ def test_parity_MFT_forward_inverse(display = False):
         for i, plane in enumerate(planes):
             ax = plt.subplot(2,nplanes,i+1)
             plane.display(ax = ax)
-            plt.title("Plane {0}".format(i))
+            plt.title(f"Plane {i}")
 
 
         plt.subplot(2,nplanes,nplanes+1)

@@ -1,12 +1,13 @@
 # Test functions for core poppy functionality
 import os
 
-import numpy as np
-from poppy.accel_math import xp   # May be numpy, or CuPy on GPU
-from astropy.io import fits
 import astropy.units as u
-import pytest
 import matplotlib.pyplot as plt
+import numpy as np
+import pytest
+from astropy.io import fits
+
+from poppy.accel_math import xp  # May be numpy, or CuPy on GPU
 
 try:
     import scipy
@@ -14,8 +15,8 @@ except ImportError:
     scipy = None
 
 import poppy
-from .. import poppy_core
-from .. import optics
+
+from .. import optics, poppy_core
 
 ####### Test Common Infrastructure #######
 
@@ -70,7 +71,7 @@ def test_input_wavefront_size():
         #pupil = optics.CircularAperture(radius=1)
         wf = osys.input_wavefront()
         expected_shape = (1024,1024) if (wf.ispadded == False) else (1024*oversamp, 1024*oversamp)
-        assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
+        assert wf.shape == expected_shape, f'Wavefront is not the expected size: is {wf.shape} expects {expected_shape}'
 
 
     # test setting the size based on the npix parameter, with no optical system planes
@@ -80,7 +81,7 @@ def test_input_wavefront_size():
         #pupil = optics.CircularAperture(radius=1)
         wf = osys.input_wavefront()
         expected_shape = (size,size)
-        assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
+        assert wf.shape == expected_shape, f'Wavefront is not the expected size: is {wf.shape} expects {expected_shape}'
 
     # test setting the size based on the npix parameter, with a non-null optical system
     # (so it infers the system diameter from the first optic's diameter)
@@ -89,7 +90,7 @@ def test_input_wavefront_size():
         osys.add_pupil(optics.CircularAperture(radius=1))
         wf = osys.input_wavefront()
         expected_shape = (size,size)
-        assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
+        assert wf.shape == expected_shape, f'Wavefront is not the expected size: is {wf.shape} expects {expected_shape}'
 
 
     # test setting the size based on an input optical element
@@ -101,8 +102,8 @@ def test_input_wavefront_size():
 
         wf = osys.input_wavefront()
         expected_shape = (npix,npix)
-        assert pupil_fits[0].data.shape == expected_shape, 'FITS array from optic element is not the expected size: is {} expects {}'.format(pupil_fits[0].data.shape,  expected_shape)
-        assert wf.shape == expected_shape, 'Wavefront is not the expected size: is {} expects {}'.format(wf.shape,  expected_shape)
+        assert pupil_fits[0].data.shape == expected_shape, f'FITS array from optic element is not the expected size: is {pupil_fits[0].data.shape} expects {expected_shape}'
+        assert wf.shape == expected_shape, f'Wavefront is not the expected size: is {wf.shape} expects {expected_shape}'
 
 
 
@@ -132,9 +133,10 @@ def test_CircularAperture_Airy(display=False):
     assert xp.all(xp.abs(difference) < 3e-5)
 
     if display:
-        from .. import utils
         #comparison of the two
         from matplotlib.colors import LogNorm
+
+        from .. import utils
         norm = LogNorm(vmin=1e-6, vmax=1e-2)
 
         plt.figure(figsize=(15,5))
@@ -332,8 +334,9 @@ def test_unit_conversions():
     """ Test the astropy.Quantity unit conversions
     This is a modified version of test_CircularAperture
     """
-    from ..misc import airy_2d
     import astropy.units as u
+
+    from ..misc import airy_2d
     # Analytic PSF for 1 meter diameter aperture
     analytic = airy_2d(diameter=1)
     analytic /= analytic.sum() # for comparison with poppy outputs normalized to total=1
@@ -429,9 +432,9 @@ def test_rotation_in_OpticalSystem(display=False, npix=1024):
         if display:
             fig, axes = plt.subplots(figsize=(16, 5), ncols=2)
             poppy.display_psf(psf1, ax=axes[0])
-            axes[0].set_title("Optic rotated {} deg".format(angle))
+            axes[0].set_title(f"Optic rotated {angle} deg")
             poppy.display_psf(psf2, ax=axes[1])
-            axes[1].set_title("Wavefront rotated {} deg".format(angle))
+            axes[1].set_title(f"Wavefront rotated {angle} deg")
 
         assert xp.allclose(psf1[0].data, psf2[0].data, atol=atol), ("PSFs did not agree "
                                                                     f"within the requested tolerance, for angle={angle}."

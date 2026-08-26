@@ -1,20 +1,18 @@
-import numpy as np
-import scipy.special
-import scipy.ndimage.interpolation
-import matplotlib
-import astropy.io.fits as fits
-import astropy.units as u
-import warnings
 import logging
+import warnings
 from abc import ABC, abstractmethod
 
-from . import utils
-from . import conf
-from .poppy_core import OpticalElement, Wavefront, BaseWavefront, PlaneType, _RADIANStoARCSEC
-from . import geometry
+import astropy.io.fits as fits
+import astropy.units as u
+import matplotlib
+import numpy as np
+import scipy.ndimage
+import scipy.special
 
-from . import accel_math
-from .accel_math import xp, _scipy, _exp, _r, _float, _complex
+from . import accel_math, conf, geometry, utils
+from .accel_math import _complex, _float, _r, _scipy, xp
+from .poppy_core import BaseWavefront, OpticalElement, PlaneType, Wavefront
+
 if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
 
@@ -43,20 +41,29 @@ class AnalyticOpticalElement(OpticalElement):
 
         Parameters
         ----------
-        name, verbose, oversample, planetype : various
-            Same as for OpticalElement
+        name : string, optional
+            Descriptive name.
+        verbose : bool, optional
+            Whether to print verbose output. Default True.
+        oversample : int, optional
+            Oversampling factor for this plane. Default 1.
+        planetype : PlaneType, optional
+            Type of the optical plane. Default PlaneType.unspecified.
         transmission, opd : string
             These are *not allowed* for Analytic optical elements, and this class will raise an
             error if you try to set one.
-        shift_x, shift_y : Optional floats
-            Translations of this optic, given in meters relative to the optical
-            axis for pupil plane elements, or arcseconds relative to the optical axis
-            for image plane elements.
-        rotation : Optional float
-            Rotation of the optic around its center, given in degrees
-            counterclockwise.  Note that if you apply both shift and rotation,
-            the optic rotates around its own center, rather than the optical
-            axis.
+        shift_x, shift_y : astropy Quantity (length or angle, depending on plane type) or float, optional
+            Translations of this optic. Plain floats are interpreted in meters for pupil plane
+            elements or arcseconds for image plane elements; astropy Quantities will be converted
+            to the appropriate unit automatically.
+        rotation : astropy Quantity angle or float, optional
+            Rotation of the optic around its center, in degrees counterclockwise, or an
+            angular astropy Quantity. Note that if you apply both shift and rotation,
+            the optic rotates around its own center, rather than the optical axis.
+        inclination_x, inclination_y : float, optional
+            Inclination of the optic around the X or Y axis, in degrees. A non-zero inclination
+            rescales the corresponding coordinate by ``1/cos(inclination)``, simulating a tilted
+            flat optic. It is physically inconsistent to set both at the same time.
 
     """
 
@@ -111,9 +118,13 @@ class AnalyticOpticalElement(OpticalElement):
 
         Parameters
         ----------
-        wave : float or obj
-            either a scalar wavelength or a Wavefront object
+        wave : float or Wavefront
+            Either a scalar wavelength in meters or a Wavefront object.
 
+        Returns
+        -------
+        phasor : ndarray
+            Complex phasor array suitable for multiplying the complex wavefront.
         """
         if isinstance(wave, BaseWavefront):
             wavelength = wave.wavelength
@@ -161,13 +172,24 @@ class AnalyticOpticalElement(OpticalElement):
             6.5 meters or 2 arcseconds depending on plane.
         what : string
             What to return: optic 'amplitude' transmission, 'intensity' transmission,
-            'phase', or 'opd'.  Note that optical path difference, OPD, is given in meters.
+            'phase', 'opd', or 'complex' phasor.  Note that the transmissions are returned as
+            floating point values between 0 and 1, phase is returned as an angle with units
+            depending on the value of phase_unit, the optical path difference 'opd' is
+            given in meters, and the complex phasor is the product of the amplitude
+            transmission and the complex exponential of the phase
         phase_unit : string
             Unit for returned phase array IF what=='phase'. One of 'radians', 'waves', 'meters'.
             ('meters' option is deprecated; use what='opd' instead.)
-        return_scale : float
+        return_scale : bool
             if True, will return a tuple containing the desired array and a float giving the
             pixel scale.
+
+        Returns
+        -------
+        output_array : ndarray
+            The sampled optic array.
+        pixel_scale : astropy Quantity
+            The pixel scale of the output array. Only returned if ``return_scale=True``.
         """
         if self.planetype != PlaneType.image:
             if grid_size is not None:
@@ -191,7 +213,7 @@ class AnalyticOpticalElement(OpticalElement):
             pixel_scale = fov / (npix * u.pixel)
             w = Wavefront(wavelength=wavelength, npix=npix, pixelscale=pixel_scale)
 
-        _log.info("Computing {0} for {1} sampled onto {2} pixel grid with pixelscale {3}".format(what, self.name, npix, pixel_scale))
+        _log.info(f"Computing {what} for {self.name} sampled onto {npix} pixel grid with pixelscale {pixel_scale}")
         if what == 'amplitude':
             output_array = self.get_transmission(w)
         elif what == 'intensity':
@@ -208,15 +230,15 @@ class AnalyticOpticalElement(OpticalElement):
             else:
                 warnings.warn("'phase_unit' parameter has been deprecated. Use what='opd' instead.",
                               category=DeprecationWarning)
-                raise ValueError('Invalid/unknown phase_unit: {}. Must be one of '
-                                 '[radians, waves, meters]'.format(phase_unit))
+                raise ValueError(f'Invalid/unknown phase_unit: {phase_unit}. Must be one of '
+                                 '[radians, waves, meters]')
         elif what == 'opd':
             output_array = self.get_opd(w)
         elif what == 'complex':
             output_array = self.get_phasor(w)
         else:
-            raise ValueError('Invalid/unknown what to sample: {}. Must be one of '
-                             '[amplitude, intensity, phase, opd, complex]'.format(what))
+            raise ValueError(f'Invalid/unknown what to sample: {what}. Must be one of '
+                             '[amplitude, intensity, phase, opd, complex]')
 
         if return_scale:
             return output_array, pixel_scale
@@ -234,8 +256,9 @@ class AnalyticOpticalElement(OpticalElement):
         ----------
         what : string
             What quantity to save. See the sample function of this class
-        wavelength : float
-            Wavelength in meters.
+        wavelength : astropy Quantity length or float
+            Wavelength for evaluating the optic; passed to sample(),
+            in meters (plain float) or an astropy Quantity.
         npix : integer
             Number of pixels.
         outname : string, optional
@@ -243,6 +266,10 @@ class AnalyticOpticalElement(OpticalElement):
 
         See the sample() function for additional optional parameters.
 
+        Returns
+        -------
+        hdul : astropy.io.fits.HDUList
+            FITS HDUList containing the sampled optic data and header metadata.
         """
         try:
             from .version import version
@@ -304,12 +331,23 @@ class AnalyticOpticalElement(OpticalElement):
 
         Shifts are given by default implicitly in meters for pupil optics and arcseconds for image
         plane optics. Shifts may optionally also be given with explicit units using Astropy Quantities,
-        which in this case must be convertable into meters or arcseconds as appropriate.
+        which in this case must be convertible into meters or arcseconds as appropriate.
 
         Rotations and inclinations are given implicitly in degrees.
 
         For multiple transformations, the order of operations is:
             shift, rotate, incline.
+
+        Parameters
+        ----------
+        wave : Wavefront
+            Wavefront object defining the coordinate grid (pixel scale, shape, plane type).
+
+        Returns
+        -------
+        y, x : ndarrays
+            2D coordinate arrays in the plane of the optic, in meters (pupil) or
+            arcseconds (image), after applying any shifts, rotation, and inclination.
         """
 
         y, x = wave.coordinates()
@@ -346,15 +384,23 @@ class AnalyticOpticalElement(OpticalElement):
 
 
 class ScalarTransmission(AnalyticOpticalElement):
-    """ Uniform transmission between 0 and 1.0 in intensity.
+    """ Uniform amplitude transmission between 0 and 1.
 
     Either a null optic (empty plane) or some perfect ND filter...
-    But most commonly this is just used as a null optic placeholder """
+    But most commonly this is just used as a null optic placeholder.
+
+    Parameters
+    ----------
+    name : string, optional
+        Descriptive name. Auto-generated from transmission value if not given.
+    transmission : float
+        Amplitude transmission value (not intensity), between 0 and 1. Default is 1.0.
+    """
 
     def __init__(self, name=None, transmission=1.0, **kwargs):
         if name is None:
             name = ("-empty-" if transmission == 1.0 else
-                    "Scalar Transmission of {0}".format(transmission))
+                    f"Scalar Transmission of {transmission}")
         AnalyticOpticalElement.__init__(self, name=name, **kwargs)
         self.transmission = float(transmission)
         self.wavefront_display_hint = 'intensity'
@@ -368,6 +414,13 @@ class ScalarTransmission(AnalyticOpticalElement):
 class ScalarOpticalPathDifference(AnalyticOpticalElement):
     """Uniform and constant optical path difference
 
+    Parameters
+    ----------
+    name : string, optional
+        Descriptive name. Auto-generated from OPD value if not given.
+    opd : astropy Quantity length or float
+        Optical path difference to apply uniformly. Plain float is interpreted as meters.
+        Default is 1 micron.
     """
     @utils.quantity_input(opd=u.meter)
     def __init__(self, name=None, opd=1.0*u.micron, **kwargs):
@@ -388,10 +441,16 @@ class InverseTransmission(AnalyticOpticalElement):
     return the inverse transmission 1 - T(x,y)
 
     This is a useful ingredient in the SemiAnalyticCoronagraph algorithm.
+
+    Parameters
+    ----------
+    optic : OpticalElement
+        Any optical element with a ``get_transmission`` method. The inverse
+        transmission of this optic will be computed as ``1 - T(x,y)``.
     """
 
     def __init__(self, optic=None):
-        super(InverseTransmission, self).__init__()
+        super().__init__()
         if optic is None or not hasattr(optic, 'get_transmission'):
             raise ValueError("Need to supply an valid optic to invert!")
         self.uninverted_optic = optic
@@ -443,17 +502,19 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
         kind : string
             Either 'circular' or 'linear'. The linear ones are custom shaped to NIRCAM's design
             with flat bits on either side of the linear tapered bit.
-            Also includes options 'nircamcircular' and 'nircamwedge' specialized for the
-            JWST NIRCam occulters, including the off-axis ND acq spots and the changing
-            width of the wedge occulter.
+            Also accepts (deprecated) 'nircamcircular' and 'nircamwedge' for JWST NIRCam
+            occulters; these will raise a DeprecationWarning.
         sigma : float
             The numerical size parameter, as specified in Krist et al. 2009 SPIE
-        wavelength : float
-            Wavelength this BLC is optimized for, only for the linear ones.
+        wavelength : astropy Quantity length or float, optional
+            Wavelength this BLC is optimized for (only used for the 'linear' kind).
+            Plain float is interpreted as meters.
 
     """
+
     allowable_kinds = ['circular', 'linear']
-    """ Allowable types of BLC supported by this class"""
+    """ Allowable types of BLC supported by this class
+    """
 
     @utils.quantity_input(wavelength=u.meter)
     def __init__(self, name="unnamed BLC", kind='circular', sigma=1, wavelength=None, **kwargs):
@@ -565,7 +626,7 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
                                           -4.59674047e-01, 2.60963397e+00, -9.70881273e+00,
                                           2.36585911e+01, -3.63978587e+01, 3.20703511e+01])
             else:
-                raise NotImplemented("No defined NIRCam wedge BLC mask for that wavelength?  ")
+                raise NotImplementedError("No defined NIRCam wedge BLC mask for that wavelength?  ")
 
             sigmas = numpy.poly1d(polyfitcoeffs)(scalefact)
 
@@ -620,9 +681,8 @@ class IdealFQPM(AnalyticImagePlaneElement):
     ----------
     name : string
         Descriptive name
-    wavelength : float
-        Wavelength in meters for which the FQPM was designed, and at which there
-        is exactly 1/2 a wave of retardance.
+    wavelength : astropy Quantity length or float
+        Wavelength at which there is exactly 1/2 a wave of retardance.
 
     """
 
@@ -657,10 +717,10 @@ class CircularPhaseMask(AnalyticImagePlaneElement):
     ----------
     name : string
         Descriptive name
-    radius : float
-        Radius of the mask
-    wavelength : float
-        Wavelength in meters for which the phase mask was designed
+    radius : astropy Quantity angle or float
+        Radius of the mask, in arcseconds (plain float) or as an astropy Quantity.
+    wavelength : astropy Quantity length or float
+        Wavelength for which the phase mask was designed, in meters (plain float) or as an astropy Quantity.
     retardance : float
         Optical path delay at that wavelength, specified in waves
         relative to the reference wavelength. Default is 0.5.
@@ -671,7 +731,7 @@ class CircularPhaseMask(AnalyticImagePlaneElement):
     def __init__(self, name=None, radius=1*u.arcsec, wavelength=1e-6 * u.meter, retardance=0.5,
                  **kwargs):
         if name is None:
-            name = "Phase mask r={:.3g}".format(radius)
+            name = f"Phase mask r={radius:.3g}"
         AnalyticImagePlaneElement.__init__(self, name=name, **kwargs)
         self.wavefront_display_hint = 'phase'  # preferred display for wavefronts at this plane
         self._default_display_size = 4*radius
@@ -699,8 +759,8 @@ class CircularPhaseMask(AnalyticImagePlaneElement):
         npix = (r <= radius).sum()
         if npix < 50:  # pragma: no cover
             import warnings
-            errmsg = "Phase mask is very coarsely sampled: only {} pixels. "\
-                     "Improve sampling for better precision!".format(npix)
+            errmsg = f"Phase mask is very coarsely sampled: only {npix} pixels. "\
+                     "Improve sampling for better precision!"
             warnings.warn(errmsg)
             _log.warn(errmsg)
         return self.opd
@@ -713,8 +773,12 @@ class RectangularFieldStop(AnalyticImagePlaneElement):
     ----------
     name : string
         Descriptive name
-    width, height: float
-        Size of the field stop, in arcseconds. Default 0.5 width, height 5.
+    width : astropy Quantity angle or float
+        Width of the field stop, in arcseconds (plain float) or as an astropy Quantity.
+        Default is 0.5 arcsec.
+    height : astropy Quantity angle or float
+        Height of the field stop, in arcseconds (plain float) or as an astropy Quantity.
+        Default is 5.0 arcsec.
     """
 
     @utils.quantity_input(width=u.arcsec, height=u.arcsec)
@@ -798,7 +862,7 @@ class HexagonFieldStop(AnalyticImagePlaneElement):
             self.side = flattoflat / np.sqrt(3.)
 
         if name is None:
-            name = "Hexagon, side length= {}".format(self.side)
+            name = f"Hexagon, side length= {self.side}"
 
         AnalyticImagePlaneElement.__init__(self, name=name, **kwargs)
 
@@ -852,10 +916,12 @@ class AnnularFieldStop(AnalyticImagePlaneElement):
     ----------
     name : string
         Descriptive name
-    radius_inner : float
-        Radius of the central opaque region, in arcseconds. Default is 0.0 (no central opaque spot)
-    radius_outer : float
-        Radius of the circular field stop outer edge. Default is 10. Set to 0.0 for no outer edge.
+    radius_inner : astropy Quantity angle or float
+        Radius of the central opaque region, in arcseconds (plain float) or as an astropy Quantity.
+        Default is 0.0 (no central opaque spot).
+    radius_outer : astropy Quantity angle or float
+        Radius of the circular field stop outer edge, in arcseconds (plain float) or as an
+        astropy Quantity. Default is 1.0 arcsec. Set to 0.0 for no outer edge.
     """
 
     @utils.quantity_input(radius_inner=u.arcsec, radius_outer=u.arcsec)
@@ -901,14 +967,15 @@ class CircularOcculter(AnnularFieldStop):
     ----------
     name : string
         Descriptive name
-    radius : float
-        Radius of the occulting spot, in arcseconds. Default is 1.0
+    radius : astropy Quantity angle or float
+        Radius of the occulting spot, in arcseconds (plain float) or as an astropy Quantity.
+        Default is 1.0 arcsec.
 
     """
 
     @utils.quantity_input(radius=u.arcsec)
     def __init__(self, name="unnamed occulter", radius=1.0, **kwargs):
-        super(CircularOcculter, self).__init__(name=name, radius_inner=radius, radius_outer=0.0, **kwargs)
+        super().__init__(name=name, radius_inner=radius, radius_outer=0.0, **kwargs)
         self._default_display_size = 10 * u.arcsec
 
 
@@ -919,10 +986,12 @@ class BarOcculter(AnalyticImagePlaneElement):
     ----------
     name : string
         Descriptive name
-    width : float
-        width of the bar stop, in arcseconds. Default is 1.0
-    height: float
-        heightof the bar stop, in arcseconds. Default is 10.0
+    width : astropy Quantity angle or float
+        Width of the bar stop, in arcseconds (plain float) or as an astropy Quantity.
+        Default is 1.0 arcsec.
+    height : astropy Quantity angle or float
+        Height of the bar stop, in arcseconds (plain float) or as an astropy Quantity.
+        Default is 10.0 arcsec.
 
     """
 
@@ -976,8 +1045,8 @@ class FQPM_FFT_aligner(AnalyticOpticalElement):
         AnalyticOpticalElement.__init__(self, name=name, planetype=PlaneType.pupil, **kwargs)
         direction = direction.lower()
         if direction != 'forward' and direction != 'backward':
-            raise ValueError("Invalid direction %s, must be either"
-                             "forward or backward." % direction)
+            raise ValueError(f"Invalid direction {direction}, must be either"
+                             "forward or backward.")
         self.direction = direction
         self._suppress_display = True
         self.wavefront_display_hint = 'phase'  # preferred display for wavefronts at this plane
@@ -1028,7 +1097,7 @@ class ParityTestAperture(AnalyticOpticalElement):
 
     @utils.quantity_input(radius=u.meter)
     def __init__(self, name=None, radius=1.0 * u.meter, pad_factor=1.0, **kwargs):
-        if name is None: name = "Asymmetric Parity Test Aperture, radius={}".format(radius)
+        if name is None: name = f"Asymmetric Parity Test Aperture, radius={radius}"
         AnalyticOpticalElement.__init__(self, name=name, planetype=PlaneType.pupil, **kwargs)
         self.radius = radius
         # for creating input wavefronts - let's pad a bit:
@@ -1071,6 +1140,16 @@ class LetterFAperture(AnalyticOpticalElement):
     """ Define a capital letter F aperture. This is sometimes useful for
     disambiguating pupil orientations. See also AsymmetricParityTestAperture
     and LetterFOpticalPathDifference.
+
+    Parameters
+    ----------
+    name : string, optional
+        Descriptive name. Auto-generated if not provided.
+    radius : astropy Quantity length or float
+        Radius of the overall aperture, in meters. Default is 1.0 m.
+    pad_factor : float, optional
+        Factor by which to oversize the wavefront array relative to the pupil diameter.
+        Default is 1.5.
     """
 
     def __init__(self, name=None, radius=1.0 * u.meter, pad_factor=1.5, **kwargs):
@@ -1104,6 +1183,18 @@ class LetterFAperture(AnalyticOpticalElement):
 class LetterFOpticalPathDifference(AnalyticOpticalElement):
     """ Define a capital letter F in OPD. This is sometimes useful for
     disambiguating pupil orientations. See also LetterFAperture.
+
+    Parameters
+    ----------
+    name : string, optional
+        Descriptive name. Auto-generated if not provided.
+    radius : astropy Quantity length or float
+        Radius of the overall aperture, in meters. Default is 1.0 m.
+    pad_factor : float, optional
+        Factor by which to oversize the wavefront array relative to the pupil diameter.
+        Default is 1.5.
+    opd : astropy Quantity length
+        Optical path difference to apply within the letter F region. Default is 1 micron.
     """
 
     def __init__(self, name=None, radius=1.0 * u.meter, pad_factor=1.5, opd=1*u.micron, **kwargs):
@@ -1151,6 +1242,8 @@ class CircularAperture(AnalyticOpticalElement):
         This is in practice not very useful, but it provides a straightforward way
         of verifying during code testing that the amount of padding (or size of the circle)
         does not make any numerical difference in the final result.
+    planetype : PlaneType, optional
+        Plane type for this optic. Default is PlaneType.unspecified.
 
     """
 
@@ -1159,8 +1252,8 @@ class CircularAperture(AnalyticOpticalElement):
                  gray_pixel=True, **kwargs):
 
         if name is None:
-            name = "Circle, radius={}".format(radius)
-        super(CircularAperture, self).__init__(name=name, planetype=planetype, **kwargs)
+            name = f"Circle, radius={radius}"
+        super().__init__(name=name, planetype=planetype, **kwargs)
         if radius <= 0*u.meter:
             raise ValueError("radius must be a positive nonzero number.")
         self.radius = radius
@@ -1221,7 +1314,7 @@ class HexagonAperture(AnalyticOpticalElement):
         self.pupil_diam = 2 * self.side  # for creating input wavefronts
         self._default_display_size = 3 * self.side
         if name is None:
-            name = "Hexagon, side length= {}".format(self.side)
+            name = f"Hexagon, side length= {self.side}"
 
         AnalyticOpticalElement.__init__(self, name=name, planetype=PlaneType.pupil, **kwargs)
 
@@ -1269,8 +1362,24 @@ class HexagonAperture(AnalyticOpticalElement):
 
 
 class MultiSegmentAperture(AnalyticOpticalElement, ABC):
-    """Abstract base class for an aperture made of sub-apertures
+    """Abstract base class for an aperture made of sub-apertures.
     This is subclassed to hexagons and circles below.
+
+    Parameters
+    ----------
+    name : string, optional
+        Descriptive name. Default is "MultiSegment".
+    segment_size : astropy Quantity length or float
+        Characteristic size (e.g. flat-to-flat diameter) of each segment in meters.
+    gap : astropy Quantity length or float
+        Gap between adjacent segments in meters. Default is 0.01 m.
+    rings : int
+        Number of rings of segments (not counting the center). Default is 1.
+    segmentlist : list of ints, optional
+        Indices of segments to include. If None, all segments in the specified number
+        of rings are included (minus the center if ``center=False``).
+    center : bool, optional
+        Whether to include the central (index 0) segment. Default is False.
     """
 
     @utils.quantity_input(segment_size=u.meter, gap=u.meter)
@@ -1493,7 +1602,7 @@ class NgonAperture(AnalyticOpticalElement):
         self.nsides = nsides
         self.pupil_diam = 2 * self.radius  # for creating input wavefronts
         if name is None:
-            name = "{}-gon, radius= {}".format(self.nsides, self.radius)
+            name = f"{self.nsides}-gon, radius= {self.radius}"
         AnalyticOpticalElement.__init__(self, name=name, planetype=PlaneType.pupil, rotation=rotation, **kwargs)
 
     def get_transmission(self, wave):
@@ -1590,46 +1699,39 @@ class MultiCircularAperture(MultiSegmentAperture):
 
 
 class KeystoneSegmentedCircularAperture(MultiSegmentAperture, CircularAperture):
+    """ Define a circular aperture made of pie-wedge or keystone shaped segments.
+
+    Parameters
+    ----------
+    name : string, optional
+        Descriptive name. Auto-generated if not provided.
+    radius : astropy Quantity length or float
+        Radius of the full circular aperture, in meters. Default is 1.0 m.
+    rings : int
+        Number of rings of segments. Default is 2.
+    nsections : int or list of ints
+        Number of segments per ring. If one int, the same number is used for each ring.
+        Provide a list to set different numbers per ring. Use 0 as the first element
+        to exclude the center for an on-axis aperture.
+    gap_radii : astropy Quantity length, optional
+        Radii from the center for the gaps between rings. Auto-computed if not given.
+    gap : astropy Quantity length, optional
+        Width of gaps between segments in both radial and azimuthal directions.
+        Default is 0.01 m.
+    gray_pixel : bool, optional
+        Apply gray pixel approximation to return fractional transmission for
+        edge pixels that are only partially within this aperture? Default is False.
+    rotation : float, optional
+        Rotation of the overall aperture in degrees counterclockwise. Default is 0.
+    """
+
     @utils.quantity_input(radius=u.meter, gap=u.meter)
     def __init__(self, name=None, radius=1.0 * u.meter,
                  rings=2, nsections=4, gap_radii=None, gap=0.01 * u.meter,
                  gray_pixel=False,
                  rotation=0, **kwargs):
-        """ Define a circular aperture made of pie-wedge or keystone shaped segments.
-
-        Parameters
-        ----------
-        name : string
-            Descriptive name
-        radius : float
-            Radius of the pupil, in meters.
-        rings : int
-            Number of rings of segments
-        nsections : int or list of ints
-            Number of segments per ring. If one int, same number of segments in each ring.
-            Or provide a list of ints to set different numbers per ring.
-            To exclude the center for an on-axis aperture, provide a 0 as the first
-            element of nsections to indicate 0 segments in the first ring.
-        gap_radii : quantity length
-            Radii from the center for the gaps between rings
-        gap : quantity length
-            Width of gaps between segments, in both radial and azimuthal directions
-        gray_pixel : bool, optional
-            Apply gray pixel approximation to return fractional transmission for
-            edge pixels that are only partially within this aperture?
-            (Note, currently this gives a warning; disabled by default)
-
-        kwargs : other kwargs are passed to CircularAperture
-
-        Potential TODO: also have this inherit from MultiSegmentedAperture and subclass
-        some of those functions as appropriate. Consider refactoring from gap_radii to instead
-        provide the widths of each segment. Add option for including the center segment or having
-        a missing one in the middle for on-axis apertures. Use grayscale approximation for rasterizing
-        the circular gaps between the rings.
-        """
-
         if name is None:
-            name = "Circle of Wedge Sections, radius={}".format(radius)
+            name = f"Circle of Wedge Sections, radius={radius}"
         CircularAperture.__init__(self, name=name, radius=radius, rotation=rotation,
                                   gray_pixel=gray_pixel, **kwargs)
 
@@ -1774,12 +1876,14 @@ class RectangleAperture(AnalyticOpticalElement):
     ----------
     name : string
         Descriptive name
-    width : float
-        width of the rectangle, in meters. Default is 0.5
-    height : float
-        height of the rectangle, in meters. Default is 1.0
+    width : astropy Quantity length or float
+        Width of the rectangle, in meters (plain float) or as an astropy Quantity.
+        Default is 0.5 m.
+    height : astropy Quantity length or float
+        Height of the rectangle, in meters (plain float) or as an astropy Quantity.
+        Default is 1.0 m.
     rotation : float
-        Rotation angle for 'width' axis. Default is 0.
+        Rotation of the 'width' axis of this rectangle, counterclockwise in degrees. Default is 0.
 
     """
 
@@ -1788,7 +1892,7 @@ class RectangleAperture(AnalyticOpticalElement):
         self.width = width
         self.height = height
         if name is None:
-            name = "Rectangle, size= {s.width:.1f} wide * {s.height:.1f} high".format(s=self)
+            name = f"Rectangle, size= {self.width:.1f} wide * {self.height:.1f} high"
         AnalyticOpticalElement.__init__(self, name=name, planetype=PlaneType.pupil, rotation=rotation, **kwargs)
         # for creating input wavefronts:
         self.pupil_diam = np.sqrt(self.height ** 2 + self.width ** 2)
@@ -1829,7 +1933,7 @@ class SquareAperture(RectangleAperture):
     def __init__(self, name=None, size=1.0 * u.meter, **kwargs):
         self._size = size
         if name is None:
-            name = "Square, side length= {}".format(size)
+            name = f"Square, side length= {size}"
         RectangleAperture.__init__(self, name=name, width=size, height=size, **kwargs)
         self.size = size
         self.pupil_diam = 2 * self.size  # for creating input wavefronts
@@ -1854,13 +1958,13 @@ class SecondaryObscuration(AnalyticOpticalElement):
 
     Parameters
     ----------
-    secondary_radius : float or astropy Quantity length
+    secondary_radius : astropy Quantity length or float
         Radius of the circular secondary obscuration, in meters or other unit.
         Default 0.5 m
     n_supports : int
         Number of secondary mirror supports ("spiders"). These will be
         spaced equally around a circle.  Default is 4.
-    support_width : float or astropy Quantity length
+    support_width : astropy Quantity length or float
         Width of each support, in meters or other unit. Default is 0.01 m = 1 cm.
     support_angle_offset : float
         Angular offset, in degrees, of the first secondary support from the X axis.
@@ -1871,7 +1975,7 @@ class SecondaryObscuration(AnalyticOpticalElement):
     def __init__(self, name=None, secondary_radius=0.5 * u.meter, n_supports=4, support_width=0.01 * u.meter,
                  support_angle_offset=0.0, **kwargs):
         if name is None:
-            name = "Secondary Obscuration with {0} supports".format(n_supports)
+            name = f"Secondary Obscuration with {n_supports} supports"
         AnalyticOpticalElement.__init__(self, name=name, planetype=PlaneType.pupil, **kwargs)
         self.secondary_radius = secondary_radius
         self.n_supports = n_supports
@@ -1920,19 +2024,21 @@ class AsymmetricSecondaryObscuration(SecondaryObscuration):
 
     Parameters
     ----------
-    secondary_radius : float
-        Radius of the circular secondary obscuration. Default 0.5 m
-    support_angle : ndarray or list of floats
-        The angle measured counterclockwise from +Y for each support
-    support_width : float or astropy Quantity of type length, or list of those
+    secondary_radius : astropy Quantity length or float
+        Radius of the circular secondary obscuration, in meters (plain float) or as an
+        astropy Quantity. Default 0.5 m
+    support_angle : array_like of float
+        The angle measured counterclockwise from +Y for each support, in degrees.
+        Default is (0, 90, 240).
+    support_width : astropy Quantity length or float, or list thereof
         if scalar, gives the width for all support struts
         if a list, gives separately the width for each support strut independently.
         Widths in meters or other unit if specified. Default is 0.01 m = 1 cm.
-    support_offset_x : float, or list of floats.
-        Offset in the X direction of the start point for each support.
+    support_offset_x : float, or list of floats
+        Offset in meters in the X direction of the start point for each support.
         if scalar, applies to all supports; if a list, gives a separate offset for each.
-    support_offset_y : float, or list of floats.
-        Offset in the Y direction of the start point for each support.
+    support_offset_y : float, or list of floats
+        Offset in meters in the Y direction of the start point for each support.
         if scalar, applies to all supports; if a list, gives a separate offset for each.
     """
 
@@ -2010,11 +2116,12 @@ class ThinLens(CircularAperture):
         This is applied as a normalization over an area defined by the circumscribing circle
         of the input wavefront. That is, there will be nwaves defocus peak-to-valley
         over the region of the pupil that has nonzero input intensity.
-    reference_wavelength : float
-        Wavelength, in meters, at which that number of waves of defocus is specified.
-    radius : float
-        Pupil radius, in meters, over which the Zernike defocus term should be computed
-        such that rho = 1 at r = `radius`.
+    reference_wavelength : astropy Quantity length or float
+        Wavelength at which ``nwaves`` defocus is specified,
+        either in meters (plain float) or as an astropy Quantity.
+    radius : astropy Quantity length or float
+        Pupil radius over which the Zernike defocus term should be computed such that rho = 1 at r = ``radius``,
+        either in meters (plain float) or as an astropy Quantity.
     """
 
     @utils.quantity_input(reference_wavelength=u.meter)
@@ -2062,14 +2169,15 @@ class GaussianAperture(AnalyticOpticalElement):
     ----------
     name : string
         Descriptive name
-    fwhm : float, optional.
-        Full width at half maximum for the Gaussian, in meters.
-    w : float, optional
-        Beam width parameter, equal to fwhm/(2*sqrt(ln(2))).
-    pupil_diam : float, optional
-        default pupil diameter for cases when it is not otherwise
-        specified (e.g. displaying the optic by itself.) Default
-        value is 3x the FWHM.
+    fwhm : astropy Quantity length or float, optional
+        Full width at half maximum for the Gaussian, in meters (plain float) or as an
+        astropy Quantity.
+    w : astropy Quantity length or float, optional
+        Beam radius parameter, equal to fwhm/(2*sqrt(ln(2))), in meters (plain float) or
+        as an astropy Quantity. Exactly one of ``fwhm`` or ``w`` must be specified.
+    pupil_diam : astropy Quantity length or float, optional
+        Default pupil diameter for cases when it is not otherwise specified
+        (e.g. displaying the optic by itself). Default value is 3x the FWHM.
 
     """
 
@@ -2086,7 +2194,7 @@ class GaussianAperture(AnalyticOpticalElement):
             pupil_diam = 3 * self.fwhm  # for creating input wavefronts
         self.pupil_diam = pupil_diam
         if name is None:
-            name = "Gaussian aperture with fwhm ={0:.2f}".format(self.fwhm)
+            name = f"Gaussian aperture with fwhm ={self.fwhm:.2f}"
         AnalyticOpticalElement.__init__(self, name=name, planetype=PlaneType.pupil, **kwargs)
 
     @property
@@ -2102,7 +2210,7 @@ class GaussianAperture(AnalyticOpticalElement):
 
         r = xp.sqrt(x ** 2 + y ** 2)
 
-        transmission = np.exp((- (r / self.w.to(u.meter).value) ** 2))
+        transmission = np.exp(- (r / self.w.to(u.meter).value) ** 2)
 
         return transmission
 
@@ -2115,13 +2223,14 @@ class TiltOpticalPathDifference(AnalyticOpticalElement):
 
     Parameters
     ----------
-    tilt_angle : angle, as an astropy unit
-        Angle of the tilt
-    rotation : float
-        Position angle, in degrees, for the direction in which the beam should be tilted
-
-    use the rotation parameter (available for any AnalyticOpticalElement)
-    to adjust the position angle of the tilt
+    tilt_angle : astropy Quantity angle
+        Angle of the tilt; any angular astropy Quantity (arcsec, radians, degrees, etc.)
+        is accepted. Default is 0.1 arcsec.
+    rotation : float, optional
+        Position angle in degrees counterclockwise for the direction in which the beam
+        should be tilted. Inherited from AnalyticOpticalElement. Default is 0.
+    name : string, optional
+        Descriptive name. Default is 'Tilt'.
 
     """
     def __init__(self, name='Tilt', tilt_angle=0.1 * u.arcsec, rotation=0, **kwargs):
@@ -2152,10 +2261,17 @@ class KnifeEdge(AnalyticOpticalElement):
     Rotation=0 yields a knife edge oriented vertically (edge parallel to +y)
     with the opaque side to the right.
 
+    Parameters
+    ----------
+    name : string, optional
+        Descriptive name. Auto-generated from rotation angle if not provided.
+    rotation : float, optional
+        Rotation angle in degrees counterclockwise. Default is 0 (vertical edge,
+        opaque side to the right).
     """
     def __init__(self, name=None, rotation=0, **kwargs):
         if name is None:
-            name = "Knife edge at {} deg".format(rotation)
+            name = f"Knife edge at {rotation} deg"
         AnalyticOpticalElement.__init__(self, name=name, rotation=rotation, **kwargs)
 
     def get_transmission(self, wave):
@@ -2189,6 +2305,10 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
                     subtracted.  (E.g. trans = trans1 + trans2 - trans1*trans2)
 
         In both methods, the resulting OPD is the sum of the constituents' OPDs.
+    name : string, optional
+        Descriptive name for the compound optic. Default is "unnamed".
+    verbose : bool, optional
+        Whether to print verbose output. Default is True.
 
     """
 
@@ -2308,7 +2428,7 @@ def fixed_sampling_optic(optic, wavefront, oversample=2):
     ----------
     optic : poppy.AnalyticOpticalElement
         Some optical element
-    wave : poppy.Wavefront
+    wavefront : poppy.Wavefront
         A wavefront to define the desired sampling pixel size and number.
     oversample : int
         Subpixel sampling factor for "gray pixel" approximation: the optic will be
@@ -2323,8 +2443,7 @@ def fixed_sampling_optic(optic, wavefront, oversample=2):
     from .poppy_core import ArrayOpticalElement
     npix = wavefront.shape[0]
     grid_size = npix*u.pixel*wavefront.pixelscale
-    _log.debug("Converting {} to fixed sampling with grid_size={}, npix={}, oversample={}".format(
-        optic.name, grid_size, npix, oversample))
+    _log.debug(f"Converting {optic.name} to fixed sampling with grid_size={grid_size}, npix={npix}, oversample={oversample}")
 
     if oversample > 1:
         _log.debug("retrieving oversampled opd and transmission arrays")

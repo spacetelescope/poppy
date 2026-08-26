@@ -2,13 +2,12 @@
 Rachel Morgan, Summer 2020
 '''
 
-import numpy as np
-import poppy
-import matplotlib.pyplot as plt
 import astropy.units as u
-import astropy.io.fits as fits
+import numpy as np
 
+import poppy
 from poppy import sub_sampled_optics
+
 
 def test_ShackHartmannWFS(n_lenslets=2):
     """

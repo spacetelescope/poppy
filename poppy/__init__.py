@@ -16,6 +16,7 @@ Documentation can be found online at https://poppy-optics.readthedocs.io/
 # Enforce Python version check during package import.
 # This is the same check as the one at the top of setup.py
 import sys
+
 from astropy import config as _config
 
 try:
@@ -31,10 +32,10 @@ class UnsupportedPythonError(Exception):
 
 
 if sys.version_info < tuple(
-    (int(val) for val in __minimum_python_version__.split("."))
+    int(val) for val in __minimum_python_version__.split(".")
 ):
     raise UnsupportedPythonError(
-        "poppy does not support Python < {}".format(__minimum_python_version__)
+        f"poppy does not support Python < {__minimum_python_version__}"
     )
 
 

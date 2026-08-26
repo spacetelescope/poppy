@@ -11,22 +11,17 @@ error in an OpticalSystem
 
 """
 
-import numpy as np
 import collections
 from functools import wraps
+
 import astropy.units as u
+import numpy as np
 
+from . import accel_math, utils, zernike
+from .accel_math import ensure_not_on_gpu, xp
 from .optics import AnalyticOpticalElement, CircularAperture
-from .poppy_core import Wavefront, PlaneType, BaseWavefront
-from poppy.fresnel import FresnelWavefront
 from .physical_wavefront import PhysicalFresnelWavefront
-
-from . import zernike
-from . import utils
-from . import accel_math
-
-from .accel_math import xp, ensure_not_on_gpu
-
+from .poppy_core import BaseWavefront, PlaneType
 
 __all__ = ['WavefrontError', 'ParameterizedWFE', 'ZernikeWFE', 'SineWaveWFE',
            'StatisticalPSDWFE', 'PowerSpectrumWFE', 'KolmogorovWFE', 'ThermalBloomingWFE']
@@ -56,7 +51,7 @@ class WavefrontError(AnalyticOpticalElement):
     def __init__(self, **kwargs):
         if 'planetype' not in kwargs:
             kwargs['planetype'] = PlaneType.pupil
-        super(WavefrontError, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         # in general we will want to see phase rather than intensity at this plane
         self.wavefront_display_hint = 'phase'
 
@@ -154,7 +149,7 @@ class ParameterizedWFE(WavefrontError):
         self.coefficients = coefficients
         self.basis_factory = basis_factory
         self._default_display_size = radius * 3
-        super(ParameterizedWFE, self).__init__(name=name, **kwargs)
+        super().__init__(name=name, **kwargs)
 
     @_check_wavefront_arg
     def get_opd(self, wave):
@@ -204,7 +199,7 @@ class ZernikeWFE(WavefrontError):
         self.circular_aperture = CircularAperture(radius=self.radius, gray_pixel=False, **kwargs)
         self._default_display_size = radius * 3
         kwargs.update({'name': name})
-        super(ZernikeWFE, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     @_check_wavefront_arg
     def get_opd(self, wave):
@@ -489,7 +484,7 @@ class PowerSpectrumWFE(WavefrontError):
         self.incident_angle = incident_angle
             
         if psd_weight is None:
-            self.psd_weight = xp.ones((len(psd_parameters))) # default to equal weights
+            self.psd_weight = xp.ones(len(psd_parameters)) # default to equal weights
         else:
             self.psd_weight = psd_weight
         
@@ -578,7 +573,7 @@ class PowerSpectrumWFE(WavefrontError):
         psd_scaled = (xp.sqrt(psd/(wave.pixelscale.value**2)) * rndm_noise)
 #         opd = ((np.fft.ifft2(np.fft.ifftshift(psd_scaled)).real*surf_unit).to(u.m)).value 
 #         opd = ((xp.fft.ifft2(xp.fft.ifftshift(psd_scaled)).real))*1e-9 # this is assuming the opd is calculated in nm
-        opd = ((xp.fft.ifft2(xp.fft.ifftshift(psd_scaled)).real))*(1*surf_unit).to_value(u.m) # fixed the hardcoded 1e-9
+        opd = (xp.fft.ifft2(xp.fft.ifftshift(psd_scaled)).real)*(1*surf_unit).to_value(u.m) # fixed the hardcoded 1e-9
         
         # Set rms value based on the active region of beam
         if self.rms is not None:
@@ -657,7 +652,7 @@ class KolmogorovWFE(WavefrontError):
         if dz is None and not all(item is not None for item in [r0, Cn2]):
             raise ValueError('To prepare a turbulent phase screen, dz and either Cn2 or r0 must be given.')
         
-        super(KolmogorovWFE, self).__init__(name=name, **kwargs)
+        super().__init__(name=name, **kwargs)
         
         self.r0 = r0
         self.Cn2 = Cn2
@@ -918,7 +913,7 @@ class ThermalBloomingWFE(WavefrontError):
                  p0=101.325*u.kPa, T0=300.0*u.K, direction='x',
                  isobaric=False, **kwargs):
         
-        super(ThermalBloomingWFE, self).__init__(name=name, **kwargs)
+        super().__init__(name=name, **kwargs)
         
         self.abs_coeff = abs_coeff.to(1/u.m).value
         self.dz = dz.to(u.m).value

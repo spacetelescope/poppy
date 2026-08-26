@@ -385,7 +385,3 @@ For instance, here's a variation of the above coronagraph calculation with some 
    :scale: 100%
    :align: center
    :alt: Sample calculation result
-
-
-
-

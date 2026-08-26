@@ -1,25 +1,19 @@
-import pytest
-from pkg_resources import parse_version as version
-
-from .. import poppy_core
-from .. import optics
-from .. import misc
-from .. import fresnel
-from .. import utils
-from poppy.poppy_core import _log, PlaneType
-
-import poppy
 import os
-
-from poppy.accel_math import xp   # may be numpy, or cupy on GPU
-import numpy as np     # Regular numpy, definitely in CPU memory
 
 import astropy.io.fits as fits
 import astropy.units as u
 import matplotlib.pyplot as plt
+import numpy as np  # Regular numpy, definitely in CPU memory
+import pytest
+from packaging.version import Version
+from scipy.ndimage import shift, zoom
 
-from .. import fwcentroid
-from scipy.ndimage import zoom,shift
+import poppy
+from poppy.accel_math import xp  # may be numpy, or cupy on GPU
+from poppy.poppy_core import PlaneType, _log
+
+from .. import fresnel, fwcentroid, misc, optics, poppy_core, utils
+
 
 def test_GaussianBeamParams():
     """Confirm that gaussian beam parameters agree with expectations"""
@@ -154,9 +148,9 @@ def test_Circular_Aperture_PTP_long(display=False, npix=512, display_proper=Fals
         plt.figure(figsize=(12,6))
 
         plt.plot(x[0,:], inten[inten.shape[1]//2,:], label='POPPY')
-        plt.title("z={:0.2e} , compare to Anderson and Enmark fig.6.15".format(z))
+        plt.title(f"z={z:0.2e} , compare to Anderson and Enmark fig.6.15")
         plt.gca().set_xlim(-1, 1)
-        plt.text(0.1, 2, "Max value: {0:.4f}\nExpected:   {1:.4f}".format(xp.max(inten), max(proper_y)))
+        plt.text(0.1, 2, f"Max value: {xp.max(inten):.4f}\nExpected:   {max(proper_y):.4f}")
 
 
         if display_proper:
@@ -170,7 +164,7 @@ def test_Circular_Aperture_PTP_long(display=False, npix=512, display_proper=Fals
 
 
     _log.debug("test_Circular_Aperture_PTP peak flux comparison: " + str(xp.abs(max(proper_y) - xp.max(inten))))
-    _log.debug("  allowed tolerance for {0} is {1}".format(npix, tolerance))
+    _log.debug(f"  allowed tolerance for {npix} is {tolerance}")
     #assert(np.round(3.3633280006866424,9) == np.round(np.max(gw.intensity),9))
     assert (xp.abs(max(proper_y) - xp.max(inten)) < tolerance)
 
@@ -193,14 +187,14 @@ def test_Circular_Aperture_PTP_long(display=False, npix=512, display_proper=Fals
 
 
 try:
-    from skimage.registration import phase_cross_correlation
     import skimage
+    from skimage.registration import phase_cross_correlation
     HAS_SKIMAGE = True
 except ImportError:
     HAS_SKIMAGE = False
 
 @pytest.mark.skipif(not HAS_SKIMAGE, reason='This test requires having scikit-image installed.')
-@pytest.mark.skipif(HAS_SKIMAGE and (version(skimage.__version__) >= version('0.19')), reason='This test is known to fail for skimage > 0.19; see #552.')
+@pytest.mark.skipif(HAS_SKIMAGE and (Version(skimage.__version__) >= Version('0.19')), reason='This test is known to fail for skimage > 0.19; see #552.')
 def test_Circular_Aperture_PTP_short(display=False, npix=512, oversample=4, include_wfe=True, display_proper=False):
     """ Tests plane-to-plane propagation at short distances, by comparison
     of the results from propagate_ptp and propagate_direct calculations
@@ -478,7 +472,7 @@ def test_fresnel_FITS_Optical_element(tmpdir, display=False, verbose=False):
 
     """
     import os.path
-    import astropy.io.fits as fits
+
     from poppy import wfe
 
     # parameters for calculation test case:
@@ -516,8 +510,7 @@ def test_fresnel_FITS_Optical_element(tmpdir, display=False, verbose=False):
                                                    oversample=1)
 
         if verbose:
-            print("Astigmatism surface from FITS has pixelscale {}, npix={}".format(astig_surf.pixelscale,
-                                                                                    astig_surf.shape[0]))
+            print(f"Astigmatism surface from FITS has pixelscale {astig_surf.pixelscale}, npix={astig_surf.shape[0]}")
 
         # Now we put that FITSOpticalElement into a Fresnel optical system.
         fosys = fresnel.FresnelOpticalSystem(pupil_diameter=radius * 2, beam_ratio=0.25, npix=npix)

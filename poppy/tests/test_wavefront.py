@@ -1,13 +1,11 @@
 
-import poppy
-from .. import poppy_core
-from .. import optics
-import numpy as np
 import astropy.io.fits as fits
-from .test_core import check_wavefront
 import astropy.units as u
+import numpy as np
 
+import poppy
 
+from .. import optics, poppy_core
 
 wavelength=1e-6*u.m
 
@@ -79,7 +77,7 @@ def test_wavefront_rot90_vs_ndimagerotate_consistency(plot=False):
 
     assert np.allclose(wave2.intensity, wave.intensity, atol=1e-5), "Inconsistent results from the two rotation methods"
 
-    from poppy.tests.test_sign_conventions import brighter_top_half, brighter_left_half
+    from poppy.tests.test_sign_conventions import brighter_left_half, brighter_top_half
 
     assert brighter_left_half(wave.intensity), "Rotated wavefront orientation not as expected"
     assert not brighter_top_half(wave.intensity), "Rotated wavefront orientation not as expected"

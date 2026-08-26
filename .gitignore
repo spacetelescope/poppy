@@ -73,3 +73,6 @@ test_outputs/
 
 # PyCharm
 .idea
+
+# misc
+uv.lock

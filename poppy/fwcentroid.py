@@ -80,7 +80,7 @@ def fwcentroid(image, checkbox=1, maxiterations=20, threshold=1e-4, halfwidth=5,
         # just use brightest pixel
         w = np.where(image == image.max())
         YPEAK, XPEAK = w[0][0], w[1][0]
-        if verbose: print("Peak pixels are {0}, {1}".format(XPEAK, YPEAK))
+        if verbose: print(f"Peak pixels are {XPEAK}, {YPEAK}")
 
     # Calculate centroid for first iteration
 
@@ -123,7 +123,7 @@ def fwcentroid(image, checkbox=1, maxiterations=20, threshold=1e-4, halfwidth=5,
     oldXCEN = XCEN
     oldYCEN = YCEN
 
-    if verbose: print("After initial calc, cent pos is  ({0:f}, {1:f})".format(XCEN, YCEN))
+    if verbose: print(f"After initial calc, cent pos is  ({XCEN:f}, {YCEN:f})")
 
     # Iteratively calculate centroid until solution converges,
     # use more neighboring pixels and apply weighting:
@@ -185,7 +185,7 @@ def fwcentroid(image, checkbox=1, maxiterations=20, threshold=1e-4, halfwidth=5,
         # XCEN += oldXCEN -XHW-1
         # YCEN += oldYCEN -YHW-1   #this would be equivalent to removing the XLOC lines?
 
-        if verbose: print("After iter {0} , cent pos is  ({1:f}, {2:f})".format(k, XCEN, YCEN))
+        if verbose: print(f"After iter {k} , cent pos is  ({XCEN:f}, {YCEN:f})")
         # Check for convergence:
         if (np.abs(XCEN - oldXCEN) <= threshold and
                 np.abs(YCEN - oldYCEN) <= threshold):
@@ -225,9 +225,7 @@ def test_fwcentroid(n=100, width=5, halfwidth=5, verbose=True, **kwargs):
     maxhalfwidth = np.max(halfwidth)  # allows both scalars and tuples
 
     if verbose: print(
-        "Performing {0} tests using Gaussian PSF with width={1:.1f}, centroid halfwidth= {2:s}".format(n,
-                                                                                                       width,
-                                                                                                       str(halfwidth)))
+        f"Performing {n} tests using Gaussian PSF with width={width:.1f}, centroid halfwidth= {str(halfwidth):s}")
 
     diffx = np.zeros(n)
     diffy = np.zeros(n)
@@ -240,13 +238,11 @@ def test_fwcentroid(n=100, width=5, halfwidth=5, verbose=True, **kwargs):
         diffx[i] = coords[0] - measx
         diffy[i] = coords[1] - measy
 
-        if verbose: print("True: {0},{1}     Meas: {2},{3}    Diff:{4},{5}".format(coords[0], coords[1],
-                                                                                   measx, measy,
-                                                                                   diffx[i], diffy[i]))
+        if verbose: print(f"True: {coords[0]},{coords[1]}     Meas: {measx},{measy}    Diff:{diffx[i]},{diffy[i]}")
 
     if verbose:
-        print("RMS measured position error, X: {0} pixels".format(diffx.std()))
-        print("RMS measured position error, Y: {0} pixels".format(diffy.std()))
+        print(f"RMS measured position error, X: {diffx.std()} pixels")
+        print(f"RMS measured position error, Y: {diffy.std()} pixels")
 
     assert np.sqrt(np.mean(diffx ** 2 + diffy ** 2)) < 5e-3
 

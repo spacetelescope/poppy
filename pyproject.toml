@@ -11,29 +11,29 @@ description = "Physical optics propagation (wavefront diffraction) for optical s
 authors = [
     { name = "Marshall Perrin", email = "mperrin@stsci.edu" },
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
-    "numexpr>=2.9.0",
-    "numpy>=1.20.0",
-    "scipy>=1.5.0",
-    "matplotlib>=3.2.0",
-    "astropy>=5.1.0",
+    "numexpr>=2.11",
+    "numpy>=2.1",
+    "scipy>=1.15",
+    "matplotlib>=3.10",
+    "astropy>=7.0",
 ]
 dynamic = [
     "version",
 ]
 readme = "README.rst"
-
-[project.license]
-text = "BSD-3-Clause"
+license-files = ["LICENSE.md"]
 
 [project.optional-dependencies]
 all = [
     "synphot",
 ]
 test = [
-    "pytest",
+    "pytest>=9",
     "pytest-astropy",
+    "docutils",
+    "sphinx",
 ]
 docs = [
     "nbsphinx",
@@ -42,7 +42,6 @@ docs = [
     "sphinx-astropy",
     "sphinx-automodapi",
     "sphinx-issues",
-    "tomli; python_version <\"3.11\"",
     "ipython",
 ]
 
@@ -51,17 +50,14 @@ Homepage = "https://github.com/spacetelescope/poppy"
 Documentation = "https://poppy-optics.readthedocs.io/"
 "Bug Tracker" = "https://github.com/spacetelescope/poppy/issues"
 
-[tool.pytest.ini_options]
-minversion = "2.2"
-norecursedirs = [
-    "build",
-    "docs/_build",
-]
-testpaths = "poppy docs"
-astropy_header = "true"
+[tool.pytest]
+minversion = "9"
+norecursedirs = ["build", "docs/_build"]
+testpaths = ["poppy", "docs"]
+astropy_header = true
 doctest_plus = "enabled"
 text_file_format = "rst"
-addopts = "-p no:warnings"
+addopts = ["-p no:warnings"]
 
 [tool.setuptools]
 zip-safe = false
@@ -138,3 +134,25 @@ omit = [
     "*/poppy/*/*/tests/*",
     "*/poppy/version*",
 ]
+
+[tool.ruff]
+line-length = 120          # scientific code with array literals often wants more room than 88
+target-version = "py312"   # match the minimum supported Python version
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes (unused imports, undefined names, etc.)
+    "I",   # isort (import sorting)
+    "UP",  # pyupgrade (modernize syntax)
+    "NPY", # numpy-specific rules, if you use numpy
+]
+ignore = [
+    "E501",  # line too long — formatter handles this; don't fight it on data literals
+]
+
+[tool.ruff.lint.per-file-ignores]
+"*.ipynb" = ["E402"]  # notebooks often have imports after code cells
+
+[tool.ruff.format]
+quote-style = "double"

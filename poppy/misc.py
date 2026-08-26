@@ -6,7 +6,7 @@
 
 import matplotlib.pyplot as plt
 
-from poppy.accel_math import xp, _scipy
+from poppy.accel_math import _scipy, xp
 
 _RADtoARCSEC = 180. * 60 * 60 / xp.pi  # ~ 206265
 _ARCSECtoRAD = xp.pi / (180. * 60 * 60)

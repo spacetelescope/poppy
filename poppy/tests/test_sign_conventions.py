@@ -1,7 +1,7 @@
-from poppy.accel_math import xp as np
 import astropy.units as u
-import poppy
 
+import poppy
+from poppy.accel_math import xp as np
 
 ####################################
 # Test sign conventions

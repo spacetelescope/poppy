@@ -2,8 +2,10 @@
 #  Test functions for subpixel geometry code
 #
 
-from poppy.accel_math import xp
 import numpy as np
+
+from poppy.accel_math import xp
+
 from .. import geometry
 
 # Test routines for antialiased fractional circle

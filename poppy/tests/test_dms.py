@@ -1,13 +1,9 @@
 # Tests for deformable mirror classes
 
-import matplotlib.pyplot as pl
-import numpy as np
-import astropy.io.fits as fits
 import astropy.units as u
+import numpy as np
 
-from .. import poppy_core
-from .. import optics
-from .. import dms
+from .. import dms, optics, poppy_core
 
 
 def test_basic_continuous_dm():
@@ -25,11 +21,11 @@ def test_basic_continuous_dm():
 
     for actx, acty in ( (3,7), (7,3)):
         dm.set_actuator(actx, acty, 1e-6) # 1000 nm = 1 micron
-        assert np.allclose(dm.surface[acty, actx],  1e-6), "Actuator ({}, {}) did not move as expected using bare floats".format(actx,acty)
+        assert np.allclose(dm.surface[acty, actx],  1e-6), f"Actuator ({actx}, {acty}) did not move as expected using bare floats"
 
     for actx, acty in ( (5,2), (6,9)):
         dm.set_actuator(actx, acty, 1*u.nm) # 1 nm
-        assert np.allclose(dm.surface[acty, actx],  1e-9), "Actuator ({}, {}) did not move as expected using astropy quantities".format(actx,acty)
+        assert np.allclose(dm.surface[acty, actx],  1e-9), f"Actuator ({actx}, {acty}) did not move as expected using astropy quantities"
 
 
     psf_aberrated = osys.calc_psf()
@@ -87,16 +83,16 @@ def test_basic_hex_dm():
 
     for act in ( 3,6):
         dm.set_actuator(act, 1e-6, 0, 1e-4) # 1000 nm = 1 micron
-        assert np.allclose(dm.surface[act,0],  1e-6), "Segment {} did not move as expected using bare floats".format(actx,acty)
-        assert np.allclose(dm.surface[act,2],  1e-4), "Segment {} did not move as expected using bare floats".format(actx,acty)
+        assert np.allclose(dm.surface[act,0],  1e-6), f"Segment {actx} did not move as expected using bare floats"
+        assert np.allclose(dm.surface[act,2],  1e-4), f"Segment {actx} did not move as expected using bare floats"
 
     for act in ( 5,2):
         dm.set_actuator(act, 1*u.nm, 0, 0) # 1 nm
-        assert np.allclose(dm.surface[act,0],  1e-9), "Segment {} did not move as expected in piston using astropy quantities".format(actx,acty)
+        assert np.allclose(dm.surface[act,0],  1e-9), f"Segment {actx} did not move as expected in piston using astropy quantities"
 
     for act in ( 1,4):
         dm.set_actuator(act,  0, 1*u.milliradian, 0) # 1 nm
-        assert np.allclose(dm.surface[act,1],  1e-3), "Segment {} did not move as expected in tilt using astropy quantities".format(actx,acty)
+        assert np.allclose(dm.surface[act,1],  1e-3), f"Segment {actx} did not move as expected in tilt using astropy quantities"
 
 
 
@@ -176,16 +172,16 @@ def test_basic_circular_dm():
 
     for act in ( 3,6):
         dm.set_actuator(act, 1e-6, 0, 1e-7) # 1000 nm = 1 micron
-        assert np.allclose(dm.surface[act,0],  1e-6), "Segment {} did not move as expected using bare floats".format(actx,acty)
-        assert np.allclose(dm.surface[act,2],  1e-7), "Segment {} did not move as expected using bare floats".format(actx,acty)
+        assert np.allclose(dm.surface[act,0],  1e-6), f"Segment {actx} did not move as expected using bare floats"
+        assert np.allclose(dm.surface[act,2],  1e-7), f"Segment {actx} did not move as expected using bare floats"
 
     for act in ( 5,2):
         dm.set_actuator(act, 1*u.nm, 0, 0) # 1 nm
-        assert np.allclose(dm.surface[act,0],  1e-9), "Segment {} did not move as expected in piston using astropy quantities".format(actx,acty)
+        assert np.allclose(dm.surface[act,0],  1e-9), f"Segment {actx} did not move as expected in piston using astropy quantities"
 
     for act in ( 1,4):
         dm.set_actuator(act,  0, 1*u.microradian, 0) # 1 nm
-        assert np.allclose(dm.surface[act,1],  1e-6), "Segment {} did not move as expected in tilt using astropy quantities".format(actx,acty)
+        assert np.allclose(dm.surface[act,1],  1e-6), f"Segment {actx} did not move as expected in tilt using astropy quantities"
 
     psf_aberrated = osys.calc_psf()
 
@@ -211,16 +207,16 @@ def test_basic_wedge_dm():
 
     for act in ( 3,6):
         dm.set_actuator(act, 1e-6, 0, 1e-7) # 1000 nm = 1 micron
-        assert np.allclose(dm.surface[act,0],  1e-6), "Segment {} did not move as expected using bare floats".format(actx,acty)
-        assert np.allclose(dm.surface[act,2],  1e-7), "Segment {} did not move as expected using bare floats".format(actx,acty)
+        assert np.allclose(dm.surface[act,0],  1e-6), f"Segment {actx} did not move as expected using bare floats"
+        assert np.allclose(dm.surface[act,2],  1e-7), f"Segment {actx} did not move as expected using bare floats"
 
     for act in ( 5,2):
         dm.set_actuator(act, 1*u.nm, 0, 0) # 1 nm
-        assert np.allclose(dm.surface[act,0],  1e-9), "Segment {} did not move as expected in piston using astropy quantities".format(actx,acty)
+        assert np.allclose(dm.surface[act,0],  1e-9), f"Segment {actx} did not move as expected in piston using astropy quantities"
 
     for act in ( 1,4):
         dm.set_actuator(act,  0, 1*u.microradian, 0) # 1 nm
-        assert np.allclose(dm.surface[act,1],  1e-6), "Segment {} did not move as expected in tilt using astropy quantities".format(actx,acty)
+        assert np.allclose(dm.surface[act,1],  1e-6), f"Segment {actx} did not move as expected in tilt using astropy quantities"
 
     psf_aberrated = osys.calc_psf()
 

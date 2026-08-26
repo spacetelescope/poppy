@@ -1,10 +1,11 @@
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 import scipy
 
 import poppy.accel_math
-from ..misc import airy_1d, airy_2d, sinc2_2d, _RADtoARCSEC, _ARCSECtoRAD
+
+from ..misc import _ARCSECtoRAD, airy_1d, airy_2d, sinc2_2d
 
 airy_zeros = np.asarray([3.8317, 7.0156, 10.1735, 13.3237, 16.4706])/np.pi  # first several zeros of the Bessel function J1. See e.g. http://en.wikipedia.org/wiki/Airy_disk#Mathematical_details
 

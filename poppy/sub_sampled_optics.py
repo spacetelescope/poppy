@@ -3,16 +3,18 @@ Written by Ewan Douglas, 2018
 Updated by Rachel Morgan, 2019-2020 (debugging, testing, reformatting, adding functions, updating to work with most recent POPPY)
 """
 
-import numpy as np
-import poppy
-import matplotlib.pyplot as plt
+import logging
+
 import astropy.units as u
-import astropy.io.fits as fits
-from .poppy_core import OpticalElement, Detector, Wavefront, PlaneType, _PUPIL, _IMAGE, _RADIANStoARCSEC
+import matplotlib.pyplot as plt
+import numpy as np
+
+import poppy
+
 from .optics import CircularAperture
+from .poppy_core import Detector, OpticalElement, PlaneType, Wavefront
 from .utils import measure_centroid
 
-import logging
 _log = logging.getLogger('poppy')
 
 

@@ -1,18 +1,22 @@
 import warnings
-import numpy as np
-from poppy.accel_math import xp
+
 import astropy.io.fits as fits
+import numpy as np
 import pytest
+
+from poppy.accel_math import xp
 
 try:
     import pyfftw
 except ImportError:
     pyfftw = None
 
-from .. import utils
-from .. import poppy_core
-import poppy
 import scipy
+
+import poppy
+
+from .. import poppy_core, utils
+
 
 def test_pad_to_size():
 
@@ -23,7 +27,7 @@ def test_pad_to_size():
         for desiredshape in [ (500, 500), (400,632), (2048, 312)]:
             newshape = utils.pad_to_size(square, desiredshape).shape
             for i in [0,1]:
-                assert newshape[i] == desiredshape[i], "Error padding from {} to {}".format(starting_shape, desired_shape)
+                assert newshape[i] == desiredshape[i], f"Error padding from {starting_shape} to {desired_shape}"
 
 
 
@@ -224,10 +228,10 @@ def test_measure_FWHM(display=False, verbose=False):
 
         meas_fwhm = utils.measure_fwhm(testfits, center=center)
         if verbose:
-            print("Measured FWHM: {0:.4f} arcsec, {1:.4f} pixels ".format(meas_fwhm, meas_fwhm/pxscl))
+            print(f"Measured FWHM: {meas_fwhm:.4f} arcsec, {meas_fwhm/pxscl:.4f} pixels ")
 
         reldiff =  np.abs((meas_fwhm/pxscl) - desired_fwhm ) / desired_fwhm
-        result = "Measured: {3:.4f} pixels; Desired: {0:.4f} pixels. Relative difference: {1:.4f}    Tolerance: {2:.4f}".format(desired_fwhm, reldiff, tolerance, meas_fwhm/pxscl)
+        result = f"Measured: {meas_fwhm/pxscl:.4f} pixels; Desired: {desired_fwhm:.4f} pixels. Relative difference: {reldiff:.4f}    Tolerance: {tolerance:.4f}"
         if verbose:
             print(result)
         assert reldiff < tolerance, result
@@ -252,7 +256,7 @@ def test_measure_FWHM(display=False, verbose=False):
 
         reldiff =  np.abs((meas_fwhm - expected_fwhm ) / expected_fwhm)
 
-        result = "Measured: {3:.4f} arcsec; Desired: {0:.4f} arcsec. Relative difference: {1:.4f}    Tolerance: {2:.4f}".format(expected_fwhm, reldiff, tolerance, meas_fwhm)
+        result = f"Measured: {meas_fwhm:.4f} arcsec; Desired: {expected_fwhm:.4f} arcsec. Relative difference: {reldiff:.4f}    Tolerance: {tolerance:.4f}"
 
         assert reldiff < tolerance, result
 

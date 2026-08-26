@@ -1,14 +1,13 @@
 # Specialized optical system propagators
 # In particular for efficient modeling of astronomical coronagraphs
 
-import numpy as np
-import time
 import logging
-import astropy.units as u
+import time
 
-from . import poppy_core
-from . import utils
-from . import conf
+import astropy.units as u
+import numpy as np
+
+from . import conf, poppy_core
 
 _log = logging.getLogger('poppy')
 
@@ -49,7 +48,7 @@ class SemiAnalyticCoronagraph(poppy_core.OpticalSystem):
     def __init__(self, existing_optical_system, oversample=8, occulter_box=1.0,
                  fpm_index=1, **kwargs):
         from . import optics
-        super(SemiAnalyticCoronagraph, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         self.name = "SemiAnalyticCoronagraph for " + existing_optical_system.name
         self.verbose = existing_optical_system.verbose
@@ -72,15 +71,14 @@ class SemiAnalyticCoronagraph(poppy_core.OpticalSystem):
         self.mask_function = optics.InverseTransmission(self.occulter)
 
         pt = poppy_core.PlaneType
-        for label, plane, typecode in zip(["Occulter (plane {})".format(fpm_index),
-                                           "Lyot (plane {})".format(fpm_index + 1),
+        for label, plane, typecode in zip([f"Occulter (plane {fpm_index})",
+                                           f"Lyot (plane {fpm_index + 1})",
                                            "Detector (last plane)"],
                                           [self.occulter, self.lyotplane, self.detector],
                                           [pt.image, pt.pupil, pt.detector]):
             if not plane.planetype == typecode:
-                raise ValueError("Plane {0} is not of the right type for a semianalytic \
-                        coronagraph calculation: should be {1:s} but is {2:s}.".format(label,
-                                                                                       typecode, plane.planetype))
+                raise ValueError(f"Plane {label} is not of the right type for a semianalytic \
+                        coronagraph calculation: should be {typecode:s} but is {plane.planetype:s}.")
 
         self.oversample = oversample
 
@@ -105,8 +103,8 @@ class SemiAnalyticCoronagraph(poppy_core.OpticalSystem):
         """
 
         if self.verbose:
-            _log.info(" Propagating wavelength = {0:g} meters using "
-                      "Fast Semi-Analytic Coronagraph method".format(wavefront.wavelength))
+            _log.info(f" Propagating wavelength = {wavefront.wavelength:g} meters using "
+                      "Fast Semi-Analytic Coronagraph method")
 
         intermediate_wfs = []
 
@@ -236,7 +234,7 @@ class MatrixFTCoronagraph(poppy_core.OpticalSystem):
 
     def __init__(self, existing_optical_system, oversample=4, occulter_box=1.0,
                  **kwargs):
-        super(MatrixFTCoronagraph, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         if len(existing_optical_system.planes) < 4:
             raise ValueError("Input optical system must have at least 4 planes "
@@ -277,8 +275,8 @@ class MatrixFTCoronagraph(poppy_core.OpticalSystem):
         if conf.enable_speed_tests:  # pragma: no cover
             t_start = time.time()
         if self.verbose:
-            _log.info(" Propagating wavelength = {0:g} meters using "
-                      "Matrix FTs".format(wavefront.wavelength))
+            _log.info(f" Propagating wavelength = {wavefront.wavelength:g} meters using "
+                      "Matrix FTs")
         intermediate_wfs = []
 
         wavefront.history.append("Propagating using Matrix FT Coronagraph Method")
@@ -315,8 +313,8 @@ class MatrixFTCoronagraph(poppy_core.OpticalSystem):
                                                               for p in self.planes]))[0].max() + 1
                 if current_plane_index == last_pupil_plane_index:
                     wavefront.normalize()
-                    _log.debug("normalizing at exit pupil (plane {0}) "
-                               "to 1.0 total intensity".format(current_plane_index))
+                    _log.debug(f"normalizing at exit pupil (plane {current_plane_index}) "
+                               "to 1.0 total intensity")
             elif normalize.lower() == 'last' and current_plane_index == len(self.planes):
                 wavefront.normalize()
                 _log.debug("normalizing at last plane to 1.0 total intensity")

@@ -2,14 +2,13 @@
 #  Test functions for MatrixFTCoronagraph optical system subclass
 #
 
-import numpy as np
-import matplotlib
-import matplotlib.pyplot as plt
+import logging
 
-import os
+import matplotlib.pyplot as plt
+import numpy as np
+
 import poppy
 
-import logging
 _log = logging.getLogger('poppy_tests')
 
 def test_MatrixFT_FFT_Lyot_propagation_equivalence(display=False):
@@ -52,6 +51,6 @@ def test_MatrixFT_FFT_Lyot_propagation_equivalence(display=False):
         plt.title('Difference (MatrixFT - FFT)')
         plt.show()
 
-    print("Max of absolute difference: %.10g" % np.max(abs_diff_img))
+    print("Max of absolute difference: {:.10g}".format(np.max(abs_diff_img)))
 
     assert( np.all(abs_diff_img < 2e-7) )

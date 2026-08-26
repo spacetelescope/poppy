@@ -1,10 +1,7 @@
-import numpy as np
 import astropy.units as u
+import numpy as np
 
-from .. import poppy_core
-from .. import physical_wavefront
-from .. import fresnel
-from .. import optics
+from .. import fresnel, optics, physical_wavefront
 
 wavelength=1e-6
 

@@ -1,11 +1,8 @@
 # This file contains code for testing various error handlers and user interface edge cases,
 # as opposed to testing the main body of functionality of the code.
 
-from .. import poppy_core
-from .. import optics
-from .. import matrixDFT
-from .. import zernike
-import sys
+
+from .. import matrixDFT, optics, poppy_core, zernike
 
 try:
     import pytest
@@ -134,8 +131,9 @@ if _HAVE_PYTEST:
 
     def test_add_incompatible_wavefronts():
         """ Test we can't add wavefronts to incompatible things. Verifies fix of #308 """
-        import poppy
         import astropy.units as u
+
+        import poppy
         n = 10
         w1 = poppy.Wavefront(npix=n)
         w2 = poppy.Wavefront(npix=n)

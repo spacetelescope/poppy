@@ -3,7 +3,9 @@ import os
 import platform
 import re
 import time
+
 import astropy.io.fits as fits
+import astropy.time
 import astropy.units as units
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,19 +19,16 @@ except ImportError:
     synphot = None
     _HAS_SYNPHOT = False
 
-from . import poppy_core
-from . import optics
-from . import utils
-from . import conf
-
 import logging
+
+from . import conf, optics, poppy_core, utils
 
 _log = logging.getLogger('poppy')
 
 __all__ = ['Instrument']
 
 
-class Instrument(object):
+class Instrument:
     """ A generic astronomical instrument, composed of
         (1) an optical system implemented using POPPY, optionally with several configurations such as
             selectable image plane or pupil plane stops, and
@@ -131,7 +130,7 @@ class Instrument(object):
     def filter(self, value):
         value = value.upper()  # force to uppercase
         if value not in self.filter_list:
-            raise ValueError("Instrument %s doesn't have a filter called %s." % (self.name, value))
+            raise ValueError(f"Instrument {self.name} doesn't have a filter called {value}.")
         self._filter = value
 
     # ----- actual optical calculations follow here -----
@@ -215,15 +214,15 @@ class Instrument(object):
             fov_arcsec = self._get_default_fov()
         if fov_pixels is not None:
             if np.isscalar(fov_pixels):
-                fov_spec = 'pixels = %d' % fov_pixels
+                fov_spec = f'pixels = {fov_pixels}'
             else:
-                fov_spec = 'pixels = (%d, %d)' % (fov_pixels[0], fov_pixels[1])
+                fov_spec = f'pixels = ({fov_pixels[0]}, {fov_pixels[1]})'
             local_options['fov_pixels'] = fov_pixels
         elif fov_arcsec is not None:
             if np.isscalar(fov_arcsec):
-                fov_spec = 'arcsec = %f' % fov_arcsec
+                fov_spec = f'arcsec = {fov_arcsec:f}'
             else:
-                fov_spec = 'arcsec = (%.3f, %.3f)' % (fov_arcsec[0], fov_arcsec[1])
+                fov_spec = f'arcsec = ({fov_arcsec[0]:.3f}, {fov_arcsec[1]:.3f})'
             local_options['fov_arcsec'] = fov_arcsec
         local_options['fov_spec'] = fov_spec
 
@@ -250,9 +249,7 @@ class Instrument(object):
         # Validate that the calculation we're about to do makes sense with this instrument config
         self._validate_config(wavelengths=wavelens)
         poppy_core._log.info(
-            "PSF calc using fov_%s, oversample = %d, number of wavelengths = %d" % (
-                local_options['fov_spec'], local_options['detector_oversample'], len(wavelens)
-            )
+            f"PSF calc using fov_{local_options['fov_spec']}, oversample = {local_options['detector_oversample']}, number of wavelengths = {len(wavelens)}"
         )
 
         # ---- now at last, actually do the PSF calc:
@@ -278,13 +275,12 @@ class Instrument(object):
 
         if display:
             f = plt.gcf()
-            plt.suptitle("%s, filter= %s" % (self.name, self.filter), size='xx-large')
+            plt.suptitle(f"{self.name}, filter= {self.filter}", size='xx-large')
 
             if monochromatic is not None:
-                labeltext = "Monochromatic calculation at {:.3f} um".format(monochromatic * 1e6)
+                labeltext = f"Monochromatic calculation at {monochromatic * 1e6:.3f} um"
             else:
-                labeltext = "Calculation with %d wavelengths (%g - %g um)" % (
-                    nlambda, wavelens[0] * 1e6, wavelens[-1] * 1e6)
+                labeltext = f"Calculation with {nlambda} wavelengths ({wavelens[0] * 1e6:g} - {wavelens[-1] * 1e6:g} um)" 
             plt.text(0.99, 0.04, labeltext,
                      transform=f.transFigure, horizontalalignment='right')
 
@@ -323,9 +319,9 @@ class Instrument(object):
         # header keys can only have up to 8 characters. Backward-compatible.
         nwavelengths = len(wavelengths)
         if nwavelengths < 100:
-            label_wl = lambda i: 'WAVELN{:02d}'.format(i)
+            label_wl = lambda i: f'WAVELN{i:02d}'
         elif nwavelengths < 10000:
-            label_wl = lambda i: 'WVLN{:04d}'.format(i)
+            label_wl = lambda i: f'WVLN{i:04d}'
         else:
             raise ValueError("Maximum number of wavelengths exceeded. "
                              "Cannot be more than 10,000.")
@@ -355,7 +351,7 @@ class Instrument(object):
             for ext in range(len(psf)):
                 cube[ext].data[i] = psf[ext].data
                 cube[ext].header[label_wl(i)] = wavelength_as_meters(wl)
-                cube[ext].header.add_history("--- Cube Plane {} ---".format(i))
+                cube[ext].header.add_history(f"--- Cube Plane {i} ---")
                 for h in psf[ext].header['HISTORY']:
                     cube[ext].header.add_history(h)
 
@@ -389,14 +385,14 @@ class Instrument(object):
         if (output_mode == 'Oversampled image') or ('oversampled' in output_mode.lower()):
             # we just want to output the oversampled image as
             # the primary HDU. Nothing special needs to be done.
-            poppy_core._log.info(" Returning only the oversampled data. Oversampled by {}".format(detector_oversample))
+            poppy_core._log.info(f" Returning only the oversampled data. Oversampled by {detector_oversample}")
             return
 
         elif (output_mode == 'Detector sampled image') or ('detector' in output_mode.lower()):
             # output only the detector sampled image as primary HDU.
             # need to downsample it and replace the existing primary HDU
             if options['detector_oversample'] > 1:
-                poppy_core._log.info(" Downsampling to detector pixel scale, by {}".format(detector_oversample))
+                poppy_core._log.info(f" Downsampling to detector pixel scale, by {detector_oversample}")
                 for ext in range(len(result)):
                     result[ext].data = utils.rebin_array(result[ext].data,
                                                          rc=(detector_oversample, detector_oversample))
@@ -420,7 +416,7 @@ class Instrument(object):
             for ext in np.arange(len(result)):
                 rebinned_result = result[ext].copy()
                 if options['detector_oversample'] > 1:
-                    poppy_core._log.info(" Downsampling to detector pixel scale, by {}".format(detector_oversample))
+                    poppy_core._log.info(f" Downsampling to detector pixel scale, by {detector_oversample}")
                     rebinned_result.data = utils.rebin_array(rebinned_result.data,
                                                              rc=(detector_oversample, detector_oversample))
 
@@ -485,7 +481,7 @@ class Instrument(object):
             opdfile = str(self.pupilopd)
             opdslice = 0
         else:  # tuple?
-            opdstring = "%s slice %d" % (os.path.basename(self.pupilopd[0]), self.pupilopd[1])
+            opdstring = f"{os.path.basename(self.pupilopd[0])} slice {self.pupilopd[1]}"
             opdfile = os.path.basename(self.pupilopd[0])
             opdslice = self.pupilopd[1]
         result[0].header['PUPILOPD'] = (opdstring, 'Pupil OPD source')
@@ -503,13 +499,11 @@ class Instrument(object):
             result[0].header['DET_SAMP'] = (
                 options['detector_oversample'], 'Oversampling factor for MFT to detector plane')
 
-        (year, month, day, hour, minute, second, weekday, doy, dst) = time.gmtime()
-        result[0].header["DATE"] = (
-            "%4d-%02d-%02dT%02d:%02d:%02d" % (year, month, day, hour, minute, second), "Date of calculation")
+        result[0].header["DATE"] = (astropy.time.Time.now().isot, "Date of calculation")
         # get username and hostname in a cross-platform way
         username = getpass.getuser()
         hostname = platform.node()
-        result[0].header["AUTHOR"] = ("%s@%s" % (username, hostname), "username@host for calculation")
+        result[0].header["AUTHOR"] = (f"{username}@{hostname}", "username@host for calculation")
 
     def _validate_config(self, wavelengths=None):
         """Determine if a provided instrument configuration is valid.
@@ -562,7 +556,7 @@ class Instrument(object):
         if options is None:
             options = dict()
 
-        poppy_core._log.debug("Oversample: %d  %d " % (fft_oversample, detector_oversample))
+        poppy_core._log.debug(f"Oversample: {fft_oversample}  {detector_oversample} ")
         optsys = poppy_core.OpticalSystem(name=self.name, oversample=fft_oversample)
 
         if 'source_offset_x' in options or 'source_offset_y' in options:
@@ -573,15 +567,13 @@ class Instrument(object):
             offy = options.get('source_offset_y', 0)
             optsys.source_offset_r = np.sqrt(offx ** 2 + offy ** 2)
             optsys.source_offset_theta = np.rad2deg(np.arctan2(-offx, offy))
-            _log.debug("Source offset from X,Y = ({}, {}) is (r,theta) = {},{}".format(
-                offx, offy, optsys.source_offset_r, optsys.source_offset_theta))
+            _log.debug(f"Source offset from X,Y = ({offx}, {offy}) is (r,theta) = {optsys.source_offset_r},{optsys.source_offset_theta}")
         else:
             if 'source_offset_r' in options:
                 optsys.source_offset_r = options['source_offset_r']
             if 'source_offset_theta' in options:
                 optsys.source_offset_theta = options['source_offset_theta']
-            _log.debug("Source offset is (r,theta) = {},{}".format(
-                optsys.source_offset_r, optsys.source_offset_theta))
+            _log.debug(f"Source offset is (r,theta) = {optsys.source_offset_r},{optsys.source_offset_theta}")
 
         # ---- set pupil intensity
         pupil_optic = None  # no optic yet defined
@@ -592,7 +584,7 @@ class Instrument(object):
             if os.path.exists(self.pupil):
                 full_pupil_path = self.pupil
             else:
-                raise IOError("File not found: " + self.pupil)
+                raise OSError("File not found: " + self.pupil)
         elif isinstance(self.pupil, fits.HDUList):  # pupil supplied as FITS HDUList object
             full_pupil_path = self.pupil
         else:
@@ -750,13 +742,13 @@ class Instrument(object):
 
             # that will be in arcseconds, we need to convert to pixels:
 
-            poppy_core._log.info("Jitter: Convolving with Gaussian with sigma={0:.3f} arcsec".format(sigma))
+            poppy_core._log.info(f"Jitter: Convolving with Gaussian with sigma={sigma:.3f} arcsec")
             out = scipy.ndimage.gaussian_filter(result[0].data, sigma / result[0].header['PIXELSCL'])
             peak = result[0].data.max()
             newpeak = out.max()
             strehl = newpeak / peak  # not really the whole Strehl ratio, just the part due to jitter
 
-            poppy_core._log.info("        resulting image peak drops to {0:.3f} of its previous value".format(strehl))
+            poppy_core._log.info(f"        resulting image peak drops to {strehl:.3f} of its previous value")
             result[0].header['JITRTYPE'] = ('Gaussian convolution', 'Type of jitter applied')
             result[0].header['JITRSIGM'] = (sigma, 'Gaussian sigma for jitter, per axis [arcsec]')
             result[0].header['JITRSTRL'] = (strehl, 'Strehl reduction from jitter ')
@@ -767,7 +759,7 @@ class Instrument(object):
 
         if conf.enable_speed_tests: # pragma: no cover
             t1 = time.time()
-            _log.debug("\tTIME %f s\t for jitter model" % (t1 - t0))
+            _log.debug(f"\tTIME {t1 - t0} s\t for jitter model")
 
 
     #####################################################
@@ -892,11 +884,10 @@ class Instrument(object):
             Because this calculation is kind of slow, cache results for reuse in the frequent
             case where one is computing many PSFs for the same spectral source.
             """
-            from synphot import SpectralElement, Observation
-            from synphot.models import Box1D, BlackBodyNorm1D, Empirical1D
+            from synphot import Observation, SpectralElement
+            from synphot.models import BlackBodyNorm1D, Box1D, Empirical1D
 
-            poppy_core._log.debug(
-                "Calculating spectral weights using synphot, nlambda=%d, source=%s" % (nlambda, str(source)))
+            poppy_core._log.debug( f"Calculating spectral weights using synphot, nlambda={nlambda}, source={source!s}")
             if source is None:
                 source = synphot.SourceSpectrum(BlackBodyNorm1D, temperature=5700 * units.K)
                 poppy_core._log.info("No source spectrum supplied, therefore defaulting to 5700 K blackbody")
@@ -910,7 +901,7 @@ class Instrument(object):
             except KeyError:
                 pass  # in case sourcespectrum lacks a name element so the above lookup fails - just do the below calc.
 
-            poppy_core._log.info("Computing wavelength weights using synthetic photometry for %s..." % self.filter)
+            poppy_core._log.info(f"Computing wavelength weights using synthetic photometry for {self.filter}...")
             band = self._get_synphot_bandpass(self.filter)
             band_wave = band.waveset
             band_thru = band(band_wave)
@@ -929,8 +920,7 @@ class Instrument(object):
 
             minwave = band_wave[w_above10].min()
             maxwave = band_wave[w_above10].max()
-            poppy_core._log.debug("Min, max wavelengths = %f, %f" % (
-                minwave.to_value(units.micron), maxwave.to_value(units.micron)))
+            poppy_core._log.debug(f"Min, max wavelengths = {minwave.to_value(units.micron):f}, {maxwave.to_value(units.micron):f}")
 
             wave_bin_edges = np.linspace(minwave, maxwave, nlambda + 1)
             wavesteps = (wave_bin_edges[:-1] + wave_bin_edges[1:]) / 2
@@ -983,21 +973,20 @@ class Instrument(object):
             except AttributeError:
                 raise ValueError(
                     "The supplied file, {0}, does not appear to be a FITS table with WAVELENGTH and " +
-                    "THROUGHPUT columns.".format(filterfile))
+                    "THROUGHPUT columns.")
             if 'WAVEUNIT' in filterheader:
                 waveunit = filterheader['WAVEUNIT'].lower()
                 if re.match(r'[Aa]ngstroms?', waveunit) is None:
                     raise ValueError(
                         "The supplied file, {0}, has WAVEUNIT='{1}'. Only WAVEUNIT = Angstrom supported " +
-                        "when synphot is not installed.".format(filterfile, waveunit))
+                        "when synphot is not installed.")
             else:
                 waveunit = 'Angstrom'
                 poppy_core._log.warning(
-                    "CAUTION: no WAVEUNIT keyword found in filter file {0}. Assuming = {1} by default".format(
-                        filterfile, waveunit))
+                    f"CAUTION: no WAVEUNIT keyword found in filter file {filterfile}. Assuming = {waveunit} by default")
 
             poppy_core._log.warning(
-                "CAUTION: Just interpolating rather than integrating filter profile, over {0} steps".format(nlambda))
+                f"CAUTION: Just interpolating rather than integrating filter profile, over {nlambda} steps")
             wavelengths = wavelengths * units.Unit(waveunit)
             lrange = wavelengths[throughputs > 0.4].to_value(units.m)  # convert from Angstroms to Meters
             # get evenly spaced points within the range of allowed lambdas, centered on each bin
