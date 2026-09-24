@@ -693,5 +693,10 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(tmpdir, display=False, source_offs
         poppy.display_psf_difference(fftpsf, mftpsf, title='Diff FFT-MFT')
 
 
+    # difference of intensities
     absdiff = np.abs(np.asarray(mftpsf[0].data - fftpsf[0].data))   # Extra asarray helps with optional GPU support
     assert(np.all(absdiff < 1e-10))
+
+    # absolute value of difference of complex fields
+    absdiff_c = np.abs(np.asarray(mftplanes[-1].wavefront - fftplanes[-1].wavefront))
+    assert(np.all(absdiff_c < 1e-10))
