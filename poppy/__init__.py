@@ -76,6 +76,8 @@ class Conf(_config.ConfigNamespace):
             'is available)?')
     use_numexpr = _config.ConfigItem(True, 'Use NumExpr to accelerate array math (assuming it' +
             'is available)?')
+    use_rust = _config.ConfigItem(True, 'Use poppy_rs (Rust) for FFTs (assuming it' +
+            'is available)? Rust backend takes priority over FFTW/MKL/numpy on CPU.')
 
     double_precision = _config.ConfigItem(True, 'Floating point values use float64 and complex128 if True,' +
             'otherwise float32 and complex64.')

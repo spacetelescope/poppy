@@ -123,6 +123,13 @@ def matrix_dft(plane, nlamD, npix,
         will be displaced from the central pixel (or cross). Given as
         (offsetY, offsetX).
     """
+    if accel_math._USE_RUST:
+        _nlam_d = (np.float64(nlamD), np.float64(nlamD)) if np.isscalar(nlamD) else (np.float64(nlamD[0]), np.float64(nlamD[1]))
+        _npix   = (int(npix), int(npix))                  if np.isscalar(npix)   else (int(npix[0]),          int(npix[1]))
+        return accel_math.poppy_rs.matrix_dft(
+            plane, _nlam_d, _npix,
+            offset=offset, inverse=inverse, centering=centering,
+        )
     if accel_math._USE_NUMEXPR:
         return matrix_dft_numexpr(plane, nlamD, npix,
                                   offset=offset, inverse=inverse, centering=centering)
