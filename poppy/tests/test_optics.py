@@ -431,7 +431,7 @@ def test_ObscuredCircularAperture_Airy(display=False):
     osys.add_detector(pixelscale=0.010,fov_pixels=512, oversample=1)
     numeric = osys.calc_psf(wavelength=1.0e-6, display=False)
 
-    analytic = accel_math.ensure_not_on_gpu(analytic)
+    analytic = accel_math.to_numpy(analytic)
     # Comparison
     difference = numeric[0].data-analytic
     #assert np.all(np.abs(difference) < 3e-5)
@@ -573,7 +573,7 @@ def test_AsymmetricObscuredAperture(display=False):
     # Analytic PSF for 1 meter diameter aperture
     analytic = airy_2d(diameter=pri_diam, obscuration=sec_diam/pri_diam)
     analytic /= analytic.sum() # for comparison with poppy outputs normalized to total=1
-    analytic = accel_math.ensure_not_on_gpu(analytic)
+    analytic = accel_math.to_numpy(analytic)
 
     # Numeric PSF for 1 meter diameter aperture
     osys = poppy_core.OpticalSystem()

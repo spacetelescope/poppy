@@ -415,8 +415,8 @@ class BaseWavefront(ABC):
 
         y, x = self.coordinates()
         # GPU arrays don't work in matplotlib
-        y = accel_math.ensure_not_on_gpu(y)
-        x = accel_math.ensure_not_on_gpu(x)
+        y = accel_math.to_numpy(y)
+        x = accel_math.to_numpy(x)
 
         if self.planetype == PlaneType.pupil and self.ispadded and not showpadding:
             intens = utils.remove_padding(intens, self.oversample)
@@ -712,7 +712,7 @@ class BaseWavefront(ABC):
         """Wavefront error of the wavefront, in meters as an astropy.Quantity"""
         if accel_math._USE_CUPY:
             # since this returns an astropy quantity, the array must not be in GPU memory
-            return accel_math.ensure_not_on_gpu(self.phase) * (self.wavelength / (2 * np.pi))
+            return accel_math.to_numpy(self.phase) * (self.wavelength / (2 * np.pi))
         else:
             return self.phase * (self.wavelength/(2*np.pi))
 

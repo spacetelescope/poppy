@@ -18,8 +18,8 @@ def test_airy_1d(display=False):
 
     # convert to units of lambda/D
     r_norm = r*_ARCSECtoRAD / (lam/D)
-    r_norm = poppy.accel_math.ensure_not_on_gpu(r_norm)  # Extra cast helps with optional GPU support
-    airyprofile = poppy.accel_math.ensure_not_on_gpu(airyprofile)
+    r_norm = poppy.accel_math.to_numpy(r_norm)  # Extra cast helps with optional GPU support
+    airyprofile = poppy.accel_math.to_numpy(airyprofile)
     if display:
         plt.semilogy(r_norm,airyprofile)
         plt.axvline(1.028/2, color='k', ls=':')

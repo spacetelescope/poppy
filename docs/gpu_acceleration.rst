@@ -21,18 +21,18 @@ An updated implementation using `CuPy <https://docs.cupy.dev/en/stable/overview.
 replaces initial earlier support for CUDA using pyculib and numba.cuda. (That initial 
 implementation has been removed since the CuPy implementation is much better performing.)
 
-Note, because cupy is used as a replacement for numpy at import time, it is a bit tricky 
-to toggle between GPU and CPU calculations during the same python session. Doing so is 
-advanced usage, and while it can be useful in some cases for debugging or benchmarking, 
-it's not fully supported or recommended to try to switch between calculation backends 
-within the same session. 
+Note, because the array library is selected at import time, it is not possible to toggle
+between GPU and CPU calculations during the same python session. Select the array backend
+with the ``array_backend`` configuration item (``'numpy'``, ``'cupy'``, or ``'auto'``, the default,
+which uses CuPy if ``use_cupy`` is set and a GPU is available) in your poppy config file, before
+importing poppy. Poppy's array math is written against the
+`Python array API standard <https://data-apis.org/array-api/latest/>`_ using
+`array-api-compat <https://data-apis.org/array-api-compat/>`_.
 
 **What about AMD GPUs?**
 
-There also exists partial/earlier support for OpenCL for AMD GPUs, using the `pyopencl` 
-and `gpyfft` packages. This provides much less performance gains than the CuPy version, 
-however, since only  FFTs are performed on-GPU, not other parts of the optical propagation 
-calculations.
+Earlier, partial support for OpenCL (using `pyopencl` and `gpyfft` for FFTs only) has been removed,
+as it provided much less performance gain than the CuPy version.
 
 **What about Apple Silicon GPUs?**
 

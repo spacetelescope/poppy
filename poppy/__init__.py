@@ -62,6 +62,12 @@ class Conf(_config.ConfigNamespace):
                                      'Set to 0 for autoselect. Note, PSF calculations are likely RAM ' +
                                      'limited more than CPU limited for higher N on modern machines.')
 
+    array_backend = _config.ConfigItem(
+        'auto',
+        "Array library used for all array math, selected once at import time. One of 'numpy' or 'cupy'; "
+        "'auto' uses CuPy if `use_cupy` is True and a GPU is available, otherwise numpy. "
+        "Set this in the config file before importing poppy; it cannot be changed within a session.",
+    )
     use_fftw = _config.ConfigItem(True, 'Use FFTW for FFTs (assuming it' +
                                   'is available)?  Set to False to force numpy.fft always, True to' +
                                   'try importing and using FFTW via PyFFTW.')
@@ -70,10 +76,8 @@ class Conf(_config.ConfigNamespace):
                                               '"wisdom" for improved speed?')
     use_mkl = _config.ConfigItem(True, "Use Intel MKL for FFTs (assuming it is available). "
                                        "This has highest priority for CPU-based FFT over other FFT options, if multiple are set True.")
-    use_opencl = _config.ConfigItem(True, 'Use OpenCL for FFTs on GPU (assuming it' +
-            'is available)?')
     use_cupy = _config.ConfigItem(True, 'Use CuPy for FFTs on GPU (assuming it' +
-            'is available)?')
+            'is available)? Only consulted when array_backend is "auto".')
     use_numexpr = _config.ConfigItem(True, 'Use NumExpr to accelerate array math (assuming it' +
             'is available)?')
 

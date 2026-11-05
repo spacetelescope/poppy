@@ -2,7 +2,7 @@
 import astropy.units as u
 import numpy as np
 
-from poppy.accel_math import ensure_not_on_gpu, xp
+from poppy.accel_math import to_numpy, xp
 
 from .. import optics, physical_wavefront, poppy_core, wfe, zernike
 
@@ -142,7 +142,7 @@ def test_StatisticalPSDWFE(index=3, seed=1234, plot=False):
         results : tuple
             Tuple containing (radius, profile).
         """
-        image = ensure_not_on_gpu(image)
+        image = to_numpy(image)
         y, x = np.indices(image.shape, dtype=float)
         if center is None:
             # get exact center of image
@@ -265,7 +265,7 @@ def test_PowerSpectrumWFE(plot=False):
     psd_wfe = wfe.PowerSpectrumWFE(psd_parameters=psd_parameters, psd_weight=psd_weight,
                                     seed=seed, apply_reflection=False, screen_size=screen_size,
                                     rms=rms_ref, radius=surf_radius)
-    psd_opd = (ensure_not_on_gpu(psd_wfe.get_opd(psd_wave))*u.m).to(surf_ref.unit) # just needed to ensure array is not on GPU
+    psd_opd = (to_numpy(psd_wfe.get_opd(psd_wave))*u.m).to(surf_ref.unit) # just needed to ensure array is not on GPU
     psd_rms = rms(psd_opd)
     psd_pv = pv(psd_opd)
     
@@ -346,7 +346,7 @@ def test_KolmogorovWFE():
         average = np.zeros((npix, npix), dtype=complex)
         for j in range(num_ensemble):
             KolmogorovWFE.seed += j
-            a = ensure_not_on_gpu(KolmogorovWFE.rand_turbulent(npix))
+            a = to_numpy(KolmogorovWFE.rand_turbulent(npix))
             for l in range(npix):
                 for m in range(npix):
                     average[l, m] += np.sum(a[:, l])*np.sum(np.conj(a[:, m]))/num_ensemble/npix

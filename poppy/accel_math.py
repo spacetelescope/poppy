@@ -6,6 +6,8 @@ import logging
 import multiprocessing
 import time
 
+import array_api_compat
+import array_api_compat.numpy
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
@@ -43,16 +45,6 @@ except ImportError:
 
 
 try:
-    # try to import OpenCL packages to see if they are is available
-    import gpyfft
-    import pyopencl
-    import pyopencl.array
-    _OPENCL_AVAILABLE = True
-    _OPENCL_STATE = dict()
-except ImportError:
-    _OPENCL_AVAILABLE = False
-
-try:
     # try to import cupy packages to see if they are is available
     # and check if GPU hardware is available
     import cupy as cp
@@ -66,33 +58,56 @@ except:
     cp = None
     _CUPY_AVAILABLE = False    
 
-_USE_CUPY = (conf.use_cupy and _CUPY_AVAILABLE)
-_USE_OPENCL = (conf.use_opencl and _OPENCL_AVAILABLE)
-_USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE and not _USE_CUPY)
-_USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
-_USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE)
+_SUPPORTED_BACKENDS = ('numpy', 'cupy')
 
-xp = np
-_scipy = scipy
+
+def _resolve_backend():
+    """Determine which array backend to use, from ``conf.array_backend``.
+
+    The backend is chosen once, at import time. 'auto' preserves the historical behavior:
+    use CuPy if ``conf.use_cupy`` is set and a GPU is available, otherwise numpy.
+    """
+    requested = str(conf.array_backend).lower()
+    if requested == 'auto':
+        return 'cupy' if (conf.use_cupy and _CUPY_AVAILABLE) else 'numpy'
+    if requested not in _SUPPORTED_BACKENDS:
+        raise NotImplementedError(f"conf.array_backend={requested!r} is not supported; "
+                                  f"choose one of {_SUPPORTED_BACKENDS + ('auto',)}")
+    if requested == 'cupy' and not _CUPY_AVAILABLE:
+        raise ImportError("conf.array_backend='cupy' was requested but CuPy (with a GPU) is not available")
+    return requested
+
+
+_BACKEND = _resolve_backend()
+_USE_CUPY = (_BACKEND == 'cupy')
+
+# Array-API compatible namespace for the selected backend. Fixed for the life of the process.
+if _USE_CUPY:
+    import array_api_compat.cupy  # requires cupy, so only import if selected
+    xp = array_api_compat.cupy
+    _scipy = cupyx.scipy
+else:
+    xp = array_api_compat.numpy
+    _scipy = scipy
+
 
 def update_math_settings():
-    """ Update the module-level math flags, based on user settings
+    """Update the numpy-backend accelerator flags (numexpr, FFTW, MKL) from the current ``conf`` values.
+
+    The array backend itself (``xp``) is selected once at import time from ``conf.array_backend``
+    and cannot be swapped at runtime; a warning is logged if the configuration has changed since import.
     """
-    global _USE_CUPY, _USE_OPENCL, _USE_NUMEXPR, _USE_FFTW, _USE_MKL
-    global xp, _scipy
+    global _USE_NUMEXPR, _USE_FFTW, _USE_MKL
 
-    _USE_CUPY = (conf.use_cupy and _CUPY_AVAILABLE)
-    _USE_OPENCL = (conf.use_opencl and _OPENCL_AVAILABLE)
+    if _resolve_backend() != _BACKEND:
+        _log.warning(f"conf.array_backend changed after import; poppy continues to use '{_BACKEND}'. "
+                     "Set the backend in the config file before importing poppy.")
+
+    # These accelerate the numpy path only; they provide no benefit on other array backends
     _USE_NUMEXPR = (conf.use_numexpr and _NUMEXPR_AVAILABLE and not _USE_CUPY)
-    _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE)
-    _USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE)
+    _USE_FFTW = (conf.use_fftw and _FFTW_AVAILABLE and not _USE_CUPY)
+    _USE_MKL = (conf.use_mkl and _MKLFFT_AVAILABLE and not _USE_CUPY)
 
-    if _USE_CUPY:
-        xp = cp
-        _scipy = cupyx.scipy
-    else:
-        xp = np
-        _scipy = scipy
 
 # Call update_math_settings once on initial import
 # This ensures an initial setup is done prior to any code execution
@@ -100,15 +115,13 @@ update_math_settings()
 
 
 def _float():
-    """ Returns numpy data type for desired precision based on configuration """
-    # How many bits per float to use?
-    return np.float64 if conf.double_precision else np.float32
+    """ Returns array data type for desired precision based on configuration """
+    return xp.float64 if conf.double_precision else xp.float32
 
 
 def _complex():
-    """ Returns numpy data type for desired precision based on configuration """
-    # How many bits per complex float to use?
-    return np.complex128 if conf.double_precision else np.complex64
+    """ Returns array data type for desired precision based on configuration """
+    return xp.complex128 if conf.double_precision else xp.complex64
 
 
 def _r(x, y):
@@ -117,28 +130,25 @@ def _r(x, y):
     if _USE_NUMEXPR:
         return ne.evaluate("sqrt(x**2+y**2)")
     else:
-        return np.sqrt(x ** 2 + y ** 2)
+        return xp.sqrt(x ** 2 + y ** 2)
 
 
 def _exp(x):
     """
     Function to speed up taking exponential of an array if NumExpr is available.
-    Otherwise defaults to np.exp()
+    Otherwise defaults to xp.exp()
 
     """
     if _USE_NUMEXPR:
         return ne.evaluate("exp(x)", optimization='moderate', )
-    elif _USE_CUPY:
-        return cp.exp(x)
     else:
-        return np.exp(x)
+        return xp.exp(x)
 
 def _fftshift(x):
     """ FFT shifts of array contents, using CUDA/CuPY if available.
     Otherwise defaults to numpy.
 
-    Note - TODO write an OpenCL version
-    Note 2 - This used to be an interesting function with a clever CUDA implementation
+    Note - This used to be an interesting function with a clever CUDA implementation
              of fftshift, which has since been obsoleted by cupy's implementation.
              This wrapper function could be refactored out in the future
 
@@ -154,8 +164,7 @@ def _ifftshift(x):
     implicitly assumes that if using CUDA, the array size must be even,
     so we can use the same algorithm as fftshift.
 
-    Note - TODO write an OpenCL version
-    Note 2 - This used to be an interesting function with a clever CUDA implementation
+    Note - This used to be an interesting function with a clever CUDA implementation
              of fftshift, which has since been obsoleted by cupy's implementation.
              This wrapper function could be refactored out in the future
 
@@ -169,18 +178,16 @@ def _ifftshift(x):
 
 def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
     """ main entry point for FFTs, used in Wavefront._propagate_fft and
-    elsewhere. This will invoke one of the following, depending on availability:
-        - CUDA CuPy on NVidia GPU
-        - OpenCL on AMD GPU
-        - FFTW on CPU
-        - numpy on CPU
+    elsewhere. This will invoke one of the following, depending on the array backend and availability:
+        - CuPy FFT on NVidia GPU (if the cupy backend is selected)
+        - MKL or FFTW on CPU (numpy backend only, if enabled and installed)
+        - the array backend's standard ``fft`` module (e.g. numpy.fft)
 
     This function handles ONLY the core numerics itself, as fast as possible,
     (and some minor related logging) .
     All the interaction with object state for Wavefront arrays should happen elsewhere.
 
-    TODO: this should execute an IN PLACE FFT, so we don't have to pass around arrays to return
-    anything.
+    Always use the returned array; the input array may be overwritten by some FFT implementations.
 
     Parameters
     ----------
@@ -199,21 +206,14 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         FFT. This differs from the behavior of poppy versions < 1.0.
 
     """
-    ## To use a fast FFT, it must both be enabled and the library itself has to be present
-    global _USE_OPENCL, _USE_CUPY # need to declare global in case we need to change it, below
     t0 = time.time()
 
-    # OpenCL cfFFT only can FFT certain array sizes.
-    if _USE_OPENCL and not isproductofsmallprimes(wavefront.shape[0]):
-        _log.debug(("Wavefront size {} not supported by OpenCL, therefore disabling "+
-            "USE_OPENCL for this calculation.").format(wavefront.shape))
-        _USE_OPENCL = False
+    if normalization is None:
+        normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
 
     # This annoyingly complicated if/elif is just for the debug print statement
     if _USE_CUPY:
         method = 'cupy (GPU)'
-    elif _USE_OPENCL:
-        method = 'pyopencl (OpenCL GPU)'
     elif _USE_MKL:
         method = 'mkl_fft'
     elif _USE_FFTW:
@@ -232,37 +232,14 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         wavefront = _ifftshift(wavefront)
 
     t1 = time.time()
-    if _USE_OPENCL:
-        if normalization is None:
-            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
-
-        context, queue = get_opencl_context()
-        wf_on_gpu = pyopencl.array.to_device(queue, wavefront)
-        transform = gpyfft.fft.FFT(context, queue, wf_on_gpu, axes=(0,1))
-        event, = transform.enqueue(forward=forward)
-        event.wait()
-        wavefront[:] = wf_on_gpu.get()
-        del wf_on_gpu
-
-    elif _USE_CUPY:
-        do_fft = cp.fft.fft2 if forward else cp.fft.ifft2
-        if normalization is None:
-            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
-        wavefront = do_fft(wavefront)
-
-    elif _USE_MKL:
+    if _USE_MKL:
         # Intel MKL is a drop-in replacement for numpy fft but much faster
         do_fft = mkl_fft.fft2 if forward else mkl_fft.ifft2
-        if normalization is None:
-            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
         wavefront = do_fft(wavefront)
 
     elif _USE_FFTW:
         FFT_direction = 'forward' if forward else 'backward' # back compatible for use in _FFTW_INIT
         do_fft = pyfftw.interfaces.numpy_fft.fft2 if forward else pyfftw.interfaces.numpy_fft.ifft2
-        if normalization is None:
-            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
-
 
         if (wavefront.shape, FFT_direction) not in _FFTW_INIT:
             # The first time you run FFTW to transform a given size, it does a speed test to
@@ -281,10 +258,8 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
 
         wavefront = do_fft(wavefront, overwrite_input=True, planner_effort='FFTW_MEASURE',
                                 threads=multiprocessing.cpu_count())
-    else: # Basic numpy FFT
-        do_fft =  np.fft.fft2 if forward else np.fft.ifft2
-        if normalization is None:
-            normalization = 1./wavefront.shape[0] if forward else wavefront.shape[0]
+    else:  # Standard array-API FFT, for numpy, cupy, or any other backend
+        do_fft = xp.fft.fft2 if forward else xp.fft.ifft2
         wavefront = do_fft(wavefront)
     t2 = time.time()
 
@@ -293,7 +268,7 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         # See comment above in this function.
         wavefront = _fftshift(wavefront)
 
-    wavefront *= normalization
+    wavefront = wavefront * normalization
     t3 = time.time()
     _log.debug(f"    FFT_2D: FFT in {t2-t1:3f} s, full function  in {t3-t0:.3f} s")
 
@@ -306,44 +281,6 @@ def ispowerof2(num):
     # see http://code.activestate.com/recipes/577514-chek-if-a-number-is-a-power-of-two/
     return (num & (num-1) == 0)
 
-
-def isproductofsmallprimes(num):
-    """ CLFFT only supports array sizes which are products of primes <= 13;
-    Is this integer a product of primes no greater than that?
-    """
-    tmp = num*1 # make copy
-    small_primes = [2,3,5,7,9,11,13]
-    for p in small_primes:
-        quotient, remainder = divmod(tmp, p)
-        while not remainder:
-            tmp = quotient
-            quotient, remainder = divmod(tmp, p)
-        if tmp==1: return True # if we get to 1 we're done
-    return False # if we don't get to 1 then it's got higher factors
-
-if _OPENCL_AVAILABLE:
-    def get_opencl_context():
-        """ Create, save, and retrieve OpenCL handles to the GPU """
-        if len(_OPENCL_STATE) == 0:
-            platforms = pyopencl.get_platforms()
-            if len(platforms) == 1:
-                _OPENCL_STATE['platform'] = platforms[0]
-            else:
-                raise RuntimeError("OpenCL code needs update for multiple platforms")
-            gpus = _OPENCL_STATE['platform'].get_devices(device_type=pyopencl.device_type.GPU)
-            if len(gpus) == 1:
-                device = gpus[0]
-                _OPENCL_STATE['device'] = device
-            else:
-                #raise RuntimeError("OpenCL code could not uniquely identify which device to use as GPU")
-                device = gpus[1]
-                _log.warning('Caution - hard coded use of gpu #1 if > 1 GPUs present')
-            context = pyopencl.Context(devices=[device])
-            queue = pyopencl.CommandQueue(context)
-
-            _OPENCL_STATE['context'] = context
-            _OPENCL_STATE['queue'] = queue
-        return (_OPENCL_STATE['context'], _OPENCL_STATE['queue'])
 
 
 # ##################################################################
@@ -369,14 +306,13 @@ tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
             """)
     print(f"Timing performance of FFT for {npix} x {npix}, {complextype}, with {iterations} iterations")
 
-    defaults = (poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cupy,
-            poppy.conf.use_opencl, poppy.conf.double_precision)
+    defaults = (poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.double_precision)
     poppy.conf.double_precision = double_precision
 
     # Time baseline performance in numpy
     print("Timing performance in plain numpy:")
 
-    poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cupy, poppy.conf.use_opencl = (False, False, False, False, False)
+    poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr = (False, False, False)
     update_math_settings()
     time_numpy = timer.timeit(number=iterations) / iterations
     print(f"  {time_numpy:.3f} s")
@@ -410,24 +346,14 @@ tmp = np.asarray(np.random.rand({npix},{npix}), np.{complextype})
     else:
         time_mkl = np.nan
 
-    if poppy.accel_math._OPENCL_AVAILABLE:
-        print("Timing performance with OpenCL:")
-        poppy.conf.use_opencl = True
-        update_math_settings()
-        time_opencl = timer.timeit(number=iterations) / iterations
-        print(f"  {time_opencl:.3f} s")
-    else:
-        time_opencl = np.nan
-
-
-    poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cupy,\
-            poppy.conf.use_opencl, poppy.conf.double_precision = defaults
+    update_math_settings()  # restore flags to the configured values below
+    poppy.conf.use_mkl, poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.double_precision = defaults
+    update_math_settings()
 
     return {'numpy': time_numpy,
             'fftw': time_fftw,
             'numexpr': time_numexpr,
-            'mkl': time_mkl,
-            'opencl': time_opencl}
+            'mkl': time_mkl}
 
 
 def get_processor_name():
@@ -652,13 +578,20 @@ def is_on_gpu(array):
     """Simple utility function to check if an array is on the GPU
     (only possible if using CuPY currently)
     """
-    if _USE_CUPY:
-        if isinstance(array, cp.ndarray):
-            return True
-    return False
+    return bool(_USE_CUPY and array_api_compat.is_cupy_array(array))
 
-def ensure_not_on_gpu(array):
-    """Utility function to ensure an array is in CPU memory,
-    copying it from the GPU memory if necessary
+
+def to_numpy(array):
+    """Convert an array from the active array backend to a plain numpy array, for use in
+    host-side code such as FITS output, matplotlib, and astropy.
+
+    Numpy arrays, scalars, and other non-array objects are returned unchanged. This is the
+    sanctioned boundary between backend arrays (``xp``) and numpy.
     """
-    return array.get() if is_on_gpu(array) else array
+    if array_api_compat.is_numpy_array(array):
+        return array
+    if array_api_compat.is_cupy_array(array):
+        return array.get()
+    if array_api_compat.is_array_api_obj(array):
+        return np.asarray(array)
+    return array

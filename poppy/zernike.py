@@ -553,7 +553,7 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
 
     # any pixels with zero or NaN in the aperture are outside the area
     apmask = (np.isfinite(aperture) & (aperture > 0))
-    apmask_float = xp.asarray(apmask, float)
+    apmask_float = xp.asarray(apmask, dtype=float)
     A = apmask.sum()
 
     # precompute zernikes
@@ -763,7 +763,7 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
 
     # any pixels with zero or NaN in the aperture are outside the area
     apmask = (xp.isfinite(xp.asarray(aperture)) & (xp.asarray(aperture) > 0))
-    apmask_float = xp.asarray(apmask, float)
+    apmask_float = xp.asarray(apmask, dtype=float)
     A = apmask.sum()
 
     if theta is None and rho is None:
@@ -1362,7 +1362,7 @@ def decompose_opd_segments(opd, aperture=None, nterms=15, basis=None,
 
                 # Having trouble getting this to work on GPU, so
                 # ensure this step runs on CPU
-                this_seg_mask = accel_math.ensure_not_on_gpu(this_seg_mask)
+                this_seg_mask = accel_math.to_numpy(this_seg_mask)
                 this_seg_mask = scipy.ndimage.binary_erosion(this_seg_mask,
                         iterations=ignore_border)
                 this_seg_mask = xp.asarray(this_seg_mask)  # put back on GPU, if necessary

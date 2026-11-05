@@ -191,10 +191,9 @@ def test_pyfftw_vs_numpyfft(verbose=False):
     """ Create an optical system with 2 parity test apertures,
     propagate light through it, and compare that we get the same results from both numpy and pyfftw"""
 
-    defaults = conf.use_fftw, conf.use_cuda, conf.use_opencl, conf.use_cupy
+    defaults = conf.use_fftw, conf.use_cuda, conf.use_cupy
 
     conf.use_cuda = False
-    conf.use_opencl = False
     conf.use_cupy = False
     
     sys = setup_test_osys()
@@ -225,48 +224,7 @@ def test_pyfftw_vs_numpyfft(verbose=False):
             print(f" Int. WF {i} intensity diff: {np.abs(intermediates[i].total_intensity-total_int_input)}" )
         print(" Final PSF intensity diff:", np.abs(intermediates[3].total_intensity-total_int_input) - expected)
 
-    conf.use_fftw, conf.use_cuda, conf.use_opencl, conf.use_cupy = defaults
-
-
-@pytest.mark.skipif(accel_math._OPENCL_AVAILABLE is False, reason="OPENCL not available")
-def test_opencl_vs_numpyfft(verbose=False):
-    """ Create an optical system with 2 parity test apertures,
-    propagate light through it, and compare that we get the same results from both numpy and CUDA"""
-
-    defaults = conf.use_fftw, conf.use_cuda, conf.use_opencl
-
-    conf.use_fftw = False
-    conf.use_cudal = False
-
-    sys = setup_test_osys()
-
-    conf.use_opencl = False
-    psf_numpy, intermediates_numpy = sys.calc_psf(wavelength=1e-6, return_intermediates=True)
-
-    conf.use_opencl = True
-    psf_opencl, intermediates_opencl = sys.calc_psf(wavelength=1e-6, return_intermediates=True)
-
-    # check the final PSFs are consistent
-    assert np.abs(psf_opencl[0].data-psf_numpy[0].data).max() < 1e-6
-
-    # Check flux conservation for the intermediate arrays behaves the same for both
-    intermediates = intermediates_opencl
-    epsilon = np.finfo(intermediates[0].wavefront.dtype).eps
-    total_int_input = intermediates_numpy[0].total_intensity
-    for i in [1,2]:
-        assert np.abs(intermediates[i].total_intensity - total_int_input) < 5*epsilon
-
-    # Check flux in output array is about 0.5% less than input array (due to finite FOV)
-    expected = 0.004949550538272617927759
-    assert np.abs(intermediates[3].total_intensity - total_int_input) - expected < 5*epsilon
-
-    if verbose:
-        print ("PSF difference: ", np.abs(psf_opencl[0].data-psf_numpy[0].data).max())
-        for i in [1,2]:
-            print(f" Int. WF {i} intensity diff: {np.abs(intermediates[i].total_intensity-total_int_input)}" )
-        print(" Final PSF intensity diff:", np.abs(intermediates[3].total_intensity-total_int_input) - expected)
-
-    conf.use_fftw, conf.use_cuda, conf.use_opencl = defaults
+    conf.use_fftw, conf.use_cuda, conf.use_cupy = defaults
 
 
 # TODO: Add a function that uses both the DFT and MFT for the exact same calc, and compare the results
