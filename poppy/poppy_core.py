@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from . import accel_math, conf, utils
-from .accel_math import _complex, _float, _scipy, xp
+from .accel_math import _complex, _float, _scipy, to_numpy, xp
 from .matrixDFT import MatrixFourierTransform
 
 if accel_math._NUMEXPR_AVAILABLE:
@@ -236,39 +236,30 @@ class BaseWavefront(ABC):
             else:
                 return attribute_array.copy()
 
-        # Note: FITS HDULists cannot contain arrays which are in GPU memory;
-        # thus if _USE_CUPY is true, we must get() the arrays back from GPU into CPU memory.
-        # This pattern occurs several times in the below.
+        # Note: FITS HDULists cannot contain arrays which are in GPU memory (or any non-numpy backend),
+        # so arrays are converted with to_numpy at this host boundary.
         if what.lower() == 'all':
-            intens = get_unpadded(self.intensity)
-            outarr = xp.zeros((3, intens.shape[0], intens.shape[1]))
-            outarr[0, :, :] = intens
-            outarr[1, :, :] = get_unpadded(self.amplitude)
-            outarr[2, :, :] = get_unpadded(self.phase)
-            outfits = fits.HDUList(fits.PrimaryHDU(outarr.get() if accel_math._USE_CUPY else outarr))
+            outarr = to_numpy(xp.stack([get_unpadded(self.intensity),
+                                        get_unpadded(self.amplitude),
+                                        get_unpadded(self.phase)]))
+            outfits = fits.HDUList(fits.PrimaryHDU(outarr))
             outfits[0].header['PLANE1'] = 'Wavefront Intensity'
             outfits[0].header['PLANE2'] = 'Wavefront Amplitude'
             outfits[0].header['PLANE3'] = 'Wavefront Phase'
         elif what.lower() == 'parts':
-            amp = get_unpadded(self.amplitude)
-            outarr = xp.zeros((2, amp.shape[0], amp.shape[1]))
-            outarr[0, :, :] = amp
-            outarr[1, :, :] = get_unpadded(self.phase)
-            outfits = fits.HDUList(fits.PrimaryHDU(outarr.get() if accel_math._USE_CUPY else outarr))
+            outarr = to_numpy(xp.stack([get_unpadded(self.amplitude), get_unpadded(self.phase)]))
+            outfits = fits.HDUList(fits.PrimaryHDU(outarr))
             outfits[0].header['PLANE1'] = 'Wavefront Amplitude'
             outfits[0].header['PLANE2'] = 'Wavefront Phase'
         elif what.lower() == 'intensity':
-            outfits = fits.HDUList(fits.PrimaryHDU(get_unpadded(self.intensity.get() if accel_math._USE_CUPY else self.intensity)))
+            outfits = fits.HDUList(fits.PrimaryHDU(to_numpy(get_unpadded(self.intensity))))
             outfits[0].header['PLANE1'] = 'Wavefront Intensity'
         elif what.lower() == 'phase':
-            outfits = fits.HDUList(fits.PrimaryHDU(get_unpadded(self.phase.get() if accel_math._USE_CUPY else self.phase)))
+            outfits = fits.HDUList(fits.PrimaryHDU(to_numpy(get_unpadded(self.phase))))
             outfits[0].header['PLANE1'] = 'Phase'
         elif what.lower() == 'complex':
-            real = get_unpadded(self.wavefront.real)
-            outarr = xp.zeros((2, real.shape[0], real.shape[1]))
-            outarr[0, :, :] = real
-            outarr[1, :, :] = get_unpadded(self.wavefront.imag)
-            outfits = fits.HDUList(fits.PrimaryHDU(outarr.get() if accel_math._USE_CUPY else outarr))
+            outarr = to_numpy(xp.stack([get_unpadded(self.wavefront.real), get_unpadded(self.wavefront.imag)]))
+            outfits = fits.HDUList(fits.PrimaryHDU(outarr))
             outfits[0].header['PLANE1'] = 'Real part of complex wavefront'
             outfits[0].header['PLANE2'] = 'Imaginary part of complex wavefront'
         else:
@@ -710,11 +701,8 @@ class BaseWavefront(ABC):
     @property
     def wfe(self):
         """Wavefront error of the wavefront, in meters as an astropy.Quantity"""
-        if accel_math._USE_CUPY:
-            # since this returns an astropy quantity, the array must not be in GPU memory
-            return accel_math.to_numpy(self.phase) * (self.wavelength / (2 * np.pi))
-        else:
-            return self.phase * (self.wavelength/(2*np.pi))
+        # since this returns an astropy quantity, the array must be a numpy array
+        return accel_math.to_numpy(self.phase) * (self.wavelength / (2 * np.pi))
 
     @property
     def shape(self):
@@ -1426,11 +1414,7 @@ class Wavefront(BaseWavefront):
 
         Returns True if data is in GPU memory (only possible with CUPY)
         """
-        if not accel_math._USE_CUPY:
-            return False
-        else:
-            import cupy as cp
-            return isinstance(self.wavefront, cp.ndarray)
+        return accel_math.is_on_gpu(self.wavefront)
 
     def rotate(self, angle=0.0):
         """Rotate a wavefront by some amount, using spline interpolation

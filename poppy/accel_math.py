@@ -1,6 +1,16 @@
 # accel_math.py
 #
-# Various functions related to accelerated computations using FFTW, CUPY, numexpr, and related.
+# Array backend selection (numpy or cupy, via the Python array API standard) and related
+# accelerated computations using FFTW, MKL, numexpr, and related.
+#
+# Conventions for array code throughout poppy:
+#   * All computation on wavefront/optic arrays uses ``xp`` (the array-API namespace for the backend
+#     selected at import time), ``_float()``/``_complex()`` for dtypes, and no in-place mutation
+#     where a functional expression (e.g. ``xp.where``, ``xp.stack``) will do.
+#   * Host-side work (FITS I/O, matplotlib, astropy Quantities, scalar and shape math, scipy routines
+#     without array-API support) uses numpy. Convert at that boundary with ``to_numpy()``, and bring
+#     external data in with ``xp.asarray()``. Never test for a specific backend to do this.
+#   * Pass dtypes to ``xp`` constructors by keyword (``xp.asarray(x, dtype=...)``), as the standard requires.
 #
 import logging
 import multiprocessing

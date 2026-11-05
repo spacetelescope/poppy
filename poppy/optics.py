@@ -10,7 +10,7 @@ import scipy.ndimage
 import scipy.special
 
 from . import accel_math, conf, geometry, utils
-from .accel_math import _complex, _float, _r, _scipy, xp
+from .accel_math import _complex, _float, _r, _scipy, to_numpy, xp
 from .poppy_core import BaseWavefront, OpticalElement, PlaneType, Wavefront
 
 if accel_math._NUMEXPR_AVAILABLE:
@@ -1623,10 +1623,7 @@ class NgonAperture(AnalyticOpticalElement):
         self.transmission = xp.zeros(wave.shape, dtype=_float())
         for row in range(wave.shape[0]):
             pts = xp.asarray(list(zip(x[row], y[row])))
-            if accel_math._USE_CUPY:
-                ok = matplotlib.path.Path(vertices.get()).contains_points(pts.get()) # extremely slow
-            else:
-                ok = matplotlib.path.Path(vertices).contains_points(pts)
+            ok = matplotlib.path.Path(to_numpy(vertices)).contains_points(to_numpy(pts))  # extremely slow
             self.transmission[row][ok] = 1.0
 
         return self.transmission
