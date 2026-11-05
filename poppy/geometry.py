@@ -4,6 +4,7 @@
 #  at subpixel precision. (or at least reasonably proper; no
 #  guarantees for utter mathematical exactness at machine precision.)
 
+import array_api_extra as xpx
 import numpy as np
 
 from . import accel_math
@@ -36,12 +37,16 @@ def _arc(x, y0, y1, r):
     circle.  The area returned is the area of this wedge.  If the area
     is traversed clockwise then the area is negative, otherwise it is
     positive.
+
+    Where y0 == y1 the wedge is empty and the area is exactly zero (this avoids
+    0/0 for x == 0).
     """
-    with np.errstate(divide='ignore'):
+    with np.errstate(divide='ignore', invalid='ignore'):
         if accel_math._USE_NUMEXPR:
-            return ne.evaluate("0.5 * r**2 * (arctan(y1/x) - arctan(y0/x))")
+            area = ne.evaluate("0.5 * r**2 * (arctan(y1/x) - arctan(y0/x))")
         else:
-            return 0.5 * r**2 * (xp.arctan(y1/x) - xp.arctan(y0/x))
+            area = 0.5 * r**2 * (xp.atan(y1 / x) - xp.atan(y0 / x))
+    return xp.where(y0 == y1, xp.zeros_like(area), area)
 
 def _chord(x, y0, y1):
     """
@@ -58,78 +63,19 @@ def _oneside(x, y0, y1, r):
     triangle has vertices at the origin and at (x,y0) and (x,y1).
     This is a signed area.  The path is traversed from y0 to y1.  If
     this path takes you clockwise the area will be negative.
+
+    This is evaluated branch-free. With yh the half-chord of the circle at x
+    (zero if |x| >= r), and c0, c1 the endpoints clipped to [-yh, yh], the path
+    from y0 to y1 splits into an outside arc (y0 to c0), an inside chord (c0 to
+    c1) and a second outside arc (c1 to y1). Each piece is zero when empty.
     """
+    x, y0, y1 = xp.broadcast_arrays(*(xp.asarray(v, dtype=xp.float64) for v in (x, y0, y1)))
 
-    if xp.all(xp.equal(x, 0)): return x
+    yh = xp.sqrt(xp.clip(r**2 - x**2, 0, None))
+    c0 = xp.clip(y0, -yh, yh)
+    c1 = xp.clip(y1, -yh, yh)
 
-    if xp.isscalar(x): x = xp.asarray(x)
-    if xp.isscalar(y0): y0 = xp.asarray(y0)
-    if xp.isscalar(y1): y1 = xp.asarray(y1)
-    sx = x.shape
-    ans = xp.zeros(sx, dtype=xp.float64)
-    yh = xp.zeros(sx, dtype=xp.float64)
-    to = (abs(x) >= r)
-    ti = (abs(x) < r)
-    if xp.any(to):
-        ans[to] = _arc(x[to], y0[to], y1[to], r)
-    if not xp.any(ti):
-        return ans
-
-    yh[ti] = xp.sqrt(r**2 - x[ti]**2)
-
-    i = ((y0 <= -yh) & ti)
-    if xp.any(i):
-
-        j = ((y1 <= -yh) & i)
-        if xp.any(j):
-            ans[j] = _arc(x[j], y0[j], y1[j], r)
-
-        j = ((y1 > -yh) & (y1 <= yh) & i)
-        if xp.any(j):
-            ans[j] = _arc(x[j], y0[j], -yh[j], r) + \
-                     _chord(x[j], -yh[j], y1[j])
-
-        j = ((y1 > yh) & i)
-        if xp.any(j):
-            ans[j] = _arc(x[j], y0[j], -yh[j], r) + \
-                     _chord(x[j], -yh[j], yh[j]) + \
-                     _arc(x[j], yh[j], y1[j], r)
-
-    i = ((y0 > -yh) & (y0 < yh) & ti)
-    if xp.any(i):
-
-        j = ((y1 <= -yh) & i)
-        if xp.any(j):
-            ans[j] = _chord(x[j], y0[j], -yh[j]) + \
-                     _arc(x[j], -yh[j], y1[j], r)
-
-        j = ((y1 > -yh) & (y1 <= yh) & i)
-        if xp.any(j):
-            ans[j] = _chord(x[j], y0[j], y1[j])
-
-        j = ((y1 > yh) & i)
-        if xp.any(j):
-            ans[j] = _chord(x[j], y0[j], yh[j]) + \
-                     _arc(x[j], yh[j], y1[j], r)
-
-    i = ((y0 >= yh) & ti)
-    if xp.any(i):
-
-        j = ((y1 <= -yh) & i)
-        if xp.any(j):
-            ans[j] = _arc(x[j], y0[j], yh[j], r) + \
-                     _chord(x[j], yh[j], -yh[j]) + \
-                     _arc(x[j], -yh[j], y1[j], r)
-
-        j = ((y1 > -yh) & (y1 <= yh) & i)
-        if xp.any(j):
-            ans[j] = _arc(x[j], y0[j], yh[j], r) + \
-                     _chord(x[j], yh[j], y1[j])
-
-        j = ((y1 > yh) & i)
-        if xp.any(j):
-            ans[j] = _arc(x[j], y0[j], y1[j], r)
-    return ans
+    return _arc(x, y0, c0, r) + _chord(x, c0, c1) + _arc(x, c1, y1, r)
 
 def _intarea(xc, yc, r, x0, x1, y0, y1):
     """
@@ -193,29 +139,30 @@ def filled_circle_aa(shape, xcenter, ycenter, radius, xarray=None, yarray=None,
         if clip is True, give values to use in the clip function.
     """
 
-    array = xp.zeros(shape)
-
     if xarray is None or yarray is None:
-        yarray, xarray = xp.indices(shape)
+        yarray, xarray = xp.meshgrid(xp.arange(shape[0]), xp.arange(shape[1]), indexing="ij")
 
-    r = xp.sqrt( (xarray-xcenter)**2 + (yarray-ycenter)**2)
-    array[r < radius ]  = fillvalue
+    xarray = xp.asarray(xarray, dtype=xp.float64)
+    yarray = xp.asarray(yarray, dtype=xp.float64)
 
-    pixscale = xp.abs(xarray[0,1] - xarray[0,0])
+    r = xp.sqrt((xarray - xcenter) ** 2 + (yarray - ycenter) ** 2)
+
+    pixscale = xp.abs(xarray[0, 1] - xarray[0, 0])
     area_per_pix = pixscale**2
 
-    if xp.abs(pixscale -1.0) > 0.01:
+    if xp.abs(pixscale - 1.0) > 0.01:
         import warnings
         warnings.warn('filled_circle_aa may not yield exact results for grey pixels when pixel scale <1')
-    border = xp.where( xp.abs(r-radius) < pixscale)
 
+    array = xp.astype(r < radius, xp.float64) * fillvalue
+
+    # Only the thin ring of border pixels needs the (expensive) exact area calculation.
+    border = xp.abs(r - radius) < pixscale
     weights = pixwt(xcenter, ycenter, radius, xarray[border], yarray[border])
-
-    array[border] = weights *fillvalue/area_per_pix
-
+    array = xpx.at(array, border).set(weights * fillvalue / area_per_pix)
 
     if clip:
         assert len(cliprange) == 2
-        return xp.asarray(array).clip(*cliprange)
+        return xp.clip(array, *cliprange)
     else:
         return array
