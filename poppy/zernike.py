@@ -586,7 +586,7 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
         # cf. modified gram-schmidt algorithm discussion on wikipedia.
 
     basis = xp.stack(H[1:])  # drop the 0th null element
-    return xp.where(apmask[None, :, :], basis, xp.asarray(outside, dtype=xp.float64))
+    return xp.where(apmask[None, ...], basis, xp.asarray(outside, dtype=xp.float64))
 
 
 def hexike_basis_wss(nterms=9, npix=512, rho=None, theta=None,
@@ -712,7 +712,7 @@ def hexike_basis_wss(nterms=9, npix=512, rho=None, theta=None,
     else:
         # apply aperture mask
         basis = xp.stack(H[1:])  # drop the 0th null element
-        basis = xp.where(apmask[None, :, :], basis, xp.asarray(outside, dtype=xp.float64))
+        basis = xp.where(apmask[None, ...], basis, xp.asarray(outside, dtype=xp.float64))
         return basis[0:nterms, ...]
 
 
@@ -816,7 +816,7 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
         # cf. modified gram-schmidt algorithm discussion on wikipedia.
 
     basis = xp.stack(H[1:])  # drop the 0th null element
-    return xp.where(apmask[None, :, :], basis, xp.asarray(outside, dtype=xp.float64))
+    return xp.where(apmask[None, ...], basis, xp.asarray(outside, dtype=xp.float64))
 
 class Segment_PTT_Basis:
     def __init__(self, rings=2, flattoflat=1*u.m, gap=1*u.cm, center=False,
@@ -1103,7 +1103,7 @@ def decompose_opd_basis_matrix(opd, aperture=None, nterms=15, basis=zernike_basi
     wgood = (apmask & xp.isfinite(basis_set[1, ...]))
 
     # Gram matrix b[i, j] = sum over good pixels of Zi * Zj, and f[i] = sum of opd * Zi
-    masked_basis = xp.where(wgood[None, :, :], basis_set, xp.zeros_like(basis_set))
+    masked_basis = xp.where(wgood[None, ...], basis_set, xp.zeros_like(basis_set))
     flat_basis = xp.reshape(masked_basis, (masked_basis.shape[0], -1))
     b = flat_basis @ xp.matrix_transpose(flat_basis)
     f = flat_basis @ xp.reshape(xp.where(wgood, opd, xp.zeros_like(opd)), (-1,))

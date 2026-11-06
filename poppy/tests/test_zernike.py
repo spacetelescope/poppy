@@ -452,3 +452,15 @@ def test_array_api_strict_conformance(monkeypatch):
     for name, expected in reference.items():
         assert not isinstance(results[name], numpy.ndarray), name
         numpy.testing.assert_allclose(numpy.asarray(results[name]), expected, atol=1e-12, err_msg=name)
+
+
+def test_hexike_basis_wss_flattened_coordinates():
+    """hexike_basis_wss accepts flattened 1D coordinate/aperture arrays (as used by STPSF), not just 2D grids."""
+    y, x = numpy.indices((16, 16), dtype=float)
+    x = (x - 7.5) / 8
+    y = (y - 7.5) / 8
+    aperture = (x ** 2 + y ** 2) < 0.8
+    basis_2d = zernike.hexike_basis_wss(x=x, y=y, nterms=6, aperture=aperture, outside=0)
+    basis_1d = zernike.hexike_basis_wss(x=x.ravel(), y=y.ravel(), nterms=6, aperture=aperture.ravel(), outside=0)
+    assert basis_1d.shape == (6, 256)
+    numpy.testing.assert_allclose(numpy.asarray(basis_1d), numpy.asarray(basis_2d).reshape(6, -1))
