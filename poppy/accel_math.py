@@ -579,6 +579,13 @@ def benchmark_2d_mfts(max_pow=13, savefig=False):
         plt.savefig("bench_mfts.png")
 
 
+def indices(shape, dtype=None):
+    """Array-API replacement for ``xp.indices`` for 2D shapes: returns (y, x) index arrays."""
+    dtype = _float() if dtype is None else dtype
+    y, x = xp.meshgrid(xp.arange(shape[0], dtype=dtype), xp.arange(shape[1], dtype=dtype), indexing='ij')
+    return y, x
+
+
 def is_on_gpu(array):
     """Simple utility function to check if an array is on the GPU
     (only possible if using CuPY currently)

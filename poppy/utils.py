@@ -1124,6 +1124,19 @@ def measure_anisotropy(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50):
 #
 
 
+def _rot90(array, k=1):
+    """Rotate a 2D array by k*90 degrees counterclockwise (array-API equivalent of np.rot90)."""
+    xp_ = array_namespace(array)
+    k = int(k) % 4
+    if k == 0:
+        return array
+    if k == 1:
+        return xp_.flip(xp_.permute_dims(array, (1, 0)), axis=0)
+    if k == 2:
+        return xp_.flip(array, axis=(0, 1))
+    return xp_.permute_dims(xp_.flip(array, axis=0), (1, 0))
+
+
 def _embed(array, shape, offset):
     """Return a new zero array of the given 2D shape with `array` inserted at the given (row, column) offset.
 
