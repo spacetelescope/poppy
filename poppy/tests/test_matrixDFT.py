@@ -9,10 +9,12 @@ import os
 import astropy.io.fits as fits
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy
+import pytest
 
 from poppy.accel_math import xp as np  # May or may not be on GPU
 
-from .. import matrixDFT, optics, poppy_core
+from .. import accel_math, matrixDFT, optics, poppy_core
 from .test_errorhandling import _exception_message_starts_with
 
 _log = logging.getLogger('poppy_tests')
@@ -695,3 +697,17 @@ def test_MFT_FFT_equivalence_in_OpticalSystem(tmpdir, display=False, source_offs
 
     absdiff = np.abs(np.asarray(mftpsf[0].data - fftpsf[0].data))   # Extra asarray helps with optional GPU support
     assert(np.all(absdiff < 1e-10))
+
+
+@pytest.mark.parametrize("centering", ["FFTSTYLE", "SYMMETRIC", "ADJUSTABLE"])
+@pytest.mark.parametrize("inverse", [False, True])
+def test_matrix_dft_array_api_strict(monkeypatch, centering, inverse):
+    """matrix_dft should run on a strictly standard-conforming array namespace."""
+    xs = pytest.importorskip("array_api_strict")
+    plane = numpy.random.default_rng(1).normal(size=(32, 24))
+    ref = matrixDFT.matrix_dft(plane, 6, 20, centering=centering, inverse=inverse)
+    monkeypatch.setattr(matrixDFT, "xp", xs)
+    monkeypatch.setattr(accel_math, "xp", xs)
+    monkeypatch.setattr(accel_math, "_USE_NUMEXPR", False)
+    result = matrixDFT.matrix_dft(xs.asarray(plane), 6, 20, centering=centering, inverse=inverse)
+    numpy.testing.assert_allclose(numpy.asarray(result), ref, rtol=1e-10, atol=1e-14)

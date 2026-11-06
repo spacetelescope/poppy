@@ -54,6 +54,8 @@
 
 __all__ = ['MatrixFourierTransform']
 
+import math
+
 import numpy as np
 
 from . import accel_math, conf
@@ -71,6 +73,43 @@ FFTRECT = 'FFTRECT'
 SYMMETRIC = 'SYMMETRIC'
 ADJUSTABLE = 'ADJUSTABLE'
 CENTERING_CHOICES = (FFTSTYLE, SYMMETRIC, ADJUSTABLE, FFTRECT)
+
+
+def _parse_pair(value, message, allow_scalar=False):
+    """Helper function to parse inputs which may be either a scalar or a 2-tuple,
+    e.g. for array dimensions which can either be specified as N (implicitly NxN) for a square array
+    or as [N, M] for a rectangular array.
+
+    Convert a scalar or 2-sequence of numbers to a pair of Python floats; raise ValueError(message) if invalid."""
+    try:
+        if allow_scalar and np.isscalar(value):
+            return float(value), float(value)
+        first, second = (float(v) for v in value)
+        return first, second
+    except (ValueError, TypeError):
+        raise ValueError(message)
+
+
+def _parse_sampling(nlamD, npix):
+    """Helper functon to validate and unpack the (nlamD, npix) arguments to the MFT as Python floats (Y, X ordering).
+
+    Returns npixY, npixX, nlamDY, nlamDX.
+    """
+    npixY, npixX = _parse_pair(
+        npix,
+        "'npix' must be supplied as a scalar (for square arrays) or as a 2-tuple of ints (npixY, npixX)",
+        allow_scalar=True)
+
+    # make sure these are integer values
+    if npixX != int(npixX) or npixY != int(npixY):
+        raise TypeError("'npix' must be supplied as integer value(s)")
+
+    nlamDY, nlamDX = _parse_pair(
+        nlamD,
+        "'nlamD' must be supplied as a scalar (for square arrays) or as a 2-tuple of floats (nlamDY, nlamDX)",
+        allow_scalar=True)
+    return npixY, npixX, nlamDY, nlamDX
+
 
 def matrix_dft(plane, nlamD, npix,
                offset=None, inverse=False, centering=FFTSTYLE):
@@ -126,102 +165,59 @@ def matrix_dft(plane, nlamD, npix,
     if accel_math._USE_NUMEXPR:
         return matrix_dft_numexpr(plane, nlamD, npix,
                                   offset=offset, inverse=inverse, centering=centering)
-    float = accel_math._float()
+    float_dtype = accel_math._float()
+    complex_dtype = accel_math._complex()
 
     npupY, npupX = plane.shape
-
-    try:
-        if np.isscalar(npix):
-            npixY, npixX = float(npix), float(npix)
-        else:
-            npixY, npixX = tuple(xp.asarray(npix, dtype=float))
-    except ValueError:
-        raise ValueError(
-            "'npix' must be supplied as a scalar (for square arrays) or as "
-            "a 2-tuple of ints (npixY, npixX)"
-        )
-
-    # make sure these are integer values
-    if npixX != int(npixX) or npixY != int(npixY):
-        raise TypeError("'npix' must be supplied as integer value(s)")
-
-    try:
-        if np.isscalar(nlamD):
-            nlamDY, nlamDX = float(nlamD), float(nlamD)
-        else:
-            nlamDY, nlamDX = tuple(xp.asarray(nlamD, dtype=float))
-    except ValueError:
-        raise ValueError(
-            "'nlamD' must be supplied as a scalar (for square arrays) or as"
-            " a 2-tuple of floats (nlamDY, nlamDX)"
-        )
+    npixY, npixX, nlamDY, nlamDX = _parse_sampling(nlamD, npix)
 
     centering = centering.upper()
-
 
     # In the following: X and Y are coordinates in the input plane
     #                   U and V are coordinates in the output plane
 
     if inverse:
-        dX = nlamDX / float(npupX)
-        dY = nlamDY / float(npupY)
-        dU = 1.0 / float(npixX)
-        dV = 1.0 / float(npixY)
+        dX = nlamDX / npupX
+        dY = nlamDY / npupY
+        dU = 1.0 / npixX
+        dV = 1.0 / npixY
     else:
-        dU = nlamDX / float(npixX)
-        dV = nlamDY / float(npixY)
-        dX = 1.0 / float(npupX)
-        dY = 1.0 / float(npupY)
+        dU = nlamDX / npixX
+        dV = nlamDY / npixY
+        dX = 1.0 / npupX
+        dY = 1.0 / npupY
 
-
+    # Pixel-index offsets of the coordinate origin, in pixels
     if centering == FFTSTYLE:
-        Xs = (xp.arange(npupX, dtype=float) - (npupX / 2)) * dX
-        Ys = (xp.arange(npupY, dtype=float) - (npupY / 2)) * dY
-
-        Us = (xp.arange(npixX, dtype=float) - npixX / 2) * dU
-        Vs = (xp.arange(npixY, dtype=float) - npixY / 2) * dV
+        cX, cY, cU, cV = npupX / 2, npupY / 2, npixX / 2, npixY / 2
     elif centering == ADJUSTABLE:
-        if offset is None:
-            offsetY, offsetX = 0.0, 0.0
-        else:
-            try:
-                offsetY, offsetX = tuple(xp.asarray(offset, dtype=float))
-            except ValueError:
-                raise ValueError(
-                    "'offset' must be supplied as a 2-tuple with "
-                    "(y_offset, x_offset) as floating point values"
-                )
-        Xs = (xp.arange(npupX, dtype=float) - float(npupX) / 2.0 - offsetX + 0.5) * dX
-        Ys = (xp.arange(npupY, dtype=float) - float(npupY) / 2.0 - offsetY + 0.5) * dY
-
-        Us = (xp.arange(npixX, dtype=float) - float(npixX) / 2.0 - offsetX + 0.5) * dU
-        Vs = (xp.arange(npixY, dtype=float) - float(npixY) / 2.0 - offsetY + 0.5) * dV
+        offsetY, offsetX = (0.0, 0.0) if offset is None else _parse_pair(
+            offset, "'offset' must be supplied as a 2-tuple with (y_offset, x_offset) as floating point values")
+        cX, cY = npupX / 2.0 + offsetX - 0.5, npupY / 2.0 + offsetY - 0.5
+        cU, cV = npixX / 2.0 + offsetX - 0.5, npixY / 2.0 + offsetY - 0.5
     elif centering == SYMMETRIC:
-        Xs = (xp.arange(npupX, dtype=float) - float(npupX) / 2.0 + 0.5) * dX
-        Ys = (xp.arange(npupY, dtype=float) - float(npupY) / 2.0 + 0.5) * dY
-
-        Us = (xp.arange(npixX, dtype=float) - float(npixX) / 2.0 + 0.5) * dU
-        Vs = (xp.arange(npixY, dtype=float) - float(npixY) / 2.0 + 0.5) * dV
+        cX, cY, cU, cV = npupX / 2.0 - 0.5, npupY / 2.0 - 0.5, npixX / 2.0 - 0.5, npixY / 2.0 - 0.5
     else:
         raise ValueError("Invalid centering style")
 
-    XU = xp.outer(Xs, Us)
-    YV = xp.outer(Ys, Vs)
+    Xs = (xp.arange(npupX, dtype=float_dtype) - cX) * dX
+    Ys = (xp.arange(npupY, dtype=float_dtype) - cY) * dY
+    Us = (xp.arange(int(npixX), dtype=float_dtype) - cU) * dU
+    Vs = (xp.arange(int(npixY), dtype=float_dtype) - cV) * dV
+
+    XU = Xs[:, None] * Us[None, :]
+    YV = Ys[:, None] * Vs[None, :]
 
     # SIGN CONVENTION: plus signs in exponent for basic forward propagation, with
     # phase increasing with time. This convention differs from prior poppy version < 1.0
-    if inverse:
-        expYV = xp.exp(-2.0 * np.pi * 1j * YV).T
-        expXU = xp.exp(-2.0 * np.pi * 1j * XU)
-        t1 = xp.dot(expYV, plane)
-        t2 = xp.dot(t1, expXU)
-    else:
-        expXU = xp.exp(-2.0 * np.pi * -1j * XU)
-        expYV = xp.exp(-2.0 * np.pi * -1j * YV).T
-        t1 = xp.dot(expYV, plane)
-        t2 = xp.dot(t1, expXU)
+    sign = -1.0 if inverse else 1.0
+    expXU = xp.exp(xp.astype(XU, complex_dtype) * (sign * 2j * math.pi))
+    expYV = xp.permute_dims(xp.exp(xp.astype(YV, complex_dtype) * (sign * 2j * math.pi)), (1, 0))
+    if not xp.isdtype(plane.dtype, "complex floating"):
+        plane = xp.astype(plane, complex_dtype)
+    t2 = xp.matmul(xp.matmul(expYV, plane), expXU)
 
-    norm_coeff = np.sqrt((nlamDY * nlamDX) / (npupY * npupX * npixY * npixX))
+    norm_coeff = math.sqrt((nlamDY * nlamDX) / (npupY * npupX * npixY * npixX))
     return norm_coeff * t2
 
 
@@ -279,32 +275,8 @@ def matrix_dft_numexpr(plane, nlamD, npix,
 
     npupY, npupX = plane.shape
     float = accel_math._float() # shadow builtin float with either np.float32 or np.float64, depending
-
-    try:
-        if np.isscalar(npix):
-            npixY, npixX = float(npix), float(npix)
-        else:
-            npixY, npixX = tuple(np.asarray(npix, dtype=float))
-    except ValueError:
-        raise ValueError(
-            "'npix' must be supplied as a scalar (for square arrays) or as "
-            "a 2-tuple of ints (npixY, npixX)"
-        )
-
-    # make sure these are integer values
-    if npixX != int(npixX) or npixY != int(npixY):
-        raise TypeError("'npix' must be supplied as integer value(s)")
-
-    try:
-        if np.isscalar(nlamD):
-            nlamDY, nlamDX = float(nlamD), float(nlamD)
-        else:
-            nlamDY, nlamDX = tuple(np.asarray(nlamD, dtype=float))
-    except ValueError:
-        raise ValueError(
-            "'nlamD' must be supplied as a scalar (for square arrays) or as"
-            " a 2-tuple of floats (nlamDY, nlamDX)"
-        )
+    npixY, npixX, nlamDY, nlamDX = _parse_sampling(nlamD, npix)
+    npixY, npixX, nlamDY, nlamDX = float(npixY), float(npixX), float(nlamDY), float(nlamDX)
 
     centering = centering.upper()
 
@@ -342,13 +314,8 @@ def matrix_dft_numexpr(plane, nlamD, npix,
         if offset is None:
             offsetY, offsetX = 0.0, 0.0   # noqa: F841
         else:
-            try:
-                offsetY, offsetX = tuple(np.asarray(offset, dtype=float))   # noqa: F841
-            except ValueError:
-                raise ValueError(
-                    "'offset' must be supplied as a 2-tuple with "
-                    "(y_offset, x_offset) as floating point values"
-                )
+            offsetY, offsetX = _parse_pair(   # noqa: F841
+                offset, "'offset' must be supplied as a 2-tuple with (y_offset, x_offset) as floating point values")
         Xs = ne.evaluate("(ar_npupX - (npupX) / 2.0 - offsetX + 0.5) * dX")
         Ys = ne.evaluate("(ar_npupY - (npupY) / 2.0 - offsetY + 0.5) * dY")
 
