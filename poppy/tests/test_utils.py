@@ -325,3 +325,15 @@ def test_pad_crop_array_api_strict(monkeypatch):
     a = xs.asarray(ref, dtype=xs.complex128)
     for (func, arg), exp in zip(cases, expected):
         np.testing.assert_array_equal(np.asarray(func(a, arg)), exp)
+
+
+def test_rebin_array():
+    """rebin_array conserves flux, clips trailing remainders, keeps dtype, and works on strict arrays."""
+    ref = np.arange(30).reshape(6, 5)
+    out = utils.rebin_array(ref, (2, 2))
+    assert out.shape == (3, 2) and out.dtype == ref.dtype
+    assert out[0, 0] == ref[0:2, 0:2].sum() and out[2, 1] == ref[4:6, 2:4].sum()
+
+    xs = pytest.importorskip("array_api_strict")
+    out_strict = utils.rebin_array(xs.asarray(ref.astype(float)), (2, 2))
+    np.testing.assert_array_equal(np.asarray(out_strict), out)

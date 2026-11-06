@@ -10,6 +10,7 @@ import os.path
 import pickle
 import warnings
 
+from array_api_compat import array_namespace
 import array_api_extra as xpx
 import astropy.io.fits as fits
 import astropy.units as u
@@ -1274,34 +1275,27 @@ def rebin_array(a=None, rc=(2, 2), verbose=False):
     rc : two-element tuple
         (nrows, ncolumns) desired for rebinned array
     verbose : bool
-        output additional status text?
+        log additional status text?
 
+    Returns
+    -------
+    b : array
+        Rebinned array, in the same array namespace and with the same dtype as the input.
 
     anand@stsci.edu
 
     """
     r, c = rc
+    xp_a = array_namespace(a)
 
-    R = a.shape[0]
-    C = a.shape[1]
+    nr = a.shape[0] // r
+    nc = a.shape[1] // c
+    if verbose:
+        _log.info("Rebinning %s array by %s into %s", a.shape, rc, (nr, nc))
 
-    nr = int(R / r)
-    nc = int(C / c)
-
-    b = a[0:nr, 0:nc].copy()
-    b = b * 0
-
-    for ri in range(0, nr):
-        Rlo = ri * r
-        if verbose:
-            print("row loop")
-        for ci in range(0, nc):
-            Clo = ci * c
-            b[ri, ci] = a[Rlo:Rlo + r, Clo:Clo + c].sum()
-            if verbose:
-                print(f"    [{Rlo:d}:{Rlo + r:d}, {Clo:d}:{Clo + c:d}]")
-                print(f"{b[ri, ci]:4.0f}")
-    return b
+    cropped = a[0:nr * r, 0:nc * c]
+    b = xp_a.sum(xp_a.reshape(cropped, (nr, r, nc, c)), axis=(1, 3))
+    return xp_a.astype(b, a.dtype)
 
 
 def krebin(a, shape):
