@@ -264,8 +264,9 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         wavefront = do_fft(wavefront, overwrite_input=True, planner_effort='FFTW_MEASURE',
                                 threads=multiprocessing.cpu_count())
     else:  # Standard array-API FFT, for numpy, cupy, or any other backend
-        do_fft = xp.fft.fft2 if forward else xp.fft.ifft2
-        wavefront = do_fft(wavefront)
+        # fft2 is not part of the array API standard; fftn over the last two axes is equivalent
+        do_fft = xp.fft.fftn if forward else xp.fft.ifftn
+        wavefront = do_fft(wavefront, axes=(-2, -1))
     t2 = time.time()
 
     if (not forward) and fftshift:  # shift after forwards propagations (using inverse FFT)

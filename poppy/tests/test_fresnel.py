@@ -948,3 +948,32 @@ def test_fresnel_noninteger_oversampling(display_intermediates=False):
     xp.testing.assert_array_almost_equal(psf3[0].header['PIXELSCL'], 0.017188733797782272, decimal=7,
                                          err_msg='pixelscale for the PSF with oversample of 2.5 is surprisingly different from expected result.')
 
+
+
+def test_fresnel_array_api_strict(monkeypatch):
+    """Fresnel propagation (PTP, spherical/direct, lens) runs under a strict array API namespace."""
+    import array_api_strict
+
+    from .. import accel_math, geometry, optics
+
+    def run():
+        out = []
+        for z in (30 * u.mm, 80 * u.mm):
+            wf = fresnel.FresnelWavefront(0.5 * u.mm, wavelength=830e-9, npix=32, oversample=2)
+            wf *= optics.CircularAperture(radius=0.4e-3)
+            wf.propagate_fresnel(z)
+            wf.apply_lens_power(fresnel.QuadraticLens(50 * u.mm), ignore_wavefront=True)
+            wf.propagate_fresnel(20 * u.mm)
+            out += [np.asarray(wf.wavefront), np.asarray(wf.intensity)]
+        for z in (0.2 * u.m, -0.2 * u.m):
+            wf = fresnel.FresnelWavefront(0.5 * u.mm, wavelength=830e-9, npix=32, oversample=2)
+            wf.propagate_direct(z)
+            out.append(np.asarray(wf.wavefront))
+        return out
+
+    monkeypatch.setattr(accel_math, "_USE_NUMEXPR", False)
+    expected = run()
+    for mod in (accel_math, poppy_core, utils, optics, geometry, fresnel):
+        monkeypatch.setattr(mod, "xp", array_api_strict)
+    for e, g in zip(expected, run()):
+        np.testing.assert_allclose(g, e, rtol=1e-9, atol=1e-12)
