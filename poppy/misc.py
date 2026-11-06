@@ -6,7 +6,8 @@
 
 import matplotlib.pyplot as plt
 
-from poppy.accel_math import _scipy, xp
+from poppy import _scipy_compat
+from poppy.accel_math import xp
 
 _RADtoARCSEC = 180. * 60 * 60 / xp.pi  # ~ 206265
 _ARCSECtoRAD = xp.pi / (180. * 60 * 60)
@@ -47,7 +48,7 @@ def airy_1d(diameter=1.0, wavelength=1e-6, length=512, pixelscale=0.010,
     # pedantically avoid divide by 0 by setting 0s to minimum nonzero number
     v[v == 0] = xp.finfo(v.dtype).eps
 
-    airy = 1./(1-e**2)**2 * ((2*_scipy.special.j1(v) - e*2*_scipy.special.j1(e*v))/v)**2
+    airy = 1./(1-e**2)**2 * ((2*_scipy_compat.j1(v) - e*2*_scipy_compat.j1(e*v))/v)**2
     # see e.g. Schroeder, Astronomical Optics, 2nd ed. page 248
 
     if plot:
@@ -95,7 +96,7 @@ def airy_2d(diameter=1.0, wavelength=1e-6, shape=(512, 512), pixelscale=0.010,
     # pedantically avoid divide by 0 by setting 0s to minimum nonzero number
     v[v == 0] = xp.finfo(v.dtype).eps
 
-    airy = 1./(1-e**2)**2 * ((2*_scipy.special.j1(v) - e*2*_scipy.special.j1(e*v))/v)**2
+    airy = 1./(1-e**2)**2 * ((2*_scipy_compat.j1(v) - e*2*_scipy_compat.j1(e*v))/v)**2
     # see e.g. Schroeder, Astronomical Optics, 2nd ed. page 248
     return airy
 

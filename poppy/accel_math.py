@@ -58,9 +58,6 @@ try:
     # try to import cupy packages to see if they are is available
     # and check if GPU hardware is available
     import cupy as cp
-    import cupyx.scipy.ndimage
-    import cupyx.scipy.signal
-    import cupyx.scipy.special
     cp.cuda.Device() # checks if a GPU exists
     _CUPY_PLANS = {}
     _CUPY_AVAILABLE = True
@@ -95,10 +92,8 @@ _USE_CUPY = (_BACKEND == 'cupy')
 if _USE_CUPY:
     import array_api_compat.cupy  # requires cupy, so only import if selected
     xp = array_api_compat.cupy
-    _scipy = cupyx.scipy
 else:
     xp = array_api_compat.numpy
-    _scipy = scipy
 
 
 def update_math_settings():

@@ -11,8 +11,8 @@ import numpy as np
 import scipy.ndimage
 import scipy.signal
 
-from . import accel_math, optics, poppy_core, utils
-from .accel_math import _scipy, xp
+from . import _scipy_compat, accel_math, optics, poppy_core, utils
+from .accel_math import xp
 
 _log = logging.getLogger('poppy')
 
@@ -184,7 +184,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         import warnings
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
-            return _scipy.ndimage.zoom(self.influence_func, scale)
+            return _scipy_compat.zoom(self.influence_func, scale)
 
     def _get_rescaled_actuator_surface(self, pixelscale):
         """ Return the actuator surface print-through, rescaled onto the
@@ -472,7 +472,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
 
         # Now we can convolve with the influence function to get the full continuous surface.
         influence_rescaled = self._get_rescaled_influence_func(wave.pixelscale)
-        dm_surface = _scipy.signal.fftconvolve(self._surface_trace_flat.reshape(wave.shape), influence_rescaled, mode='same')
+        dm_surface = _scipy_compat.fftconvolve(self._surface_trace_flat.reshape(wave.shape), influence_rescaled, mode='same')
 
         return dm_surface
 
@@ -545,7 +545,7 @@ class ContinuousDeformableMirror(optics.AnalyticOpticalElement):
         self._surface_trace_flat[self._act_ind_flat] = target_val
 
         actuator_rescaled = self._get_rescaled_actuator_surface(wave.pixelscale)
-        dm_surface = _scipy.signal.fftconvolve(self._surface_trace_flat.reshape(wave.shape),
+        dm_surface = _scipy_compat.fftconvolve(self._surface_trace_flat.reshape(wave.shape),
                                                actuator_rescaled, mode='same')
 
         return dm_surface

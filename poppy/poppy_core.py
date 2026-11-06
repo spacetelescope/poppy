@@ -11,8 +11,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
-from . import accel_math, conf, utils
-from .accel_math import _complex, _float, _scipy, to_numpy, xp
+from . import _scipy_compat, accel_math, conf, utils
+from .accel_math import _complex, _float, to_numpy, xp
 from .matrixDFT import MatrixFourierTransform
 
 if accel_math._NUMEXPR_AVAILABLE:
@@ -815,7 +815,7 @@ class BaseWavefront(ABC):
 
             coords = xp.array([ivals, jvals])
 
-            new_wf = _scipy.ndimage.map_coordinates(cropped_wf, coords, order=detector.interp_order)
+            new_wf = _scipy_compat.map_coordinates(cropped_wf, coords, order=detector.interp_order)
 
         # enforce conservation of energy:
         new_wf *= 1. / pixscale_ratio
@@ -901,8 +901,8 @@ class BaseWavefront(ABC):
             rot_imag = xp.rot90(self.wavefront.imag, k=-k)
         else:
             # arbitrary free rotation with interpolation
-            rot_real = _scipy.ndimage.rotate(self.wavefront.real, -angle, reshape=False)  # negative = CCW
-            rot_imag = _scipy.ndimage.rotate(self.wavefront.imag, -angle, reshape=False)
+            rot_real = _scipy_compat.rotate(self.wavefront.real, -angle, reshape=False)  # negative = CCW
+            rot_imag = _scipy_compat.rotate(self.wavefront.imag, -angle, reshape=False)
         self.wavefront = rot_real + 1j * rot_imag
 
         self.history.append(f'Rotated by {angle:.2f} degrees, CCW')
@@ -2578,9 +2578,9 @@ class OpticalElement:
                 # raise NotImplementedError("Need to implement resampling.")
                 zoom = (self.pixelscale / wave.pixelscale).decompose().value
                 original_opd = self.get_opd(wave)
-                resampled_opd = _scipy.ndimage.zoom(original_opd, zoom, output=original_opd.dtype, order=self.interp_order)
+                resampled_opd = _scipy_compat.zoom(original_opd, zoom, order=self.interp_order)
                 original_amplitude = self.get_transmission(wave)
-                resampled_amplitude = _scipy.ndimage.zoom(original_amplitude, zoom, output=original_amplitude.dtype, order=self.interp_order)
+                resampled_amplitude = _scipy_compat.zoom(original_amplitude, zoom, order=self.interp_order)
                 _log.debug("resampled optic to match wavefront via spline interpolation by a" +
                            f" zoom factor of {zoom:.3g}")
                 _log.debug(f"resampled optic shape: {resampled_amplitude.shape}   wavefront shape: {wave.shape}")
@@ -3162,11 +3162,11 @@ class FITSOpticalElement(OpticalElement):
                     # arbitrary free rotation with interpolation
                     # do rotation with interpolation, but try to clean up some of the artifacts afterwards.
                     # this is imperfect at best, of course...
-                    self.amplitude = _scipy.ndimage.rotate(xp.asarray(self.amplitude) , -rotation,  # negative = CCW
+                    self.amplitude = _scipy_compat.rotate(xp.asarray(self.amplitude) , -rotation,  # negative = CCW
                                                                   reshape=False).clip(min=0, max=1.0)
                     wnoise = (self.amplitude < 1e-3) & (self.amplitude > 0)
                     self.amplitude[wnoise] = 0
-                    self.opd = _scipy.ndimage.rotate(self.opd, -rotation, reshape=False)  # negative = CCW
+                    self.opd = _scipy_compat.rotate(self.opd, -rotation, reshape=False)  # negative = CCW
                 _log.info(f"  Rotated optic by {rotation:f} degrees counter clockwise.")
                 self._rotation = rotation
 
@@ -3269,8 +3269,8 @@ class FITSOpticalElement(OpticalElement):
                     _log.info(f"Actual shift applied   = ({rollx * 1.0 / self.amplitude.shape[1]:6.3f}, {rolly * 1.0 / self.amplitude.shape[0]:6.3f}) ")
                     self._shift = (rollx * 1.0 / self.amplitude.shape[1], rolly * 1.0 / self.amplitude.shape[0])
 
-                self.amplitude = _scipy.ndimage.shift(self.amplitude, (rolly, rollx))
-                self.opd = _scipy.ndimage.shift(self.opd, (rolly, rollx))
+                self.amplitude = _scipy_compat.shift(self.amplitude, (rolly, rollx))
+                self.opd = _scipy_compat.shift(self.opd, (rolly, rollx))
 
     @property
     def pupil_diam(self):

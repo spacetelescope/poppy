@@ -6,11 +6,9 @@ import astropy.io.fits as fits
 import astropy.units as u
 import matplotlib
 import numpy as np
-import scipy.ndimage
-import scipy.special
 
-from . import accel_math, conf, geometry, utils
-from .accel_math import _complex, _float, _r, _scipy, to_numpy, xp
+from . import _scipy_compat, accel_math, conf, geometry, utils
+from .accel_math import _complex, _float, _r, to_numpy, xp
 from .poppy_core import BaseWavefront, OpticalElement, PlaneType, Wavefront
 
 if accel_math._NUMEXPR_AVAILABLE:
@@ -559,7 +557,7 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
             sigmar = self.sigma * r
             sigmar.clip(np.finfo(sigmar.dtype).tiny, out=sigmar)  # avoid divide by zero -> NaNs
 
-            self.transmission = (1 - (2 * _scipy.special.j1(sigmar) / sigmar) ** 2)
+            self.transmission = (1 - (2 * _scipy_compat.j1(sigmar) / sigmar) ** 2)
             self.transmission[r == 0] = 0  # special case center point (value based on L'Hopital's rule)
         elif self.kind == 'nircamcircular':
             # larger sigma implies narrower peak? TBD verify if this is correct
@@ -567,7 +565,7 @@ class BandLimitedCoronagraph(AnalyticImagePlaneElement):
             r = _r(x, y)
             sigmar = self.sigma * r
             sigmar.clip(np.finfo(sigmar.dtype).tiny, out=sigmar)  # avoid divide by zero -> NaNs
-            self.transmission = (1 - (2 * scipy.special.jn(1, sigmar) / sigmar) ** 2)
+            self.transmission = (1 - (2 * _scipy_compat.j1(sigmar) / sigmar) ** 2)
 
             # add in the ND squares. Note the positions are not exactly the same in the two wedges.
             # See the figures  in Krist et al. of how the 6 ND squares are spaced among the 5
