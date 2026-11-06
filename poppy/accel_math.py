@@ -274,7 +274,10 @@ def fft_2d(wavefront, forward=True, normalization=None, fftshift=True):
         # See comment above in this function.
         wavefront = _fftshift(wavefront)
 
-    wavefront = wavefront * normalization
+    if _is_mutable(wavefront):
+        wavefront *= normalization  # the FFT output is a fresh array we own, so avoid another allocation
+    else:
+        wavefront = wavefront * normalization
     t3 = time.time()
     _log.debug(f"    FFT_2D: FFT in {t2-t1:3f} s, full function  in {t3-t0:.3f} s")
 
@@ -585,6 +588,12 @@ def indices(shape, dtype=None):
     dtype = _float() if dtype is None else dtype
     y, x = xp.meshgrid(xp.arange(shape[0], dtype=dtype), xp.arange(shape[1], dtype=dtype), indexing='ij')
     return y, x
+
+
+def _is_mutable(array):
+    """True for array types that support safe in-place operators (numpy, cupy). Used to guard in-place
+    fast paths; other array API backends (e.g. immutable jax arrays) get the functional equivalent."""
+    return array_api_compat.is_numpy_array(array) or array_api_compat.is_cupy_array(array)
 
 
 def is_on_gpu(array):

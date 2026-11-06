@@ -159,10 +159,14 @@ class BaseWavefront(ABC):
     def _multiply_wavefront(self, factor):
         """Multiply the wavefront array by a scalar or array, preserving its complex dtype.
 
-        Rebinds ``self.wavefront`` to a new array rather than modifying it in place, since the array API
-        has no in-place operators that are portable to all backends (e.g. immutable jax arrays).
+        Modifies the array in place for mutable backends (numpy, cupy), which avoids allocating a new
+        array for every optic. Other array API backends (e.g. immutable jax arrays) get a rebinding to
+        a new array instead.
         """
-        self.wavefront = xp.astype(self.wavefront * factor, self.wavefront.dtype, copy=False)
+        if accel_math._is_mutable(self.wavefront):
+            self.wavefront *= factor
+        else:
+            self.wavefront = xp.astype(self.wavefront * factor, self.wavefront.dtype, copy=False)
 
     def __imul__(self, optic):
         """Multiply a Wavefront by an OpticalElement or scalar"""
