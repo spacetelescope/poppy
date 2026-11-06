@@ -1688,6 +1688,11 @@ class BaseOpticalSystem(ABC):
             utils.fftw_load_wisdom()
 
         if conf.use_multiprocessing and len(wavelength) > 1:  # ######## Parallelized computation ############
+            if accel_math._BACKEND != 'numpy':
+                raise NotImplementedError(
+                    f"Multiprocessing is not supported with the '{accel_math._BACKEND}' array backend "
+                    "(device contexts do not survive forking worker processes, and the device already "
+                    "provides the parallelism). Set poppy.conf.use_multiprocessing = False.")
             # Avoid a Mac OS incompatibility that can lead to hard-to-reproduce crashes.
             # see issues #23 and #176
 

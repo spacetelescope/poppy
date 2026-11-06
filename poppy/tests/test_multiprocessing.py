@@ -96,3 +96,16 @@ def test_estimate_nprocesses():
     assert answer > 0, "Estimated optimal nprocesses must be positive integer"
     assert answer < 100, "Estimated optimal nprocesses is unreasonably large"
 
+
+def test_multiprocessing_rejected_for_non_numpy_backend(monkeypatch):
+    """Requesting multiprocessing with a non-numpy array backend raises a clear error"""
+    from .. import accel_math
+    osys = poppy_core.OpticalSystem("test")
+    osys.add_pupil(optics.CircularAperture(radius=1))
+    osys.add_detector(pixelscale=0.1, fov_arcsec=2.0)
+    source = {'wavelengths': [1.0e-6, 1.1e-6], 'weights': [0.5, 0.5]}
+
+    monkeypatch.setattr(accel_math, "_BACKEND", "cupy")
+    with conf.set_temp('use_multiprocessing', True):
+        with pytest.raises(NotImplementedError, match="not supported with the 'cupy' array backend"):
+            osys.calc_psf(source=source)
