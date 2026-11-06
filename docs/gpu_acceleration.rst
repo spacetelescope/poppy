@@ -1,3 +1,5 @@
+.. _gpu_acceleration:
+
 GPU Accelerated Optical Calculations
 ====================================
 
@@ -25,7 +27,7 @@ Note, because the array library is selected at import time, it is not possible t
 between GPU and CPU calculations during the same python session. Select the array backend
 with the ``array_backend`` configuration item (``'numpy'``, ``'cupy'``, or ``'auto'``, the default,
 which uses CuPy if ``use_cupy`` is set and a GPU is available) in your poppy config file, before
-importing poppy. Poppy's array math is written against the
+importing poppy. (See :ref:`array_backends` for details on backends, the host/device boundary, and related settings.) Poppy's array math is written against the
 `Python array API standard <https://data-apis.org/array-api/latest/>`_ using
 `array-api-compat <https://data-apis.org/array-api-compat/>`_.
 

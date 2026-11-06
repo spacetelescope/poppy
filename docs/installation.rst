@@ -46,6 +46,9 @@ improvements if you are spending substantial time running calculations. See
   intermittent stability issues with pyFFTW for reasons that are not yet
   clear.) *At this time we recommend most users should skip installing pyFFTW
   while getting started with poppy*.
+* `CuPy <https://cupy.dev>`__ allows running all calculations on an NVIDIA GPU, selected
+  via the ``array_backend`` configuration setting. See :ref:`array_backends` and
+  :ref:`gpu_acceleration`.
 * Anaconda `accelerate <https://docs.anaconda.com/accelerate/>`_ and
   `numexpr <http://numexpr.readthedocs.io/en/latest/user_guide.html>`_.
   These optionally can provide improved performance particularly in the

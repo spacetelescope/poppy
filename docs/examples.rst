@@ -16,6 +16,11 @@ if you first enable Python's logging mechanism to display log messages to screen
         import logging
         logging.basicConfig(level=logging.DEBUG)
 
+.. note::
+   The examples below use poppy's default settings. For larger calculations, see
+   :ref:`array_backends` and :ref:`performance_and_parallelization` for choosing an
+   array backend (numpy or GPU) and tuning speed.
+
 
 .. contents:: :local:
 

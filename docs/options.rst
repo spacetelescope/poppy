@@ -27,6 +27,8 @@ See the `python logging docs <https://docs.python.org/2/library/logging.html>`_ 
 
 
 
+.. _configuration:
+
 Configuration 
 -------------------
 
@@ -38,10 +40,17 @@ These settings are stored in a file in the user's home directory, for instance `
 Setting                     Description                                                     Default
 =========================== =============================================================   ===================
 use_multiprocessing         Should PSF calculations run in parallel using multiple          False
-                            processors?                             
-
+                            processors? Numpy backend only.
 n_processes                 Maximum number of additional worker processes to spawn.         4
+array_backend               Array library used for all math, chosen once at import time:    auto
+                            'numpy', 'cupy', or 'auto' (CuPy if ``use_cupy`` is set and
+                            a GPU is present, else numpy). See :ref:`array_backends`.
+use_cupy                    With ``array_backend = auto``, allow CuPy if a GPU exists.      True
 use_fftw                    Should the pyFFTW library be used (if it is present)?           True
+use_mkl                     Should Intel MKL FFTs be used (if present)? Highest priority    True
+                            of the CPU FFT options.
+use_numexpr                 Should numexpr be used to accelerate array math (if present)?   True
+double_precision            Use float64/complex128 if True, otherwise float32/complex64.    True
 autosave_fftw_wisdom        Should POPPY automatically save and reload FFTW 'wisdom'        True
                             (i.e. timing measurements of different FFT variants)
 default_image_display_fov   Default display field of view for PSFs, in arcsec               5
