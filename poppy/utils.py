@@ -10,6 +10,7 @@ import os.path
 import pickle
 import warnings
 
+import array_api_extra as xpx
 import astropy.io.fits as fits
 import astropy.units as u
 import matplotlib
@@ -1122,6 +1123,17 @@ def measure_anisotropy(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50):
 #
 
 
+def _embed(array, shape, offset):
+    """Return a new zero array of the given 2D shape with `array` inserted at the given (row, column) offset.
+
+    A single allocation followed by a slice update; this is faster than np.pad-style
+    concatenation, and `array_api_extra.at` makes it work on backends that lack in-place assignment.
+    """
+    padded = xp.zeros(shape, dtype=array.dtype)
+    n0, m0 = offset
+    return xpx.at(padded)[n0:n0 + array.shape[0], m0:m0 + array.shape[1]].set(array)
+
+
 def pad_to_oversample(array, oversample):
     """ Add zeros around the edge of an array, for a given desired FFT integer oversampling ratio
 
@@ -1143,13 +1155,11 @@ def pad_to_oversample(array, oversample):
     """
     npix = array.shape[0]
     n = int(np.round(npix * oversample))
-    padded = xp.zeros(shape=(n, n), dtype=array.dtype)
     n0 = float(npix) * (oversample - 1) / 2
     n1 = n0 + npix
     n0 = int(round(n0))  # because astropy test_plugins enforces integer indices
     n1 = int(round(n1))
-    padded[n0:n1, n0:n1] = array
-    return padded
+    return _embed(array, (n, n), (n0, n0))
 
 
 def pad_to_size(array, padded_shape):
@@ -1179,8 +1189,6 @@ def pad_to_size(array, padded_shape):
     else:
         outsize0 = padded_shape[0]
         outsize1 = padded_shape[1]
-    # npix = array.shape[0]
-    padded = xp.zeros(shape=padded_shape, dtype=array.dtype)
     n0 = (outsize0 - array.shape[0]) // 2  # pixel offset for the inner array
     m0 = (outsize1 - array.shape[1]) // 2  # pixel offset in second dimension
     n1 = n0 + array.shape[0]
@@ -1189,8 +1197,7 @@ def pad_to_size(array, padded_shape):
     n1 = int(round(n1))
     m0 = int(round(m0))
     m1 = int(round(m1))
-    padded[n0:n1, m0:m1] = array
-    return padded
+    return _embed(array, (outsize0, outsize1), (n0, m0))
 
 
 def pad_or_crop_to_shape(array, target_shape):
@@ -1220,15 +1227,14 @@ def pad_or_crop_to_shape(array, target_shape):
 
     lx, ly = array.shape
     lx_w, ly_w = target_shape
-    border_x = xp.abs(lx - lx_w) // 2
-    border_y = xp.abs(ly - ly_w) // 2
+    border_x = abs(lx - lx_w) // 2
+    border_y = abs(ly - ly_w) // 2
 
     if (lx < lx_w) or (ly < ly_w):
         _log.debug("Array shape " + str(array.shape) + " is smaller than desired shape " + str(
             [lx_w, ly_w]) + "; will attempt to zero-pad the array")
 
-        resampled_array = xp.zeros(shape=(lx_w, ly_w), dtype=array.dtype)
-        resampled_array[border_x:border_x + lx, border_y:border_y + ly] = array
+        resampled_array = _embed(array, (lx_w, ly_w), (border_x, border_y))
         _log.debug(f"  Padded with a {border_x:d} x {border_y:d} border to "
                    " match the desired shape")
 
@@ -1248,7 +1254,7 @@ def remove_padding(array, oversample):
     n1 = n0 + npix
     n0 = int(round(n0))
     n1 = int(round(n1))
-    return array[n0:n1, n0:n1].copy()
+    return xp.asarray(array[n0:n1, n0:n1], copy=True)
 
 
 # Back compatibility alias:
@@ -1316,7 +1322,7 @@ def krebin(a, shape):
     """
     # Klaus P's fastrebin from web
     sh = shape[0], a.shape[0] // shape[0], shape[1], a.shape[1] // shape[1]
-    return a.reshape(sh).sum(-1).sum(1)
+    return xp.sum(xp.sum(xp.reshape(a, sh), axis=-1), axis=1)
 
 
 ###########################################################################

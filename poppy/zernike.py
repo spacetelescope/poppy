@@ -24,6 +24,7 @@ Gram-Schmidt orthonormalization process as applied to this case is
 
 import inspect
 import logging
+import math
 from functools import lru_cache
 from math import factorial
 
@@ -52,6 +53,27 @@ _log.addHandler(logging.NullHandler())
 def _is_odd(integer):
     """Helper for testing if an integer is odd by bitwise & with 1."""
     return integer & 1
+
+
+def _aperture_mask(aperture):
+    """Boolean mask of the pixels inside an aperture.
+
+    Pixels that are zero, negative or NaN are outside. Boolean input is used as-is.
+    """
+    aperture = xp.asarray(aperture)
+    if aperture.dtype == xp.bool:
+        return aperture
+    return xp.isfinite(aperture) & (aperture > 0)
+
+
+def _terms(basis_set):
+    """List of the individual 2D basis terms in a (nterms, ny, nx) array."""
+    return [basis_set[i, ...] for i in range(basis_set.shape[0])]
+
+
+def _masked_sum(values, mask):
+    """Sum of `values` over the pixels where `mask` is True, ignoring non-finite values elsewhere."""
+    return xp.sum(xp.where(mask, values, xp.zeros_like(values)))
 
 
 def zern_name(i):
@@ -162,16 +184,16 @@ def R(n, m, rho):
         unit circle
     """
 
-    m = int(np.abs(m))
-    n = int(np.abs(n))
-    output = xp.zeros(rho.shape)
+    m = abs(int(m))
+    n = abs(int(n))
     if _is_odd(n - m):
         return 0
     else:
+        output = xp.zeros_like(rho)
         for k in range(int((n - m) / 2) + 1):
             coef = ((-1) ** k * factorial(n - k) /
                     (factorial(k) * factorial(int((n + m) / 2) - k) * factorial(int((n - m) / 2) - k)))
-            output += coef * rho ** (n - 2 * k)
+            output = output + coef * rho ** (n - 2 * k)
         return output
 
 
@@ -237,31 +259,30 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
         xx, yy = xp.meshgrid(x, y)
 
         rho = xp.sqrt(xx ** 2 + yy ** 2)
-        theta = xp.arctan2(yy, xx)
+        theta = xp.atan2(yy, xx)
     elif (theta is None and rho is not None) or (theta is not None and rho is None):
         raise ValueError("If you provide either the `theta` or `rho` input array, you must "
                          "provide both of them.")
-        
-    if not xp.all(xp.asarray(rho.shape == theta.shape)):
+
+    if rho.shape != theta.shape:
         raise ValueError('The rho and theta arrays do not have consistent shape.')
 
-    aperture = (rho <= 1)
+    aperture = xp.astype(rho <= 1, xp.float64)
 
     if m == 0:
         if n == 0:
             zernike_result = aperture
         else:
-            norm_coeff = np.sqrt(n + 1) if noll_normalize else 1
+            norm_coeff = math.sqrt(n + 1) if noll_normalize else 1
             zernike_result = norm_coeff * R(n, m, rho) * aperture
     elif m > 0:
-        norm_coeff = np.sqrt(2) * np.sqrt(n + 1) if noll_normalize else 1
-        zernike_result = norm_coeff * R(n, m, rho) * xp.cos(np.abs(m) * theta) * aperture
+        norm_coeff = math.sqrt(2) * math.sqrt(n + 1) if noll_normalize else 1
+        zernike_result = norm_coeff * R(n, m, rho) * xp.cos(abs(m) * theta) * aperture
     else:
-        norm_coeff = np.sqrt(2) * np.sqrt(n + 1) if noll_normalize else 1
-        zernike_result = norm_coeff * R(n, m, rho) * xp.sin(np.abs(m) * theta) * aperture
+        norm_coeff = math.sqrt(2) * math.sqrt(n + 1) if noll_normalize else 1
+        zernike_result = norm_coeff * R(n, m, rho) * xp.sin(abs(m) * theta) * aperture
 
-    zernike_result[(rho > 1)] = outside
-    return zernike_result
+    return xp.where(rho > 1, xp.asarray(outside, dtype=zernike_result.dtype), zernike_result)
 
 
 def zernike1(j, **kwargs):
@@ -303,11 +324,12 @@ def cached_zernike1(j, shape, pixelscale, pupil_radius, outside=np.nan, noll_nor
     r = xp.sqrt(x ** 2 + y ** 2)
 
     rho = r / pupil_radius
-    theta = xp.arctan2(y / pupil_radius, x / pupil_radius)
+    theta = xp.atan2(y / pupil_radius, x / pupil_radius)
 
     n, m = noll_indices(j)
     result = zernike(n, m, rho=rho, theta=theta, outside=outside, noll_normalize=noll_normalize)
-    result.flags.writeable = False  # don't let caller modify cached copy in-place
+    if isinstance(result, np.ndarray):
+        result.flags.writeable = False  # don't let caller modify cached copy in-place
     return result
 
 
@@ -346,15 +368,11 @@ def zernike_basis(nterms=15, npix=512, rho=None, theta=None, **kwargs):
         shape = (npix, npix)
         use_polar = False
 
-    zern_output = xp.zeros((nterms,) + shape)
-
     if use_polar:
-        for j in range(nterms):
-            zern_output[j] = zernike1(j + 1, rho=rho, theta=theta, **kwargs)
+        terms = [zernike1(j + 1, rho=rho, theta=theta, **kwargs) for j in range(nterms)]
     else:
-        for j in range(nterms):
-            zern_output[j] = zernike1(j + 1, npix=npix, **kwargs)
-    return zern_output
+        terms = [zernike1(j + 1, npix=npix, **kwargs) for j in range(nterms)]
+    return xp.stack(terms)
 
 
 @lru_cache
@@ -383,19 +401,16 @@ def zernike_basis_faster(nterms=15, npix=512, outside=np.nan):
 
 
     """
-    shape = (npix, npix)
-
-    zern_output = xp.zeros((nterms,) + shape)
-
     x = (xp.arange(npix, dtype=xp.float64) - (npix - 1) / 2.) / ((npix - 1) / 2.)
     y = x
     xx, yy = xp.meshgrid(x, y)
 
     rho = xp.sqrt(xx ** 2 + yy ** 2)
-    theta = xp.arctan2(yy, xx)
+    theta = xp.atan2(yy, xx)
 
-    aperture = xp.ones_like(rho)
-    aperture[rho > 1] = 0.0  # this is the aperture mask
+    aperture = xp.astype(rho <= 1, xp.float64)  # this is the aperture mask
+    outside_mask = rho > 1
+    outside_value = xp.asarray(outside, dtype=xp.float64)
     noll_normalize = True
 
     @lru_cache
@@ -411,18 +426,9 @@ def zernike_basis_faster(nterms=15, npix=512, outside=np.nan):
             unit circle  (this is found implicitly in the scope of the calling fn)
         """
 
-        m = int(np.abs(m))
-        n = int(np.abs(n))
-        output = xp.zeros(rho.shape)
-        if _is_odd(n - m):
-            return 0
-        else:
-            for k in range(int((n - m) / 2) + 1):
-                coef = ((-1) ** k * factorial(n - k) /
-                        (factorial(k) * factorial(int((n + m) / 2) - k) * factorial(int((n - m) / 2) - k)))
-                output += coef * rho ** (n - 2 * k)
-            return output
+        return R(n, m, rho)
 
+    terms = []
     for j in range(nterms):
         n, m = noll_indices(j + 1)
 
@@ -430,19 +436,18 @@ def zernike_basis_faster(nterms=15, npix=512, outside=np.nan):
             if n == 0:
                 zernike_result = aperture
             else:
-                norm_coeff = np.sqrt(n + 1) if noll_normalize else 1
+                norm_coeff = math.sqrt(n + 1) if noll_normalize else 1
                 zernike_result = norm_coeff * cached_R(n, m) * aperture
         elif m > 0:
-            norm_coeff = np.sqrt(2) * np.sqrt(n + 1) if noll_normalize else 1
-            zernike_result = norm_coeff * cached_R(n, np.abs(m)) * np.cos(np.abs(m) * theta) * aperture
+            norm_coeff = math.sqrt(2) * math.sqrt(n + 1) if noll_normalize else 1
+            zernike_result = norm_coeff * cached_R(n, abs(m)) * xp.cos(abs(m) * theta) * aperture
         else:
-            norm_coeff = np.sqrt(2) * np.sqrt(n + 1) if noll_normalize else 1
-            zernike_result = norm_coeff * cached_R(n, np.abs(m)) * np.sin(np.abs(m) * theta) * aperture
+            norm_coeff = math.sqrt(2) * math.sqrt(n + 1) if noll_normalize else 1
+            zernike_result = norm_coeff * cached_R(n, abs(m)) * xp.sin(abs(m) * theta) * aperture
 
-        zernike_result[rho > 1] = outside
-        zern_output[j] = zernike_result
+        terms.append(xp.where(outside_mask, outside_value, zernike_result))
 
-    return zern_output
+    return xp.stack(terms)
 
 
 def hex_aperture(npix=1024, rho=None, theta=None, vertical=False, outside=0):
@@ -487,16 +492,15 @@ def hex_aperture(npix=1024, rho=None, theta=None, vertical=False, outside=0):
 
     absy = xp.abs(y)
 
-    aperture = xp.full(x.shape, outside)
-    w_rect = ((xp.abs(x) <= 0.5) & (abs(y) <= xp.sqrt(3) / 2))
-    w_left_tri = ((x <= -0.5) & (x >= -1) & (absy <= (x + 1) * xp.sqrt(3)))
-    w_right_tri = ((x >= 0.5) & (x <= 1) & (absy <= (1 - x) * xp.sqrt(3)))
-    aperture[w_rect] = 1
-    aperture[w_left_tri] = 1
-    aperture[w_right_tri] = 1
+    sqrt3 = math.sqrt(3)
+    w_rect = ((xp.abs(x) <= 0.5) & (absy <= sqrt3 / 2))
+    w_left_tri = ((x <= -0.5) & (x >= -1) & (absy <= (x + 1) * sqrt3))
+    w_right_tri = ((x >= 0.5) & (x <= 1) & (absy <= (1 - x) * sqrt3))
+    inside = w_rect | w_left_tri | w_right_tri
+    aperture = xp.where(inside, xp.asarray(1.0, dtype=xp.float64), xp.asarray(outside, dtype=xp.float64))
 
     if vertical:
-        return aperture.transpose()
+        return xp.permute_dims(aperture, (1, 0))
     else:
         return aperture
 
@@ -552,29 +556,28 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
         aperture = hex_aperture(npix=npix, rho=rho, theta=theta, vertical=vertical, outside=0)
 
     # any pixels with zero or NaN in the aperture are outside the area
-    apmask = (np.isfinite(aperture) & (aperture > 0))
-    apmask_float = xp.asarray(apmask, dtype=float)
-    A = apmask.sum()
+    apmask = _aperture_mask(aperture)
+    apmask_float = xp.astype(apmask, xp.float64)
+    A = xp.sum(apmask_float)
 
     # precompute zernikes
-    Z = xp.full((nterms + 1,) + shape, outside, dtype=float)
-    Z[1:] = zernike_basis(nterms=nterms, npix=npix, rho=rho, theta=theta, outside=0.0)
+    Z = xp.concat([xp.zeros((1,) + shape, dtype=xp.float64),
+                   zernike_basis(nterms=nterms, npix=npix, rho=rho, theta=theta, outside=0.0)])
 
-    G = [xp.zeros(shape), xp.ones(shape)]  # array of G_i etc. intermediate fn
-    H = [xp.zeros(shape), apmask_float.copy()]  # array of hexikes
+    G = [xp.zeros(shape, dtype=xp.float64), xp.ones(shape, dtype=xp.float64)]  # array of G_i etc. intermediate fn
+    H = [xp.zeros(shape, dtype=xp.float64), apmask_float]  # array of hexikes
     c = {}  # coefficients hash
 
-    for j in np.arange(nterms - 1) + 1:  # can do one less since we already have the piston term
+    for j in range(1, nterms):  # can do one less since we already have the piston term
         _log.debug("  j = " + str(j))
         # Compute the j'th G, then H
-        nextG = Z[j + 1] * apmask_float
-        for k in np.arange(j) + 1:
-            c[(j + 1, k)] = -1 / A * (Z[j + 1] * H[k] * apmask_float).sum()
-            if c[(j + 1, k)] != 0:
-                nextG += c[(j + 1, k)] * H[k]
-            _log.debug("    c[{(j + 1, k)!s}] = {c[(j + 1, k)]}")
+        nextG = Z[j + 1, ...] * apmask_float
+        for k in range(1, j + 1):
+            c[(j + 1, k)] = -1 / A * xp.sum(Z[j + 1, ...] * H[k] * apmask_float)
+            nextG = nextG + c[(j + 1, k)] * H[k]
+            _log.debug(f"    c[{(j + 1, k)!s}] = {c[(j + 1, k)]}")
 
-        nextH = nextG / np.sqrt((nextG ** 2).sum() / A)
+        nextH = nextG / xp.sqrt(xp.sum(nextG ** 2) / A)
 
         G.append(nextG)
         H.append(nextH)
@@ -582,9 +585,8 @@ def hexike_basis(nterms=15, npix=512, rho=None, theta=None,
         # TODO - contemplate whether the above algorithm is numerically stable
         # cf. modified gram-schmidt algorithm discussion on wikipedia.
 
-    basis = xp.asarray(H[1:])  # drop the 0th null element
-    basis[:, ~apmask] = outside
-    return basis
+    basis = xp.stack(H[1:])  # drop the 0th null element
+    return xp.where(apmask[None, :, :], basis, xp.asarray(outside, dtype=xp.float64))
 
 
 def hexike_basis_wss(nterms=9, npix=512, rho=None, theta=None,
@@ -662,38 +664,37 @@ def hexike_basis_wss(nterms=9, npix=512, rho=None, theta=None,
         shape = rho.shape
         assert len(shape) == 2 and shape[0] == shape[1], \
             "only square rho and theta arrays supported"
-        x = rho * np.cos(theta)
-        y = rho * np.sin(theta)
+        x = rho * xp.cos(theta)
+        y = rho * xp.sin(theta)
         r2 = rho ** 2
     elif x is not None and y is not None:
         _log.debug("User supplied cartesian coords")
+        x = xp.asarray(x, dtype=xp.float64)
+        y = xp.asarray(y, dtype=xp.float64)
         r2 = x ** 2 + y ** 2
-        rho = np.sqrt(r2)
-        theta = np.arctan2(y, x)
+        rho = xp.sqrt(r2)
+        theta = xp.atan2(y, x)
     else:
         _log.debug("User supplied only the number of pixels")
         # create 2D arrays of coordinates between 0 and 1
         shape = (npix, npix)
-        y, x = np.indices(shape, dtype=float)
-        y -= npix / 2.
-        x -= npix / 2.
-        y /= (npix / 2)
-        x /= (npix / 2)
+        idx = xp.arange(npix, dtype=xp.float64)
+        y, x = xp.meshgrid((idx - npix / 2.) / (npix / 2), (idx - npix / 2.) / (npix / 2), indexing="ij")
 
         r2 = x ** 2 + y ** 2
-        rho = np.sqrt(r2)
-        theta = np.arctan2(y, x)
+        rho = xp.sqrt(r2)
+        theta = xp.atan2(y, x)
 
     if aperture is None:
         aperture = hex_aperture(npix=npix, rho=rho, theta=theta, vertical=vertical)
 
     # any pixels with zero or NaN in the aperture are outside the area
-    apmask = (np.isfinite(aperture) & (aperture > 0))
+    apmask = _aperture_mask(aperture)
 
     # first 9 hexikes (those used in WAS for JWST)
     # create array of hexikes, plus pad for 0th term
-    H = [np.zeros_like(x),  # placeholder for 0th term to allow 1-indexing
-         np.ones_like(x),  # Piston
+    H = [xp.zeros_like(x),  # placeholder for 0th term to allow 1-indexing
+         xp.ones_like(x),  # Piston
          y,  # tilt around x
          x,  # tilt around y
          2 * x * y,  # astig-45
@@ -702,20 +703,17 @@ def hexike_basis_wss(nterms=9, npix=512, rho=None, theta=None,
          ((25. / 11.) * r2 - 14. / 11.) * x,  # Coma x
          ((25. / 11.) * r2 - 14. / 11.) * y,  # Coma y
          ((860. / 231.) * r2 ** 2 - (5140. / 1617.) * r2 + (67. / 147.)),  # Spherical
-         (10. / 7.) * (rho * r2) * np.sin(3. * theta),  # Trefoil-0
-         (10. / 7.) * (rho * r2) * np.cos(3. * theta),  # Trefoil-30
+         (10. / 7.) * (rho * r2) * xp.sin(3. * theta),  # Trefoil-0
+         (10. / 7.) * (rho * r2) * xp.cos(3. * theta),  # Trefoil-30
          ]
 
     if nterms > len(H) - 1:
         raise NotImplementedError("hexicke_basis_wss doesn't support that many terms yet")
     else:
         # apply aperture mask
-        basis = np.asarray(H[1:])  # drop the 0th null element
-        basis[:, ~apmask] = outside
-        return basis[0:nterms]
-        # for i in range(1,nterms+1):
-        # H[i] *= aperture
-        # return H[1:nterms+1]
+        basis = xp.stack(H[1:])  # drop the 0th null element
+        basis = xp.where(apmask[None, :, :], basis, xp.asarray(outside, dtype=xp.float64))
+        return basis[0:nterms, ...]
 
 
 hexike_basis_wss.label_strings = ['Piston', 'X tilt', 'Y tilt',
@@ -762,9 +760,9 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
         "only square aperture arrays are supported"
 
     # any pixels with zero or NaN in the aperture are outside the area
-    apmask = (xp.isfinite(xp.asarray(aperture)) & (xp.asarray(aperture) > 0))
-    apmask_float = xp.asarray(apmask, dtype=float)
-    A = apmask.sum()
+    apmask = _aperture_mask(aperture)
+    apmask_float = xp.astype(apmask, xp.float64)
+    A = xp.sum(apmask_float)
 
     if theta is None and rho is None:
         # To avoid clipping the aperture, we precompute the zernike modes
@@ -773,43 +771,43 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
         # requested array size and cut the aperture out of it.
 
         # get max extent of aperture from array center
-        yind, xind = xp.where(apmask)
-        distance = xp.sqrt((yind - (shape[0] - 1) / 2.) ** 2 + (xind - (shape[1] - 1) / 2.) ** 2)
-        max_extent = distance.max()
+        yind, xind = xp.nonzero(apmask)
+        distance = xp.sqrt((xp.astype(yind, xp.float64) - (shape[0] - 1) / 2.) ** 2
+                           + (xp.astype(xind, xp.float64) - (shape[1] - 1) / 2.) ** 2)
+        max_extent = float(xp.max(distance))
 
         # calculate padding for oversizing zernike_basis
-        ceil = lambda x: xp.ceil(x) if x > 0 else 0  # avoid negative values
+        ceil = lambda x: math.ceil(x) if x > 0 else 0  # avoid negative values
         padding = (int(ceil(max_extent - (shape[0] - 1) / 2.)),
                    int(ceil(max_extent - (shape[1] - 1) / 2.)))
         padded_shape = (shape[0] + padding[0] * 2, shape[1] + padding[1] * 2)
         npix = padded_shape[0]
 
         # precompute zernikes on oversized array
-        Z = xp.zeros((nterms + 1,) + padded_shape)
-        Z[1:] = zernike_basis(nterms=nterms, npix=npix, rho=rho, theta=theta, outside=0.0)
+        Z = zernike_basis(nterms=nterms, npix=npix, rho=rho, theta=theta, outside=0.0)
         # slice down to original aperture array size
         Z = Z[:, padding[0]:padded_shape[0] - padding[0],
               padding[1]:padded_shape[1] - padding[1]]
     else:
         # precompute zernikes on user-defined rho, theta
-        Z = xp.zeros((nterms + 1,) + shape)
-        Z[1:] = zernike_basis(nterms=nterms, rho=rho, theta=theta, outside=0.0)
+        Z = zernike_basis(nterms=nterms, rho=rho, theta=theta, outside=0.0)
+    # prepend a null 0th term so that indices are 1-based
+    Z = xp.concat([xp.zeros((1,) + tuple(Z.shape[1:]), dtype=xp.float64), Z])
 
-    G = [xp.zeros(shape), xp.ones(shape)]  # array of G_i etc. intermediate fn
-    H = [xp.zeros(shape), apmask_float.copy()]  # array of zernikes on arbitrary basis
+    G = [xp.zeros(shape, dtype=xp.float64), xp.ones(shape, dtype=xp.float64)]  # array of G_i etc. intermediate fn
+    H = [xp.zeros(shape, dtype=xp.float64), apmask_float]  # array of zernikes on arbitrary basis
     c = {}  # coefficients hash
 
-    for j in np.arange(nterms - 1) + 1:  # can do one less since we already have the piston term
+    for j in range(1, nterms):  # can do one less since we already have the piston term
         _log.debug("  j = " + str(j))
         # Compute the j'th G, then H
-        nextG = Z[j + 1] * apmask_float
-        for k in np.arange(j) + 1:
-            c[(j + 1, k)] = -1 / A * (Z[j + 1] * H[k] * apmask_float).sum()
-            if c[(j + 1, k)] != 0:
-                nextG += c[(j + 1, k)] * H[k]
-            _log.debug("    c[%s] = %f", str((j + 1, k)), c[(j + 1, k)])
+        nextG = Z[j + 1, ...] * apmask_float
+        for k in range(1, j + 1):
+            c[(j + 1, k)] = -1 / A * xp.sum(Z[j + 1, ...] * H[k] * apmask_float)
+            nextG = nextG + c[(j + 1, k)] * H[k]
+            _log.debug("    c[%s] = %f", str((j + 1, k)), float(c[(j + 1, k)]))
 
-        nextH = nextG / xp.sqrt((nextG ** 2).sum() / A)
+        nextH = nextG / xp.sqrt(xp.sum(nextG ** 2) / A)
 
         G.append(nextG)
         H.append(nextH)
@@ -817,10 +815,8 @@ def arbitrary_basis(aperture, nterms=15, rho=None, theta=None, outside=np.nan):
         # TODO - contemplate whether the above algorithm is numerically stable
         # cf. modified gram-schmidt algorithm discussion on wikipedia.
 
-    basis = xp.asarray(H[1:])  # drop the 0th null element
-    basis[:, ~apmask] = outside
-
-    return basis
+    basis = xp.stack(H[1:])  # drop the 0th null element
+    return xp.where(apmask[None, :, :], basis, xp.asarray(outside, dtype=xp.float64))
 
 class Segment_PTT_Basis:
     def __init__(self, rings=2, flattoflat=1*u.m, gap=1*u.cm, center=False,
@@ -901,15 +897,16 @@ class Segment_PTT_Basis:
 
         # For simplicity we always generate the basis for all the segments
         # even if for some reason the user has set a smaller nterms.
-        basis = xp.zeros((self.nsegments*3, npix, npix))
-        basis[:] = outside
+        outside_value = xp.asarray(outside, dtype=xp.float64)
+        one = xp.asarray(1.0, dtype=xp.float64)
+        terms = []
         for i, segi in enumerate(self.hexdm.segmentlist):
-            wseg = self.hexdm._seg_indices[segi]
-            basis[i*3][wseg] = 1   #Piston
-            basis[i*3+1][wseg] = self.hexdm._seg_x[wseg] # Tip
-            basis[i*3+2][wseg] = self.hexdm._seg_y[wseg] # Tilt
+            wseg = self.hexdm._seg_mask == segi + 1
+            terms.append(xp.where(wseg, one, outside_value))  # Piston
+            terms.append(xp.where(wseg, self.hexdm._seg_x, outside_value))  # Tip
+            terms.append(xp.where(wseg, self.hexdm._seg_y, outside_value))  # Tilt
 
-        return basis[0:nterms]
+        return xp.stack(terms)[0:nterms, ...]
 
 class Segment_Piston_Basis(Segment_PTT_Basis):
     def __call__(self, nterms=None, npix=512, outside=np.nan):
@@ -937,13 +934,12 @@ class Segment_Piston_Basis(Segment_PTT_Basis):
 
         # For simplicity we always generate the basis for all the segments
         # even if for some reason the user has set a smaller nterms.
-        basis = xp.zeros((self.nsegments, npix, npix))
-        basis[:] = outside
-        for i, segi in enumerate(self.hexdm.segmentlist):
-            wseg = self.hexdm._seg_indices[segi]
-            basis[i][wseg] = 1   #Piston
+        outside_value = xp.asarray(outside, dtype=xp.float64)
+        one = xp.asarray(1.0, dtype=xp.float64)
+        terms = [xp.where(self.hexdm._seg_mask == segi + 1, one, outside_value)  # Piston
+                 for segi in self.hexdm.segmentlist]
 
-        return basis[0:nterms]
+        return xp.stack(terms)[0:nterms, ...]
 
 
 def decompose_opd(opd, aperture=None, nterms=15, basis=zernike_basis,
@@ -1002,13 +998,14 @@ def decompose_opd(opd, aperture=None, nterms=15, basis=zernike_basis,
 
     """
 
+    opd = xp.asarray(opd, dtype=xp.float64)
     if aperture is None:
         _log.warning("No aperture supplied - "
                   "using the finite (non-NaN) part of the OPD map as a guess.")
-        aperture = np.isfinite(opd)  # . astype(np.float_)
+        aperture = xp.isfinite(opd)
 
     # any pixels with zero or NaN in the aperture are outside the area
-    apmask = (np.isfinite(aperture) & (aperture > 0))
+    apmask = _aperture_mask(aperture)
 
     basis_set = basis(
         nterms=nterms,
@@ -1018,10 +1015,10 @@ def decompose_opd(opd, aperture=None, nterms=15, basis=zernike_basis,
         **kwargs
     )
 
-    ngood = apmask.sum()
+    ngood = xp.sum(xp.astype(apmask, xp.float64))
 
-    coeffs = [(opd * b)[apmask].sum() / ngood
-              for b in basis_set]
+    coeffs = [float(_masked_sum(opd * b, apmask) / ngood)
+              for b in _terms(basis_set)]
 
     return coeffs
 
@@ -1083,13 +1080,14 @@ def decompose_opd_basis_matrix(opd, aperture=None, nterms=15, basis=zernike_basi
     and then solve thw system for coeffs
     """
 
+    opd = xp.asarray(opd, dtype=xp.float64)
     if aperture is None:
 
         _log.warning("No aperture supplied - "
                   "using the finite (non-NaN) part of the OPD map as a guess.")
-        aperture = np.isfinite(opd)
+        aperture = xp.isfinite(opd)
     # any pixels with zero or NaN in the aperture are outside the area
-    apmask = (np.isfinite(aperture) & (aperture > 0))
+    apmask = _aperture_mask(aperture)
     # Determine if this basis function accepts an 'aperture' parameter or not
     # If so, append that into the function's kwargs. This check is needed to
     # handle e.g. both the zernike_basis function (which doesn't accept aperture)
@@ -1102,24 +1100,23 @@ def decompose_opd_basis_matrix(opd, aperture=None, nterms=15, basis=zernike_basi
         outside=np.nan,
         **kwargs
     )
-    wgood = (apmask & np.isfinite(basis_set[1]))
-    ngood = apmask.sum()
-    b = np.zeros((nterms, nterms))
-    f = np.zeros(nterms)
-    for i, Zi in enumerate(basis_set):
-        f[i] = (opd * Zi)[wgood].sum()
-        for j, Zj in enumerate(basis_set[:i+1]):
-            b[i, j] = (Zi * Zj)[wgood].sum()
-            if i != j:
-                b[j, i] = b[i, j]
+    wgood = (apmask & xp.isfinite(basis_set[1, ...]))
 
-    binv = np.linalg.pinv(b)
+    # Gram matrix b[i, j] = sum over good pixels of Zi * Zj, and f[i] = sum of opd * Zi
+    masked_basis = xp.where(wgood[None, :, :], basis_set, xp.zeros_like(basis_set))
+    flat_basis = xp.reshape(masked_basis, (masked_basis.shape[0], -1))
+    b = flat_basis @ xp.matrix_transpose(flat_basis)
+    f = flat_basis @ xp.reshape(xp.where(wgood, opd, xp.zeros_like(opd)), (-1,))
+
+    # The pseudo-inverse is a small (nterms x nterms) problem, so it is solved on the host.
+    binv = np.linalg.pinv(accel_math.to_numpy(b))
+    f = accel_math.to_numpy(f)
 
     if faster_orthogonal:
         coeffs = [binv[i, i] * fi for i, fi in enumerate(f)]
     else:
         coeffs = np.matmul(binv, f)
-        
+
     return coeffs
 
 
@@ -1167,13 +1164,14 @@ def decompose_opd_nonorthonormal_basis(opd, aperture=None, nterms=15, basis=zern
 
     """
 
+    opd = xp.asarray(opd, dtype=xp.float64)
     if aperture is None:
         _log.warning("No aperture supplied - "
                   "using the finite (non-NaN) part of the OPD map as a guess.")
-        aperture = np.isfinite(opd)
+        aperture = xp.isfinite(opd)
 
     # any pixels with zero or NaN in the aperture are outside the area
-    apmask = (np.isfinite(aperture) & (aperture > 0))
+    apmask = _aperture_mask(aperture)
 
     # Determine if this basis function accepts an 'aperture' parameter or not
     # If so, append that into the function's kwargs. This check is needed to
@@ -1189,17 +1187,17 @@ def decompose_opd_nonorthonormal_basis(opd, aperture=None, nterms=15, basis=zern
         **kwargs
     )
 
-    wgood = (apmask & np.isfinite(basis_set[1]))
-    ngood = apmask.sum()
+    wgood = (apmask & xp.isfinite(basis_set[1, ...]))
+    ngood = xp.sum(xp.astype(apmask, xp.float64))
 
     coeffs = np.zeros(nterms)
-    opd_copy = np.copy(opd)
+    opd_copy = opd
 
     for count in range(iterations):
-        for i, b in enumerate(basis_set):
-            this_coeff = (opd_copy * b)[wgood].sum() / ngood
-            opd_copy -= this_coeff * b
-            coeffs[i] += this_coeff
+        for i, b in enumerate(_terms(basis_set)):
+            this_coeff = _masked_sum(opd_copy * b, wgood) / ngood
+            opd_copy = opd_copy - this_coeff * b
+            coeffs[i] += float(this_coeff)
         if verbose:
             print(f"Iteration {count}/{iterations}: {coeffs}")
 
@@ -1251,30 +1249,32 @@ def compose_opd_from_basis(coeffs, basis=zernike_basis_faster, aperture=None, ou
         **kwargs
     )
 
-    output = np.zeros_like(basis_set[0])
+    output = xp.zeros_like(basis_set[0, ...])
 
     # Check if basis area is the same for all elements (like zernike)
     # or varies (like segment PTT bases).
     # Use a simple proxy for this, by checking if first and last are the same
 
-    constant_support =  np.allclose(np.isfinite(basis_set[0]), np.isfinite(basis_set[-1]))
+    finite = xp.isfinite(basis_set)
+    constant_support = bool(xp.all(finite[0, ...] == finite[-1, ...]))
 
+    coeffs_arr = xp.asarray(coeffs, dtype=xp.float64)
     if constant_support:
-        # we can just sum the whole arrays using an Einstein sum
-        output = xp.einsum('i,ijk->jk', xp.asarray(coeffs), basis_set)
+        # we can just sum the whole arrays as a weighted sum over the first axis
+        output = xp.tensordot(coeffs_arr, basis_set, axes=1)
     else:
         # we have to use different good pixel areas per each basis element
-        for i, b in enumerate(basis_set):
-            if coeffs[i] != 0:
-                wgood = np.isfinite(b)
-                output[wgood] += coeffs[i] * b[wgood]
+        zero = xp.zeros_like(output)
+        for i, b in enumerate(_terms(basis_set)):
+            output = output + xp.where(finite[i, ...], coeffs_arr[i] * b, zero)
 
+    outside_value = xp.asarray(outside, dtype=output.dtype)
     if aperture is not None:
-        apmask = (np.isfinite(aperture) & (aperture > 0))
-        output[~apmask] = outside
-    elif aperture is None and not constant_support:
-        apmask = np.isfinite(basis_set).sum(axis=0) > 0
-        output[~apmask] = outside
+        apmask = _aperture_mask(aperture)
+        output = xp.where(apmask, output, outside_value)
+    elif not constant_support:
+        apmask = xp.sum(xp.astype(finite, xp.int32), axis=0) > 0
+        output = xp.where(apmask, output, outside_value)
 
     return output
 
@@ -1325,13 +1325,14 @@ def decompose_opd_segments(opd, aperture=None, nterms=15, basis=None,
     if basis is None:
         raise ValueError("Must supply a basis function defining the desired segment set")
 
+    opd = xp.asarray(opd, dtype=xp.float64)
     if aperture is None:
         _log.warning("No aperture supplied - "
                   "using the finite (non-NaN) part of the OPD map as a guess.")
-        aperture = np.isfinite(opd)
+        aperture = xp.isfinite(opd)
 
     # any pixels with zero or NaN in the aperture are outside the area
-    apmask = (np.isfinite(aperture) & (aperture > 0))
+    apmask = _aperture_mask(aperture)
 
     # Determine if this basis function accepts an 'aperture' parameter or not
     # If so, append that into the function's kwargs. This check is needed to
@@ -1347,39 +1348,36 @@ def decompose_opd_segments(opd, aperture=None, nterms=15, basis=None,
         **kwargs
     )
 
-    coeffs = xp.zeros(nterms)
-    opd_copy = xp.copy(opd)
+    coeffs = np.zeros(nterms)
+    opd_copy = opd
 
     for count in range(iterations):
-        for i, b in enumerate(basis_set):
+        for i, b in enumerate(_terms(basis_set)):
             # The number of good pixels can vary per each segment
             # So we must determine an appropriate mask per each basis element
-            this_seg_mask = apmask & xp.isfinite(basis_set[i])
+            this_seg_mask = apmask & xp.isfinite(basis_set[i, ...])
 
             if ignore_border:
                 # erode off N pixels from around the edge of the segment mask before doing
-                # the fitting.
-
-                # Having trouble getting this to work on GPU, so
-                # ensure this step runs on CPU
+                # the fitting. This step runs on the host, since the ndimage
+                # binary morphology is not part of the array API.
                 this_seg_mask = accel_math.to_numpy(this_seg_mask)
                 this_seg_mask = scipy.ndimage.binary_erosion(this_seg_mask,
                         iterations=ignore_border)
-                this_seg_mask = xp.asarray(this_seg_mask)  # put back on GPU, if necessary
+                this_seg_mask = xp.asarray(this_seg_mask)  # put back on the array backend
 
-            wgood = xp.where(this_seg_mask)
-            ngood = this_seg_mask.sum()
+            ngood = xp.sum(xp.astype(this_seg_mask, xp.float64))
 
             # The piston and tip/tilt terms are likely not normalized
             # with respect to each other (in the sense of an orthonormal basis)
             # So we also have to determine some appropriate scaling coefficient
             # for our dot product here.
-            normcoeff = (basis_set[i]**2)[wgood].sum() / ngood
+            normcoeff = _masked_sum(basis_set[i, ...]**2, this_seg_mask) / ngood
 
             # Now we can perform the dot product
-            this_coeff = (opd_copy * b)[wgood].sum() / ngood / normcoeff
-            opd_copy[wgood] -= this_coeff * b[wgood]
-            coeffs[i] += this_coeff
+            this_coeff = _masked_sum(opd_copy * b, this_seg_mask) / ngood / normcoeff
+            opd_copy = opd_copy - xp.where(this_seg_mask, this_coeff * b, xp.zeros_like(b))
+            coeffs[i] += float(this_coeff)
 
         if verbose:
             print(f"Iteration {count}/{iterations}: {coeffs}")
