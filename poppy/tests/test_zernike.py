@@ -1,4 +1,4 @@
-import numpy as np
+import numpy
 
 import poppy.accel_math
 from poppy import optics, poppy_core, zernike
@@ -423,3 +423,32 @@ def test_back_compatible_aliases():
     assert zernike.opd_expand_segments is zernike.decompose_opd_segments, "Missing back compatibility alias"
     assert zernike.opd_expand_nonorthonormal is zernike.decompose_opd_nonorthonormal_basis, "Missing back compatibility alias"
     assert zernike.opd_from_zernikes is zernike.compose_opd_from_basis, "Missing back compatibility alias"
+
+
+def test_array_api_strict_conformance(monkeypatch):
+    """The basis functions should only use standard array API calls, and give the same answers."""
+    strict = pytest.importorskip("array_api_strict")
+    monkeypatch.setattr(poppy.accel_math, "_USE_NUMEXPR", False)
+
+    npix = 24
+    reference = {
+        "zernike_basis": zernike.zernike_basis(nterms=6, npix=npix),
+        "hexike_basis": zernike.hexike_basis(nterms=6, npix=npix),
+        "hexike_basis_wss": zernike.hexike_basis_wss(nterms=6, npix=npix),
+        "compose": zernike.compose_opd_from_basis([0, 0, 1.0, 2.0], npix=npix),
+    }
+
+    monkeypatch.setattr(zernike, "xp", strict)
+    zernike.zernike_basis_faster.cache_clear()  # cached results would be from the real backend
+    try:
+        results = {
+            "zernike_basis": zernike.zernike_basis(nterms=6, npix=npix),
+            "hexike_basis": zernike.hexike_basis(nterms=6, npix=npix),
+            "hexike_basis_wss": zernike.hexike_basis_wss(nterms=6, npix=npix),
+            "compose": zernike.compose_opd_from_basis([0, 0, 1.0, 2.0], npix=npix),
+        }
+    finally:
+        zernike.zernike_basis_faster.cache_clear()
+    for name, expected in reference.items():
+        assert not isinstance(results[name], numpy.ndarray), name
+        numpy.testing.assert_allclose(numpy.asarray(results[name]), expected, atol=1e-12, err_msg=name)

@@ -34,6 +34,7 @@ all = [
 test = [
     "pytest>=9",
     "pytest-astropy",
+    "array-api-strict",
     "docutils",
     "sphinx",
 ]
