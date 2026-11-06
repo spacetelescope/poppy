@@ -705,3 +705,42 @@ def test_fixed_sampling_optic():
     array_optic= optics.fixed_sampling_optic(optic, wave, oversample=1)
 
     assert xp.allclose(array_optic.amplitude, optic.get_transmission(wave)), 'mismatch between original and fixed sampling version'
+
+
+def test_analytic_optics_array_api_strict(monkeypatch):
+    """Analytic apertures/masks run under a strict array API namespace and match numpy."""
+    import array_api_strict
+
+    from .. import geometry, utils
+
+    def make():
+        return [
+            optics.CircularAperture(radius=1.0),
+            optics.RectangleAperture(width=1.5, height=0.7, rotation=20),
+            optics.HexagonAperture(side=0.8),
+            optics.NgonAperture(nsides=5, radius=0.9),
+            optics.SecondaryObscuration(secondary_radius=0.3, n_supports=3),
+            optics.AsymmetricSecondaryObscuration(secondary_radius=0.3, support_angle=(0, 90, 240)),
+            optics.MultiHexagonAperture(rings=1, flattoflat=0.5, gap=0.01),
+            optics.MultiCircularAperture(rings=1, segment_radius=0.3, gap=0.02),
+            optics.KeystoneSegmentedCircularAperture(),
+            optics.GaussianAperture(fwhm=0.5),
+            optics.ThinLens(nwaves=2, radius=1.0),
+            optics.KnifeEdge(),
+            optics.LetterFAperture(),
+            optics.CompoundAnalyticOptic([optics.CircularAperture(radius=1), optics.SquareAperture(size=0.5)]),
+        ]
+
+    def run():
+        out = []
+        for o in make():
+            wf = poppy_core.Wavefront(npix=33, diam=2.4, wavelength=wavelength)
+            out += [np.asarray(o.get_transmission(wf)), np.asarray(o.get_opd(wf))]
+        return out
+
+    monkeypatch.setattr(accel_math, "_USE_NUMEXPR", False)
+    expected = run()
+    for mod in (accel_math, poppy_core, utils, optics, geometry):
+        monkeypatch.setattr(mod, "xp", array_api_strict)
+    for e, g in zip(expected, run()):
+        np.testing.assert_allclose(g, e, atol=1e-12)

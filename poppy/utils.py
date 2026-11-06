@@ -1125,7 +1125,12 @@ def measure_anisotropy(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50):
 
 
 def _rot90(array, k=1):
-    """Rotate a 2D array by k*90 degrees counterclockwise (array-API equivalent of np.rot90)."""
+    """Rotate a 2D array by k*90 degrees counterclockwise (array-API equivalent of np.rot90).
+    This is needed because not all backends have a native .rot90 function
+
+    Benchmarked and confirmed to be as fast as np.rot90 for the numpy case, because this is
+    all done with efficient memory views.
+    """
     xp_ = array_namespace(array)
     k = int(k) % 4
     if k == 0:
