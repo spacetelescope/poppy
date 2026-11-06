@@ -460,3 +460,42 @@ def test_ThermalBloomingWFE_rho():
 #     assert(rho.shape[1] == 1024)
 #     assert(np.round(np.max(rho), 6) == np.round(4.102415953233477e-06, 6))
 #     assert(np.round(np.min(rho), 6) == np.round(-5.128577933666188e-06, 6))
+
+
+def test_wfe_array_api_strict(monkeypatch):
+    """WFE optics run under a strict array API namespace and match numpy."""
+    import array_api_strict
+
+    from .. import accel_math, geometry, utils
+
+    coeffs = [0, 0, 0, 1e-7, 2e-8, -3e-8] * u.m
+    psd_params = [[3.0, 1e-3 * u.nm**2 / u.m, 10 * u.m, 0.1, 0.0 * (u.nm * u.m)**2]]
+
+    def make():
+        return [
+            wfe.ParameterizedWFE(coefficients=coeffs, radius=1.0, basis_factory=zernike.zernike_basis),
+            wfe.ZernikeWFE(coefficients=coeffs, radius=1.0),
+            wfe.ZernikeWFE(coefficients=coeffs, radius=1.0, shift_x=0.1, rotation=10),
+            wfe.SineWaveWFE(spatialfreq=1.5 / u.m, amplitude=1e-8 * u.m, phaseoffset=0.2, rotation=30),
+            wfe.StatisticalPSDWFE(index=3.0, wfe=50 * u.nm, radius=1.0, seed=1),
+            wfe.PowerSpectrumWFE(psd_parameters=psd_params, seed=3, screen_size=64, rms=5 * u.nm, radius=1.0,
+                                 incident_angle=20 * u.deg, apply_reflection=True),
+            wfe.KolmogorovWFE(r0=0.2 * u.m, dz=1 * u.m, seed=2, kind="von Karman",
+                              inner_scale=0.01 * u.m, outer_scale=10 * u.m),
+            wfe.KolmogorovWFE(r0=0.2 * u.m, dz=1 * u.m, seed=2, kind="Hill", inner_scale=0.01 * u.m),
+        ]
+
+    def run():
+        zernike.cached_zernike1.cache_clear()
+        out = []
+        for o in make():
+            wf = poppy_core.Wavefront(npix=32, diam=2.4, wavelength=WAVELENGTH)
+            out.append(np.asarray(o.get_opd(wf)))
+        return out
+
+    monkeypatch.setattr(accel_math, "_USE_NUMEXPR", False)
+    expected = run()
+    for mod in (accel_math, poppy_core, utils, optics, geometry, zernike, wfe):
+        monkeypatch.setattr(mod, "xp", array_api_strict)
+    for e, g in zip(expected, run()):
+        np.testing.assert_allclose(g, e, rtol=1e-9, atol=1e-15)
