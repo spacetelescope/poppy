@@ -5,12 +5,15 @@ Updated by Rachel Morgan, 2019-2020 (debugging, testing, reformatting, adding fu
 
 import logging
 
+import array_api_extra as xpx
 import astropy.units as u
 import matplotlib.pyplot as plt
 import numpy as np
 
 import poppy
 
+from . import accel_math
+from .accel_math import _float, xp
 from .optics import CircularAperture
 from .poppy_core import Detector, OpticalElement, PlaneType, Wavefront
 from .utils import measure_centroid
@@ -80,8 +83,8 @@ class Subapertures(poppy.OpticalElement):
         if crosstalk:
             raise NotImplementedError("CROSS TALK NOT IMPLEMENTED <YET>")
         self.x_y_offset = x_y_offset
-        self.amplitude = np.asarray([1.])
-        self.opd = np.asarray([0.])
+        self.amplitude = xp.asarray([1.], dtype=_float())
+        self.opd = xp.asarray([0.], dtype=_float())
         self.input_wavefront = None
         self.output_wavefront = None
         if detector is None:
@@ -189,9 +192,9 @@ class Subapertures(poppy.OpticalElement):
 
                 # check for padding
                 if sub_wf is None:
-                    wf.wavefront[lower_x:upper_x, lower_y:upper_y] = np.nan
+                    wf.wavefront = xpx.at(wf.wavefront)[lower_x:upper_x, lower_y:upper_y].set(float("nan"))
                 else:
-                    wf.wavefront[lower_x:upper_x, lower_y:upper_y] = sub_wf.wavefront
+                    wf.wavefront = xpx.at(wf.wavefront)[lower_x:upper_x, lower_y:upper_y].set(sub_wf.wavefront)
 
         if self.overwrite_inputwavefront:
             self.input_wavefront = wf
@@ -273,7 +276,7 @@ class Subapertures(poppy.OpticalElement):
                 if asFITS:
                     intensity_array = sub_wf.as_fits()
                 else:
-                    intensity_array = sub_wf.intensity
+                    intensity_array = accel_math.to_numpy(sub_wf.intensity)
 
                 '''
                 note, if fwcentroid gives index error at this step try the following steps: 

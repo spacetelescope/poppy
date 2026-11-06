@@ -65,3 +65,27 @@ if __name__ == "__main__":
     test_ShackHartmannWFS()
 
 
+
+
+def test_subapertures_array_api_strict(monkeypatch):
+    """Sampling a wavefront into subapertures and re-tiling runs under a strict array API namespace."""
+    import array_api_strict
+
+    from .. import accel_math, geometry, matrixDFT, optics, poppy_core, utils
+
+    def run():
+        shwfs = sub_sampled_optics.ShackHartmannWavefrontSensor(n_lenslets=2)
+        npix = int((shwfs.lenslet_pitch / shwfs.pixel_pitch).value * shwfs.n_lenslets * 2)
+        wf = poppy.Wavefront(diam=shwfs.lenslet_pitch * 24, wavelength=635 * u.nm, npix=npix)
+        wf *= poppy.CircularAperture(radius=shwfs.lenslet_pitch * 12)
+        shwfs.sample_wf(wf)
+        tiled = np.asarray(shwfs.get_wavefront_array().wavefront)
+        shwfs.get_psfs()
+        return [tiled, np.asarray(shwfs.get_wavefront_array().wavefront), shwfs.get_centroids()]
+
+    monkeypatch.setattr(accel_math, "_USE_NUMEXPR", False)
+    expected = run()
+    for mod in (accel_math, poppy_core, utils, optics, geometry, matrixDFT, sub_sampled_optics):
+        monkeypatch.setattr(mod, "xp", array_api_strict)
+    for e, g in zip(expected, run()):
+        np.testing.assert_allclose(g, e, rtol=1e-9, atol=1e-15)

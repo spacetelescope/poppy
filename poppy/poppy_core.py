@@ -242,9 +242,9 @@ class BaseWavefront(ABC):
 
         def get_unpadded(attribute_array):
             if self.planetype == PlaneType.pupil and self.ispadded and not includepadding:
-                return utils.remove_padding(attribute_array.copy(), self.oversample)
+                return utils.remove_padding(xp.asarray(attribute_array, copy=True), self.oversample)
             else:
-                return attribute_array.copy()
+                return xp.asarray(attribute_array, copy=True)
 
         # Note: FITS HDULists cannot contain arrays which are in GPU memory (or any non-numpy backend),
         # so arrays are converted with to_numpy at this host boundary.
