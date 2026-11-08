@@ -96,7 +96,7 @@ if _HAVE_PYTEST:
 
         with pytest.raises(ValueError) as excinfo:
             zernike.zernike(2,4)
-        assert _exception_message_starts_with(excinfo, "Zernike index m must be >= index n")
+        assert _exception_message_starts_with(excinfo, "Zernike index n must be >= index m")
 
 
     def test_lack_of_input_wavefront_specification():
