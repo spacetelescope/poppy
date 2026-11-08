@@ -44,10 +44,7 @@ __all__ = [
     'Segment_Piston_Basis','Segment_PTT_Basis', 'arbitrary_basis'
 ]
 
-_log = logging.getLogger(__name__)
-_log.setLevel(logging.INFO)
-_log.addHandler(logging.NullHandler())
-
+_log = logging.getLogger('poppy')
 
 def _is_odd(integer):
     """Helper for testing if an integer is odd by bitwise & with 1."""
@@ -164,15 +161,32 @@ def R(n, m, rho):
 
     m = int(np.abs(m))
     n = int(np.abs(n))
-    output = xp.zeros(rho.shape)
     if _is_odd(n - m):
         return 0
-    else:
-        for k in range(int((n - m) / 2) + 1):
-            coef = ((-1) ** k * factorial(n - k) /
-                    (factorial(k) * factorial(int((n + m) / 2) - k) * factorial(int((n - m) / 2) - k)))
-            output += coef * rho ** (n - 2 * k)
-        return output
+
+    coef = []
+    for k in range((n - m) // 2 + 1):
+        coef.append((-1) ** k * factorial(n - k)
+                    / (factorial(k) * factorial(int((n + m) / 2) - k) * factorial(int((n - m) / 2) - k)))
+
+    # given n > m, smallest rho exponent in output polynomial must be m.
+    # given (n-m) % 2 = 0, if rho^m is factored out of output polynomial,
+    # smallest rho exponent in remaining polynomial [rho^m * (...)] must be 2.
+
+    # use Horner's method (x = rho^2) to factor parenthetical. only exponential
+    # operations to calculate are then rho^m and rho^2 instead of one per k.
+
+    output = xp.full(rho.shape, coef[0])  # begin with highest order coefficient
+    rho2 = rho**2
+    rhom = rho**m if m != 2 else rho2 # save an operation if m == Horner x
+
+    for c in range(1, len(coef)):
+        # for each nested expression, multiply by x and add next coefficient
+        output *= rho2
+        output += coef[c]
+    output *= rhom  # multiply in initial factor of rho
+
+    return output
 
 
 def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
@@ -225,10 +239,10 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
         Z(m,n) evaluated at each (rho, theta)
     """
     if not n >= m:
-        raise ValueError("Zernike index m must be >= index n")
+        raise ValueError("Zernike index n must be >= index m")
     if (n - m) % 2 != 0:
-        _log.warning(f"Radial polynomial is zero for these inputs: m={m}, n={n} "
-                  "(are you sure you wanted this Zernike?)")
+        _log.warning(f"Radial polynomial is zero for these inputs: n={n}, m={m} "
+                     "(are you sure you wanted this Zernike?)")
     _log.debug(f"Zernike(n={n}, m={m})")
 
     if theta is None and rho is None:
@@ -241,7 +255,7 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
     elif (theta is None and rho is not None) or (theta is not None and rho is None):
         raise ValueError("If you provide either the `theta` or `rho` input array, you must "
                          "provide both of them.")
-        
+
     if not xp.all(xp.asarray(rho.shape == theta.shape)):
         raise ValueError('The rho and theta arrays do not have consistent shape.')
 
@@ -1119,7 +1133,7 @@ def decompose_opd_basis_matrix(opd, aperture=None, nterms=15, basis=zernike_basi
         coeffs = [binv[i, i] * fi for i, fi in enumerate(f)]
     else:
         coeffs = np.matmul(binv, f)
-        
+
     return coeffs
 
 
