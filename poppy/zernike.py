@@ -256,7 +256,7 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
         raise ValueError("If you provide either the `theta` or `rho` input array, you must "
                          "provide both of them.")
 
-    if not xp.all(xp.asarray(rho.shape == theta.shape)):
+    if rho.shape != theta.shape:
         raise ValueError('The rho and theta arrays do not have consistent shape.')
 
     aperture = (rho <= 1)
@@ -268,10 +268,10 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
             norm_coeff = np.sqrt(n + 1) if noll_normalize else 1
             zernike_result = norm_coeff * R(n, m, rho) * aperture
     elif m > 0:
-        norm_coeff = np.sqrt(2) * np.sqrt(n + 1) if noll_normalize else 1
+        norm_coeff = np.sqrt(2 * (n + 1)) if noll_normalize else 1
         zernike_result = norm_coeff * R(n, m, rho) * xp.cos(np.abs(m) * theta) * aperture
     else:
-        norm_coeff = np.sqrt(2) * np.sqrt(n + 1) if noll_normalize else 1
+        norm_coeff = np.sqrt(2 * (n + 1)) if noll_normalize else 1
         zernike_result = norm_coeff * R(n, m, rho) * xp.sin(np.abs(m) * theta) * aperture
 
     zernike_result[(rho > 1)] = outside
