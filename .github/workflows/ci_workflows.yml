@@ -15,32 +15,32 @@ jobs:
         include:
 
           - name: Coverage test in Python 3
-            os: ubuntu-latest
+            os: ubuntu-24.04    # TEMPORARY: pinned because ubuntu-latest (26.04) lacks conda, move back to -latest later
             python: '3.12'
             toxenv: py312-syn-cov
 
           - name: Check for Sphinx doc build errors
-            os: ubuntu-latest
+            os: ubuntu-24.04    # TEMPORARY: pinned because ubuntu-latest (26.04) lacks conda, move back to -latest later
             python: '3.12'
             toxenv: docbuild
 
           - name: Check accelerated math version
-            os: ubuntu-latest
+            os: ubuntu-24.04    # TEMPORARY: pinned because ubuntu-latest (26.04) lacks conda, move back to -latest later
             python: '3.12'
             toxenv: py312-numexpr-mkl-cov
 
           - name: Try Astropy development version
-            os: ubuntu-latest
+            os: ubuntu-24.04    # TEMPORARY: pinned because ubuntu-latest (26.04) lacks conda, move back to -latest later
             python: '3.12'
             toxenv: py312-astropydev-test
 
           - name: Try latest versions of all dependencies
-            os: ubuntu-latest
+            os: ubuntu-24.04    # TEMPORARY: pinned because ubuntu-latest (26.04) lacks conda, move back to -latest later
             python: '3.14'
             toxenv: py314-latest-test
 
           - name: Try minimum supported versions
-            os: ubuntu-latest
+            os: ubuntu-24.04    # TEMPORARY: pinned because ubuntu-latest (26.04) lacks conda, move back to -latest later
             python: '3.12'
             toxenv: py312-legacy-test
 
