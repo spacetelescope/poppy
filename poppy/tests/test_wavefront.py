@@ -127,3 +127,34 @@ def test_wavefront_as_fits():
     #assert complexwave[0].data.shape == wave.shape
     #assert np.all(np.iscomplex(phase[0].data))
 
+
+
+def test_wavefront_ops_array_api_strict(monkeypatch):
+    """Wavefront arithmetic, tilt, rotate, invert and properties run under a strict array API namespace."""
+    import array_api_strict
+    import pytest
+
+    from .. import accel_math, utils
+
+    def run():
+        wf = poppy_core.Wavefront(npix=16, diam=1 * u.m, wavelength=wavelength)
+        wf *= 2.0
+        wf.tilt(Xangle=0.1, Yangle=-0.2)
+        wf.rotate(90)
+        wf.invert("x")
+        wf.normalize()
+        wf += wf.copy()
+        return [np.asarray(a) for a in (wf.wavefront, wf.amplitude, wf.intensity, wf.phase)]
+
+    monkeypatch.setattr(accel_math, "_USE_NUMEXPR", False)
+    expected = run()
+
+    for mod in (accel_math, poppy_core, utils):
+        monkeypatch.setattr(mod, "xp", array_api_strict)
+    got = run()
+    for e, g in zip(expected, got):
+        np.testing.assert_allclose(g, e, atol=1e-12)
+
+    arr = array_api_strict.asarray(np.arange(6.0).reshape(2, 3))
+    for k in range(-3, 5):
+        np.testing.assert_array_equal(np.asarray(utils._rot90(arr, k)), np.rot90(np.arange(6.0).reshape(2, 3), k))

@@ -1,4 +1,6 @@
+import cmath
 import logging
+import math
 import time
 
 import astropy.units as u
@@ -9,7 +11,7 @@ import poppy
 from poppy.poppy_core import BaseOpticalSystem, BaseWavefront, FITSOpticalElement, PlaneType, Wavefront
 
 from . import accel_math, utils
-from .accel_math import xp
+from .accel_math import _float, xp
 
 if accel_math._NUMEXPR_AVAILABLE:
     import numexpr as ne
@@ -67,8 +69,8 @@ class QuadPhase(poppy.optics.AnalyticOpticalElement):
         y, x = self.get_coordinates(wave)
         _log.debug(f"Applying spherical phase curvature ={self.z:0.2e}")
         _log.debug(f"Applying spherical lens phase ={1.0 / self.z:0.2e}")
-        z = self._z_m  # numexpr can't evaluate self.
-        if (z == np.inf) | (z == -np.inf):
+        z = float(self._z_m)  # numexpr can't evaluate self.
+        if math.isinf(z):
             # Phasor should be 1
             # OPD should be flat
             _log.debug("infinite radius of curvature -> quad phase becomes 0")
@@ -346,9 +348,9 @@ class FresnelWavefront(BaseWavefront):
         if self.oversample < 2:
             _log.warning("Oversampling > 2x suggested for reliable results in Fresnel propagation.")
 
-        self._y, self._x = xp.indices(self.shape, dtype=float)
-        self._y -= (self.wavefront.shape[0]) / 2.0
-        self._x -= (self.wavefront.shape[1]) / 2.0
+        self._y, self._x = accel_math.indices(self.shape, dtype=_float())
+        self._y = self._y - (self.wavefront.shape[0]) / 2.0
+        self._x = self._x - (self.wavefront.shape[1]) / 2.0
         """saves x and y indices for future use"""
 
         # FIXME MP: this self.n attribute appears unnecessary?
@@ -514,7 +516,7 @@ class FresnelWavefront(BaseWavefront):
         if accel_math._USE_NUMEXPR:
             return ne.evaluate("pixel_scale_y * y"), ne.evaluate("pixel_scale_x * x")
         else:
-            return pixel_scale_y * y, pixel_scale_x * x
+            return float(pixel_scale_y) * y, float(pixel_scale_x) * x
 
     def coordinates(self):
         """ Return Y, X coordinates for this wavefront, in the manner of numpy.indices()
@@ -548,8 +550,8 @@ class FresnelWavefront(BaseWavefront):
                 raise ValueError("Cannot convert to angular units for a beam with infinite focal length")
             platescale = (1 * u.radian / self.focal_length).to(u.arcsec / u.m)
             _log.debug(f"Converting to angular coords using plate scale = {platescale}")
-            y *= platescale.value
-            x *= platescale.value
+            y = y * float(platescale.value)
+            x = x * float(platescale.value)
 
         return y, x
 
@@ -594,16 +596,16 @@ class FresnelWavefront(BaseWavefront):
         """
         self.angular_coordinates = False  # coordinates must be in meters for propagation
 
-        z_direct = z.to(u.m).value
+        z_direct = float(z.to(u.m).value)
         y, x = self.coordinates()
-        k = np.pi * 2.0 / self.wavelength.to(u.meter).value
+        k = math.pi * 2.0 / float(self.wavelength.to(u.meter).value)
         s = self.n * u.pix * self.pixelscale  # S is "simulation size" and has length of meters
         _log.debug(
             f"Propagation Parameters: k={k:0.2e}," + f"S={s:0.2e}," + f"z={z_direct:0.2e},")
 
         # TODO the following exponential code could be accelerated with numexpr
         quadphase_1st = xp.exp(1.0j * k * (x ** 2 + y ** 2) / (2 * z_direct))  # eq. 6.68
-        quadphase_2nd = xp.exp(1.0j * k * z_direct) / (1.0j * self.wavelength.to(u.m).value * z_direct) * xp.exp(
+        quadphase_2nd = cmath.exp(1.0j * k * z_direct) / (1.0j * float(self.wavelength.to(u.m).value) * z_direct) * xp.exp(
             1.0j * k * (x ** 2 + y ** 2) / (2 * z_direct))  # eq. 6.70
 
         stage1 = self.wavefront * quadphase_1st  # eq.6.67
@@ -611,13 +613,13 @@ class FresnelWavefront(BaseWavefront):
             result = accel_math._ifftshift(stage1)
             result = accel_math.fft_2d(result, forward=True, fftshift=False)
             result = accel_math._fftshift(result)
-            result *= self.pixelscale.to(u.m / u.pix).value ** 2  # eq.6.69 and #6.80
+            result = result * float(self.pixelscale.to(u.m / u.pix).value) ** 2  # eq.6.69 and #6.80
         else:
             result = accel_math._fftshift(stage1)
             result = accel_math.fft_2d(result, forward=False, fftshift=False)
             result = accel_math._ifftshift(result)
-            result *= self.pixelscale.to(u.m / u.pix).value ** 2 * self.n ** 2
-        result *= quadphase_2nd
+            result = result * (float(self.pixelscale.to(u.m / u.pix).value) ** 2 * self.n ** 2)
+        result = result * quadphase_2nd
         # FIXME there is some inconsistency in the flux normalization here, possibly with the pixelscale scaling
         # As a result this function does not properly conserve energy (i.e. conserve total intensity)
         # Ideally this should be debugged but is not a priority to do so right now.
@@ -700,7 +702,7 @@ class FresnelWavefront(BaseWavefront):
                 '_propagate_ptp can only start from a planar wavefront, but was called with a spherical one.')
 
         if isinstance(dz, u.quantity.Quantity):
-            z_direct = dz.to(u.m).value  # convert to meters.
+            z_direct = float(dz.to(u.m).value)  # convert to meters.
         else:
             _log.warning(f"z= {dz:0.2e}, has no units, assuming meters ")
             z_direct = dz
@@ -712,20 +714,20 @@ class FresnelWavefront(BaseWavefront):
             return
 
         x, y = self.coordinates()  # meters
-        meter_per_pix = self.pixelscale.to(u.m / u.pix).value
+        meter_per_pix = float(self.pixelscale.to(u.m / u.pix).value)
         rhosqr = accel_math._fftshift((x / (meter_per_pix ** 2 * self.n)) ** 2 + (
             y / (meter_per_pix ** 2 * self.n)) ** 2)
         # Transfer Function of diffraction propagation eq. 22, eq. 87
-        wavelen_m = self.wavelength.to(u.m).value
+        wavelen_m = float(self.wavelength.to(u.m).value)
 
         if accel_math._USE_NUMEXPR:
             exp_t = ne.evaluate("exp(-1j * pi * wavelen_m * (z_direct) * rhosqr)")
         else:
-            exp_t = xp.exp(-1j * np.pi * wavelen_m * z_direct * rhosqr)
+            exp_t = xp.exp(-1j * math.pi * wavelen_m * z_direct * rhosqr)
 
         self._fft()
 
-        self.wavefront *= exp_t  # eq. 6.68
+        self.wavefront = self.wavefront * exp_t  # eq. 6.68
 
         self._inv_fft()
         self.z += dz
@@ -1053,7 +1055,7 @@ class FresnelWavefront(BaseWavefront):
         fpm_pxscl_lamD = ( optic.pixelscale_lamD * optic.wavelength_c.to(u.meter) / self.wavelength.to(u.meter) ).value
 
         # get the fpm phasor either using numexpr or numpy
-        scale = 2. * np.pi / self.wavelength.to(u.meter).value
+        scale = 2. * math.pi / float(self.wavelength.to(u.meter).value)
         if accel_math._USE_NUMEXPR:
             _log.debug("Calculating FPM phasor from numexpr.")
             trans = optic.get_transmission(self)  # noqa: F841
@@ -1073,7 +1075,7 @@ class FresnelWavefront(BaseWavefront):
         self.wavefront = accel_math._ifftshift(self.wavefront)
         self.wavefront = accel_math.fft_2d(self.wavefront, forward=False, fftshift=True) # do a forward FFT to virtual pupil
         self.wavefront = mft.perform(self.wavefront, nfpmlamD, nfpm) # MFT back to highly sampled focal plane
-        self.wavefront *= fpm_phasor
+        self.wavefront = self.wavefront * fpm_phasor
         self.wavefront = mft.inverse(self.wavefront, nfpmlamD, n) # MFT to virtual pupil
         self.wavefront = accel_math.fft_2d(self.wavefront, forward=True, fftshift=True) # FFT back to focal plane
         self.wavefront = accel_math._fftshift(self.wavefront)
@@ -1298,7 +1300,7 @@ class FresnelOpticalSystem(BaseOpticalSystem):
             elif normalize.lower() == 'first=2' and wavefront.current_plane_index == 1:
                 # this undocumented option is present only for testing/validation purposes
                 wavefront.normalize()
-                wavefront *= np.sqrt(2)
+                wavefront *= math.sqrt(2)
             elif normalize.lower() == 'exit_pupil':  # normalize the last pupil in the system to 1
                 last_pupil_plane_index = np.where(
                     np.asarray([p.planetype is PlaneType.pupil for p in self.planes]))[0].max() + 1

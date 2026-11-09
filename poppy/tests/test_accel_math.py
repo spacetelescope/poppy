@@ -83,3 +83,67 @@ def test_exp_numexpr():
 def test_benchmark_fft():
     # minimalist case for speed, but at least it tests the function:
     accel_math.benchmark_fft(npix=512, iterations=2)
+
+
+def test_backend_selection():
+    """The backend is resolved at import, and is one of the supported array-API namespaces"""
+    assert accel_math._BACKEND in accel_math._SUPPORTED_BACKENDS
+    x = accel_math.xp.zeros((4, 4), dtype=accel_math._complex())
+    assert accel_math.to_numpy(x).dtype == (np.complex128 if poppy_conf_double() else np.complex64)
+
+
+def poppy_conf_double():
+    from .. import conf
+    return conf.double_precision
+
+
+def test_unsupported_backend_raises():
+    from .. import conf
+    default = conf.array_backend
+    try:
+        conf.array_backend = 'jax'  # not yet supported
+        with pytest.raises(NotImplementedError):
+            accel_math._resolve_backend()
+    finally:
+        conf.array_backend = default
+
+
+def test_to_numpy_passthrough():
+    arr = np.arange(3.)
+    assert accel_math.to_numpy(arr) is arr
+    assert accel_math.to_numpy(2.5) == 2.5
+    assert not accel_math.is_on_gpu(arr)
+
+
+def test_fft_2d_does_not_require_inplace():
+    """fft_2d must round trip, and return normalized results, using only returned values"""
+    rng = np.random.default_rng(1)
+    arr = accel_math.xp.asarray(rng.random((32, 32)) + 0j)
+    back = accel_math.fft_2d(accel_math.fft_2d(accel_math.xp.asarray(arr.copy()), forward=True), forward=False)
+    np.testing.assert_allclose(accel_math.to_numpy(back), accel_math.to_numpy(arr), atol=1e-12)
+
+
+@pytest.mark.parametrize("use_numexpr", [True, False])
+def test_single_precision_calc_psf(use_numexpr):
+    """Single precision calculations must run (including the numexpr phasor path) and agree with double precision"""
+    from .. import CircularAperture, OpticalSystem, conf
+
+    def psf():
+        osys = OpticalSystem()
+        osys.add_pupil(CircularAperture(radius=1))
+        osys.add_detector(pixelscale=0.02, fov_arcsec=1.0)
+        return osys.calc_psf(2e-6)[0].data
+
+    if use_numexpr and not accel_math._NUMEXPR_AVAILABLE:
+        pytest.skip("numexpr not available")
+    default_numexpr = accel_math._USE_NUMEXPR
+    ref = psf()
+    try:
+        accel_math._USE_NUMEXPR = use_numexpr and not accel_math._USE_CUPY
+        with conf.set_temp("double_precision", False):
+            accel_math.update_math_settings()
+            single = psf()
+    finally:
+        accel_math._USE_NUMEXPR = default_numexpr
+        accel_math.update_math_settings()
+    np.testing.assert_allclose(single, ref, atol=1e-5 * ref.max())

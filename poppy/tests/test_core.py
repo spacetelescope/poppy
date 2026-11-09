@@ -470,7 +470,7 @@ def test_FITSOpticalElement(tmpdir):
 
     # make a cube
     rect_mask = poppy.RectangleAperture().sample(grid_size=3, npix=10)
-    rect_mask = poppy.accel_math.ensure_not_on_gpu(rect_mask)
+    rect_mask = poppy.accel_math.to_numpy(rect_mask)
     circ_mask = circ_fits[0].data
     circ_fits[0].data = np.stack([circ_mask, rect_mask])
     circ_fits[0].header['BUNIT'] = 'nm' # need unit for OPD

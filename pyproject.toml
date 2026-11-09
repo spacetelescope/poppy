@@ -18,6 +18,8 @@ dependencies = [
     "scipy>=1.15",
     "matplotlib>=3.10",
     "astropy>=7.0",
+    "array-api-compat>=1.12",
+    "array-api-extra>=0.9",
 ]
 dynamic = [
     "version",
@@ -32,6 +34,7 @@ all = [
 test = [
     "pytest>=9",
     "pytest-astropy",
+    "array-api-strict",
     "docutils",
     "sphinx",
 ]

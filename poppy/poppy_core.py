@@ -1,18 +1,20 @@
 import copy
 import enum
+import math
 import multiprocessing
 import textwrap
 import time
 from abc import ABC, abstractmethod
 
+import array_api_compat
 import astropy.io.fits as fits
 import astropy.units as u
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
-from . import accel_math, conf, utils
-from .accel_math import _complex, _float, _scipy, xp
+from . import _scipy_compat, accel_math, conf, utils
+from .accel_math import _complex, _float, to_numpy, xp
 from .matrixDFT import MatrixFourierTransform
 
 if accel_math._NUMEXPR_AVAILABLE:
@@ -146,13 +148,25 @@ class BaseWavefront(ABC):
 
     def normalize(self):
         """Set this wavefront's total intensity to 1 """
-        sqrt_ti = np.sqrt(self.total_intensity)
+        sqrt_ti = float(xp.sqrt(self.total_intensity))
         if sqrt_ti == 0:
             _log.warning("Total intensity is zero when trying to normalize the wavefront. Cannot normalize.")
-        elif not np.isfinite(sqrt_ti):
+        elif not math.isfinite(sqrt_ti):
             _log.warning("Total intensity is NaN or Inf when trying to normalize the wavefront. Cannot normalize.")
         else:
-            self.wavefront /= sqrt_ti
+            self._multiply_wavefront(1.0 / sqrt_ti)
+
+    def _multiply_wavefront(self, factor):
+        """Multiply the wavefront array by a scalar or array, preserving its complex dtype.
+
+        Modifies the array in place for mutable backends (numpy, cupy), which avoids allocating a new
+        array for every optic. Other array API backends (e.g. immutable jax arrays) get a rebinding to
+        a new array instead.
+        """
+        if accel_math._is_mutable(self.wavefront):
+            self.wavefront *= factor
+        else:
+            self.wavefront = xp.astype(self.wavefront * factor, self.wavefront.dtype, copy=False)
 
     def __imul__(self, optic):
         """Multiply a Wavefront by an OpticalElement or scalar"""
@@ -160,7 +174,7 @@ class BaseWavefront(ABC):
             return self  # a coord transform doesn't actually affect the wavefront via multiplication,
             # but instead via forcing a call to rotate() or invert() in propagate_to...
         elif np.isscalar(optic):
-            self.wavefront *= optic  # it's just a scalar
+            self._multiply_wavefront(optic)  # it's just a scalar
             self.history.append("Multiplied WF by scalar value " + str(optic))
             return self
         elif not isinstance(optic, OpticalElement):
@@ -176,7 +190,7 @@ class BaseWavefront(ABC):
         if not np.isscalar(phasor) and phasor.size > 1:
             assert self.wavefront.shape == phasor.shape, f"Phasor shape {phasor.shape} does not match wavefront shape {self.wavefront.shape}"
 
-        self.wavefront *= phasor
+        self._multiply_wavefront(phasor)
         msg = "  Multiplied WF by phasor for " + str(optic)
         _log.debug(msg)
         self.history.append(msg)
@@ -205,7 +219,7 @@ class BaseWavefront(ABC):
         except u.UnitConversionError:
             raise ValueError(f'Wavefronts can only be added if they have equivalent units: {self.pixelscale.unit} vs {wave.pixelscale.unit}')
 
-        self.wavefront += wave.wavefront
+        self.wavefront = xp.astype(self.wavefront + wave.wavefront, self.wavefront.dtype, copy=False)
         self.history.append("Summed with another wavefront!")
         return self
 
@@ -232,43 +246,34 @@ class BaseWavefront(ABC):
 
         def get_unpadded(attribute_array):
             if self.planetype == PlaneType.pupil and self.ispadded and not includepadding:
-                return utils.remove_padding(attribute_array.copy(), self.oversample)
+                return utils.remove_padding(xp.asarray(attribute_array, copy=True), self.oversample)
             else:
-                return attribute_array.copy()
+                return xp.asarray(attribute_array, copy=True)
 
-        # Note: FITS HDULists cannot contain arrays which are in GPU memory;
-        # thus if _USE_CUPY is true, we must get() the arrays back from GPU into CPU memory.
-        # This pattern occurs several times in the below.
+        # Note: FITS HDULists cannot contain arrays which are in GPU memory (or any non-numpy backend),
+        # so arrays are converted with to_numpy at this host boundary.
         if what.lower() == 'all':
-            intens = get_unpadded(self.intensity)
-            outarr = xp.zeros((3, intens.shape[0], intens.shape[1]))
-            outarr[0, :, :] = intens
-            outarr[1, :, :] = get_unpadded(self.amplitude)
-            outarr[2, :, :] = get_unpadded(self.phase)
-            outfits = fits.HDUList(fits.PrimaryHDU(outarr.get() if accel_math._USE_CUPY else outarr))
+            outarr = to_numpy(xp.stack([get_unpadded(self.intensity),
+                                        get_unpadded(self.amplitude),
+                                        get_unpadded(self.phase)]))
+            outfits = fits.HDUList(fits.PrimaryHDU(outarr))
             outfits[0].header['PLANE1'] = 'Wavefront Intensity'
             outfits[0].header['PLANE2'] = 'Wavefront Amplitude'
             outfits[0].header['PLANE3'] = 'Wavefront Phase'
         elif what.lower() == 'parts':
-            amp = get_unpadded(self.amplitude)
-            outarr = xp.zeros((2, amp.shape[0], amp.shape[1]))
-            outarr[0, :, :] = amp
-            outarr[1, :, :] = get_unpadded(self.phase)
-            outfits = fits.HDUList(fits.PrimaryHDU(outarr.get() if accel_math._USE_CUPY else outarr))
+            outarr = to_numpy(xp.stack([get_unpadded(self.amplitude), get_unpadded(self.phase)]))
+            outfits = fits.HDUList(fits.PrimaryHDU(outarr))
             outfits[0].header['PLANE1'] = 'Wavefront Amplitude'
             outfits[0].header['PLANE2'] = 'Wavefront Phase'
         elif what.lower() == 'intensity':
-            outfits = fits.HDUList(fits.PrimaryHDU(get_unpadded(self.intensity.get() if accel_math._USE_CUPY else self.intensity)))
+            outfits = fits.HDUList(fits.PrimaryHDU(to_numpy(get_unpadded(self.intensity))))
             outfits[0].header['PLANE1'] = 'Wavefront Intensity'
         elif what.lower() == 'phase':
-            outfits = fits.HDUList(fits.PrimaryHDU(get_unpadded(self.phase.get() if accel_math._USE_CUPY else self.phase)))
+            outfits = fits.HDUList(fits.PrimaryHDU(to_numpy(get_unpadded(self.phase))))
             outfits[0].header['PLANE1'] = 'Phase'
         elif what.lower() == 'complex':
-            real = get_unpadded(self.wavefront.real)
-            outarr = xp.zeros((2, real.shape[0], real.shape[1]))
-            outarr[0, :, :] = real
-            outarr[1, :, :] = get_unpadded(self.wavefront.imag)
-            outfits = fits.HDUList(fits.PrimaryHDU(outarr.get() if accel_math._USE_CUPY else outarr))
+            outarr = to_numpy(xp.stack([get_unpadded(xp.real(self.wavefront)), get_unpadded(xp.imag(self.wavefront))]))
+            outfits = fits.HDUList(fits.PrimaryHDU(outarr))
             outfits[0].header['PLANE1'] = 'Real part of complex wavefront'
             outfits[0].header['PLANE2'] = 'Imaginary part of complex wavefront'
         else:
@@ -404,19 +409,19 @@ class BaseWavefront(ABC):
         if row is None:
             row = self.current_plane_index
 
-        intens = self.intensity.copy()
+        intens = to_numpy(self.intensity).copy()
 
         # make a version of the phase where we try to mask out
         # areas with particularly low intensity
-        phase = self.phase.copy()
+        phase = to_numpy(self.phase).copy()
         mean_intens = np.mean(intens[intens != 0])
         phase[intens < mean_intens / 100] = np.nan
-        amp = self.amplitude
+        amp = to_numpy(self.amplitude)
 
         y, x = self.coordinates()
         # GPU arrays don't work in matplotlib
-        y = accel_math.ensure_not_on_gpu(y)
-        x = accel_math.ensure_not_on_gpu(x)
+        y = accel_math.to_numpy(y)
+        x = accel_math.to_numpy(x)
 
         if self.planetype == PlaneType.pupil and self.ispadded and not showpadding:
             intens = utils.remove_padding(intens, self.oversample)
@@ -691,7 +696,7 @@ class BaseWavefront(ABC):
     @property
     def amplitude(self):
         """Electric field amplitude of the wavefront """
-        return np.abs(self.wavefront)
+        return xp.abs(self.wavefront)
 
     @property
     def intensity(self):
@@ -700,21 +705,18 @@ class BaseWavefront(ABC):
             w = self.wavefront
             return ne.evaluate("real(abs(w))**2")
         else:
-            return np.abs(self.wavefront) ** 2
+            return xp.abs(self.wavefront) ** 2
 
     @property
     def phase(self):
         """Phase of the wavefront, in radians"""
-        return np.angle(self.wavefront)
+        return xp.atan2(xp.imag(self.wavefront), xp.real(self.wavefront))
 
     @property
     def wfe(self):
         """Wavefront error of the wavefront, in meters as an astropy.Quantity"""
-        if accel_math._USE_CUPY:
-            # since this returns an astropy quantity, the array must not be in GPU memory
-            return accel_math.ensure_not_on_gpu(self.phase) * (self.wavelength / (2 * np.pi))
-        else:
-            return self.phase * (self.wavelength/(2*np.pi))
+        # since this returns an astropy quantity, the array must be a numpy array
+        return accel_math.to_numpy(self.phase) * (self.wavelength / (2 * np.pi))
 
     @property
     def shape(self):
@@ -729,7 +731,7 @@ class BaseWavefront(ABC):
     @property
     def total_intensity(self):
         """Integrated intensity over the entire spatial/angular extent of the wavefront"""
-        return self.intensity.sum()
+        return xp.sum(self.intensity)
 
     # methods for wavefront propagation:
     @abstractmethod
@@ -778,7 +780,7 @@ class BaseWavefront(ABC):
         cropped_wf = utils.pad_or_crop_to_shape(self.wavefront, crop_shape)
         pixscale_in = self.pixelscale.to(u.m/u.pix).value
         pixscale_out = detector.pixelscale.to(u.m / u.pix).value
-        if not accel_math._USE_CUPY:
+        if array_api_compat.is_numpy_array(self.wavefront):
             def make_axis(npix, step):
                 """ Helper function to make coordinate axis for interpolation """
                 return step * xp.arange(-npix // 2, npix // 2, dtype=xp.float64)
@@ -799,35 +801,24 @@ class BaseWavefront(ABC):
                                                              kx=detector.interp_order, ky=detector.interp_order)
 
             # Interpolate real and imaginary parts separately
-            real_resampled = interpolator(cropped_wf.real)(x_out, y_out)
-            imag_resampled = interpolator(cropped_wf.imag)(x_out, y_out)
-            new_wf = xp.array(real_resampled + 1j * imag_resampled)
+            real_resampled = interpolator(xp.real(cropped_wf))(x_out, y_out)
+            imag_resampled = interpolator(xp.imag(cropped_wf))(x_out, y_out)
+            new_wf = xp.asarray(real_resampled + 1j * imag_resampled)
         else:
-            # cupyx does not have RectBivariateSpline or interp2d so wavefront resampling
-            # is implemented with map_coordinates
-            #wf_xmin = pixscale * cropped_wf.shape[0]/2
-            # Note, carefully handle the offset-by-one to be consistent with
-            # the use of arange above; avoid fencepost error.
-            wf_xmax = pixscale_in * cropped_wf.shape[0]/2
+            # Non-numpy backends have no RectBivariateSpline, so wavefront resampling is
+            # implemented with map_coordinates. Input axis is pixscale_in * arange(-n//2, n//2) as above.
+            in_x0 = ((-crop_shape[0]) // 2) * pixscale_in
+            in_y0 = ((-crop_shape[1]) // 2) * pixscale_in
+            newx, newy = xp.meshgrid(pixscale_out * xp.arange(-detector.shape[0] // 2, detector.shape[0] // 2,
+                                                              dtype=_float()),
+                                     pixscale_out * xp.arange(-detector.shape[1] // 2, detector.shape[1] // 2,
+                                                              dtype=_float()), indexing='ij')
+            ivals = (newx - in_x0) / pixscale_in
+            jvals = (newy - in_y0) / pixscale_in
 
-            x,y = xp.ogrid[-wf_xmax:wf_xmax-pixscale_in:cropped_wf.shape[0]*1j,
-                             -wf_xmax:wf_xmax-pixscale_in:cropped_wf.shape[1]*1j]
+            coords = xp.stack([ivals, jvals])
 
-            det_xmax = pixscale_out * detector.shape[0]/2
-            newx,newy = xp.mgrid[-det_xmax:det_xmax-pixscale_out:detector.shape[0]*1j,
-                                   -det_xmax:det_xmax-pixscale_out:detector.shape[1]*1j]
-
-            x0 = x[0,0]
-            y0 = y[0,0]
-            dx = x[1,0] - x0
-            dy = y[0,1] - y0
-
-            ivals = (newx - x0)/dx
-            jvals = (newy - y0)/dy
-
-            coords = xp.array([ivals, jvals])
-
-            new_wf = _scipy.ndimage.map_coordinates(cropped_wf, coords, order=detector.interp_order)
+            new_wf = _scipy_compat.map_coordinates(cropped_wf, coords, order=detector.interp_order)
 
         # enforce conservation of energy:
         new_wf *= 1. / pixscale_ratio
@@ -865,27 +856,23 @@ class BaseWavefront(ABC):
             raise NotImplementedError("Are you sure you want to tilt a wavefront in an _IMAGE plane?")
 
         if np.abs(Xangle) > 0 or np.abs(Yangle) > 0:
-            xangle_rad = Xangle.to(u.radian).value
-            yangle_rad = Yangle.to(u.radian).value
+            xangle_rad = float(Xangle.to(u.radian).value)
+            yangle_rad = float(Yangle.to(u.radian).value)
 
             if isinstance(self.pixelscale, u.Quantity):
-                pixelscale = self.pixelscale.to(u.m / u.pixel).value
+                pixelscale = float(self.pixelscale.to(u.m / u.pixel).value)
             else:
                 pixelscale = self.pixelscale
 
-            npix = self.wavefront.shape[0]
-            V, U = xp.indices(self.wavefront.shape, dtype=_float())
-            V -= (npix - 1) / 2.0
-            V *= pixelscale
-            U -= (npix - 1) / 2.0
-            U *= pixelscale
+            V, U = xp.meshgrid(*[(xp.arange(n, dtype=_float()) - (n - 1) / 2.0) * pixelscale
+                                 for n in self.wavefront.shape], indexing='ij')
 
             # SIGN CONVENTION: Following Wyant and Creath:
             #     Tilt in a wavefront affects the image by causing a shift of its center location in the Gaussian
             #     image plane. A tilt causing a positive OPD change in the +x direction will cause the image to
             #     shift in the -x direction
-            tiltphasor = xp.exp(-2.0j * np.pi * (U * xangle_rad + V * yangle_rad) / self.wavelength.to(u.meter).value)
-            self.wavefront *= tiltphasor
+            tiltphasor = xp.exp(-2.0j * math.pi * (U * xangle_rad + V * yangle_rad) / float(self.wavelength.to(u.meter).value))
+            self._multiply_wavefront(tiltphasor)
             self.history.append("Tilted wavefront by "
                                 f"X={Xangle:2.2}, Y={Yangle:2.2} arcsec")
 
@@ -906,16 +893,16 @@ class BaseWavefront(ABC):
         # The ndimage rotate function does not work for complex numbers.
         # so let's treat the real and imaginary parts individually
 
-        k, remainder = np.divmod(angle, 90)
+        k, remainder = divmod(angle, 90)
         if remainder == 0:
             # rotation is a multiple of 90
-            rot_real = xp.rot90(self.wavefront.real, k=-k)  # negative = CCW
-            rot_imag = xp.rot90(self.wavefront.imag, k=-k)
+            rot_real = utils._rot90(xp.real(self.wavefront), k=-k)  # negative = CCW
+            rot_imag = utils._rot90(xp.imag(self.wavefront), k=-k)
         else:
             # arbitrary free rotation with interpolation
-            rot_real = _scipy.ndimage.rotate(self.wavefront.real, -angle, reshape=False)  # negative = CCW
-            rot_imag = _scipy.ndimage.rotate(self.wavefront.imag, -angle, reshape=False)
-        self.wavefront = rot_real + 1j * rot_imag
+            rot_real = _scipy_compat.rotate(xp.real(self.wavefront), -angle, reshape=False)  # negative = CCW
+            rot_imag = _scipy_compat.rotate(xp.imag(self.wavefront), -angle, reshape=False)
+        self.wavefront = xp.astype(rot_real, _complex()) + 1j * xp.astype(rot_imag, _complex())
 
         self.history.append(f'Rotated by {angle:.2f} degrees, CCW')
 
@@ -1281,7 +1268,7 @@ class Wavefront(BaseWavefront):
             2D coordinate arrays in units of meters, centered at (0, 0),
             following the numpy.indices convention (Y axis first).
         """
-        y, x = xp.indices(shape, dtype=_float())
+        y, x = accel_math.indices(shape)
         pixelscale_mpix = pixelscale.to(u.meter / u.pixel).value if isinstance(pixelscale, u.Quantity) else pixelscale
         if not np.isscalar(pixelscale_mpix):
             pixel_scale_x, pixel_scale_y = pixelscale_mpix
@@ -1293,9 +1280,9 @@ class Wavefront(BaseWavefront):
             return (ne.evaluate("pixel_scale_y * (y - (ny-1)/2)"),
                     ne.evaluate("pixel_scale_x * (x - (nx-1)/2)"))
         else:
-            y -= (shape[0] - 1) / 2.0
-            x -= (shape[1] - 1) / 2.0
-            return pixel_scale_y * y, pixel_scale_x * x
+            y = y - (shape[0] - 1) / 2.0
+            x = x - (shape[1] - 1) / 2.0
+            return float(pixel_scale_y) * y, float(pixel_scale_x) * x
 
     @staticmethod
     def image_coordinates(shape, pixelscale, last_transform_type, image_centered):
@@ -1323,7 +1310,7 @@ class Wavefront(BaseWavefront):
             2D coordinate arrays in units of arcseconds, with the origin at the
             center of the PSF, following the numpy.indices convention (Y axis first).
         """
-        y, x = xp.indices(shape, dtype=_float())
+        y, x = accel_math.indices(shape)
         pixelscale_arcsecperpix = pixelscale.to(u.arcsec / u.pixel).value
         if not np.isscalar(pixelscale_arcsecperpix):
             pixel_scale_x, pixel_scale_y = pixelscale_arcsecperpix
@@ -1426,11 +1413,7 @@ class Wavefront(BaseWavefront):
 
         Returns True if data is in GPU memory (only possible with CUPY)
         """
-        if not accel_math._USE_CUPY:
-            return False
-        else:
-            import cupy as cp
-            return isinstance(self.wavefront, cp.ndarray)
+        return accel_math.is_on_gpu(self.wavefront)
 
     def rotate(self, angle=0.0):
         """Rotate a wavefront by some amount, using spline interpolation
@@ -1705,6 +1688,11 @@ class BaseOpticalSystem(ABC):
             utils.fftw_load_wisdom()
 
         if conf.use_multiprocessing and len(wavelength) > 1:  # ######## Parallelized computation ############
+            if accel_math._BACKEND != 'numpy':
+                raise NotImplementedError(
+                    f"Multiprocessing is not supported with the '{accel_math._BACKEND}' array backend "
+                    "(device contexts do not survive forking worker processes, and the device already "
+                    "provides the parallelism). Set poppy.conf.use_multiprocessing = False.")
             # Avoid a Mac OS incompatibility that can lead to hard-to-reproduce crashes.
             # see issues #23 and #176
 
@@ -2267,7 +2255,7 @@ class OpticalSystem(BaseOpticalSystem):
             elif normalize.lower() == 'first=2' and wavefront.current_plane_index == 1:
                 # this undocumented option is present only for testing/validation purposes
                 wavefront.normalize()
-                wavefront *= np.sqrt(2)
+                wavefront *= math.sqrt(2)
             elif normalize.lower() == 'exit_pupil':  # normalize the last pupil in the system to 1
                 last_pupil_plane_index = np.where(np.asarray(
                     [p.planetype is PlaneType.pupil for p in self.planes]))[0].max() + 1
@@ -2577,7 +2565,7 @@ class OpticalElement:
             wavelength = wave.wavelength
         else:
             wavelength = wave
-        scale = 2. * np.pi / wavelength.to(u.meter).value
+        scale = 2. * math.pi / wavelength.to(u.meter).value
 
         # set the self.phasor attribute:
         # first check whether we need to interpolate to do this.
@@ -2594,9 +2582,9 @@ class OpticalElement:
                 # raise NotImplementedError("Need to implement resampling.")
                 zoom = (self.pixelscale / wave.pixelscale).decompose().value
                 original_opd = self.get_opd(wave)
-                resampled_opd = _scipy.ndimage.zoom(original_opd, zoom, output=original_opd.dtype, order=self.interp_order)
+                resampled_opd = _scipy_compat.zoom(original_opd, zoom, order=self.interp_order)
                 original_amplitude = self.get_transmission(wave)
-                resampled_amplitude = _scipy.ndimage.zoom(original_amplitude, zoom, output=original_amplitude.dtype, order=self.interp_order)
+                resampled_amplitude = _scipy_compat.zoom(original_amplitude, zoom, order=self.interp_order)
                 _log.debug("resampled optic to match wavefront via spline interpolation by a" +
                            f" zoom factor of {zoom:.3g}")
                 _log.debug(f"resampled optic shape: {resampled_amplitude.shape}   wavefront shape: {wave.shape}")
@@ -2611,13 +2599,8 @@ class OpticalElement:
                     _log.warning("After resampling, optic phasor shape " + str(np.shape(resampled_opd)) +
                                  " is smaller than input wavefront " + str(
                                  (lx_w, ly_w)) + "; will zero-pad the rescaled array.")
-                    self._resampled_opd = xp.zeros([lx_w, ly_w])
-                    self._resampled_amplitude = xp.zeros([lx_w, ly_w])
-
-                    self._resampled_opd[border_x:border_x + resampled_opd.shape[0],
-                                        border_y:border_y + resampled_opd.shape[1]] = resampled_opd
-                    self._resampled_amplitude[border_x:border_x + resampled_opd.shape[0],
-                                              border_y:border_y + resampled_opd.shape[1]] = resampled_amplitude
+                    self._resampled_opd = utils._embed(resampled_opd, (lx_w, ly_w), (border_x, border_y))
+                    self._resampled_amplitude = utils._embed(resampled_amplitude, (lx_w, ly_w), (border_x, border_y))
                     _log.debug(f"padded an optic with a {border_x:d} x {border_y:d} border to "
                                "optic to match the wavefront")
 
@@ -2772,8 +2755,8 @@ class OpticalElement:
 
         # Evaluate the wavefront at the desired sampling and pixel scale.
         ampl = self.get_transmission(temp_wavefront)
-        opd = self.get_opd(temp_wavefront).copy()
-        opd[(ampl == 0)] = np.nan
+        opd = to_numpy(self.get_opd(temp_wavefront)).copy()
+        opd[to_numpy(ampl) == 0] = np.nan
 
         # define a helper function for the actual plotting - we do it this way so
         # we can call it twice if the 'both' option is chosen. This avoids the complexities of the
@@ -3169,20 +3152,21 @@ class FITSOpticalElement(OpticalElement):
             # If a rotation is specified and we're NOT a null (scalar) optic, then do the rotation:
             if rotation is not None and len(self.amplitude.shape) == 2:
 
-                k, remainder = np.divmod(rotation, 90)
+                k, remainder = divmod(rotation, 90)
                 if remainder == 0:
                     # rotation is a multiple of 90
-                    self.amplitude = xp.rot90(self.amplitude, k=-k)   # negative = CCW
-                    self.opd = xp.rot90(self.opd, k=-k)
+                    self.amplitude = utils._rot90(self.amplitude, k=-k)   # negative = CCW
+                    self.opd = utils._rot90(self.opd, k=-k)
                 else:
                     # arbitrary free rotation with interpolation
                     # do rotation with interpolation, but try to clean up some of the artifacts afterwards.
                     # this is imperfect at best, of course...
-                    self.amplitude = _scipy.ndimage.rotate(xp.asarray(self.amplitude) , -rotation,  # negative = CCW
-                                                                  reshape=False).clip(min=0, max=1.0)
+                    rotated = _scipy_compat.rotate(xp.asarray(self.amplitude), -rotation,  # negative = CCW
+                                                   reshape=False)
+                    self.amplitude = xp.clip(rotated, 0, 1.0)
                     wnoise = (self.amplitude < 1e-3) & (self.amplitude > 0)
-                    self.amplitude[wnoise] = 0
-                    self.opd = _scipy.ndimage.rotate(self.opd, -rotation, reshape=False)  # negative = CCW
+                    self.amplitude = xp.where(wnoise, xp.zeros_like(self.amplitude), self.amplitude)
+                    self.opd = _scipy_compat.rotate(self.opd, -rotation, reshape=False)  # negative = CCW
                 _log.info(f"  Rotated optic by {rotation:f} degrees counter clockwise.")
                 self._rotation = rotation
 
@@ -3285,8 +3269,8 @@ class FITSOpticalElement(OpticalElement):
                     _log.info(f"Actual shift applied   = ({rollx * 1.0 / self.amplitude.shape[1]:6.3f}, {rolly * 1.0 / self.amplitude.shape[0]:6.3f}) ")
                     self._shift = (rollx * 1.0 / self.amplitude.shape[1], rolly * 1.0 / self.amplitude.shape[0])
 
-                self.amplitude = _scipy.ndimage.shift(self.amplitude, (rolly, rollx))
-                self.opd = _scipy.ndimage.shift(self.opd, (rolly, rollx))
+                self.amplitude = _scipy_compat.shift(self.amplitude, (rolly, rollx))
+                self.opd = _scipy_compat.shift(self.opd, (rolly, rollx))
 
     @property
     def pupil_diam(self):

@@ -10,6 +10,8 @@ import os.path
 import pickle
 import warnings
 
+from array_api_compat import array_namespace
+import array_api_extra as xpx
 import astropy.io.fits as fits
 import astropy.units as u
 import matplotlib
@@ -52,7 +54,7 @@ __all__ = ['display_psf', 'display_psf_difference', 'display_ee', 'measure_ee', 
 
 def imshow(image, *args, **kwargs):
     """If needed, fetch array from GPU before imshow"""
-    return plt.imshow( accel_math.ensure_not_on_gpu(image),
+    return plt.imshow( accel_math.to_numpy(image),
                        *args, **kwargs)
 
 def imshow_with_mouseover(image0, ax=None, *args, **kwargs):
@@ -66,7 +68,7 @@ def imshow_with_mouseover(image0, ax=None, *args, **kwargs):
     if ax is None:
         ax = plt.gca()
 
-    image = accel_math.ensure_not_on_gpu(image0)
+    image = accel_math.to_numpy(image0)
 
     ax.imshow(image, *args, **kwargs)
     aximage = ax.images[0].properties()['array']
@@ -1122,6 +1124,35 @@ def measure_anisotropy(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50):
 #
 
 
+def _rot90(array, k=1):
+    """Rotate a 2D array by k*90 degrees counterclockwise (array-API equivalent of np.rot90).
+    This is needed because not all backends have a native .rot90 function
+
+    Benchmarked and confirmed to be as fast as np.rot90 for the numpy case, because this is
+    all done with efficient memory views.
+    """
+    xp_ = array_namespace(array)
+    k = int(k) % 4
+    if k == 0:
+        return array
+    if k == 1:
+        return xp_.flip(xp_.permute_dims(array, (1, 0)), axis=0)
+    if k == 2:
+        return xp_.flip(array, axis=(0, 1))
+    return xp_.permute_dims(xp_.flip(array, axis=0), (1, 0))
+
+
+def _embed(array, shape, offset):
+    """Return a new zero array of the given 2D shape with `array` inserted at the given (row, column) offset.
+
+    A single allocation followed by a slice update; this is faster than np.pad-style
+    concatenation, and `array_api_extra.at` makes it work on backends that lack in-place assignment.
+    """
+    padded = xp.zeros(shape, dtype=array.dtype)
+    n0, m0 = offset
+    return xpx.at(padded)[n0:n0 + array.shape[0], m0:m0 + array.shape[1]].set(array)
+
+
 def pad_to_oversample(array, oversample):
     """ Add zeros around the edge of an array, for a given desired FFT integer oversampling ratio
 
@@ -1143,13 +1174,11 @@ def pad_to_oversample(array, oversample):
     """
     npix = array.shape[0]
     n = int(np.round(npix * oversample))
-    padded = xp.zeros(shape=(n, n), dtype=array.dtype)
     n0 = float(npix) * (oversample - 1) / 2
     n1 = n0 + npix
     n0 = int(round(n0))  # because astropy test_plugins enforces integer indices
     n1 = int(round(n1))
-    padded[n0:n1, n0:n1] = array
-    return padded
+    return _embed(array, (n, n), (n0, n0))
 
 
 def pad_to_size(array, padded_shape):
@@ -1179,8 +1208,6 @@ def pad_to_size(array, padded_shape):
     else:
         outsize0 = padded_shape[0]
         outsize1 = padded_shape[1]
-    # npix = array.shape[0]
-    padded = xp.zeros(shape=padded_shape, dtype=array.dtype)
     n0 = (outsize0 - array.shape[0]) // 2  # pixel offset for the inner array
     m0 = (outsize1 - array.shape[1]) // 2  # pixel offset in second dimension
     n1 = n0 + array.shape[0]
@@ -1189,8 +1216,7 @@ def pad_to_size(array, padded_shape):
     n1 = int(round(n1))
     m0 = int(round(m0))
     m1 = int(round(m1))
-    padded[n0:n1, m0:m1] = array
-    return padded
+    return _embed(array, (outsize0, outsize1), (n0, m0))
 
 
 def pad_or_crop_to_shape(array, target_shape):
@@ -1220,15 +1246,14 @@ def pad_or_crop_to_shape(array, target_shape):
 
     lx, ly = array.shape
     lx_w, ly_w = target_shape
-    border_x = xp.abs(lx - lx_w) // 2
-    border_y = xp.abs(ly - ly_w) // 2
+    border_x = abs(lx - lx_w) // 2
+    border_y = abs(ly - ly_w) // 2
 
     if (lx < lx_w) or (ly < ly_w):
         _log.debug("Array shape " + str(array.shape) + " is smaller than desired shape " + str(
             [lx_w, ly_w]) + "; will attempt to zero-pad the array")
 
-        resampled_array = xp.zeros(shape=(lx_w, ly_w), dtype=array.dtype)
-        resampled_array[border_x:border_x + lx, border_y:border_y + ly] = array
+        resampled_array = _embed(array, (lx_w, ly_w), (border_x, border_y))
         _log.debug(f"  Padded with a {border_x:d} x {border_y:d} border to "
                    " match the desired shape")
 
@@ -1248,7 +1273,7 @@ def remove_padding(array, oversample):
     n1 = n0 + npix
     n0 = int(round(n0))
     n1 = int(round(n1))
-    return array[n0:n1, n0:n1].copy()
+    return xp.asarray(array[n0:n1, n0:n1], copy=True)
 
 
 # Back compatibility alias:
@@ -1268,34 +1293,27 @@ def rebin_array(a=None, rc=(2, 2), verbose=False):
     rc : two-element tuple
         (nrows, ncolumns) desired for rebinned array
     verbose : bool
-        output additional status text?
+        log additional status text?
 
+    Returns
+    -------
+    b : array
+        Rebinned array, in the same array namespace and with the same dtype as the input.
 
     anand@stsci.edu
 
     """
     r, c = rc
+    xp_a = array_namespace(a)
 
-    R = a.shape[0]
-    C = a.shape[1]
+    nr = a.shape[0] // r
+    nc = a.shape[1] // c
+    if verbose:
+        _log.info("Rebinning %s array by %s into %s", a.shape, rc, (nr, nc))
 
-    nr = int(R / r)
-    nc = int(C / c)
-
-    b = a[0:nr, 0:nc].copy()
-    b = b * 0
-
-    for ri in range(0, nr):
-        Rlo = ri * r
-        if verbose:
-            print("row loop")
-        for ci in range(0, nc):
-            Clo = ci * c
-            b[ri, ci] = a[Rlo:Rlo + r, Clo:Clo + c].sum()
-            if verbose:
-                print(f"    [{Rlo:d}:{Rlo + r:d}, {Clo:d}:{Clo + c:d}]")
-                print(f"{b[ri, ci]:4.0f}")
-    return b
+    cropped = a[0:nr * r, 0:nc * c]
+    b = xp_a.sum(xp_a.reshape(cropped, (nr, r, nc, c)), axis=(1, 3))
+    return xp_a.astype(b, a.dtype)
 
 
 def krebin(a, shape):
@@ -1316,7 +1334,7 @@ def krebin(a, shape):
     """
     # Klaus P's fastrebin from web
     sh = shape[0], a.shape[0] // shape[0], shape[1], a.shape[1] // shape[1]
-    return a.reshape(sh).sum(-1).sum(1)
+    return xp.sum(xp.sum(xp.reshape(a, sh), axis=-1), axis=1)
 
 
 ###########################################################################

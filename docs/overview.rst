@@ -158,3 +158,17 @@ FITSOpticalElements have separate attributes for amplitude and phase components,
 Defining functions on a AnalyticOpticalElement subclass allows more flexibility for amplitude transmission or OPDs to vary with wavelength or other properties. 
 
 See :ref:`extending` for more details and examples.
+
+
+.. _overview_performance:
+
+Performance and array backends
+------------------------------
+
+Poppy runs on numpy by default, which is fine for most calculations. For large arrays,
+many wavelengths, or Fresnel propagation, speed can matter. Two choices are worth
+knowing about early. You can install optional FFT accelerators (FFTW or MKL). For
+NVIDIA GPUs, you can select the ``cupy`` array backend in the poppy config file. The
+backend is chosen once, when poppy is imported. See
+:ref:`Appendix A: Array Backends, Performance, and Parallelization <performance_and_parallelization>`
+for details.

@@ -1,4 +1,4 @@
-import numpy as np
+import numpy
 
 import poppy.accel_math
 from poppy import optics, poppy_core, zernike
@@ -423,3 +423,44 @@ def test_back_compatible_aliases():
     assert zernike.opd_expand_segments is zernike.decompose_opd_segments, "Missing back compatibility alias"
     assert zernike.opd_expand_nonorthonormal is zernike.decompose_opd_nonorthonormal_basis, "Missing back compatibility alias"
     assert zernike.opd_from_zernikes is zernike.compose_opd_from_basis, "Missing back compatibility alias"
+
+
+def test_array_api_strict_conformance(monkeypatch):
+    """The basis functions should only use standard array API calls, and give the same answers."""
+    strict = pytest.importorskip("array_api_strict")
+    monkeypatch.setattr(poppy.accel_math, "_USE_NUMEXPR", False)
+
+    npix = 24
+    reference = {
+        "zernike_basis": zernike.zernike_basis(nterms=6, npix=npix),
+        "hexike_basis": zernike.hexike_basis(nterms=6, npix=npix),
+        "hexike_basis_wss": zernike.hexike_basis_wss(nterms=6, npix=npix),
+        "compose": zernike.compose_opd_from_basis([0, 0, 1.0, 2.0], npix=npix),
+    }
+
+    monkeypatch.setattr(zernike, "xp", strict)
+    zernike.zernike_basis_faster.cache_clear()  # cached results would be from the real backend
+    try:
+        results = {
+            "zernike_basis": zernike.zernike_basis(nterms=6, npix=npix),
+            "hexike_basis": zernike.hexike_basis(nterms=6, npix=npix),
+            "hexike_basis_wss": zernike.hexike_basis_wss(nterms=6, npix=npix),
+            "compose": zernike.compose_opd_from_basis([0, 0, 1.0, 2.0], npix=npix),
+        }
+    finally:
+        zernike.zernike_basis_faster.cache_clear()
+    for name, expected in reference.items():
+        assert not isinstance(results[name], numpy.ndarray), name
+        numpy.testing.assert_allclose(numpy.asarray(results[name]), expected, atol=1e-12, err_msg=name)
+
+
+def test_hexike_basis_wss_flattened_coordinates():
+    """hexike_basis_wss accepts flattened 1D coordinate/aperture arrays (as used by STPSF), not just 2D grids."""
+    y, x = numpy.indices((16, 16), dtype=float)
+    x = (x - 7.5) / 8
+    y = (y - 7.5) / 8
+    aperture = (x ** 2 + y ** 2) < 0.8
+    basis_2d = zernike.hexike_basis_wss(x=x, y=y, nterms=6, aperture=aperture, outside=0)
+    basis_1d = zernike.hexike_basis_wss(x=x.ravel(), y=y.ravel(), nterms=6, aperture=aperture.ravel(), outside=0)
+    assert basis_1d.shape == (6, 256)
+    numpy.testing.assert_allclose(numpy.asarray(basis_1d), numpy.asarray(basis_2d).reshape(6, -1))

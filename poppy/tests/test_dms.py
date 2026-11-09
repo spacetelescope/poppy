@@ -225,3 +225,43 @@ def test_basic_wedge_dm():
     assert peak_aberrated < peak_perf, "Adding nonzero WFE did not decrease the Strehl as expected."
 
     return psf_aberrated, psf_perf, osys
+
+
+def test_dms_array_api_strict(monkeypatch):
+    """DM classes run under a strict array API namespace and match numpy."""
+    import array_api_strict
+    import astropy.io.fits as fits
+
+    from .. import accel_math, geometry, utils
+
+    yy, xx = np.indices((21, 21))
+    influence = fits.HDUList([fits.PrimaryHDU(np.exp(-((yy - 10) ** 2 + (xx - 10) ** 2) / 18.0))])
+    influence[0].header["SAMPLING"] = 10
+    rng = np.random.RandomState(1)
+    surface = rng.randn(8, 8) * 1e-7 * u.m
+    seg_coeffs = rng.randn(7, 3) * 1e-7
+
+    def run():
+        out = []
+        for kw, infl, npix in [({}, None, 64), ({"rotation": 15, "flip_x": True}, None, 64),
+                               ({"shift_x": 0.05, "inclination_x": 20}, None, 64),
+                               ({}, influence, 128), ({"rotation": 10.0}, influence, 128)]:
+            dm = dms.ContinuousDeformableMirror(dm_shape=(8, 8), actuator_spacing=0.2 * u.m, radius=0.8 * u.m,
+                                                influence_func=infl, **kw)
+            dm.set_surface(surface)
+            wave = poppy_core.Wavefront(diam=2.4, npix=npix)
+            out.append(np.asarray(dm.get_opd(wave)))
+            out += [np.asarray(a) for a in dm.get_act_coordinates(include_transformations=True)]
+        dm = dms.HexSegmentedDeformableMirror(rings=1, flattoflat=0.5 * u.m, gap=0.01 * u.m, include_factor_of_two=True)
+        for i in dm.segmentlist:
+            dm.set_actuator(i, seg_coeffs[i, 0] * u.m, seg_coeffs[i, 1] * u.rad, seg_coeffs[i, 2] * u.rad)
+        wave = poppy_core.Wavefront(diam=2.4, npix=64)
+        out += [np.asarray(dm.get_opd(wave)), np.asarray(dm.get_transmission(wave))]
+        return out
+
+    monkeypatch.setattr(accel_math, "_USE_NUMEXPR", False)
+    expected = run()
+    for mod in (accel_math, poppy_core, utils, optics, geometry, dms):
+        monkeypatch.setattr(mod, "xp", array_api_strict)
+    for e, g in zip(expected, run()):
+        np.testing.assert_allclose(g, e, rtol=1e-9, atol=1e-15)

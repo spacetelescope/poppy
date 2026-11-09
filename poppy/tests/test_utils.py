@@ -312,3 +312,28 @@ def test_load_corrupt_fftw_wisdom(tmpdir):
             assert len(w) == 1
             assert issubclass(w[-1].category, utils.FFTWWisdomWarning)
     assert utils._loaded_fftw_wisdom is False
+
+
+def test_pad_crop_array_api_strict(monkeypatch):
+    """Padding/cropping helpers should run on a strictly standard-conforming array namespace."""
+    xs = pytest.importorskip("array_api_strict")
+    ref = np.arange(20.0).reshape(4, 5) + 1j
+    cases = [(utils.pad_to_oversample, 2), (utils.pad_to_size, (9, 10)),
+             (utils.pad_or_crop_to_shape, (7, 8)), (utils.pad_or_crop_to_shape, (2, 3))]
+    expected = [func(ref, arg) for func, arg in cases]
+    monkeypatch.setattr(utils, "xp", xs)
+    a = xs.asarray(ref, dtype=xs.complex128)
+    for (func, arg), exp in zip(cases, expected):
+        np.testing.assert_array_equal(np.asarray(func(a, arg)), exp)
+
+
+def test_rebin_array():
+    """rebin_array conserves flux, clips trailing remainders, keeps dtype, and works on strict arrays."""
+    ref = np.arange(30).reshape(6, 5)
+    out = utils.rebin_array(ref, (2, 2))
+    assert out.shape == (3, 2) and out.dtype == ref.dtype
+    assert out[0, 0] == ref[0:2, 0:2].sum() and out[2, 1] == ref[4:6, 2:4].sum()
+
+    xs = pytest.importorskip("array_api_strict")
+    out_strict = utils.rebin_array(xs.asarray(ref.astype(float)), (2, 2))
+    np.testing.assert_array_equal(np.asarray(out_strict), out)

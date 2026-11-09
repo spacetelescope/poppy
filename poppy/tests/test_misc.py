@@ -18,8 +18,8 @@ def test_airy_1d(display=False):
 
     # convert to units of lambda/D
     r_norm = r*_ARCSECtoRAD / (lam/D)
-    r_norm = poppy.accel_math.ensure_not_on_gpu(r_norm)  # Extra cast helps with optional GPU support
-    airyprofile = poppy.accel_math.ensure_not_on_gpu(airyprofile)
+    r_norm = poppy.accel_math.to_numpy(r_norm)  # Extra cast helps with optional GPU support
+    airyprofile = poppy.accel_math.to_numpy(airyprofile)
     if display:
         plt.semilogy(r_norm,airyprofile)
         plt.axvline(1.028/2, color='k', ls=':')
@@ -54,7 +54,7 @@ def test_airy_2d(display=False):
     print(cut.shape)
 
     if display:
-        
+
         plt.subplot(211)
 
         plt.semilogy(r, fn1d, label='1D')
@@ -65,7 +65,7 @@ def test_airy_2d(display=False):
         plt.axvline(0.251643, color='red', ls='--')
         plt.ylabel('Intensity relative to peak')
         plt.xlabel('Separation in $\\lambda/D$')
- 
+
         ax=plt.subplot(212)
         plt.plot(r, cut-fn1d)
         ax.set_ylim(-1e-8, 1e-8)
@@ -114,7 +114,7 @@ def test_sinc2_2d(display=False):
         plt.legend(loc='upper right')
         plt.ylabel('Intensity relative to peak')
         plt.xlabel('Separation in $\\lambda/D$')
- 
+
         #plt.plot(r, cut-fn1d)
         #ax.set_ylim(-1e-8, 1e-8)
         #plt.ylabel('Difference')
@@ -127,3 +127,20 @@ def test_sinc2_2d(display=False):
     #return fn2d
 
 
+def test_misc_array_api_strict(monkeypatch):
+    """Airy and sinc functions run under a strict array API namespace and match numpy."""
+    import array_api_strict
+
+    from .. import accel_math, misc
+
+    def run():
+        return [np.asarray(airy_1d(obscuration=0.3, length=64)[1]),
+                np.asarray(airy_2d(shape=(32, 40), obscuration=0.2)),
+                np.asarray(airy_2d(shape=(32, 40), center=(3, 5))),
+                np.asarray(sinc2_2d(width=1.0, height=0.5, shape=(32, 40)))]
+
+    expected = run()
+    for mod in (accel_math, misc):
+        monkeypatch.setattr(mod, "xp", array_api_strict)
+    for e, g in zip(expected, run()):
+        np.testing.assert_allclose(g, e, rtol=1e-9, atol=1e-15)

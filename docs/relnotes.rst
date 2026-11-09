@@ -5,6 +5,23 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+Unreleased
+----------
+
+**Array API compatibility:**
+
+ * Poppy's math now follows the Python array API standard, with the array library chosen once at import time via
+   the new ``array_backend`` configuration setting (``'auto'``, ``'numpy'`` or ``'cupy'``). Results on numpy are
+   unchanged. See :ref:`array_backends`.
+ * New dependencies: ``array-api-compat`` and ``array-api-extra``.
+ * Performance docs revised and expanded: :ref:`performance_and_parallelization`.
+
+**Backwards-incompatible changes:**
+
+ * OpenCL support removed; use the CuPy backend for GPU calculations.
+ * ``poppy.accel_math.ensure_not_on_gpu`` replaced by ``poppy.accel_math.to_numpy``.
+ * Multiprocessing is only supported with the numpy backend; other backends raise ``NotImplementedError``.
+
 1.2.0
 -----
 

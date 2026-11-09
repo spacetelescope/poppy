@@ -2,6 +2,7 @@
 # In particular for efficient modeling of astronomical coronagraphs
 
 import logging
+import math
 import time
 
 import astropy.units as u
@@ -307,7 +308,7 @@ class MatrixFTCoronagraph(poppy_core.OpticalSystem):
             elif normalize.lower() == 'first=2' and current_plane_index == 1:
                 # this undocumented option is present only for testing/validation purposes
                 wavefront.normalize()
-                wavefront *= np.sqrt(2)
+                wavefront *= math.sqrt(2)
             elif normalize.lower() == 'exit_pupil':  # normalize the last pupil in the system to 1
                 last_pupil_plane_index = np.where(np.asarray([p.planetype is poppy_core.PlaneType.pupil
                                                               for p in self.planes]))[0].max() + 1

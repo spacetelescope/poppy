@@ -87,3 +87,26 @@ def test_M2():
     M2_, _, _, _, _, _ = wf.M2()
     
     assert(np.round(M2, 3) == np.round(M2_, 3))
+
+
+def test_physical_wavefront_array_api_strict(monkeypatch):
+    """PhysicalFresnelWavefront runs under a strict array API namespace and matches numpy."""
+    import array_api_strict
+
+    from .. import accel_math, fresnel, geometry, poppy_core, utils
+
+    def run():
+        wf = physical_wavefront.PhysicalFresnelWavefront(beam_radius=0.6 * u.m, wavelength=1064e-9, npix=64,
+                                                         oversample=2, M2=3.8)
+        wf *= optics.GaussianAperture(w=0.1 * u.m)
+        wf.scale_power(1e4)
+        wf.propagate_fresnel(20 * u.m, attenuation_coeff=1e-3)
+        return [np.asarray(wf.wavefront), np.asarray(wf.radius), np.asarray(wf.power), np.asarray(wf.q),
+                np.asarray(wf.xy)]
+
+    monkeypatch.setattr(accel_math, "_USE_NUMEXPR", False)
+    expected = run()
+    for mod in (accel_math, poppy_core, utils, optics, geometry, fresnel, physical_wavefront):
+        monkeypatch.setattr(mod, "xp", array_api_strict)
+    for e, g in zip(expected, run()):
+        np.testing.assert_allclose(g, e, rtol=1e-9, atol=1e-15)
