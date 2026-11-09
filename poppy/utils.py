@@ -474,7 +474,8 @@ def display_ee(hdulist_or_filename=None, ext=0, overplot=False, ax=None, mark_le
         for level in markers:
             ee_lev = radius[np.where(ee > level)[0][0]]
             yoffset = 0 if level < 0.9 else -0.05
-            plt.text(ee_lev + 0.1, level + yoffset, f'EE={level * 100:2d}% at r={ee_lev:.3f}"')
+            plt.text(ee_lev + 0.1, level + yoffset,
+                     f'EE={level * 100:.0f}% at r={ee_lev:.3f}"')
 
 
 def display_profiles(hdulist_or_filename=None, ext=0, overplot=False, title=None, **kwargs):
@@ -511,11 +512,12 @@ def display_profiles(hdulist_or_filename=None, ext=0, overplot=False, title=None
 
     if not overplot:
         plt.clf()
-        plt.title(title)
-        plt.xlabel("Radius [arcsec]")
-        plt.ylabel("PSF radial profile")
+
     plt.subplot(2, 1, 1)
     plt.semilogy(radius, profile)
+    if not overplot:
+        plt.title(title)
+        plt.ylabel("PSF radial profile")
 
     fwhm = 2 * radius[np.where(profile < profile[0] * 0.5)[0][0]]
     plt.text(fwhm, profile[0] * 0.5, f'FWHM = {fwhm:.3f}"')
@@ -531,7 +533,8 @@ def display_profiles(hdulist_or_filename=None, ext=0, overplot=False, title=None
         if (ee > level).any():
             ee_lev = radius[np.where(ee > level)[0][0]]
             yoffset = 0 if level < 0.9 else -0.05
-            plt.text(ee_lev + 0.1, level + yoffset, f'EE={level * 100:2d}% at r={ee_lev:.3f}"')
+            plt.text(ee_lev + 0.1, level + yoffset,
+                     f'EE={level * 100:.0f}% at r={ee_lev:.3f}"')
 
 
 def radial_profile(hdulist_or_filename=None, ext=0, ee=False, center=None, stddev=False, mad=False,
