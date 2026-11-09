@@ -148,7 +148,7 @@ class AnalyticOpticalElement(OpticalElement):
             if conf.double_precision:
                 return result
             else:
-                return xp.asarray(result, _complex())
+                return xp.asarray(result, dtype=_complex())
 
         else:
             return self.get_transmission(wave) * xp.exp(1.j * self.get_opd(wave) * scale)

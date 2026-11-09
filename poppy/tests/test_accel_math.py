@@ -121,3 +121,29 @@ def test_fft_2d_does_not_require_inplace():
     arr = accel_math.xp.asarray(rng.random((32, 32)) + 0j)
     back = accel_math.fft_2d(accel_math.fft_2d(accel_math.xp.asarray(arr.copy()), forward=True), forward=False)
     np.testing.assert_allclose(accel_math.to_numpy(back), accel_math.to_numpy(arr), atol=1e-12)
+
+
+@pytest.mark.parametrize("use_numexpr", [True, False])
+def test_single_precision_calc_psf(use_numexpr):
+    """Single precision calculations must run (including the numexpr phasor path) and agree with double precision"""
+    from .. import CircularAperture, OpticalSystem, conf
+
+    def psf():
+        osys = OpticalSystem()
+        osys.add_pupil(CircularAperture(radius=1))
+        osys.add_detector(pixelscale=0.02, fov_arcsec=1.0)
+        return osys.calc_psf(2e-6)[0].data
+
+    if use_numexpr and not accel_math._NUMEXPR_AVAILABLE:
+        pytest.skip("numexpr not available")
+    default_numexpr = accel_math._USE_NUMEXPR
+    ref = psf()
+    try:
+        accel_math._USE_NUMEXPR = use_numexpr and not accel_math._USE_CUPY
+        with conf.set_temp("double_precision", False):
+            accel_math.update_math_settings()
+            single = psf()
+    finally:
+        accel_math._USE_NUMEXPR = default_numexpr
+        accel_math.update_math_settings()
+    np.testing.assert_allclose(single, ref, atol=1e-5 * ref.max())
