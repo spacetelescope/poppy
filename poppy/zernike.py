@@ -24,6 +24,7 @@ Gram-Schmidt orthonormalization process as applied to this case is
 
 import inspect
 import logging
+import threading
 from functools import lru_cache
 from math import factorial
 
@@ -45,6 +46,13 @@ __all__ = [
 ]
 
 _log = logging.getLogger('poppy')
+
+# track threadsafe info to skip some radial polynomial calculations
+# (see zernike() docstring)
+_reusable_radial_polynomial = threading.local()
+_reusable_radial_polynomial.mode = None
+_reusable_radial_polynomial.rho = None
+_reusable_radial_polynomial.value = None
 
 def _is_odd(integer):
     """Helper for testing if an integer is odd by bitwise & with 1."""
@@ -190,7 +198,7 @@ def R(n, m, rho):
 
 
 def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
-            noll_normalize=True, **kwargs):
+            noll_normalize=True, reuse_radial_polynomial=False, **kwargs):
     """Return the Zernike polynomial Z[m,n] for a given pupil.
 
     For this function the desired Zernike is specified by 2 indices m and n.
@@ -232,6 +240,17 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
         modified such that the integral of Z[n, m] * Z[n, m] over the
         unit disk is pi exactly. To omit the normalization constant,
         set this to False. Default is True.
+    reuse_radial_polynomial : bool
+        Avoid recalculating radial component if last invocation of this
+        function shared the same n, abs(m), and rho. Instead, fetch the
+        last calculated value from a threadsafe, module-level variable.
+        Default is False.
+
+        .. note::
+            Since zernike.R() uses abs(m), when looping over noll
+            indices (as in ZernikeWFE.get_opd()), if J_x and J_(x+1)
+            are such that n_x == n_(x+1) and m_x == abs(m_(x+1)),
+            their radial polynomials are equal for the same rho.
 
     Returns
     -------
@@ -259,6 +278,20 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
     if rho.shape != theta.shape:
         raise ValueError('The rho and theta arrays do not have consistent shape.')
 
+    if (reuse_radial_polynomial == True
+        and _reusable_radial_polynomial.mode == (n, abs(m))
+        and np.array_equal(_reusable_radial_polynomial.rho, rho)
+       ):
+        radial_poly = _reusable_radial_polynomial.value
+
+        _log.debug('Zernike: reusing radial polynomial from mode '
+                   f"{_reusable_radial_polynomial.mode}")
+    else:
+        radial_poly = R(n, m, rho)
+        _reusable_radial_polynomial.mode = (n, abs(m))
+        _reusable_radial_polynomial.value = radial_poly
+        _reusable_radial_polynomial.rho = rho
+
     aperture = (rho <= 1)
 
     if m == 0:
@@ -266,13 +299,13 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
             zernike_result = aperture
         else:
             norm_coeff = np.sqrt(n + 1) if noll_normalize else 1
-            zernike_result = norm_coeff * R(n, m, rho) * aperture
+            zernike_result = norm_coeff * radial_poly * aperture
     elif m > 0:
         norm_coeff = np.sqrt(2 * (n + 1)) if noll_normalize else 1
-        zernike_result = norm_coeff * R(n, m, rho) * xp.cos(np.abs(m) * theta) * aperture
+        zernike_result = norm_coeff * radial_poly * xp.cos(np.abs(m) * theta) * aperture
     else:
         norm_coeff = np.sqrt(2 * (n + 1)) if noll_normalize else 1
-        zernike_result = norm_coeff * R(n, m, rho) * xp.sin(np.abs(m) * theta) * aperture
+        zernike_result = norm_coeff * radial_poly * xp.sin(np.abs(m) * theta) * aperture
 
     zernike_result[(rho > 1)] = outside
     return zernike_result
@@ -306,7 +339,8 @@ def zernike1(j, **kwargs):
 
 
 @lru_cache
-def cached_zernike1(j, shape, pixelscale, pupil_radius, outside=np.nan, noll_normalize=True):
+def cached_zernike1(j, shape, pixelscale, pupil_radius, outside=np.nan,
+                    noll_normalize=True, reuse_radial_polynomial=False):
     """Compute Zernike based on Noll index *j*, using an LRU cache
     for efficiency. Refer to the `zernike1` docstring for details.
 
@@ -320,7 +354,9 @@ def cached_zernike1(j, shape, pixelscale, pupil_radius, outside=np.nan, noll_nor
     theta = xp.arctan2(y / pupil_radius, x / pupil_radius)
 
     n, m = noll_indices(j)
-    result = zernike(n, m, rho=rho, theta=theta, outside=outside, noll_normalize=noll_normalize)
+    result = zernike(n, m, rho=rho, theta=theta, outside=outside,
+                     noll_normalize=noll_normalize,
+                     reuse_radial_polynomial=reuse_radial_polynomial)
     result.flags.writeable = False  # don't let caller modify cached copy in-place
     return result
 
