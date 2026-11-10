@@ -713,6 +713,8 @@ class Instrument:
         The key configuration argument is options['jitter'] which defines the type of jitter.
         If this is the string 'gaussian', then a Gaussian blurring kernel will be applied, the
         amount of the blur is taken from the options['jitter_sigma'] value (arcsec per axis).
+        The Gaussian transfer function is applied to a cosine expansion of the sampled
+        PSF, retaining jitter narrower than a pixel and reflecting at the image boundaries.
 
         Other types of jitter are not yet implemented.
 
@@ -731,7 +733,7 @@ class Instrument:
         if local_options['jitter'] is None:
             return
         elif local_options['jitter'].lower() == 'gaussian':
-            import scipy.ndimage
+            from scipy.fft import dctn, idctn
 
             sigma = local_options.get('jitter_sigma')
             if sigma is None:
@@ -743,7 +745,23 @@ class Instrument:
             # that will be in arcseconds, we need to convert to pixels:
 
             poppy_core._log.info(f"Jitter: Convolving with Gaussian with sigma={sigma:.3f} arcsec")
-            out = scipy.ndimage.gaussian_filter(result[0].data, sigma / result[0].header['PIXELSCL'])
+            sigma_pixels = sigma / result[0].header['PIXELSCL']
+            # A sampled Gaussian kernel loses subpixel jitter. Apply its continuous
+            # transfer function instead. A type-II cosine transform corresponds to
+            # an even extension about the outer pixel edges, preserving the former
+            # reflective boundary condition without wrapping opposite image edges.
+            data = result[0].data
+            if sigma_pixels <= 0:
+                # Preserve gaussian_filter's no-op for nonpositive widths.
+                out = data.copy()
+            else:
+                spectrum = dctn(data, type=2, norm='ortho')
+                for axis, size in enumerate(data.shape):
+                    frequency = np.pi * np.arange(size) / size
+                    shape = [1] * data.ndim
+                    shape[axis] = size
+                    spectrum *= np.exp(-0.5 * (sigma_pixels * frequency)**2).reshape(shape)
+                out = idctn(spectrum, type=2, norm='ortho')
             peak = result[0].data.max()
             newpeak = out.max()
             strehl = newpeak / peak  # not really the whole Strehl ratio, just the part due to jitter
