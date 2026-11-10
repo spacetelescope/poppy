@@ -235,7 +235,8 @@ class ZernikeWFE(WavefrontError):
                     rho=rho,
                     theta=theta,
                     outside=0.0,
-                    noll_normalize=True
+                    noll_normalize=True,
+                    reuse_radial_polynomial=True
                 )
             else:
                 try:
@@ -245,7 +246,8 @@ class ZernikeWFE(WavefrontError):
                         pixelscale_m,
                         self.radius.to(u.meter).value,
                         outside=0.0,
-                        noll_normalize=True
+                        noll_normalize=True,
+                        reuse_radial_polynomial=True
                     )
                 except TypeError: # can't use cached_zernikes if the user changed between CPU and CuPy
                     y, x = self.get_coordinates(wave)
@@ -256,7 +258,8 @@ class ZernikeWFE(WavefrontError):
                         rho=rho,
                         theta=theta,
                         outside=0.0,
-                        noll_normalize=True
+                        noll_normalize=True,
+                        reuse_radial_polynomial=True
                     )
 
         combined_zernikes[aperture_intensity==0] = 0
