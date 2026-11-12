@@ -44,10 +44,11 @@ __all__ = [
     'Segment_Piston_Basis','Segment_PTT_Basis', 'arbitrary_basis'
 ]
 
-_log = logging.getLogger(__name__)
-_log.setLevel(logging.INFO)
-_log.addHandler(logging.NullHandler())
+_log = logging.getLogger('poppy')
 
+# track info to skip some radial polynomial calculations
+# (see zernike() docstring)
+_reusable_radial_polynomial = {'mode': None, 'rho': None, 'value': None}
 
 def _is_odd(integer):
     """Helper for testing if an integer is odd by bitwise & with 1."""
@@ -164,19 +165,36 @@ def R(n, m, rho):
 
     m = int(np.abs(m))
     n = int(np.abs(n))
-    output = xp.zeros(rho.shape)
     if _is_odd(n - m):
         return 0
-    else:
-        for k in range(int((n - m) / 2) + 1):
-            coef = ((-1) ** k * factorial(n - k) /
-                    (factorial(k) * factorial(int((n + m) / 2) - k) * factorial(int((n - m) / 2) - k)))
-            output += coef * rho ** (n - 2 * k)
-        return output
+
+    coef = []
+    for k in range((n - m) // 2 + 1):
+        coef.append((-1) ** k * factorial(n - k)
+                    / (factorial(k) * factorial(int((n + m) / 2) - k) * factorial(int((n - m) / 2) - k)))
+
+    # given n > m, smallest rho exponent in output polynomial must be m.
+    # given (n-m) % 2 = 0, if rho^m is factored out of output polynomial,
+    # smallest rho exponent in remaining polynomial [rho^m * (...)] must be 2.
+
+    # use Horner's method (x = rho^2) to factor parenthetical. only exponential
+    # operations to calculate are then rho^m and rho^2 instead of one per k.
+
+    output = xp.full(rho.shape, coef[0])  # begin with highest order coefficient
+    rho2 = rho**2
+    rhom = rho**m if m != 2 else rho2 # save an operation if m == Horner x
+
+    for c in range(1, len(coef)):
+        # for each nested expression, multiply by x and add next coefficient
+        output *= rho2
+        output += coef[c]
+    output *= rhom  # multiply in initial factor of rho
+
+    return output
 
 
 def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
-            noll_normalize=True, **kwargs):
+            noll_normalize=True, reuse_radial_polynomial=False, **kwargs):
     """Return the Zernike polynomial Z[m,n] for a given pupil.
 
     For this function the desired Zernike is specified by 2 indices m and n.
@@ -218,6 +236,17 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
         modified such that the integral of Z[n, m] * Z[n, m] over the
         unit disk is pi exactly. To omit the normalization constant,
         set this to False. Default is True.
+    reuse_radial_polynomial : bool
+        Avoid recalculating radial component if last invocation of this
+        function shared the same n, abs(m), and rho. Instead, fetch the
+        last calculated value from a threadsafe, module-level variable.
+        Default is False.
+
+        .. note::
+            Since zernike.R() uses abs(m), when looping over noll
+            indices (as in ZernikeWFE.get_opd()), if J_x and J_(x+1)
+            are such that n_x == n_(x+1) and m_x == abs(m_(x+1)),
+            their radial polynomials are equal for the same rho.
 
     Returns
     -------
@@ -225,10 +254,10 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
         Z(m,n) evaluated at each (rho, theta)
     """
     if not n >= m:
-        raise ValueError("Zernike index m must be >= index n")
+        raise ValueError("Zernike index n must be >= index m")
     if (n - m) % 2 != 0:
-        _log.warning(f"Radial polynomial is zero for these inputs: m={m}, n={n} "
-                  "(are you sure you wanted this Zernike?)")
+        _log.warning(f"Radial polynomial is zero for these inputs: n={n}, m={m} "
+                     "(are you sure you wanted this Zernike?)")
     _log.debug(f"Zernike(n={n}, m={m})")
 
     if theta is None and rho is None:
@@ -241,9 +270,23 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
     elif (theta is None and rho is not None) or (theta is not None and rho is None):
         raise ValueError("If you provide either the `theta` or `rho` input array, you must "
                          "provide both of them.")
-        
-    if not xp.all(xp.asarray(rho.shape == theta.shape)):
+
+    if rho.shape != theta.shape:
         raise ValueError('The rho and theta arrays do not have consistent shape.')
+
+    if (reuse_radial_polynomial == True
+        and _reusable_radial_polynomial['mode'] == (n, abs(m))
+        and np.array_equal(_reusable_radial_polynomial['rho'], rho)
+       ):
+        radial_poly = _reusable_radial_polynomial['value']
+
+        _log.debug('Zernike: reusing radial polynomial from mode '
+                   f"{_reusable_radial_polynomial['mode']}")
+    else:
+        radial_poly = R(n, m, rho)
+        _reusable_radial_polynomial['mode'] = (n, abs(m))
+        _reusable_radial_polynomial['rho'] = rho
+        _reusable_radial_polynomial['value'] = radial_poly
 
     aperture = (rho <= 1)
 
@@ -252,13 +295,13 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
             zernike_result = aperture
         else:
             norm_coeff = np.sqrt(n + 1) if noll_normalize else 1
-            zernike_result = norm_coeff * R(n, m, rho) * aperture
+            zernike_result = norm_coeff * radial_poly * aperture
     elif m > 0:
-        norm_coeff = np.sqrt(2) * np.sqrt(n + 1) if noll_normalize else 1
-        zernike_result = norm_coeff * R(n, m, rho) * xp.cos(np.abs(m) * theta) * aperture
+        norm_coeff = np.sqrt(2 * (n + 1)) if noll_normalize else 1
+        zernike_result = norm_coeff * radial_poly * xp.cos(np.abs(m) * theta) * aperture
     else:
-        norm_coeff = np.sqrt(2) * np.sqrt(n + 1) if noll_normalize else 1
-        zernike_result = norm_coeff * R(n, m, rho) * xp.sin(np.abs(m) * theta) * aperture
+        norm_coeff = np.sqrt(2 * (n + 1)) if noll_normalize else 1
+        zernike_result = norm_coeff * radial_poly * xp.sin(np.abs(m) * theta) * aperture
 
     zernike_result[(rho > 1)] = outside
     return zernike_result
@@ -292,7 +335,8 @@ def zernike1(j, **kwargs):
 
 
 @lru_cache
-def cached_zernike1(j, shape, pixelscale, pupil_radius, outside=np.nan, noll_normalize=True):
+def cached_zernike1(j, shape, pixelscale, pupil_radius, outside=np.nan,
+                    noll_normalize=True, reuse_radial_polynomial=False):
     """Compute Zernike based on Noll index *j*, using an LRU cache
     for efficiency. Refer to the `zernike1` docstring for details.
 
@@ -306,7 +350,9 @@ def cached_zernike1(j, shape, pixelscale, pupil_radius, outside=np.nan, noll_nor
     theta = xp.arctan2(y / pupil_radius, x / pupil_radius)
 
     n, m = noll_indices(j)
-    result = zernike(n, m, rho=rho, theta=theta, outside=outside, noll_normalize=noll_normalize)
+    result = zernike(n, m, rho=rho, theta=theta, outside=outside,
+                     noll_normalize=noll_normalize,
+                     reuse_radial_polynomial=reuse_radial_polynomial)
     result.flags.writeable = False  # don't let caller modify cached copy in-place
     return result
 
@@ -1119,7 +1165,7 @@ def decompose_opd_basis_matrix(opd, aperture=None, nterms=15, basis=zernike_basi
         coeffs = [binv[i, i] * fi for i, fi in enumerate(f)]
     else:
         coeffs = np.matmul(binv, f)
-        
+
     return coeffs
 
 
