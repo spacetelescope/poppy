@@ -24,7 +24,6 @@ Gram-Schmidt orthonormalization process as applied to this case is
 
 import inspect
 import logging
-import threading
 from functools import lru_cache
 from math import factorial
 
@@ -47,12 +46,9 @@ __all__ = [
 
 _log = logging.getLogger('poppy')
 
-# track threadsafe info to skip some radial polynomial calculations
+# track info to skip some radial polynomial calculations
 # (see zernike() docstring)
-_reusable_radial_polynomial = threading.local()
-_reusable_radial_polynomial.mode = None
-_reusable_radial_polynomial.rho = None
-_reusable_radial_polynomial.value = None
+_reusable_radial_polynomial = {'mode': None, 'rho': None, 'value': None}
 
 def _is_odd(integer):
     """Helper for testing if an integer is odd by bitwise & with 1."""
@@ -279,18 +275,18 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
         raise ValueError('The rho and theta arrays do not have consistent shape.')
 
     if (reuse_radial_polynomial == True
-        and _reusable_radial_polynomial.mode == (n, abs(m))
-        and np.array_equal(_reusable_radial_polynomial.rho, rho)
+        and _reusable_radial_polynomial['mode'] == (n, abs(m))
+        and np.array_equal(_reusable_radial_polynomial['rho'], rho)
        ):
-        radial_poly = _reusable_radial_polynomial.value
+        radial_poly = _reusable_radial_polynomial['value']
 
         _log.debug('Zernike: reusing radial polynomial from mode '
-                   f"{_reusable_radial_polynomial.mode}")
+                   f"{_reusable_radial_polynomial['mode']}")
     else:
         radial_poly = R(n, m, rho)
-        _reusable_radial_polynomial.mode = (n, abs(m))
-        _reusable_radial_polynomial.value = radial_poly
-        _reusable_radial_polynomial.rho = rho
+        _reusable_radial_polynomial['mode'] = (n, abs(m))
+        _reusable_radial_polynomial['rho'] = rho
+        _reusable_radial_polynomial['value'] = radial_poly
 
     aperture = (rho <= 1)
 
