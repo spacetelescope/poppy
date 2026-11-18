@@ -79,7 +79,7 @@ def test_piston_does_not_change_psf():
     Compare a complete propagated image with and without a piston term when the
     amplitude pupil extends beyond the Zernike radius, as in the Roman vignetted pupils.
     """
-    # Prior to #693, adding a non-zero Z1 could change the PSF when the illumination
+    # Prior to #694, adding a non-zero Z1 could change the PSF when the illumination
     # went past the Zernike radius. This shouldn't happen. Z1 is just an overall phase.
 
     # Check both with and without aperture_stop.
