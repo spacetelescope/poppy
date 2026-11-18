@@ -274,19 +274,20 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
     if rho.shape != theta.shape:
         raise ValueError('The rho and theta arrays do not have consistent shape.')
 
-    if (reuse_radial_polynomial == True
+    if (reuse_radial_polynomial is True
         and _reusable_radial_polynomial['mode'] == (n, abs(m))
         and np.array_equal(_reusable_radial_polynomial['rho'], rho)
-       ):
+    ):
         radial_poly = _reusable_radial_polynomial['value']
 
         _log.debug('Zernike: reusing radial polynomial from mode '
                    f"{_reusable_radial_polynomial['mode']}")
     else:
         radial_poly = R(n, m, rho)
-        _reusable_radial_polynomial['mode'] = (n, abs(m))
-        _reusable_radial_polynomial['rho'] = rho
-        _reusable_radial_polynomial['value'] = radial_poly
+        if reuse_radial_polynomial is True:
+            _reusable_radial_polynomial['mode'] = (n, abs(m))
+            _reusable_radial_polynomial['rho'] = rho
+            _reusable_radial_polynomial['value'] = radial_poly
 
     aperture = (rho <= 1)
 
