@@ -63,6 +63,22 @@ def test_cached_zernike1(nterms=10):
         assert id(array_ref) == id(cached_array_ref), "cached_zernike1 returned a new object for the same arguments"
 
 
+def test_zernike_outside_option():
+    """Test the use of the outside option to zernike.zernike1."""
+    # Defocus has the analytic form sqrt(3)*(2*rho^2-1), including beyond rho=1.
+    rho = np.array([0., 0.5, 1., 1.1])
+    theta = np.zeros_like(rho)
+    expected = np.sqrt(3)*(2*rho**2-1)
+    for outside in [None, 0., np.nan]:
+        actual = zernike.zernike1(4, rho=rho, theta=theta, outside=outside)
+        # First 3 terms always agree.
+        np.testing.assert_allclose(actual[:3], expected[:3], rtol=1.e-14, atol=0)
+        if outside is not None:
+            np.testing.assert_allclose(actual[3], outside, rtol=1.e-14, atol=0)
+        else:
+            np.testing.assert_allclose(actual[3], expected[3], rtol=1.e-14, atol=0)
+
+
 def _test_cross_zernikes(testj=4, nterms=10, npix=500):
     """Verify the functions are orthogonal, by taking the
     integrals of a given Zernike times N other ones.
