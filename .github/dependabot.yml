@@ -5,4 +5,17 @@ updates:
   schedule:
     interval: monthly
     time: "10:00"
-  open-pull-requests-limit: 10
+  groups:
+    actions:
+      patterns:
+        - "*"
+
+- package-ecosystem: github-actions
+  directory: ".github/workflows"
+  schedule:
+    interval: monthly
+    time: "10:00"
+  groups:
+    actions:
+      patterns:
+        - "*"
