@@ -1,0 +1,133 @@
+name: release
+
+on:
+  release:
+    types: [ released ]
+  workflow_dispatch:
+    inputs:
+      git_tag:
+        description: 'Target Git Tag'
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  validate:
+    if: (github.repository == 'spacetelescope/poppy') && (github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    outputs:
+      job_tag: ${{ steps.tag_name.outputs.tag }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # Fetches all history and tags
+      - name: Validate Tag Exists
+        id: tag_name
+        run: |
+          USER_TAG="${{ github.event.inputs.git_tag }}"
+          # Check if the tag exists in the repository
+          if git rev-parse --verify --quiet "refs/tags/$USER_TAG" > /dev/null; then
+            echo "✅ Tag '$USER_TAG' is valid."
+            echo "tag=refs/tags/$USER_TAG" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Error: Tag '$USER_TAG' does not exist in this repository."
+            exit 1
+          fi
+
+
+  build:
+    needs: [validate]
+    if: ${{ !cancelled() && (needs.validate.result == 'success' || needs.validate.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Release Tag From Release
+        if: (github.repository == 'spacetelescope/poppy') && (github.event_name == 'release')
+        run: |
+          echo "TAG=${{ github.ref }}" >> $GITHUB_ENV
+          echo "Release being made from ${{ github.ref }} "
+      - name: Get Release Tag from User
+        if: (github.repository == 'spacetelescope/poppy') && (github.event_name == 'workflow_dispatch')
+        run: |
+          echo "TAG=${{ needs.validate.outputs.job_tag }}" >> $GITHUB_ENV
+          echo "Release being made from ${{ github.ref }} "
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+          persist-credentials: false
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: 3
+
+      - name: Build the package
+        run: |
+          python -m pip install build twine
+          python -m build --sdist --wheel .
+          ls -lh dist
+          python -m twine check --strict dist/*
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: additional-pylons
+          path: dist/
+
+  publish-to-testpypi:
+    needs: [build]
+    if: ${{ !cancelled() && github.repository == 'spacetelescope/poppy' }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
+      attestations: write
+    # To add required reviewers before publish,
+    # edit the protection rules in GitHub Settings:
+    # Settings > Environments > pypi > Add required reviewers
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/poppy
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: additional-pylons*
+          path: dist/
+          merge-multiple: true
+
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: "dist/*"
+
+      # To upload to PyPI without a token, add this workflow file as a Trusted Publisher in the project settings on the PyPI website
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  publish-to-pypi:
+    needs: [build, publish-to-testpypi]
+    if: ${{ !cancelled() && github.repository == 'spacetelescope/poppy' }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
+      attestations: write
+    # To add required reviewers before publish,
+    # edit the protection rules in GitHub Settings:
+    # Settings > Environments > pypi > Add required reviewers
+    environment:
+      name: pypi
+      url: https://pypi.org/p/poppy
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: additional-pylons*
+          path: dist/
+          merge-multiple: true
+
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: "dist/*"
+
+      # To upload to PyPI without a token, add this workflow file as a Trusted Publisher in the project settings on the PyPI website
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
