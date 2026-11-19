@@ -225,39 +225,47 @@ class ZernikeWFE(WavefrontError):
             y, x = self.get_coordinates(wave)
             rho, theta = _wave_y_x_to_rho_theta(y, x, self.radius.to(u.meter).value)
 
-        combined_zernikes = xp.zeros(wave.shape, dtype=xp.float64)
-        for j, k in enumerate(self.coefficients, start=1):
-            k_in_m = k.to(u.meter).value
+        try:
+            combined_zernikes = xp.zeros(wave.shape, dtype=xp.float64)
+            for j, k in enumerate(self.coefficients, start=1):
+                k_in_m = k.to(u.meter).value
 
-            if has_offset_coords:
-                combined_zernikes += k_in_m * zernike.zernike1(
-                    j,
-                    rho=rho,
-                    theta=theta,
-                    outside=0.0,
-                    noll_normalize=True
-                )
-            else:
-                try:
-                    combined_zernikes += k_in_m * zernike.cached_zernike1(
-                        j,
-                        wave.shape,
-                        pixelscale_m,
-                        self.radius.to(u.meter).value,
-                        outside=0.0,
-                        noll_normalize=True
-                    )
-                except TypeError: # can't use cached_zernikes if the user changed between CPU and CuPy
-                    y, x = self.get_coordinates(wave)
-                    rho, theta = _wave_y_x_to_rho_theta(y, x, self.radius.to(u.meter).value)
-
+                if has_offset_coords:
                     combined_zernikes += k_in_m * zernike.zernike1(
                         j,
                         rho=rho,
                         theta=theta,
                         outside=0.0,
-                        noll_normalize=True
+                        noll_normalize=True,
+                        reuse_radial_polynomial=True
                     )
+                else:
+                    try:
+                        combined_zernikes += k_in_m * zernike.cached_zernike1(
+                            j,
+                            wave.shape,
+                            pixelscale_m,
+                            self.radius.to(u.meter).value,
+                            outside=0.0,
+                            noll_normalize=True,
+                            reuse_radial_polynomial=True
+                        )
+                    except TypeError: # can't use cached_zernikes if the user changed between CPU and CuPy
+                        y, x = self.get_coordinates(wave)
+                        rho, theta = _wave_y_x_to_rho_theta(y, x, self.radius.to(u.meter).value)
+
+                        combined_zernikes += k_in_m * zernike.zernike1(
+                            j,
+                            rho=rho,
+                            theta=theta,
+                            outside=0.0,
+                            noll_normalize=True,
+                            reuse_radial_polynomial=True
+                        )
+        finally:
+            # free memory by resetting dict used to speed up Zernike calculation
+            for k in zernike._reusable_radial_polynomial:
+                zernike._reusable_radial_polynomial[k] = None
 
         combined_zernikes[aperture_intensity==0] = 0
         return combined_zernikes

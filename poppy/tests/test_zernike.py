@@ -1,7 +1,8 @@
+import logging
 import numpy as np
 
 import poppy.accel_math
-from poppy import optics, poppy_core, zernike
+from poppy import optics, poppy_core, wfe, zernike
 from poppy.accel_math import xp as np
 import pytest
 
@@ -412,6 +413,62 @@ def test_ptt_basis(verbose=False, plot=False,
     assert np.allclose(random_ptt[wz], results[wz], atol=1e-6)
 
     return random_ptt, results, ptted_opd, ptted_v2
+
+
+def test_reusable_radial_dict_status(caplog):
+    """zernike._reusable_radial_polynomial is used to speed up certain Zernike
+    calculations. It should not be updated unless a dedicated zernike.zernike()
+    keyword argument is set to True. In such cases, its values must manually be
+    deleted after a Zernike calculation so they don't persist in memory.
+    """
+    caplog.set_level(logging.DEBUG)
+    npix = 16
+    n = 4
+    m = 0
+    reuse_log_start = 'Zernike: reusing radial polynomial'
+
+    # allow reuse of radial calculation. none should happen since reusable dict
+    # is not populated. dict should still be unpopulated afterward due to
+    # manual reset [mirroring usage in Zernike.WFE.get_opd()]
+    zernike.zernike(n, m, npix=npix, reuse_radial_polynomial=True)
+    for k in zernike._reusable_radial_polynomial:
+        zernike._reusable_radial_polynomial[k] = None
+    assert reuse_log_start not in caplog.text
+    assert all([value is None
+                for value in zernike._reusable_radial_polynomial.values()])
+
+    # allow reuse of radial calculation. none should happen since reusable dict
+    # is not populated beforehand. dict should remain populated afterward
+    zernike.zernike(n, m, npix=npix, reuse_radial_polynomial=True)
+    assert reuse_log_start not in caplog.text
+    assert not all([value is None
+                    for value in zernike._reusable_radial_polynomial.values()])
+
+    # allow reuse of radial calculation. *should* happen since reusable dict
+    # is populated beforehand and n, abs(m), and rho equal last run's values.
+    # dict should remain populated afterward
+    zernike.zernike(n, -m, npix=npix, reuse_radial_polynomial=True)
+    assert reuse_log_start in caplog.text
+    assert not all([value is None
+                    for value in zernike._reusable_radial_polynomial.values()])
+    caplog.clear()
+
+    # do not reuse radial calculations or involve the reusable dict despite the
+    # fact that the dict is populated (not an expected situation). dict remains
+    # populated afterward
+    zernike.zernike(n, m, npix=npix)
+    assert reuse_log_start not in caplog.text
+    assert not all([value is None
+                    for value in zernike._reusable_radial_polynomial.values()])
+
+    # allow reuse of radial calculation in intended context. check that it
+    # happens and that the dict returns to unpopulated status afterward
+    zwfe = wfe.ZernikeWFE(radius=npix**(1/4), coefficients=range(8))
+    wave = poppy_core.Wavefront(npix=npix)
+    zwfe.get_opd(wave)
+    assert 'Zernike: reusing radial polynomial' in caplog.text
+    assert all([value is None
+                for value in zernike._reusable_radial_polynomial.values()])
 
 
 def test_back_compatible_aliases():
