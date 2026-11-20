@@ -18,7 +18,8 @@ Now, 1.0 meters is a lot of OPD, so coefficients supplied to ZernikeWFE for real
 To construct a ZernikeWFE optical element, the following keyword arguments are used:
 
  * ``coefficients`` -- A sequence of coefficients in the 1-D ordering of Noll 1976. Note that the first element in Noll's indexing convention is :math:`j = 1`, but Python indices are numbered from 0, so ``coefficients[0]`` corresponds to the coefficient for :math:`j = 1`.
- * ``radius`` -- The radius in meters (in the pupil plane) which the Zernike unit disk covers. Transmission beyond this radius is cut off, just as with a circular aperture of the same radius, so choose one large enough to enclose the entire pupil area.
+ * ``radius`` -- The radius in meters (in the pupil plane) which the Zernike unit disk covers. This sets the polynomial normalization; by default the polynomials continue beyond this radius.
+ * ``aperture_stop`` -- If True, also block transmission beyond ``radius``. The default is False, so the amplitude pupil can be defined independently.
 
 Here's an example that creates a ZernikeWFE optic to apply zero piston, 30 nm RMS of "tip", and 200 nm RMS of "tilt" to an optical system with a 2 meter diameter pupil. ::
 
