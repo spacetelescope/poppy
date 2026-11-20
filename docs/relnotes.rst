@@ -5,6 +5,14 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+Unreleased
+----------
+
+ * Gaussian pointing jitter now retains the expected broadening when its width
+   is smaller than a PSF pixel. The Gaussian transfer function is applied using
+   a cosine expansion, preserving reflective image boundaries and total flux
+   (issue #685).
+
 1.2.0
 -----
 
