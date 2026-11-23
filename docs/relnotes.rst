@@ -5,6 +5,21 @@ Release Notes
 
 For a list of contributors, see :ref:`about`.
 
+1.2.1
+-----
+
+*2026 Nov 23*
+
+**What's Changed:**
+ * temporary stopgap workaround to conda being removed from ubuntu-latest with 26.04 by @mperrin in https://github.com/spacetelescope/poppy/pull/691
+ * Address display plot text and axis issues by @ojustino in https://github.com/spacetelescope/poppy/pull/689
+ * trivial cleanup of trailing whitespace by @mperrin in https://github.com/spacetelescope/poppy/pull/692
+ * Actions update by @BradleySappington in https://github.com/spacetelescope/poppy/pull/693
+ * Sped up zernike R() function by @ojustino in https://github.com/spacetelescope/poppy/pull/690
+ * create release.yml for updated release procedure and trusted publishing by @BradleySappington in https://github.com/spacetelescope/poppy/pull/695
+
+**Full Changelog**: https://github.com/spacetelescope/poppy/compare/v1.2.0...v1.2.1
+
 1.2.0
 -----
 
