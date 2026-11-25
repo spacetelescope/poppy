@@ -227,10 +227,11 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
         Image plane coordinates. `rho` should be 0 at the origin
         and 1.0 at the edge of the circular pupil. `theta` should be
         the angle in radians.
-    outside : float
+    outside : float or None
         Value for pixels outside the circular aperture (rho > 1).
         Default is `np.nan`, but you may also find it useful for this to
-        be 0.0 sometimes.
+        be 0.0 sometimes. If None, evaluate the polynomial without clipping
+        at rho = 1.
     noll_normalize : bool
         As defined in Noll et al. JOSA 1976, the Zernike definition is
         modified such that the integral of Z[n, m] * Z[n, m] over the
@@ -289,7 +290,7 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
             _reusable_radial_polynomial['rho'] = rho
             _reusable_radial_polynomial['value'] = radial_poly
 
-    aperture = (rho <= 1)
+    aperture = xp.ones_like(rho) if outside is None else (rho <= 1)
 
     if m == 0:
         if n == 0:
@@ -304,7 +305,8 @@ def zernike(n, m, npix=100, rho=None, theta=None, outside=np.nan,
         norm_coeff = np.sqrt(2 * (n + 1)) if noll_normalize else 1
         zernike_result = norm_coeff * radial_poly * xp.sin(np.abs(m) * theta) * aperture
 
-    zernike_result[(rho > 1)] = outside
+    if outside is not None:
+        zernike_result[(rho > 1)] = outside
     return zernike_result
 
 

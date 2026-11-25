@@ -73,6 +73,80 @@ def test_zernike_get_opd():
     assert np.max(opd_map) == NWAVES * WAVELENGTH
 
 
+def test_piston_does_not_change_psf():
+    """A uniform piston cannot change the intensity PSF of a larger pupil.
+
+    Compare a complete propagated image with and without a piston term when the
+    amplitude pupil extends beyond the Zernike radius, as in the Roman vignetted pupils.
+    """
+    # Prior to #694, adding a non-zero Z1 could change the PSF when the illumination
+    # went past the Zernike radius. This shouldn't happen. Z1 is just an overall phase.
+
+    # Check both with and without aperture_stop.
+    for aperture_stop in [False, True]:
+        # Make the reference with no piston term.
+        system = poppy_core.OpticalSystem(npix=64, oversample=2)
+        system.add_pupil(optics.CircularAperture(radius=1.2))
+        phase = wfe.ZernikeWFE(coefficients=[0.]*u.m, radius=1*u.m, aperture_stop=aperture_stop)
+        system.add_pupil(phase)
+        system.add_detector(pixelscale=0.02, fov_pixels=41)
+        reference = system.calc_psf(wavelength=1.e-6)[0].data
+
+        # Now add a piston term.
+        phase.coefficients = [250.e-9]*u.m
+        actual = system.calc_psf(wavelength=1.e-6)[0].data
+        np.testing.assert_allclose(actual, reference, rtol=1.e-10, atol=1.e-15)
+
+
+def test_zernike_phase_outside_radius():
+    """Check a Roman-like wavefront extends correctly beyond its normalization circle."""
+    # Representative Roman coefficients from stpsf-data-2.3.0:
+    # https://stsci.box.com/shared/static/6bddlzcocmty1fsvfgpxrbo2s836z90j.gz
+    # WFI/aberrations/F184_25fields_zernike_Z210_multiwavelength.csv,
+    # sca=7, fov=13 (chip center), wave=1842 nm. Keep Z1-Z22, rounded to 0.01 nm,
+    # with piston, tip, and tilt omitted as in STPSF.
+    coefficients = np.array([
+        0., 0., 0., -9.33, 6.71, 20.16, 17.68, -31.86, -6.66, 23.37,
+        -2.71, 1.10, 4.01, 5.07, 1.91, -3.64, 0.90, 1.24, 2.76, -1.32, 1.68, -2.36,
+    ]) * u.nm
+    radius = 1.181557
+    wave = poppy_core.Wavefront(npix=64, diam=3.)
+
+    # Check both cached evaluation and the shifted/rotated coordinate paths.
+    for transform in [{}, {'shift_x': 0.1}, {'rotation': 27}]:
+        optic = wfe.ZernikeWFE(coefficients=coefficients, radius=radius*u.m, **transform)
+        y, x = optic.get_coordinates(wave)
+        x = ensure_not_on_gpu(x)/radius
+        y = ensure_not_on_gpu(y)/radius
+        rho = np.hypot(x, y)
+        inside = rho <= 1
+        outside = rho > 1
+        opd = ensure_not_on_gpu(optic.get_opd(wave))
+
+        # Find the overall polynomial for these Zernike coefficients from the values inside the
+        # radius. This intentionally doesn't use the Poppy Zernike evaluator to find this
+        # polynomial. We'll just check that it continues past the radius boundary.
+        terms = [x**i*y**j for i in range(7) for j in range(7-i)]
+        matrix = np.column_stack([term[inside] for term in terms])
+        fitted = np.linalg.lstsq(matrix, opd[inside], rcond=None)[0]
+        expected = np.zeros_like(opd)
+        for coefficient, term in zip(fitted, terms):
+            expected += coefficient*term
+
+        # Check that the values outside the radius continue the same polynomials.
+        np.testing.assert_allclose(opd[outside], expected[outside], rtol=0, atol=1.e-18)
+        np.testing.assert_array_equal(ensure_not_on_gpu(optic.get_transmission(wave)), 1.)
+
+        # With an explicit aperture_stop, the values are zero outside the radius.
+        optic.aperture_stop = True
+        stopped_opd = ensure_not_on_gpu(optic.get_opd(wave))
+        transmission = ensure_not_on_gpu(optic.get_transmission(wave))
+        np.testing.assert_allclose(stopped_opd[inside], opd[inside], rtol=0, atol=1.e-18)
+        np.testing.assert_array_equal(stopped_opd[outside], 0.)
+        np.testing.assert_array_equal(transmission[inside], 1.)
+        np.testing.assert_array_equal(transmission[outside], 0.)
+
+
 def test_ParameterizedAberration():
     # verify that we can reproduce the same behavior as ZernikeAberration
     # using ParameterizedAberration
@@ -80,7 +154,10 @@ def test_ParameterizedAberration():
     WAVELENGTH = 1e-6
     RADIUS = 1.0
 
-    pupil = optics.CircularAperture(radius=RADIUS)
+    # ParameterizedWFE clips its basis at the normalization circle, whereas
+    # ZernikeWFE without an aperture stop continues beyond it. Use a hard pupil
+    # so this comparison samples only their common domain.
+    pupil = optics.CircularAperture(radius=RADIUS, gray_pixel=False)
 
     zern_wave = poppy_core.Wavefront(npix=NPIX, diam=DIAM, wavelength=1e-6)
     zernike_wfe = wfe.ZernikeWFE(
@@ -100,7 +177,8 @@ def test_ParameterizedAberration():
     pd_wave *= pupil
     pd_wave *= parameterized_distortion
 
-    xp.testing.assert_allclose(pd_wave.phase, zern_wave.phase,
+    # Compare complex fields: the phase of zero-amplitude pixels is arbitrary.
+    xp.testing.assert_allclose(pd_wave.wavefront, zern_wave.wavefront,
                                err_msg="ParameterizedAberration disagrees with ZernikeAberration")
 
 

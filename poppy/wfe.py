@@ -184,6 +184,10 @@ class ZernikeWFE(WavefrontError):
     radius : float
         Pupil radius, in meters, over which the Zernike terms should be
         computed such that rho = 1 at r = `radius`.
+    aperture_stop : bool
+        If True, block transmission beyond radius. If False (the default),
+        transmit the full wavefront and continue the Zernike polynomials
+        beyond the normalization circle.
     """
 
     @utils.quantity_input(coefficients=u.meter, radius=u.meter)
@@ -211,9 +215,7 @@ class ZernikeWFE(WavefrontError):
             scale, or a float giving the wavelength in meters
             for a temporary Wavefront used to compute the OPD.
         """
-        # the Zernike optic, being normalized on a circle, is
-        # implicitly also a circular aperture:
-        aperture_intensity = self.circular_aperture.get_transmission(wave)
+        outside = 0.0 if self.aperture_stop else None
 
         pixelscale_m = wave.pixelscale.to(u.meter / u.pixel).value
 
@@ -235,7 +237,7 @@ class ZernikeWFE(WavefrontError):
                         j,
                         rho=rho,
                         theta=theta,
-                        outside=0.0,
+                        outside=outside
                         noll_normalize=True,
                         reuse_radial_polynomial=True
                     )
@@ -246,7 +248,7 @@ class ZernikeWFE(WavefrontError):
                             wave.shape,
                             pixelscale_m,
                             self.radius.to(u.meter).value,
-                            outside=0.0,
+                            outside=outside,
                             noll_normalize=True,
                             reuse_radial_polynomial=True
                         )
@@ -258,7 +260,7 @@ class ZernikeWFE(WavefrontError):
                             j,
                             rho=rho,
                             theta=theta,
-                            outside=0.0,
+                            outside=outside,
                             noll_normalize=True,
                             reuse_radial_polynomial=True
                         )
@@ -267,7 +269,6 @@ class ZernikeWFE(WavefrontError):
             for k in zernike._reusable_radial_polynomial:
                 zernike._reusable_radial_polynomial[k] = None
 
-        combined_zernikes[aperture_intensity==0] = 0
         return combined_zernikes
 
 
