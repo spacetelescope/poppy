@@ -1009,7 +1009,7 @@ class FresnelWavefront(BaseWavefront):
                 # curvatures are multiplicative exponentials
                 # e^(1/z) = e^(1/x)*e^(1/y) = e^(1/x+1/y) -> 1/z = 1/x + 1/y
                 # z = 1/(1/x+1/y) = xy/x+y
-                z_eff = 1.0 / (1.0 / optic.fl + 1.0 / (self.z - self.z_w0))
+                z_eff = 1.0 / (1.0 / optic.fl + 1.0 / r_output_beam)
                 _log.debug('Inside Rayleigh distance to Outside Rayleigh distance.')
 
                 self.spherical = True
@@ -1022,9 +1022,9 @@ class FresnelWavefront(BaseWavefront):
                 _log.debug(f"1.0/(self.z-self.z_w0)={1.0 / (self.z - self.z_w0):0.4e}")
 
                 if (self.z - self.z_w0) == 0:
-                    z_eff = 1.0 / (1.0 / optic.fl + 1.0 / (self.z - self.z_w0))
+                    z_eff = 1.0 / (1.0 / optic.fl + 1.0 / r_output_beam)
                 else:
-                    z_eff = 1.0 / (1.0 / optic.fl + 1.0 / (self.z - self.z_w0) - 1.0 / r_input_beam)
+                    z_eff = 1.0 / (1.0 / optic.fl + 1.0 / r_output_beam - 1.0 / r_input_beam)
 
             else:
                 _log.debug('Spherical to Planar.')
